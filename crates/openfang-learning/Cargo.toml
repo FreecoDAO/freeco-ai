@@ -1,0 +1,35 @@
+[package]
+name = "openfang-learning"
+description = "Self-improving learning loop for OpenFang agents — inspired by Hermes Agent. Captures corrections, knowledge gaps, errors, and best practices, and promotes them to persistent memory."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Core workspace deps
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+# Async file I/O
+tokio-stream = { workspace = true }
+
+# Optional: integrate with openfang-memory for substrate-backed storage
+openfang-memory = { path = "../openfang-memory", optional = true }
+openfang-types = { path = "../openfang-types" }
+
+[features]
+default = []
+# Enable integration with the OpenFang memory substrate (SQLite + semantic store)
+memory-substrate = ["dep:openfang-memory"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+tempfile = "3"
