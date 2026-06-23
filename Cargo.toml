@@ -15,6 +15,14 @@ members = [
     "crates/openfang-hands",
     "crates/openfang-extensions",
     "crates/openfang-learning",
+    "crates/freeco-agent-core",
+    "crates/freeco-runtime",
+    "crates/freeco-tool-gateway",
+    "crates/freeco-budget-engine",
+    "crates/freeco-input-parser",
+    "crates/freeco-agent-shopping",
+    "crates/freeco-agent-secretary",
+    "crates/freeco-agent-ceo",
     "xtask",
 ]
 
@@ -156,6 +164,7 @@ openssl = { version = "0.10", features = ["vendored"] }
 # Testing
 tokio-test = "0.4"
 tempfile = "3"
+mockito = "1"
 
 [profile.release]
 lto = true

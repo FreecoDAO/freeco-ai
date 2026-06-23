@@ -1,0 +1,22 @@
+[package]
+name = "freeco-agent-secretary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository = "https://github.com/FreecoDAO/openfang"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+agent-core   = { package = "freeco-agent-core", path = "../freeco-agent-core" }
+tool-gateway = { package = "freeco-tool-gateway", path = "../freeco-tool-gateway" }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+thiserror    = { workspace = true }
+tracing      = { workspace = true }
+async-trait  = { workspace = true }
+
+[dev-dependencies]
+tokio   = { workspace = true }
+mockito = { workspace = true }
