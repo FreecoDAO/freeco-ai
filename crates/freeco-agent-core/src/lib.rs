@@ -24,6 +24,7 @@ pub mod context;
 pub mod error;
 pub mod learning;
 pub mod message;
+pub mod openfang_bridge;
 pub mod response;
 mod time_util;
 
@@ -33,4 +34,5 @@ pub use context::AgentContext;
 pub use error::AgentError;
 pub use learning::{LearningRecord, LearningStore, Outcome};
 pub use message::{Message, MessageContent, MessageRole, Priority};
+pub use openfang_bridge::{from_openfang_message, to_openfang_message, OpenFangAgentBridge};
 pub use response::{AgentResponse, RecommendedProduct, ResponseContent, ShoppingRecommendation};

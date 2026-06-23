@@ -5,41 +5,56 @@ use agent_core::{
     MessageContent,
 };
 use async_trait::async_trait;
+use openfang_runtime::kernel_handle::KernelHandle;
 
-use crate::manus_client::ManusClient;
 use crate::types::Directive;
 use agent_core::message::Priority;
 
-/// Freeco.AI CEO Agent — executive orchestration via Manus AI.
-///
-/// Accepts [`MessageContent::Directive`] and plain [`MessageContent::Text`].
-/// Returns an `ExecutiveDecision` response with a summary, reasoning, and
-/// prioritised action items (some of which may be delegated to other agents).
+/// Freeco.AI CEO Agent — native executive routing via OpenFang kernel handle.
 pub struct CeoAgent {
     id: String,
-    manus: Arc<ManusClient>,
+    kernel: Option<Arc<dyn KernelHandle>>,
 }
 
 impl CeoAgent {
     /// Create a CEO agent.
-    ///
-    /// Pass `None` for `manus_api_key` to run in stub mode (no API call).
-    pub fn new(id: impl Into<String>, manus_api_key: Option<String>) -> Self {
+    pub fn new(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
-            manus: Arc::new(ManusClient::new(manus_api_key)),
+            kernel: None,
         }
     }
 
-    /// Override the Manus API base URL — used in tests.
-    pub fn with_manus_base_url(mut self, url: impl Into<String>) -> Self {
-        self.manus = Arc::new(
-            ManusClient::new(Some("test-key".into())).with_base_url(url),
-        );
+    /// Attach a kernel handle to enable native task posting and discovery.
+    pub fn with_kernel_handle(mut self, kernel: Arc<dyn KernelHandle>) -> Self {
+        self.kernel = Some(kernel);
         self
     }
-}
 
+    fn infer_delegations(&self, instruction: &str) -> Vec<(String, String)> {
+        let mut out = Vec::new();
+        let lowered = instruction.to_lowercase();
+        if lowered.contains("shop") || lowered.contains("buy") || lowered.contains("product") {
+            out.push((
+                "shopping".to_string(),
+                "Prepare a 3-tier recommendation with sustainability analysis".to_string(),
+            ));
+        }
+        if lowered.contains("route") || lowered.contains("classify") || lowered.contains("intent") {
+            out.push((
+                "secretary".to_string(),
+                "Classify intent and route to the right specialist".to_string(),
+            ));
+        }
+        if out.is_empty() {
+            out.push((
+                "secretary".to_string(),
+                "Triage directive and propose delegation plan".to_string(),
+            ));
+        }
+        out
+    }
+}
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -49,7 +64,7 @@ impl Agent for CeoAgent {
     }
 
     fn name(&self) -> &str {
-        "Freeco CEO Agent (Manus AI)"
+        "Freeco CEO Agent"
     }
 
     fn capabilities(&self) -> Vec<Capability> {
@@ -90,27 +105,31 @@ impl Agent for CeoAgent {
             "CEO directive received"
         );
 
-        let decision = self
-            .manus
-            .submit_directive(&directive)
-            .await
-            .map_err(|e| AgentError::Internal(e.to_string()))?;
+        let delegations = self.infer_delegations(&directive.instruction);
+        let mut actions = Vec::new();
+        actions.push(format!("Priority set to {:?}", directive.priority));
+        actions.push("Compile execution plan and checkpoints".to_string());
+        for (target, task) in &delegations {
+            actions.push(format!("Delegate to {target}: {task}"));
+        }
 
-        let actions: Vec<String> = decision.actions.iter().map(|a| a.description.clone()).collect();
-        let delegations: Vec<(String, String)> = decision
-            .actions
-            .iter()
-            .filter_map(|a| {
-                a.delegate_to
-                    .as_ref()
-                    .map(|d| (d.clone(), a.description.clone()))
-            })
-            .collect();
+        if let Some(kernel) = &self.kernel {
+            for (target, task) in &delegations {
+                let _ = kernel
+                    .task_post(
+                        &format!("CEO delegation → {target}"),
+                        task,
+                        Some(target),
+                        Some(&self.id),
+                    )
+                    .await;
+            }
+        }
 
         Ok(AgentResponse::executive_decision(
             msg.id,
             &self.id,
-            decision.summary,
+            format!("Executive directive accepted: {}", directive.instruction),
             actions,
             delegations,
         ))
@@ -121,11 +140,10 @@ impl Agent for CeoAgent {
 mod tests {
     use super::*;
     use agent_core::ResponseContent;
-    use mockito::Server;
 
     #[tokio::test]
-    async fn stub_mode_returns_executive_decision() {
-        let agent = CeoAgent::new("agent-ceo", None);
+    async fn returns_executive_decision_for_directive() {
+        let agent = CeoAgent::new("agent-ceo");
         let ctx = AgentContext::new("agent-ceo", "user-1");
         let msg = Message::directive("d-1", "agent-ceo", "launch new product line", Priority::High);
         let resp = agent.handle(&ctx, msg).await.unwrap();
@@ -142,7 +160,7 @@ mod tests {
 
     #[tokio::test]
     async fn plain_text_treated_as_normal_priority_directive() {
-        let agent = CeoAgent::new("agent-ceo", None);
+        let agent = CeoAgent::new("agent-ceo");
         let ctx = AgentContext::new("agent-ceo", "u");
         let msg = Message::user_text("m-1", "agent-ceo", "review Q3 budget");
         let resp = agent.handle(&ctx, msg).await.unwrap();
@@ -150,41 +168,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn live_mode_with_mock_api() {
-        let mut server = Server::new_async().await;
-        let _mock = server
-            .mock("POST", mockito::Matcher::Any)
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(serde_json::json!({
-                "output": {
-                    "summary": "Product line approved",
-                    "reasoning": "Strong market demand",
-                    "actions": [
-                        {"description": "Brief marketing team", "delegate_to": null}
-                    ]
-                }
-            }).to_string())
-            .create_async()
-            .await;
-
-        let agent = CeoAgent::new("agent-ceo", None)
-            .with_manus_base_url(server.url());
-
-        let ctx = AgentContext::new("agent-ceo", "u");
-        let msg = Message::directive("d-1", "agent-ceo", "approve product launch", Priority::Normal);
-        let resp = agent.handle(&ctx, msg).await.unwrap();
-        if let ResponseContent::ExecutiveDecision { summary, actions, .. } = resp.content {
-            assert_eq!(summary, "Product line approved");
-            assert_eq!(actions.len(), 1);
-        } else {
-            panic!("expected ExecutiveDecision");
-        }
-    }
-
-    #[tokio::test]
     async fn unsupported_message_returns_error() {
-        let agent = CeoAgent::new("agent-ceo", None);
+        let agent = CeoAgent::new("agent-ceo");
         let ctx = AgentContext::new("agent-ceo", "u");
         let msg = Message {
             id: "m".into(),

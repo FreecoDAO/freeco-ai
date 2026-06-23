@@ -12,6 +12,7 @@ repository = "https://github.com/FreecoDAO/openfang"
 agent-core    = { package = "freeco-agent-core", path = "../freeco-agent-core" }
 budget-engine = { package = "freeco-budget-engine", path = "../freeco-budget-engine" }
 tool-gateway  = { package = "freeco-tool-gateway", path = "../freeco-tool-gateway" }
+openfang-runtime = { path = "../openfang-runtime" }
 tokio         = { workspace = true }
 serde         = { workspace = true }
 serde_json    = { workspace = true }

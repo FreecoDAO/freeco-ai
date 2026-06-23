@@ -45,6 +45,7 @@ pub struct ShoppingRecommendation {
 
 /// Typed payload returned by `Agent::handle`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum ResponseContent {
     /// Plain text answer.

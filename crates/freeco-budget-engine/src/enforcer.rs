@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn under_limit_is_ok() {
-        let e = BudgetEnforcer::default();
+        let e = BudgetEnforcer;
         assert!(e
             .check("agent-1", "user-1", 1_000, SubscriptionTier::Concierge)
             .is_ok());
@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn exactly_at_limit_is_exceeded() {
-        let e = BudgetEnforcer::default();
+        let e = BudgetEnforcer;
         let limit = SubscriptionTier::Free.monthly_token_limit();
         let err = e
             .check("agent-1", "user-1", limit, SubscriptionTier::Free)
@@ -50,7 +50,7 @@ mod tests {
 
     #[test]
     fn over_limit_is_exceeded() {
-        let e = BudgetEnforcer::default();
+        let e = BudgetEnforcer;
         let err = e
             .check("agent-x", "user-x", 999_999_999, SubscriptionTier::Business)
             .unwrap_err();
@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn zero_tokens_is_ok() {
-        let e = BudgetEnforcer::default();
+        let e = BudgetEnforcer;
         assert!(e
             .check("agent-1", "user-1", 0, SubscriptionTier::Free)
             .is_ok());
@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn exceeded_error_contains_ids() {
-        let e = BudgetEnforcer::default();
+        let e = BudgetEnforcer;
         let err = e
             .check("my-agent", "my-user", 100_000, SubscriptionTier::Free)
             .unwrap_err();

@@ -1,0 +1,25 @@
+name = "shopping"
+version = "0.1.0"
+description = "Freeco shopping concierge agent for product research and recommendations."
+author = "FreecoDAO"
+module = "builtin:chat"
+tags = ["freeco", "shopping", "concierge"]
+
+[model]
+provider = "default"
+model = "default"
+max_tokens = 8192
+temperature = 0.4
+system_prompt = "You are the Freeco shopping concierge. Produce budget, value, and luxury options with concise rationale."
+
+[resources]
+max_llm_tokens_per_hour = 180000
+max_concurrent_tools = 6
+
+[capabilities]
+tools = ["web_fetch", "agent_send"]
+network = ["*"]
+memory_read = ["*"]
+memory_write = ["self.*", "shared.*"]
+agent_message = ["*"]
+shell = []

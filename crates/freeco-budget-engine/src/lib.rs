@@ -9,7 +9,7 @@
 //! # Usage
 //!
 //! ```no_run
-//! use budget_engine::{BudgetEngine, SubscriptionTier};
+//! use freeco_budget_engine::{BudgetEngine, SubscriptionTier};
 //!
 //! let engine = BudgetEngine::open("/var/lib/openfang/budget.db").unwrap();
 //!
@@ -44,14 +44,14 @@ impl BudgetEngine {
     /// Open (or create) the SQLite budget database at `db_path`.
     pub fn open(db_path: impl AsRef<Path>) -> Result<Self, BudgetError> {
         let ledger = BudgetLedger::open(db_path)?;
-        let enforcer = BudgetEnforcer::default();
+        let enforcer = BudgetEnforcer;
         Ok(Self { ledger, enforcer })
     }
 
     /// In-memory engine — useful for tests.
     pub fn in_memory() -> Result<Self, BudgetError> {
         let ledger = BudgetLedger::in_memory()?;
-        let enforcer = BudgetEnforcer::default();
+        let enforcer = BudgetEnforcer;
         Ok(Self { ledger, enforcer })
     }
 

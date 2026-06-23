@@ -11,7 +11,7 @@
 //! ```no_run
 //! # #[tokio::main]
 //! # async fn main() {
-//! use input_parser::{InputParser, InputSource};
+//! use freeco_input_parser::{InputParser, InputSource};
 //!
 //! let parser = InputParser::new("google-vision-api-key");
 //!

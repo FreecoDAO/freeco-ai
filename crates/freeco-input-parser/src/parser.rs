@@ -165,7 +165,6 @@ fn extract_quantity_unit(s: &str) -> (f32, String, &str) {
     }
 
     let qty: f32 = s[..num_end].parse().unwrap_or(1.0);
-    let unit_end;
 
     // Collect letters immediately after the number (unit like "L", "kg", "g", "pcs")
     let remainder = &s[num_end..];
@@ -174,12 +173,12 @@ fn extract_quantity_unit(s: &str) -> (f32, String, &str) {
         .take_while(|c| c.is_alphabetic())
         .collect();
 
-    if !unit_chars.is_empty() && unit_chars.len() <= 4 {
-        unit_end = num_end + unit_chars.len();
+    let unit_end = if !unit_chars.is_empty() && unit_chars.len() <= 4 {
+        num_end + unit_chars.len()
     } else {
         // No attached unit — number was a standalone quantity
         return (qty, String::new(), s[num_end..].trim_start());
-    }
+    };
 
     let after_unit = s[unit_end..].trim_start();
     (qty, unit_chars, after_unit)
