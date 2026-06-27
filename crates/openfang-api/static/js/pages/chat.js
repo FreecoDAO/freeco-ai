@@ -1,4 +1,4 @@
-// OpenFang Chat Page — Agent chat with markdown + streaming
+// FreEco.ai Chat Page — Agent chat with markdown + streaming
 'use strict';
 
 function chatPage() {

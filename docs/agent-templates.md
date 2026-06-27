@@ -1,6 +1,6 @@
 # Agent Templates Catalog
 
-OpenFang ships with **30 pre-built agent templates** organized into 4 performance tiers. Each template is a ready-to-spawn `agent.toml` manifest located in the `agents/` directory. Templates cover software engineering, business operations, personal productivity, and everyday tasks.
+FreEco.ai ships with **30 pre-built agent templates** organized into 4 performance tiers. Each template is a ready-to-spawn `agent.toml` manifest located in the `agents/` directory. Templates cover software engineering, business operations, personal productivity, and everyday tasks.
 
 ## Quick Start
 
@@ -452,7 +452,7 @@ openfang spawn devops-lead
 
 **Tier 3 -- Balanced** | `groq/llama-3.3-70b-versatile` | Fallback: `gemini/gemini-2.0-flash`
 
-> General-purpose assistant. The default OpenFang agent for everyday tasks, questions, and conversations.
+> General-purpose assistant. The default FreEco.ai agent for everyday tasks, questions, and conversations.
 
 The versatile default agent covering conversational intelligence, task execution, research and synthesis, writing and communication, problem solving, agent delegation (routes specialized tasks to the right specialist), knowledge management, and creative brainstorming. Acts as the user's trusted first point of contact -- handles most tasks directly and delegates to specialists when they would do better.
 

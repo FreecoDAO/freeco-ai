@@ -73,7 +73,7 @@ const AFTER_HELP: &str = "\
   openfang doctor               Run diagnostic health checks
   openfang channel setup        Interactive channel setup wizard
   openfang cron list            List scheduled jobs
-  openfang uninstall            Completely remove OpenFang from your system
+  openfang uninstall            Completely remove FreEco.ai from your system
 
 \x1b[1;36mQuick Start:\x1b[0m
   1. openfang init              Set up config + API key
@@ -84,13 +84,13 @@ const AFTER_HELP: &str = "\
   Docs:       https://github.com/RightNow-AI/openfang
   Dashboard:  http://127.0.0.1:4200/ (when daemon is running)";
 
-/// OpenFang — the open-source Agent Operating System.
+/// FreEco.ai — the open-source Agent Operating System.
 #[derive(Parser)]
 #[command(
     name = "openfang",
     version,
-    about = "\u{1F40D} OpenFang \u{2014} Open-source Agent Operating System",
-    long_about = "\u{1F40D} OpenFang \u{2014} Open-source Agent Operating System\n\n\
+    about = "\u{1F40D} FreEco.ai \u{2014} Open-source Agent Operating System",
+    long_about = "\u{1F40D} FreEco.ai \u{2014} Open-source Agent Operating System\n\n\
                   Deploy, manage, and orchestrate AI agents from your terminal.\n\
                   40 channels \u{00b7} 60 skills \u{00b7} 50+ models \u{00b7} infinite possibilities.",
     after_help = AFTER_HELP,
@@ -287,7 +287,7 @@ enum Commands {
         #[arg(long)]
         confirm: bool,
     },
-    /// Completely uninstall OpenFang from your system.
+    /// Completely uninstall FreEco.ai from your system.
     Uninstall {
         /// Skip confirmation prompt (also --yes).
         #[arg(long, alias = "yes")]
@@ -1309,7 +1309,7 @@ fn cmd_init_quick(openfang_dir: &std::path::Path) {
     write_config_if_missing(openfang_dir, provider, model, api_key_env);
 
     ui::blank();
-    ui::success("OpenFang initialized (quick mode)");
+    ui::success("FreEco.ai initialized (quick mode)");
     ui::kv("Provider", provider);
     ui::kv("Model", model);
     ui::blank();
@@ -1332,7 +1332,7 @@ fn cmd_init_interactive(openfang_dir: &std::path::Path) {
         } => {
             // Print summary after TUI restores terminal
             ui::blank();
-            ui::success("OpenFang initialized!");
+            ui::success("FreEco.ai initialized!");
             ui::kv("Provider", &provider);
             ui::kv("Model", &model);
 
@@ -1391,7 +1391,7 @@ fn launch_desktop_app(_openfang_dir: &std::path::Path) {
 
     match desktop_bin {
         Some(ref path) if path.exists() => {
-            ui::success("Launching OpenFang Desktop...");
+            ui::success("Launching FreEco.ai Desktop...");
             match std::process::Command::new(path)
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
@@ -1521,7 +1521,7 @@ fn write_config_if_missing(
         ui::check_ok(&format!("Config already exists: {}", config_path.display()));
     } else {
         let default_config = format!(
-            r#"# OpenFang Agent OS configuration
+            r#"# FreEco.ai Agent OS configuration
 # See https://github.com/RightNow-AI/openfang for documentation
 
 # For Docker, change to "0.0.0.0:4200" or set OPENFANG_LISTEN env var.
@@ -1610,7 +1610,7 @@ fn cmd_start(config: Option<PathBuf>, yolo: bool) {
         }
 
         ui::blank();
-        println!("  OpenFang daemon stopped.");
+        println!("  FreEco.ai daemon stopped.");
     });
 }
 
@@ -1708,7 +1708,7 @@ fn boot_kernel_error(e: &openfang_kernel::error::KernelError) {
     } else if msg.contains("database") || msg.contains("locked") || msg.contains("sqlite") {
         ui::error_with_fix(
             "Database error (file may be locked)",
-            "Check if another OpenFang process is running: openfang status",
+            "Check if another FreEco.ai process is running: openfang status",
         );
     } else if msg.contains("key") || msg.contains("API") || msg.contains("auth") {
         ui::error_with_fix(
@@ -2048,7 +2048,7 @@ fn cmd_status(config: Option<PathBuf>, json: bool) {
             return;
         }
 
-        ui::section("OpenFang Daemon Status");
+        ui::section("FreEco.ai Daemon Status");
         ui::blank();
         ui::kv_ok("Status", body["status"].as_str().unwrap_or("?"));
         ui::kv(
@@ -2101,7 +2101,7 @@ fn cmd_status(config: Option<PathBuf>, json: bool) {
             return;
         }
 
-        ui::section("OpenFang Status (in-process)");
+        ui::section("FreEco.ai Status (in-process)");
         ui::blank();
         ui::kv("Agents", &agent_count.to_string());
         ui::kv("Provider", &kernel.config.default_model.provider);
@@ -2127,7 +2127,7 @@ fn cmd_doctor(json: bool, repair: bool) {
     let mut repaired = false;
 
     if !json {
-        ui::step("OpenFang Doctor");
+        ui::step("FreEco.ai Doctor");
         println!();
     }
 
@@ -2138,12 +2138,12 @@ fn cmd_doctor(json: bool, repair: bool) {
         // --- Check 1: OpenFang directory ---
         if openfang_dir.exists() {
             if !json {
-                ui::check_ok(&format!("OpenFang directory: {}", openfang_dir.display()));
+                ui::check_ok(&format!("FreEco.ai directory: {}", openfang_dir.display()));
             }
             checks.push(serde_json::json!({"check": "openfang_dir", "status": "ok", "path": openfang_dir.display().to_string()}));
         } else if repair {
             if !json {
-                ui::check_fail("OpenFang directory not found.");
+                ui::check_fail("FreEco.ai directory not found.");
             }
             let answer = prompt_input("    Create it now? [Y/n] ");
             if answer.is_empty() || answer.starts_with('y') || answer.starts_with('Y') {
@@ -2153,7 +2153,7 @@ fn cmd_doctor(json: bool, repair: bool) {
                         let _ = std::fs::create_dir_all(openfang_dir.join(sub));
                     }
                     if !json {
-                        ui::check_ok("Created OpenFang directory");
+                        ui::check_ok("Created FreEco.ai directory");
                     }
                     repaired = true;
                 } else {
@@ -2168,7 +2168,7 @@ fn cmd_doctor(json: bool, repair: bool) {
             checks.push(serde_json::json!({"check": "openfang_dir", "status": if repaired { "repaired" } else { "fail" }}));
         } else {
             if !json {
-                ui::check_fail("OpenFang directory not found. Run `openfang init` first.");
+                ui::check_fail("FreEco.ai directory not found. Run `openfang init` first.");
             }
             checks.push(serde_json::json!({"check": "openfang_dir", "status": "fail"}));
             all_ok = false;
@@ -2249,7 +2249,7 @@ fn cmd_doctor(json: bool, repair: bool) {
             if answer.is_empty() || answer.starts_with('y') || answer.starts_with('Y') {
                 let (provider, api_key_env, model) = detect_best_provider();
                 let default_config = format!(
-                    r#"# OpenFang Agent OS configuration
+                    r#"# FreEco.ai Agent OS configuration
 # See https://github.com/RightNow-AI/openfang for documentation
 
 # For Docker, change to "0.0.0.0:4200" or set OPENFANG_LISTEN env var.
@@ -3019,7 +3019,7 @@ decay_rate = 0.05
     } else {
         println!();
         if all_ok {
-            ui::success("All checks passed! OpenFang is ready.");
+            ui::success("All checks passed! FreEco.ai is ready.");
             if find_daemon().is_none() {
                 ui::hint("Start the daemon: openfang start");
             }
@@ -3857,7 +3857,7 @@ capabilities = []
     let entry_content = match runtime.as_str() {
         "python" => format!(
             r#"#!/usr/bin/env python3
-"""OpenFang skill: {name}"""
+"""FreEco.ai skill: {name}"""
 import json
 import sys
 
@@ -6546,7 +6546,7 @@ fn cmd_devices_pair() {
         ui::section("Device Pairing");
         ui::blank();
         // Render a simple text-based QR representation
-        println!("  Scan this QR code with the OpenFang mobile app:");
+        println!("  Scan this QR code with the FreEco.ai mobile app:");
         ui::blank();
         println!("  {qr}");
         ui::blank();
@@ -6712,7 +6712,7 @@ fn cmd_system_info(json: bool) {
             );
             return;
         }
-        ui::section("OpenFang System Info");
+        ui::section("FreEco.ai System Info");
         ui::blank();
         ui::kv("Version", env!("CARGO_PKG_VERSION"));
         ui::kv("Status", body["status"].as_str().unwrap_or("?"));
@@ -6739,7 +6739,7 @@ fn cmd_system_info(json: bool) {
             );
             return;
         }
-        ui::section("OpenFang System Info");
+        ui::section("FreEco.ai System Info");
         ui::blank();
         ui::kv("Version", env!("CARGO_PKG_VERSION"));
         ui::kv_warn("Daemon", "NOT RUNNING");
@@ -6801,7 +6801,7 @@ fn cmd_uninstall(confirm: bool, keep_config: bool) {
     println!();
     println!(
         "  {}",
-        "This will completely uninstall OpenFang from your system."
+        "This will completely uninstall FreEco.ai from your system."
             .bold()
             .red()
     );
@@ -6899,7 +6899,7 @@ fn cmd_uninstall(confirm: bool, keep_config: bool) {
     }
 
     println!();
-    ui::success("OpenFang has been uninstalled. Goodbye!");
+    ui::success("FreEco.ai has been uninstalled. Goodbye!");
 }
 
 /// Remove auto-start / launch-agent / systemd entries.

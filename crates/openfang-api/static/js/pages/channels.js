@@ -1,4 +1,4 @@
-// OpenFang Channels Page — OpenClaw-style setup UX with QR code support
+// FreEco.ai Channels Page — OpenClaw-style setup UX with QR code support
 'use strict';
 
 function channelsPage() {
