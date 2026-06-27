@@ -57,11 +57,32 @@ impl ShoppingList {
 }
 
 fn dominant_language(items: &[ShoppingItem]) -> Language {
-    let fr_count = items.iter().filter(|i| i.language == Language::French).count();
-    if fr_count * 2 >= items.len() && !items.is_empty() {
-        Language::French
-    } else {
-        Language::English
+    if items.is_empty() {
+        return Language::English;
+    }
+    let mut counts = [0usize; 5]; // English, French, Russian, Ukrainian, Spanish
+    for item in items {
+        match item.language {
+            Language::English => counts[0] += 1,
+            Language::French => counts[1] += 1,
+            Language::Russian => counts[2] += 1,
+            Language::Ukrainian => counts[3] += 1,
+            Language::Spanish => counts[4] += 1,
+        }
+    }
+    // Return the language with the most items; English wins ties.
+    let max_idx = counts
+        .iter()
+        .enumerate()
+        .max_by_key(|&(_, &v)| v)
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+    match max_idx {
+        1 => Language::French,
+        2 => Language::Russian,
+        3 => Language::Ukrainian,
+        4 => Language::Spanish,
+        _ => Language::English,
     }
 }
 
