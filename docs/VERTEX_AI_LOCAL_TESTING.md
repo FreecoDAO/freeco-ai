@@ -20,7 +20,7 @@ This automatically:
 - Sets `GOOGLE_APPLICATION_CREDENTIALS`
 - Pre-fetches OAuth token via `gcloud auth print-access-token`
 - Sets `VERTEX_AI_ACCESS_TOKEN` env var
-- Starts OpenFang
+- Starts FreEco.ai
 
 ### Option 2: Manual PowerShell Setup
 
@@ -36,7 +36,7 @@ $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\Users\at384\Downloads\osc\dbg-grcit-de
 # 3. Pre-fetch OAuth token (IMPORTANT: avoids subprocess issues on Windows)
 $env:VERTEX_AI_ACCESS_TOKEN = gcloud auth print-access-token
 
-# 4. Start OpenFang
+# 4. Start FreEco.ai
 cd C:\Users\at384\Downloads\osc\dllm\openfang
 .\target\debug\openfang.exe start
 ```
@@ -65,7 +65,7 @@ $response = Invoke-RestMethod -Uri "http://127.0.0.1:50051/v1/chat/completions" 
 Write-Host $response.choices[0].message.content
 ```
 
-### Direct Vertex AI Test (Bypass OpenFang)
+### Direct Vertex AI Test (Bypass FreEco.ai)
 
 ```powershell
 $env:HTTPS_PROXY = ""
@@ -120,7 +120,7 @@ $env:VERTEX_AI_ACCESS_TOKEN = gcloud auth print-access-token
 
 ### "Connection refused"
 
-**Cause:** OpenFang not running or wrong port.
+**Cause:** FreEco.ai not running or wrong port.
 
 **Solution:** Ensure server is running on port 50051:
 ```powershell

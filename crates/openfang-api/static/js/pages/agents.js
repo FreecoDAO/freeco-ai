@@ -1,4 +1,4 @@
-// OpenFang Agents Page — Multi-step spawn wizard, detail view with tabs, file editor, personality presets
+// FreEco.ai Agents Page — Multi-step spawn wizard, detail view with tabs, file editor, personality presets
 'use strict';
 
 /** Escape a string for use inside TOML triple-quoted strings ("""\n...\n""").
@@ -43,7 +43,7 @@ function agentsPage() {
     spawnProviders: [],       // populated from /api/providers on wizard open
     spawnProvidersLoading: false,
     spawnStep: 1,
-    spawnIdentity: { emoji: '', color: '#FF5C00', archetype: '' },
+    spawnIdentity: { emoji: '', color: '#0B3D2E', archetype: '' },
     selectedPreset: '',
     soulContent: '',
     emojiOptions: [
@@ -343,7 +343,7 @@ function agentsPage() {
         name: (agent && agent.name) || '',
         system_prompt: (agent && agent.system_prompt) || '',
         emoji: identity.emoji || '',
-        color: identity.color || '#FF5C00',
+        color: identity.color || '#0B3D2E',
         archetype: identity.archetype || '',
         vibe: identity.vibe || ''
       };
@@ -432,7 +432,7 @@ function agentsPage() {
       this.showSpawnModal = true;
       this.spawnStep = 1;
       this.spawnMode = 'wizard';
-      this.spawnIdentity = { emoji: '', color: '#FF5C00', archetype: '' };
+      this.spawnIdentity = { emoji: '', color: '#0B3D2E', archetype: '' };
       this.selectedPreset = '';
       this.soulContent = '';
       this.spawnForm.name = '';

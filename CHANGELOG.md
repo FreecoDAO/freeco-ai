@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated user-facing dashboard branding to display `FreEco.ai` in the sidebar header.
+- Updated documentation to explicitly state that FreEco.ai is built on the OpenFang base with ethical and structural enhancements.
+
 ## [0.5.10] - 2026-04-17
 
 ### Fixed
