@@ -1,6 +1,6 @@
 # FreEco.ai Architecture
 
-This document describes the internal architecture of FreEco.ai, the open-source Agent Operating System built in Rust. It covers the crate structure, kernel boot sequence, agent lifecycle, memory substrate, LLM driver abstraction, capability-based security model, the OFP wire protocol, the security hardening stack, the channel and skill systems, and the agent stability subsystems.
+This document describes the internal architecture of FreEco.ai, the open-source Agent Operating System built in Rust. FreEco.ai is built on the OpenFang base with ethical and structural enhancements. It covers the crate structure, kernel boot sequence, agent lifecycle, memory substrate, LLM driver abstraction, capability-based security model, the OFP wire protocol, the security hardening stack, the channel and skill systems, and the agent stability subsystems.
 
 ## Table of Contents
 

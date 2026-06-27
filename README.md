@@ -35,7 +35,7 @@
 
 ## What is FreEco.ai?
 
-FreEco.ai is an **open-source Agent Operating System**. Not a chatbot framework. Not a Python wrapper around an LLM. Not a "multi-agent orchestrator." A full operating system for autonomous agents, built from scratch in Rust.
+FreEco.ai is an **open-source Agent Operating System**. Not a chatbot framework. Not a Python wrapper around an LLM. Not a "multi-agent orchestrator." A full operating system for autonomous agents, built on the OpenFang base with ethical and structural enhancements.
 
 Traditional agent frameworks wait for you to type something. FreEco.ai runs **autonomous agents that work for you**: on schedules, 24/7, building knowledge graphs, monitoring targets, generating leads, managing your social media, and reporting results to your dashboard.
 
