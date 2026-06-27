@@ -1298,6 +1298,9 @@ pub struct KernelConfig {
     /// ```
     #[serde(default)]
     pub skills: HashMap<String, HashMap<String, String>>,
+    /// Freeco child-safety and persona configuration.
+    #[serde(default)]
+    pub freeco: FreecoConfig,
 }
 
 /// Heartbeat monitor settings exposed in `[heartbeat]` config section.
@@ -1317,6 +1320,51 @@ impl Default for HeartbeatSettings {
     fn default() -> Self {
         Self {
             default_timeout_secs: default_heartbeat_timeout(),
+        }
+    }
+}
+
+// ── Freeco child-safety configuration ────────────────────────────────────────
+
+/// Configuration for the Freeco child-safe AI companion persona.
+///
+/// All options default to safe values — no config entry is required for
+/// production deployments targeting children.
+///
+/// Example `~/.openfang/config.toml`:
+/// ```toml
+/// [freeco]
+/// safe_mode = true
+/// coding_enabled = false   # set to true after parental approval
+/// primary_language = "ru"  # ru | uk | es | en | fr
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FreecoConfig {
+    /// Enable kid-safe content filtering (blocks violent, sexual, drug, war,
+    /// and abusive topics). Defaults to `true`; set to `false` only for
+    /// adult/developer use-cases.
+    pub safe_mode: bool,
+    /// Allow coding, hacking, and technical programming topics.
+    /// Off by default — requires explicit parental approval to enable.
+    pub coding_enabled: bool,
+    /// BCP-47 primary language tag for Freeco responses.
+    /// Freeco auto-detects the child's language per message, but falls back
+    /// to this when detection is ambiguous.
+    /// Valid values: `"ru"` (default), `"uk"`, `"es"`, `"en"`, `"fr"`.
+    pub primary_language: String,
+}
+
+fn default_freeco_primary_language() -> String {
+    "ru".to_string()
+}
+
+impl Default for FreecoConfig {
+    fn default() -> Self {
+        Self {
+            safe_mode: true,
+            coding_enabled: false,
+            primary_language: default_freeco_primary_language(),
         }
     }
 }
@@ -1540,6 +1588,7 @@ impl Default for KernelConfig {
             workflows_dir: None,
             heartbeat: HeartbeatSettings::default(),
             skills: HashMap::new(),
+            freeco: FreecoConfig::default(),
         }
     }
 }
@@ -1659,6 +1708,15 @@ impl std::fmt::Debug for KernelConfig {
             )
             .field("auth", &format!("enabled={}", self.auth.enabled))
             .field("skills", &format!("{} skill config(s)", self.skills.len()))
+            .field(
+                "freeco",
+                &format!(
+                    "safe_mode={} coding_enabled={} lang={}",
+                    self.freeco.safe_mode,
+                    self.freeco.coding_enabled,
+                    self.freeco.primary_language
+                ),
+            )
             .finish()
     }
 }
