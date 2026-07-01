@@ -3117,11 +3117,15 @@ pub async fn whatsapp_qr_status(
     }
 
     let session_id = params.get("session_id").cloned().unwrap_or_default();
-    let status_url = format!(
-        "{}/login/status?session_id={}",
-        gateway_url.trim_end_matches('/'),
-        session_id
-    );
+    let status_url = match whatsapp_gateway_status_url(&gateway_url, &session_id) {
+        Some(url) => url,
+        None => {
+            return Json(serde_json::json!({
+                "connected": false,
+                "message": "Gateway unavailable"
+            }));
+        }
+    };
 
     match gateway_http_get(&status_url).await {
         Ok(body) => {
@@ -3145,6 +3149,16 @@ pub async fn whatsapp_qr_status(
         }
         Err(_) => Json(serde_json::json!({ "connected": false, "message": "Gateway unreachable" })),
     }
+}
+
+fn whatsapp_gateway_status_url(gateway_url: &str, session_id: &str) -> Option<String> {
+    let mut url = reqwest::Url::parse(&format!(
+        "{}/login/status",
+        gateway_url.trim_end_matches('/')
+    ))
+    .ok()?;
+    url.query_pairs_mut().append_pair("session_id", session_id);
+    Some(url.into())
 }
 
 /// Lightweight HTTP POST to a gateway URL. Returns parsed JSON body.
@@ -12736,6 +12750,32 @@ mod channel_config_tests {
                 .unwrap()
                 .required
         );
+    }
+}
+
+#[cfg(test)]
+mod whatsapp_gateway_tests {
+    use super::*;
+
+    #[test]
+    fn whatsapp_qr_status_url_encodes_session_id() {
+        let url = whatsapp_gateway_status_url(
+            "http://127.0.0.1:3009/",
+            "abc\r\nX-Injected: value&next=yes",
+        )
+        .unwrap();
+
+        assert_eq!(
+            url,
+            "http://127.0.0.1:3009/login/status?session_id=abc%0D%0AX-Injected%3A+value%26next%3Dyes"
+        );
+        assert!(!url.contains('\r'));
+        assert!(!url.contains('\n'));
+    }
+
+    #[test]
+    fn whatsapp_qr_status_url_rejects_invalid_gateway_url() {
+        assert!(whatsapp_gateway_status_url("not a url", "abc").is_none());
     }
 }
 
