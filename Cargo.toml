@@ -23,6 +23,7 @@ members = [
     "crates/freeco-agent-shopping",
     "crates/freeco-agent-secretary",
     "crates/freeco-agent-ceo",
+    "crates/freeco-content-filter",
     "xtask",
 ]
 

@@ -27,6 +27,14 @@ pub enum Capability {
     NutritionAnalysis,
     /// Personalised wellness coaching recommendations.
     WellnessCoach,
+    /// Child-safe conversational AI with content filtering.
+    ChildSafeChat,
+    /// Music playback control (YouTube Music deep-links, etc.).
+    MusicPlayback,
+    /// Real-time translation between supported languages.
+    Translation,
+    /// Parental control management (screen time, content gates, tracking).
+    ParentalControl,
 }
 
 impl Capability {
@@ -43,6 +51,10 @@ impl Capability {
             Capability::GeneralQa => "General Q&A",
             Capability::NutritionAnalysis => "Nutrition Analysis",
             Capability::WellnessCoach => "Wellness Coach",
+            Capability::ChildSafeChat => "Child-Safe Chat",
+            Capability::MusicPlayback => "Music Playback",
+            Capability::Translation => "Translation",
+            Capability::ParentalControl => "Parental Control",
         }
     }
 }
