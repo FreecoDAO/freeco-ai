@@ -108,7 +108,7 @@ jobs:
           releaseBody: |
             ## What's New
 
-            See the [CHANGELOG](https://github.com/RightNow-AI/openfang/blob/main/CHANGELOG.md) for full details.
+            See the [CHANGELOG](https://github.com/FreecoDAO/FreEco-ai/blob/main/CHANGELOG.md) for full details.
 
             ## Installation
 
@@ -116,12 +116,12 @@ jobs:
 
             **CLI (Linux/macOS)**:
             ```bash
-            curl -sSf https://openfang.sh | sh
+            curl -sSf https://www.freeco.ai | sh
             ```
 
             **Docker**:
             ```bash
-            docker pull ghcr.io/rightnow-ai/openfang:latest
+            docker pull ghcr.io/freecodao/freeco-ai:latest
             ```
 
             **Coming from OpenClaw?**
@@ -236,10 +236,10 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/rightnow-ai/openfang:latest
-            ghcr.io/rightnow-ai/openfang:${{ steps.version.outputs.version }}
+            ghcr.io/freecodao/freeco-ai:latest
+            ghcr.io/freecodao/freeco-ai:${{ steps.version.outputs.version }}
           labels: |
-            org.opencontainers.image.source=https://github.com/RightNow-AI/openfang
+            org.opencontainers.image.source=https://github.com/FreecoDAO/FreEco-ai
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.description=OpenFang Agent OS — single-binary Rust agent framework
           cache-from: type=gha
@@ -250,5 +250,5 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/orgs/RightNow-AI/packages/container/openfang \
+            https://api.github.com/orgs/FreecoDAO/packages/container/freeco-ai \
             -d '{"visibility":"public"}'

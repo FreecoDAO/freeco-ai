@@ -286,7 +286,7 @@ By default FreEco.ai binds the API and dashboard to `127.0.0.1` (loopback only) 
 ```yaml
 services:
   openfang:
-    image: ghcr.io/rightnow-ai/openfang:latest
+    image: ghcr.io/freecodao/freeco-ai:latest
     ports:
       - "4200:4200"
     volumes:

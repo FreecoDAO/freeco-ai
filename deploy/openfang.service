@@ -1,6 +1,6 @@
 [Unit]
 Description=OpenFang Agent OS Daemon
-Documentation=https://github.com/openfang-ai/openfang
+Documentation=https://github.com/FreecoDAO/FreEco-ai
 After=network-online.target
 Wants=network-online.target
 
