@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/assets/openfang-logo.png" width="160" alt="FreEco.ai Logo" />
+  <img src="https://github.com/user-attachments/assets/7c67fbb2-e0c9-4634-9cd0-3d78a02027ef" width="160" alt="FreEco.ai Logo" />
 </p>
 
 <h1 align="center">FreEco.ai</h1>
