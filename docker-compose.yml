@@ -1,12 +1,12 @@
-# NOTE: The GHCR image (ghcr.io/rightnow-ai/openfang) is not yet public.
+# NOTE: The GHCR image (ghcr.io/freecodao/freeco-ai) is not yet public.
 # For now, build from source using `docker compose up --build`.
-# See: https://github.com/RightNow-AI/openfang/issues/12
+# See: https://github.com/FreecoDAO/FreEco-ai/issues/12
 
 version: "3.8"
 services:
   openfang:
     build: .
-    # image: ghcr.io/rightnow-ai/openfang:latest  # Uncomment when GHCR is public
+    # image: ghcr.io/freecodao/freeco-ai:latest  # Uncomment when GHCR is public
     ports:
       - "4200:4200"
     volumes:

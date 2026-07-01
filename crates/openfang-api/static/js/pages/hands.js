@@ -1,4 +1,4 @@
-// OpenFang Hands Page — curated autonomous capability packages
+// FreEco.ai Hands Page — curated autonomous capability packages
 'use strict';
 
 function handsPage() {
@@ -749,7 +749,7 @@ function handsPage() {
         (!document.documentElement.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
       var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
       var textColor = isDark ? '#8A8380' : '#6B6560';
-      var accentColor = '#FF5C00';
+      var accentColor = '#0B3D2E';
       var successColor = isDark ? '#4ADE80' : '#22C55E';
       var errorColor = '#EF4444';
 
@@ -766,8 +766,8 @@ function handsPage() {
           // Determine gradient
           var eqCtx = eqCanvas.getContext('2d');
           var gradient = eqCtx.createLinearGradient(0, 0, 0, eqCanvas.parentElement.clientHeight || 180);
-          gradient.addColorStop(0, isDark ? 'rgba(255, 92, 0, 0.25)' : 'rgba(255, 92, 0, 0.15)');
-          gradient.addColorStop(1, 'rgba(255, 92, 0, 0)');
+          gradient.addColorStop(0, isDark ? 'rgba(11, 61, 46, 0.25)' : 'rgba(11, 61, 46, 0.15)');
+          gradient.addColorStop(1, 'rgba(11, 61, 46, 0)');
 
           this._chartEquity = new Chart(eqCtx, {
             type: 'line',
@@ -910,7 +910,7 @@ function handsPage() {
               datasets: [{
                 data: radarValues,
                 borderColor: accentColor,
-                backgroundColor: isDark ? 'rgba(255, 92, 0, 0.2)' : 'rgba(255, 92, 0, 0.12)',
+                backgroundColor: isDark ? 'rgba(11, 61, 46, 0.2)' : 'rgba(11, 61, 46, 0.12)',
                 borderWidth: 2,
                 pointBackgroundColor: accentColor,
                 pointRadius: 4,

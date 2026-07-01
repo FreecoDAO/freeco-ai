@@ -1,4 +1,4 @@
-/* OpenFang Layout — Grid + Sidebar + Responsive */
+/* FreEco.ai Layout — Grid + Sidebar + Responsive */
 
 /* Firefox compat: hide x-cloak elements until Alpine.js initializes.
    Without this, the sidebar flashes hidden in Firefox while Alpine
@@ -161,7 +161,7 @@
   background: var(--accent);
   color: var(--text-on-accent);
   font-weight: 600;
-  box-shadow: var(--shadow-sm), 0 2px 8px rgba(255, 92, 0, 0.2);
+  box-shadow: var(--shadow-sm), 0 2px 8px rgba(11, 61, 46, 0.2);
 }
 
 .nav-icon {

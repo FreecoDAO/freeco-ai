@@ -1,7 +1,7 @@
 /**
- * OpenFang i18n (Internationalization) Module
+ * FreEco.ai i18n (Internationalization) Module
  * 
- * Provides runtime language switching for the OpenFang dashboard UI.
+ * Provides runtime language switching for the FreEco.ai dashboard UI.
  * Supports English (default) and Russian.
  * 
  * Usage:
@@ -128,7 +128,7 @@
     // Update meta tags
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) {
-      const desc = t('app.description', { name: 'OpenFang' });
+      const desc = t('app.description', { name: 'FreEco.ai' });
       if (desc !== 'app.description') {
         metaDesc.content = desc;
       }

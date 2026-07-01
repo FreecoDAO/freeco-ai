@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="public/assets/openfang-logo.png" width="160" alt="OpenFang Logo" />
+  <img src="https://github.com/user-attachments/assets/7c67fbb2-e0c9-4634-9cd0-3d78a02027ef" width="160" alt="FreEco.ai Logo" />
 </p>
 
-<h1 align="center">OpenFang</h1>
+<h1 align="center">FreEco.ai</h1>
 <h3 align="center">The Agent Operating System</h3>
 
 <p align="center">
@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <a href="https://openfang.sh/docs">Documentation</a> &bull;
-  <a href="https://openfang.sh/docs/getting-started">Quick Start</a> &bull;
-  <a href="https://x.com/openfangg">Twitter / X</a>
+  <a href="https://freeco.ai/docs">Documentation</a> &bull;
+  <a href="https://freeco.ai/docs/getting-started">Quick Start</a> &bull;
+  <a href="https://x.com/FreEcoAI">Twitter / X</a>
 </p>
 
 <p align="center">
@@ -29,20 +29,20 @@
 
 > **v0.5.10 (April 2026)**
 >
-> OpenFang is feature complete but still pre-1.0. Expect rough edges and breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/RightNow-AI/openfang/issues)
+> FreEco.ai is feature complete but still pre-1.0. Expect rough edges and breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/FreecoDAO/FreEco-ai/issues)
 
 ---
 
-## What is OpenFang?
+## What is FreEco.ai?
 
-OpenFang is an **open-source Agent Operating System**. Not a chatbot framework. Not a Python wrapper around an LLM. Not a "multi-agent orchestrator." A full operating system for autonomous agents, built from scratch in Rust.
+FreEco.ai is an **open-source Agent Operating System**. Not a chatbot framework. Not a Python wrapper around an LLM. Not a "multi-agent orchestrator." A full operating system for autonomous agents, with ethical and structural enhancements.
 
-Traditional agent frameworks wait for you to type something. OpenFang runs **autonomous agents that work for you**: on schedules, 24/7, building knowledge graphs, monitoring targets, generating leads, managing your social media, and reporting results to your dashboard.
+Traditional agent frameworks wait for you to type something. FreEco.ai runs **autonomous agents that work for you**: on schedules, 24/7, building knowledge graphs, monitoring targets, generating leads, managing your social media, and reporting results to your dashboard.
 
 The entire system compiles to a **single ~32MB binary**. One install, one command, your agents are live.
 
 ```bash
-curl -fsSL https://openfang.sh/install | sh
+curl -fsSL https://freeco.ai/install | sh
 openfang init
 openfang start
 # Dashboard live at http://localhost:4200
@@ -52,12 +52,46 @@ openfang start
 <summary><strong>Windows</strong></summary>
 
 ```powershell
-irm https://openfang.sh/install.ps1 | iex
+irm https://freeco.ai/install.ps1 | iex
 openfang init
 openfang start
 ```
 
 </details>
+
+<details>
+<summary><strong>Running from Source (Linux / macOS / Windows)</strong></summary>
+
+**Prerequisites:** [Rust 1.75+](https://rustup.rs/) and at least one LLM API key.
+
+```bash
+git clone https://github.com/FreecoDAO/FreEco-ai.git
+cd openfang
+cargo build --release -p openfang-cli
+./target/release/openfang init          # creates ~/.openfang/config.toml
+export GROQ_API_KEY=gsk_...             # or ANTHROPIC_API_KEY / OPENAI_API_KEY
+./target/release/openfang start
+# Dashboard live at http://localhost:4200
+```
+
+On Windows use `target\release\openfang.exe`. See [docs/getting-started.md](docs/getting-started.md) for the full guide.
+
+</details>
+
+---
+
+## Four Editions of FreEco.ai
+
+FreEco.ai ships as a single binary that you configure for your use case. The four supported assembly types are:
+
+| Edition | Who It's For | What It Does |
+|---------|-------------|--------------|
+| 🧑‍💼 **Personal Concierge** | Individuals | Hi-end Swiss-style assistant for life, work, shopping, and health coaching. Runs 24/7, proactively surfaces insights, and manages your day autonomously. |
+| 🧒 **Kids Edition** | Families & schools | Ethical, child-safe AI companion for study, daily life, and online security. Strictly guardrailed, COPPA-aligned, with parental visibility built in. |
+| 🏢 **Business Suite** | Companies & teams | Autonomous buyer and executive-agent team: lead generation, competitor intelligence, scheduling, reporting. Agent-to-agent handoffs with approval gates. |
+| 🤖 **AI Company** | Power users & builders | A self-running, fully autonomous AI company on your device. Spin up specialized agent teams that plan, delegate, execute, and report — end-to-end, no human in the loop. |
+
+You can also **import any agent from [OpenClaw Hub](https://github.com/FreecoDAO/FreEco-ai)** and create your own custom agents using `agent.toml` manifests. See [Spawn Your First Agent](docs/getting-started.md#spawn-your-first-agent).
 
 ---
 
@@ -65,7 +99,7 @@ openfang start
 
 <p align="center"><em>"Traditional agents wait for you to type. Hands work <strong>for</strong> you."</em></p>
 
-**Hands** are OpenFang's core innovation. Pre-built autonomous capability packages that run independently, on schedules, without you having to prompt them. This is not a chatbot. This is an agent that wakes up at 6 AM, researches your competitors, builds a knowledge graph, scores the findings, and delivers a report to your Telegram before you've had coffee.
+**Hands** are FreEco.ai's core innovation. Pre-built autonomous capability packages that run independently, on schedules, without you having to prompt them. This is not a chatbot. This is an agent that wakes up at 6 AM, researches your competitors, builds a knowledge graph, scores the findings, and delivers a report to your Telegram before you've had coffee.
 
 Each Hand bundles:
 - **HAND.toml**: manifest declaring tools, settings, requirements, and dashboard metrics.
@@ -108,10 +142,10 @@ openfang hand list
 
 ---
 
-## OpenFang vs The Landscape
+## FreEco.ai vs The Landscape
 
 <p align="center">
-  <img src="public/assets/openfang-vs-claws.png" width="600" alt="OpenFang vs OpenClaw vs ZeroClaw" />
+  <img src="public/assets/openfang-vs-claws.png" width="600" alt="FreEco.ai vs OpenClaw vs ZeroClaw" />
 </p>
 
 ### Benchmarks: Measured, Not Marketed
@@ -122,7 +156,7 @@ All data from official documentation and public repositories, February 2026.
 
 ```
 ZeroClaw   ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   10 ms
-OpenFang   ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180 ms    ★
+FreEco.ai   ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  180 ms    ★
 LangGraph  █████████████████░░░░░░░░░░░░░░░░░░░░░░░░░  2.5 sec
 CrewAI     ████████████████████░░░░░░░░░░░░░░░░░░░░░░  3.0 sec
 AutoGen    ██████████████████████████░░░░░░░░░░░░░░░░░  4.0 sec
@@ -133,7 +167,7 @@ OpenClaw   ███████████████████████
 
 ```
 ZeroClaw   █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    5 MB
-OpenFang   ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   40 MB    ★
+FreEco.ai   ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   40 MB    ★
 LangGraph  ██████████████████░░░░░░░░░░░░░░░░░░░░░░░░░  180 MB
 CrewAI     ████████████████████░░░░░░░░░░░░░░░░░░░░░░░  200 MB
 AutoGen    █████████████████████████░░░░░░░░░░░░░░░░░░  250 MB
@@ -144,7 +178,7 @@ OpenClaw   ███████████████████████
 
 ```
 ZeroClaw   █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  8.8 MB
-OpenFang   ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   32 MB    ★
+FreEco.ai   ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   32 MB    ★
 CrewAI     ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  100 MB
 LangGraph  ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  150 MB
 AutoGen    ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░  200 MB
@@ -154,7 +188,7 @@ OpenClaw   ███████████████████████
 #### Security Systems (higher is better)
 
 ```
-OpenFang   ████████████████████████████████████████████   16      ★
+FreEco.ai   ████████████████████████████████████████████   16      ★
 ZeroClaw   ███████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░    6
 OpenClaw   ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    3
 AutoGen    █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    2
@@ -165,7 +199,7 @@ CrewAI     ███░░░░░░░░░░░░░░░░░░░░
 #### Channel Adapters (higher is better)
 
 ```
-OpenFang   ████████████████████████████████████████████   40      ★
+FreEco.ai   ████████████████████████████████████████████   40      ★
 ZeroClaw   ███████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░   15
 OpenClaw   █████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   13
 CrewAI     ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0
@@ -177,7 +211,7 @@ LangGraph  ░░░░░░░░░░░░░░░░░░░░░░░
 
 ```
 ZeroClaw   ████████████████████████████████████████████   28
-OpenFang   ██████████████████████████████████████████░░   27      ★
+FreEco.ai   ██████████████████████████████████████████░░   27      ★
 LangGraph  ██████████████████████░░░░░░░░░░░░░░░░░░░░░   15
 CrewAI     ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   10
 OpenClaw   ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   10
@@ -186,7 +220,7 @@ AutoGen    ███████████░░░░░░░░░░░░
 
 ### Feature-by-Feature Comparison
 
-| Feature | OpenFang | OpenClaw | ZeroClaw | CrewAI | AutoGen | LangGraph |
+| Feature | FreEco.ai | OpenClaw | ZeroClaw | CrewAI | AutoGen | LangGraph |
 |---------|----------|----------|----------|--------|---------|-----------|
 | **Language** | **Rust** | TypeScript | **Rust** | Python | Python | Python |
 | **Autonomous Hands** | **7 built-in** | None | None | None | None | None |
@@ -205,7 +239,7 @@ AutoGen    ███████████░░░░░░░░░░░░
 
 ## 16 Security Systems: Defense in Depth
 
-OpenFang doesn't bolt security on after the fact. Every layer is independently testable and operates without a single point of failure.
+FreEco.ai doesn't bolt security on after the fact. Every layer is independently testable and operates without a single point of failure.
 
 | # | System | What It Does |
 |---|--------|-------------|
@@ -268,12 +302,12 @@ Each adapter supports per-channel model overrides, DM/group policies, rate limit
 
 ## WhatsApp Web Gateway (QR Code)
 
-Connect your personal WhatsApp account to OpenFang via QR code, just like WhatsApp Web. No Meta Business account required.
+Connect your personal WhatsApp account to FreEco.ai via QR code, just like WhatsApp Web. No Meta Business account required.
 
 ### Prerequisites
 
 - **Node.js >= 18** installed ([download](https://nodejs.org/))
-- OpenFang installed and initialized
+- FreEco.ai installed and initialized
 
 ### Setup
 
@@ -316,7 +350,7 @@ node packages/whatsapp-gateway/index.js
 
 The gateway listens on port `3009` by default. Override with `WHATSAPP_GATEWAY_PORT`.
 
-**5. Start OpenFang:**
+**5. Start FreEco.ai:**
 
 ```bash
 openfang start
@@ -335,9 +369,9 @@ Once scanned, the status changes to `connected` and incoming messages are routed
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `WHATSAPP_WEB_GATEWAY_URL` | Gateway URL for OpenFang to connect to | _(empty = disabled)_ |
+| `WHATSAPP_WEB_GATEWAY_URL` | Gateway URL for FreEco.ai to connect to | _(empty = disabled)_ |
 | `WHATSAPP_GATEWAY_PORT` | Port the gateway listens on | `3009` |
-| `OPENFANG_URL` | OpenFang API URL the gateway reports to | `http://127.0.0.1:4200` |
+| `OPENFANG_URL` | FreEco.ai API URL the gateway reports to | `http://127.0.0.1:4200` |
 | `OPENFANG_DEFAULT_AGENT` | Agent that handles incoming messages | `assistant` |
 
 ### Gateway API Endpoints
@@ -351,7 +385,7 @@ Once scanned, the status changes to `connected` and incoming messages are routed
 
 ### Alternative: WhatsApp Cloud API
 
-For production workloads, use the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) with a Meta Business account. See the [Cloud API configuration docs](https://openfang.sh/docs/channels/whatsapp).
+For production workloads, use the [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) with a Meta Business account. See the [Cloud API configuration docs](https://freeco.ai/docs/channels/whatsapp).
 
 
 
@@ -382,13 +416,13 @@ openfang migrate --from openclaw --path ~/.openclaw
 openfang migrate --from openclaw --dry-run
 ```
 
-The migration engine imports your agents, conversation history, skills, and configuration. OpenFang reads SKILL.md natively and is compatible with the ClawHub marketplace.
+The migration engine imports your agents, conversation history, skills, and configuration. FreEco.ai reads SKILL.md natively and is compatible with the ClawHub marketplace.
 
 ---
 
 ## OpenAI-Compatible API
 
-Drop-in replacement. Point your existing tools at OpenFang:
+Drop-in replacement. Point your existing tools at FreEco.ai:
 
 ```bash
 curl -X POST localhost:4200/v1/chat/completions \
@@ -408,7 +442,7 @@ curl -X POST localhost:4200/v1/chat/completions \
 
 ```bash
 # 1. Install (macOS/Linux)
-curl -fsSL https://openfang.sh/install | sh
+curl -fsSL https://freeco.ai/install | sh
 
 # 2. Initialize. Walks you through provider setup.
 openfang init
@@ -433,7 +467,7 @@ openfang agent spawn coder
 <summary><strong>Windows (PowerShell)</strong></summary>
 
 ```powershell
-irm https://openfang.sh/install.ps1 | iex
+irm https://freeco.ai/install.ps1 | iex
 openfang init
 openfang start
 ```
@@ -462,11 +496,11 @@ cargo fmt --all -- --check
 
 ## Stability Notice
 
-OpenFang v0.5.10 is pre-1.0. The architecture is solid, the test suite is comprehensive, and the security model is deep. That said:
+FreEco.ai v0.5.10 is pre-1.0. The architecture is solid, the test suite is comprehensive, and the security model is deep. That said:
 
 - **Breaking changes** may occur between minor versions until v1.0.
 - **Some Hands** are more mature than others. Browser and Researcher are the most battle tested.
-- **Edge cases** exist. If you find one, [open an issue](https://github.com/RightNow-AI/openfang/issues).
+- **Edge cases** exist. If you find one, [open an issue](https://github.com/FreecoDAO/FreEco-ai/issues).
 - **Pin to a specific commit** for production deployments until v1.0.
 
 We ship fast and fix fast. The goal is a rock solid v1.0 by mid 2026.
@@ -487,11 +521,11 @@ MIT. Use it however you want.
 
 ## Links
 
-- [Website & Documentation](https://openfang.sh)
-- [Quick Start Guide](https://openfang.sh/docs/getting-started)
-- [GitHub](https://github.com/RightNow-AI/openfang)
+- [Website & Documentation](https://freeco.ai)
+- [Quick Start Guide](https://freeco.ai/docs/getting-started)
+- [GitHub](https://github.com/FreecoDAO/FreEco-ai)
 - [Discord](https://discord.gg/sSJqgNnq6X)
-- [Twitter / X](https://x.com/openfangg)
+- [Twitter / X](https://x.com/FreEcoAI)
 
 ---
 
@@ -504,7 +538,7 @@ MIT. Use it however you want.
 </p>
 
 <p align="center">
-  OpenFang is built and maintained by <a href="https://x.com/Akashi203"><strong>Jaber</strong></a>, Founder of <a href="https://www.rightnowai.co/"><strong>RightNow</strong></a>.
+  FreEco.ai is built and maintained by <a href="https://x.com/Akashi203"><strong>Jaber</strong></a>, Founder of <a href="https://www.rightnowai.co/"><strong>RightNow</strong></a>.
 </p>
 
 <p align="center">

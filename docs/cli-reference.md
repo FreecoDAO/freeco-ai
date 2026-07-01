@@ -1,10 +1,10 @@
-# OpenFang CLI Reference
+# FreEco.ai CLI Reference
 
-Complete command-line reference for `openfang`, the CLI tool for the OpenFang Agent OS.
+Complete command-line reference for `openfang`, the CLI tool for the FreEco.ai Agent OS.
 
 ## Overview
 
-The `openfang` binary is the primary interface for managing the OpenFang Agent OS. It supports two modes of operation:
+The `openfang` binary is the primary interface for managing the FreEco.ai Agent OS. It supports two modes of operation:
 
 - **Daemon mode** -- When a daemon is running (`openfang start`), CLI commands communicate with it over HTTP. This is the recommended mode for production use.
 - **In-process mode** -- When no daemon is detected, commands that support it will boot an ephemeral in-process kernel. Agents spawned in this mode are not persisted and will be lost when the process exits.
@@ -76,7 +76,7 @@ Press `Ctrl+C` to exit. A second `Ctrl+C` force-exits the process.
 
 ### openfang init
 
-Initialize the OpenFang workspace. Creates `~/.openfang/` with subdirectories (`data/`, `agents/`) and a default `config.toml`.
+Initialize the FreEco.ai workspace. Creates `~/.openfang/` with subdirectories (`data/`, `agents/`) and a default `config.toml`.
 
 ```
 openfang init [--quick]
@@ -109,7 +109,7 @@ openfang init --quick
 
 ### openfang start
 
-Start the OpenFang daemon (kernel + API server).
+Start the FreEco.ai daemon (kernel + API server).
 
 ```
 openfang start [--config <PATH>]
@@ -118,7 +118,7 @@ openfang start [--config <PATH>]
 **Behavior:**
 
 - Checks if a daemon is already running; exits with an error if so.
-- Boots the OpenFang kernel (loads config, initializes SQLite database, loads agents, connects MCP servers, starts background tasks).
+- Boots the FreEco.ai kernel (loads config, initializes SQLite database, loads agents, connects MCP servers, starts background tasks).
 - Starts the HTTP API server on the address specified in `config.toml` (default: `127.0.0.1:4200`).
 - Writes `daemon.json` to `~/.openfang/` so other CLI commands can discover the running daemon.
 - Blocks until interrupted with `Ctrl+C`.
@@ -126,7 +126,7 @@ openfang start [--config <PATH>]
 **Output:**
 
 ```
-  OpenFang Agent OS v0.1.0
+  FreEco.ai Agent OS v0.1.0
 
   Starting daemon...
 
@@ -186,7 +186,7 @@ openfang status --json | jq '.agent_count'
 
 ### openfang doctor
 
-Run diagnostic checks on the OpenFang installation.
+Run diagnostic checks on the FreEco.ai installation.
 
 ```
 openfang doctor [--json] [--repair]
@@ -201,7 +201,7 @@ openfang doctor [--json] [--repair]
 
 **Checks performed:**
 
-1. **OpenFang directory** -- `~/.openfang/` exists
+1. **FreEco.ai directory** -- `~/.openfang/` exists
 2. **.env file** -- exists and has correct permissions (0600 on Unix)
 3. **Config TOML syntax** -- `config.toml` parses without errors
 4. **Daemon status** -- whether a daemon is running
@@ -1026,7 +1026,7 @@ openfang migrate --from <FRAMEWORK> [--source-dir <PATH>] [--dry-run]
 
 **Behavior:**
 
-- Converts agent configurations, YAML manifests, and settings from the source framework into OpenFang format.
+- Converts agent configurations, YAML manifests, and settings from the source framework into FreEco.ai format.
 - Saves imported data to `~/.openfang/`.
 - Writes a `migration_report.md` summarizing what was imported.
 
@@ -1060,7 +1060,7 @@ openfang mcp
 
 **Behavior:**
 
-- Exposes running OpenFang agents as MCP tools via JSON-RPC 2.0 over stdin/stdout with Content-Length framing.
+- Exposes running FreEco.ai agents as MCP tools via JSON-RPC 2.0 over stdin/stdout with Content-Length framing.
 - Each agent becomes a callable tool named `openfang_agent_<name>` (hyphens replaced with underscores).
 - Connects to a running daemon via HTTP if available; otherwise boots an in-process kernel.
 - Protocol version: `2024-11-05`.
@@ -1120,7 +1120,7 @@ openfang doctor --repair  # Cleans up stale daemon.json from crashes
 
 ## Environment File
 
-OpenFang loads `~/.openfang/.env` into the process environment on every CLI invocation. System environment variables take priority over `.env` values.
+FreEco.ai loads `~/.openfang/.env` into the process environment on every CLI invocation. System environment variables take priority over `.env` values.
 
 The `.env` file stores API keys and secrets:
 
@@ -1153,7 +1153,7 @@ Manage keys with the `config set-key` / `config delete-key` commands rather than
 # 1. Set your API key
 export GROQ_API_KEY="gsk_your_key_here"
 
-# 2. Initialize OpenFang
+# 2. Initialize FreEco.ai
 openfang init --quick
 
 # 3. Start the daemon

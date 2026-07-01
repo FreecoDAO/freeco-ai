@@ -1,8 +1,8 @@
 # API Reference
 
-OpenFang exposes a REST API, WebSocket endpoints, and SSE streaming when the daemon is running. The default listen address is `http://127.0.0.1:4200`.
+FreEco.ai exposes a REST API, WebSocket endpoints, and SSE streaming when the daemon is running. The default listen address is `http://127.0.0.1:4200`.
 
-All responses include security headers (CSP, X-Frame-Options, X-Content-Type-Options, HSTS) and are protected by a GCRA cost-aware rate limiter with per-IP token bucket tracking and automatic stale entry cleanup. OpenFang implements 16 security systems including Merkle audit trails, taint tracking, WASM dual metering, Ed25519 manifest signing, SSRF protection, subprocess sandboxing, and secret zeroization.
+All responses include security headers (CSP, X-Frame-Options, X-Content-Type-Options, HSTS) and are protected by a GCRA cost-aware rate limiter with per-IP token bucket tracking and automatic stale entry cleanup. FreEco.ai implements 16 security systems including Merkle audit trails, taint tracking, WASM dual metering, Ed25519 manifest signing, SSRF protection, subprocess sandboxing, and secret zeroization.
 
 ## Table of Contents
 
@@ -780,7 +780,7 @@ Retrieve current kernel configuration (secrets are redacted).
 
 ### GET /api/peers
 
-List OFP (OpenFang Protocol) wire peers and their connection status.
+List OFP (FreEco.ai Protocol) wire peers and their connection status.
 
 **Response** `200 OK`:
 
@@ -835,7 +835,7 @@ Delete a specific session and its conversation history.
 
 ## Model Catalog Endpoints
 
-OpenFang maintains a built-in catalog of 51+ models across 20 providers. These endpoints allow you to browse available models, check provider authentication status, and resolve model aliases.
+FreEco.ai maintains a built-in catalog of 51+ models across 20 providers. These endpoints allow you to browse available models, check provider authentication status, and resolve model aliases.
 
 ### GET /api/models
 
@@ -1233,7 +1233,7 @@ Get detailed information about a specific ClawHub skill.
 
 ### POST /api/clawhub/install
 
-Install a skill from ClawHub. Downloads, verifies SHA256 checksum, scans for prompt injection, and converts SKILL.md format to OpenFang skill.toml automatically.
+Install a skill from ClawHub. Downloads, verifies SHA256 checksum, scans for prompt injection, and converts SKILL.md format to FreEco.ai skill.toml automatically.
 
 **Request Body**:
 
@@ -1258,7 +1258,7 @@ Install a skill from ClawHub. Downloads, verifies SHA256 checksum, scans for pro
 
 ## MCP & A2A Protocol Endpoints
 
-OpenFang supports both Model Context Protocol (MCP) for tool interoperability and Agent-to-Agent (A2A) protocol for cross-system agent communication.
+FreEco.ai supports both Model Context Protocol (MCP) for tool interoperability and Agent-to-Agent (A2A) protocol for cross-system agent communication.
 
 ### GET /api/mcp/servers
 
@@ -1293,7 +1293,7 @@ List configured and connected MCP servers with their available tools.
 
 ### POST /mcp
 
-MCP HTTP transport endpoint. Accepts JSON-RPC 2.0 requests and exposes OpenFang tools via the MCP protocol to external clients.
+MCP HTTP transport endpoint. Accepts JSON-RPC 2.0 requests and exposes FreEco.ai tools via the MCP protocol to external clients.
 
 **Request Body** (JSON-RPC 2.0):
 
@@ -1336,8 +1336,8 @@ A2A agent card discovery endpoint. Returns the server's A2A agent card, which de
 
 ```json
 {
-  "name": "OpenFang",
-  "description": "OpenFang Agent Operating System",
+  "name": "FreEco.ai",
+  "description": "FreEco.ai Agent Operating System",
   "url": "http://127.0.0.1:4200",
   "version": "0.1.0",
   "capabilities": {
@@ -1444,7 +1444,7 @@ Cancel a running A2A task.
 
 ## Audit & Security Endpoints
 
-OpenFang maintains a Merkle hash chain audit trail for all security-relevant operations. These endpoints allow inspection and verification of the audit log integrity.
+FreEco.ai maintains a Merkle hash chain audit trail for all security-relevant operations. These endpoints allow inspection and verification of the audit log integrity.
 
 ### GET /api/audit/recent
 
@@ -2108,7 +2108,7 @@ data: {"done":true,"usage":{"input_tokens":150,"output_tokens":340}}
 
 ## OpenAI-Compatible API
 
-OpenFang exposes an OpenAI-compatible API for drop-in integration with tools that support the OpenAI API format (Cursor, Continue, Open WebUI, etc.).
+FreEco.ai exposes an OpenAI-compatible API for drop-in integration with tools that support the OpenAI API format (Cursor, Continue, Open WebUI, etc.).
 
 ### POST /v1/chat/completions
 
@@ -2129,7 +2129,7 @@ Send a chat completion request using the OpenAI message format.
 }
 ```
 
-**Model resolution** (the `model` field maps to an OpenFang agent):
+**Model resolution** (the `model` field maps to an FreEco.ai agent):
 
 | Format | Example | Behavior |
 |--------|---------|----------|

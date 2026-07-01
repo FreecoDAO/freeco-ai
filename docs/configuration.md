@@ -1,6 +1,6 @@
-# OpenFang Configuration Reference
+# FreEco.ai Configuration Reference
 
-Complete reference for `config.toml`, covering every configurable field in the OpenFang Agent OS.
+Complete reference for `config.toml`, covering every configurable field in the FreEco.ai Agent OS.
 
 ---
 
@@ -29,7 +29,7 @@ Complete reference for `config.toml`, covering every configurable field in the O
 
 ## Overview
 
-OpenFang reads its configuration from a single TOML file:
+FreEco.ai reads its configuration from a single TOML file:
 
 ```
 ~/.openfang/config.toml
@@ -55,7 +55,7 @@ So inside the Docker container the config file must live at `/data/config.toml` 
 
 ## Minimal Configuration
 
-The simplest working configuration only needs an LLM provider API key set as an environment variable. With no config file at all, OpenFang boots with Anthropic as the default provider:
+The simplest working configuration only needs an LLM provider API key set as an environment variable. With no config file at all, FreEco.ai boots with Anthropic as the default provider:
 
 ```toml
 # ~/.openfang/config.toml
@@ -84,11 +84,11 @@ api_key_env = ""
 
 ```toml
 # ============================================================
-# OpenFang Agent OS -- Complete Configuration Reference
+# FreEco.ai Agent OS -- Complete Configuration Reference
 # ============================================================
 
 # --- Top-level fields ---
-home_dir = "~/.openfang"             # OpenFang home directory
+home_dir = "~/.openfang"             # FreEco.ai home directory
 data_dir = "~/.openfang/data"        # SQLite databases and data files
 log_level = "info"                   # trace | debug | info | warn | error
 api_listen = "127.0.0.1:50051"      # HTTP/WS API bind address
@@ -232,7 +232,7 @@ These fields sit at the root of `config.toml` (not inside any `[section]`).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `home_dir` | path | `~/.openfang` | OpenFang home directory. Stores config, agents, skills. |
+| `home_dir` | path | `~/.openfang` | FreEco.ai home directory. Stores config, agents, skills. |
 | `data_dir` | path | `~/.openfang/data` | Directory for SQLite databases and persistent data. |
 | `log_level` | string | `"info"` | Log verbosity. One of: `trace`, `debug`, `info`, `warn`, `error`. |
 | `api_listen` | string | `"127.0.0.1:50051"` | Bind address for the HTTP/WebSocket/SSE API server. Use `0.0.0.0:<port>` to accept connections from outside the host (LAN, Docker, remote clients). See [Exposing the Dashboard](#exposing-the-dashboard) below before doing so. Can be overridden at runtime with the `OPENFANG_LISTEN` environment variable. |
@@ -263,7 +263,7 @@ These fields sit at the root of `config.toml` (not inside any `[section]`).
 
 ### Exposing the Dashboard
 
-By default OpenFang binds the API and dashboard to `127.0.0.1` (loopback only) so the daemon is unreachable from anywhere except the local machine. To accept connections from your LAN, Docker host, or a remote client you must explicitly opt in to non-loopback binding.
+By default FreEco.ai binds the API and dashboard to `127.0.0.1` (loopback only) so the daemon is unreachable from anywhere except the local machine. To accept connections from your LAN, Docker host, or a remote client you must explicitly opt in to non-loopback binding.
 
 **Two ways to change the bind address:**
 
@@ -286,7 +286,7 @@ By default OpenFang binds the API and dashboard to `127.0.0.1` (loopback only) s
 ```yaml
 services:
   openfang:
-    image: ghcr.io/rightnow-ai/openfang:latest
+    image: ghcr.io/freecodao/freeco-ai:latest
     ports:
       - "4200:4200"
     volumes:
@@ -301,7 +301,7 @@ volumes:
 
 If you prefer mounting `config.toml`, the file must live at `/data/config.toml` inside the container (because of `OPENFANG_HOME=/data`). Placing it at `/opt/openfang/config.toml` or any other path will not be picked up. The port in `api_listen` must also match the port published in `ports:` — the example config in `openfang.toml.example` ships with port `50051` to be safe; change it to `4200` (or whatever port you publish) when running in Docker.
 
-**Security warning.** Once you bind to a non-loopback address, anyone reachable at that address can talk to the API. OpenFang's middleware enforces a fail-closed default on authenticated routes:
+**Security warning.** Once you bind to a non-loopback address, anyone reachable at that address can talk to the API. FreEco.ai's middleware enforces a fail-closed default on authenticated routes:
 
 - If `api_key` is empty AND dashboard auth is disabled AND the bind address is not loopback, authenticated routes reject non-loopback requests with `401 Unauthorized`.
 - A small set of public routes (health check, static assets, OAuth callback) remain reachable so the dashboard can render its login page. They do not expose agent data or accept commands.
@@ -359,7 +359,7 @@ decay_rate = 0.1
 
 ### `[network]`
 
-Configures the OFP (OpenFang Protocol) peer-to-peer networking layer with HMAC-SHA256 mutual authentication.
+Configures the OFP (FreEco.ai Protocol) peer-to-peer networking layer with HMAC-SHA256 mutual authentication.
 
 ```toml
 [network]
@@ -1238,7 +1238,7 @@ url = "https://mcp.example.com/sse"
 
 ### `[a2a]`
 
-Agent-to-Agent protocol configuration, enabling inter-agent communication across OpenFang instances.
+Agent-to-Agent protocol configuration, enabling inter-agent communication across FreEco.ai instances.
 
 ```toml
 [a2a]

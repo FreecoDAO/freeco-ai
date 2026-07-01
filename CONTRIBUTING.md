@@ -28,7 +28,7 @@ Thank you for your interest in contributing to OpenFang. This guide covers every
 ### Clone and Build
 
 ```bash
-git clone https://github.com/RightNow-AI/openfang.git
+git clone https://github.com/FreecoDAO/FreEco-ai.git
 cd openfang
 cargo build
 ```
@@ -366,6 +366,6 @@ Please report unacceptable behavior to the maintainers.
 
 ## Questions?
 
-- Open a [GitHub Discussion](https://github.com/RightNow-AI/openfang/discussions) for questions.
-- Open a [GitHub Issue](https://github.com/RightNow-AI/openfang/issues) for bugs or feature requests.
+- Open a [GitHub Discussion](https://github.com/FreecoDAO/FreEco-ai/discussions) for questions.
+- Open a [GitHub Issue](https://github.com/FreecoDAO/FreEco-ai/issues) for bugs or feature requests.
 - Check the [docs/](docs/) directory for detailed guides on specific topics.

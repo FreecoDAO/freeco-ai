@@ -1,4 +1,4 @@
-# OpenFang Launch Roadmap
+# FreEco.ai Launch Roadmap
 
 > Competitive gap analysis vs OpenClaw. Organized into 4 sprints.
 > Each item has: what, why, files to touch, and done criteria.
@@ -80,7 +80,7 @@ These are showstoppers. The app literally crashes or looks broken without them.
 - `openfang-animated.svg` (310KB) — for loading screens
 
 **Done when:**
-- Desktop app shows OpenFang logo in taskbar, title bar, and installer
+- Desktop app shows FreEco.ai logo in taskbar, title bar, and installer
 - Web UI shows correct logo in sidebar and favicon
 
 ---
@@ -103,7 +103,7 @@ These are showstoppers. The app literally crashes or looks broken without them.
 
 ## Sprint 2 — Competitive Parity (4-5 days)
 
-These close the gaps that would make users pick OpenClaw over OpenFang.
+These close the gaps that would make users pick OpenClaw over FreEco.ai.
 
 ### 2.1 Browser Screenshot Rendering in Chat -- DONE
 
@@ -169,17 +169,17 @@ These close the gaps that would make users pick OpenClaw over OpenFang.
 
 ### 2.4 Install Script Deployment
 
-**Problem:** `openfang.sh` domain isn't set up. Users can't do `curl -sSf https://openfang.sh | sh`.
+**Problem:** `freeco.ai` domain isn't set up. Users can't do `curl -sSf https://freeco.ai | sh`.
 
 **What to do:**
-1. Set up GitHub Pages or Cloudflare Worker for openfang.sh
+1. Set up GitHub Pages or Cloudflare Worker for freeco.ai
 2. Serve `scripts/install.sh` at root
 3. Serve `scripts/install.ps1` at `/install.ps1`
 4. Test on fresh Linux, macOS, and Windows machines
 
 **Done when:**
-- `curl -sSf https://openfang.sh | sh` installs the latest release
-- `irm https://openfang.sh/install.ps1 | iex` works on Windows PowerShell
+- `curl -sSf https://freeco.ai | sh` installs the latest release
+- `irm https://freeco.ai/install.ps1 | iex` works on Windows PowerShell
 
 ---
 
@@ -206,7 +206,7 @@ These close the gaps that would make users pick OpenClaw over OpenFang.
 
 ## Sprint 3 — Differentiation (5-7 days)
 
-These are features where OpenFang can leapfrog OpenClaw.
+These are features where FreEco.ai can leapfrog OpenClaw.
 
 ### 3.1 Voice Input/Output in Web UI -- DONE
 
@@ -276,7 +276,7 @@ These are features where OpenFang can leapfrog OpenClaw.
 
 **Status: COMPLETE** — Added `GET /api/metrics` endpoint returning Prometheus text format. Metrics: `openfang_uptime_seconds`, `openfang_agents_active`, `openfang_agents_total`, `openfang_tokens_total{agent,provider,model}`, `openfang_tool_calls_total{agent}`, `openfang_panics_total`, `openfang_restarts_total`, `openfang_info{version}`.
 
-**Problem (was):** No way to monitor OpenFang in production (no Prometheus, no OpenTelemetry).
+**Problem (was):** No way to monitor FreEco.ai in production (no Prometheus, no OpenTelemetry).
 
 **What to do:**
 1. Add `/api/metrics` endpoint with Prometheus format
@@ -300,7 +300,7 @@ These are features where OpenFang can leapfrog OpenClaw.
 
 **Status: COMPLETE** — Added `workflow-builder.js` with full SVG canvas-based visual builder. Node palette with 7 types (Agent, Parallel Fan-out, Condition, Loop, Collect, Start, End). Drag-and-drop from palette, node dragging, bezier curve connections between ports, zoom/pan, auto-layout. Node editor panel for configuring agent, condition expression, loop iterations, fan-out count, collect strategy. TOML export, save-to-API, and clipboard copy. CSS styles in components.css. Integrated into workflows page as "Visual Builder" tab.
 
-**Problem (was):** Both OpenFang and OpenClaw define workflows in TOML/config only. No visual builder exists in either. First to ship this wins.
+**Problem (was):** Both FreEco.ai and OpenClaw define workflows in TOML/config only. No visual builder exists in either. First to ship this wins.
 
 **What to do:**
 1. Add drag-and-drop workflow builder to the Workflows page
@@ -383,7 +383,7 @@ These are features where OpenFang can leapfrog OpenClaw.
 
 ### 4.5 Final Release -- READY
 
-**Status: ALL CODE COMPLETE** — All 18 code items done. 1751 tests passing. Production audit completed: 2 critical bugs fixed (API delete alias, config/set route), CSP hardened (Tauri + middleware), Tauri signing key installed. Remaining for release: tag v0.1.0, build release artifacts, set up openfang.sh domain.
+**Status: ALL CODE COMPLETE** — All 18 code items done. 1751 tests passing. Production audit completed: 2 critical bugs fixed (API delete alias, config/set route), CSP hardened (Tauri + middleware), Tauri signing key installed. Remaining for release: tag v0.1.0, build release artifacts, set up freeco.ai domain.
 
 1. Complete items from `production-checklist.md` (keygen DONE, secrets, icons DONE, domain pending)
 2. Tag `v0.1.0`
@@ -394,29 +394,29 @@ These are features where OpenFang can leapfrog OpenClaw.
 
 ## Feature Comparison Scoreboard
 
-| Feature | OpenClaw | OpenFang | Winner |
+| Feature | OpenClaw | FreEco.ai | Winner |
 |---------|----------|----------|--------|
-| Language/Performance | Node.js (~200MB) | Rust (~30MB single binary) | **OpenFang** |
-| Channels | ~15 | **40** | **OpenFang** |
-| Built-in Tools | ~19 | **41** | **OpenFang** |
-| Security Systems | Token + sandbox | **16 defense systems** | **OpenFang** |
-| Agent Templates | Manual config | **30 pre-configured** | **OpenFang** |
-| Hands (autonomous) | None | **7 packages** | **OpenFang** |
-| Workflow Engine | Cron + webhooks | **Full DAG with parallel/loops** | **OpenFang** |
-| Knowledge Graph | Flat vector store | **Entity-relation graph** | **OpenFang** |
-| P2P Networking | None | **OFP wire protocol** | **OpenFang** |
-| WASM Sandbox | Docker only | **Dual-metered WASM** | **OpenFang** |
-| Desktop App | Electron (~200MB) | **Tauri (~30MB)** | **OpenFang** |
-| Migration | N/A | **`migrate --from openclaw`** | **OpenFang** |
-| Skills | 54 bundled | **60 bundled** | **OpenFang** |
-| LLM Providers | ~15 | **27 providers, 130+ models** | **OpenFang** |
+| Language/Performance | Node.js (~200MB) | Rust (~30MB single binary) | **FreEco.ai** |
+| Channels | ~15 | **40** | **FreEco.ai** |
+| Built-in Tools | ~19 | **41** | **FreEco.ai** |
+| Security Systems | Token + sandbox | **16 defense systems** | **FreEco.ai** |
+| Agent Templates | Manual config | **30 pre-configured** | **FreEco.ai** |
+| Hands (autonomous) | None | **7 packages** | **FreEco.ai** |
+| Workflow Engine | Cron + webhooks | **Full DAG with parallel/loops** | **FreEco.ai** |
+| Knowledge Graph | Flat vector store | **Entity-relation graph** | **FreEco.ai** |
+| P2P Networking | None | **OFP wire protocol** | **FreEco.ai** |
+| WASM Sandbox | Docker only | **Dual-metered WASM** | **FreEco.ai** |
+| Desktop App | Electron (~200MB) | **Tauri (~30MB)** | **FreEco.ai** |
+| Migration | N/A | **`migrate --from openclaw`** | **FreEco.ai** |
+| Skills | 54 bundled | **60 bundled** | **FreEco.ai** |
+| LLM Providers | ~15 | **27 providers, 130+ models** | **FreEco.ai** |
 | Plugin SDK | TypeScript published | JS + Python SDK | **Tie** |
 | Native Mobile | iOS + Android + macOS | Web responsive only | OpenClaw |
 | Voice/Talk Mode | Wake word + TTS + overlay | Mic + TTS playback | OpenClaw (slight) |
 | Browser Automation | Playwright with inline screenshots | Playwright + inline screenshots | **Tie** |
-| Visual Workflow Builder | None | **Drag-and-drop builder** | **OpenFang** |
+| Visual Workflow Builder | None | **Drag-and-drop builder** | **FreEco.ai** |
 
-**OpenFang wins 15/18 categories.** The remaining gaps are: mobile apps (OpenClaw), voice wake word (OpenClaw slight edge).
+**FreEco.ai wins 15/18 categories.** The remaining gaps are: mobile apps (OpenClaw), voice wake word (OpenClaw slight edge).
 
 ---
 
@@ -433,7 +433,7 @@ Sprint 2: 4/5 COMPLETE
   2.1 Browser screenshots .......... DONE
   2.2 Chat search .................. DONE
   2.3 Skill marketplace ............ DONE
-  2.4 Install script domain ........ PENDING (infra: set up openfang.sh domain)
+  2.4 Install script domain ........ PENDING (infra: set up freeco.ai domain)
   2.5 Wizard end-to-end ............ DONE
 
 Sprint 3: COMPLETE

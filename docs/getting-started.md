@@ -1,6 +1,6 @@
-# Getting Started with OpenFang
+# Getting Started with FreEco.ai
 
-This guide walks you through installing OpenFang, configuring your first LLM provider, spawning an agent, and chatting with it.
+This guide walks you through installing FreEco.ai, configuring your first LLM provider, spawning an agent, and chatting with it.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This guide walks you through installing OpenFang, configuring your first LLM pro
 
 ### Option 1: Desktop App (Windows / macOS / Linux)
 
-Download the installer for your platform from the [latest release](https://github.com/RightNow-AI/openfang/releases/latest):
+Download the installer for your platform from the [latest release](https://github.com/FreecoDAO/FreEco-ai/releases/latest):
 
 | Platform | File |
 |---|---|
@@ -26,12 +26,12 @@ Download the installer for your platform from the [latest release](https://githu
 | macOS | `.dmg` disk image |
 | Linux | `.AppImage` or `.deb` |
 
-The desktop app includes the full OpenFang system with a native window, system tray, auto-updates, and OS notifications. Updates are installed automatically in the background.
+The desktop app includes the full FreEco.ai system with a native window, system tray, auto-updates, and OS notifications. Updates are installed automatically in the background.
 
 ### Option 2: Shell Installer (Linux / macOS)
 
 ```bash
-curl -sSf https://openfang.sh | sh
+curl -sSf https://freeco.ai | sh
 ```
 
 This downloads the latest CLI binary and installs it to `~/.openfang/bin/`.
@@ -39,7 +39,7 @@ This downloads the latest CLI binary and installs it to `~/.openfang/bin/`.
 ### Option 3: PowerShell Installer (Windows)
 
 ```powershell
-irm https://openfang.sh/install.ps1 | iex
+irm https://freeco.ai/install.ps1 | iex
 ```
 
 Downloads the latest CLI binary, verifies its SHA256 checksum, and adds it to your user PATH.
@@ -49,13 +49,13 @@ Downloads the latest CLI binary, verifies its SHA256 checksum, and adds it to yo
 Requires Rust 1.75+:
 
 ```bash
-cargo install --git https://github.com/RightNow-AI/openfang openfang-cli
+cargo install --git https://github.com/FreecoDAO/FreEco-ai openfang-cli
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/RightNow-AI/openfang.git
+git clone https://github.com/FreecoDAO/FreEco-ai.git
 cd openfang
 cargo install --path crates/openfang-cli
 ```
@@ -63,20 +63,20 @@ cargo install --path crates/openfang-cli
 ### Option 5: Docker
 
 ```bash
-docker pull ghcr.io/RightNow-AI/openfang:latest
+docker pull ghcr.io/freecoda/freeco-ai:latest
 
 docker run -d \
   --name openfang \
   -p 4200:4200 \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
   -v openfang-data:/data \
-  ghcr.io/RightNow-AI/openfang:latest
+  ghcr.io/freecoda/freeco-ai:latest
 ```
 
 Or use Docker Compose:
 
 ```bash
-git clone https://github.com/RightNow-AI/openfang.git
+git clone https://github.com/FreecoDAO/FreEco-ai.git
 cd openfang
 # Set your API keys in environment or .env file
 docker compose up -d
@@ -91,7 +91,7 @@ docker run -d \
   --add-host=host.docker.internal:host-gateway \
   -e OLLAMA_HOST=http://host.docker.internal:11434 \
   -p 4200:4200 \
-  ghcr.io/rightnow-ai/openfang:latest
+  ghcr.io/freedao/openfang:latest
 ```
 
 For Compose, add `extra_hosts: ["host.docker.internal:host-gateway"]` to the
@@ -128,7 +128,7 @@ This creates:
 
 ### Set Up an API Key
 
-OpenFang needs at least one LLM provider API key. Set it as an environment variable:
+FreEco.ai needs at least one LLM provider API key. Set it as an environment variable:
 
 ```bash
 # Anthropic (Claude)
@@ -174,7 +174,7 @@ This checks that your config exists, API keys are set, and the toolchain is avai
 
 ### Using a Built-in Template
 
-OpenFang ships with 30 agent templates. Spawn the hello-world agent:
+FreEco.ai ships with 30 agent templates. Spawn the hello-world agent:
 
 ```bash
 openfang agent spawn agents/hello-world/agent.toml
@@ -258,7 +258,7 @@ Chat session started (daemon mode). Type 'exit' or Ctrl+C to quit.
 
 you> Hello! What can you do?
 
-agent> I'm the hello-world agent running on OpenFang. I can:
+agent> I'm the hello-world agent running on FreEco.ai. I can:
 - Read files from the filesystem
 - List directory contents
 - Fetch web pages
@@ -295,8 +295,8 @@ openfang start
 Output:
 
 ```
-Starting OpenFang daemon...
-OpenFang daemon running on http://127.0.0.1:4200
+Starting FreEco.ai daemon...
+FreEco.ai daemon running on http://127.0.0.1:4200
 Press Ctrl+C to stop.
 ```
 
@@ -340,7 +340,7 @@ The embedded WebChat UI allows you to:
 
 ## Next Steps
 
-Now that you have OpenFang running:
+Now that you have FreEco.ai running:
 
 - **Explore agent templates**: Browse the `agents/` directory for 30 pre-built agents (coder, researcher, writer, ops, analyst, security-auditor, and more).
 - **Create custom agents**: Write your own `agent.toml` manifests. See the [Architecture guide](architecture.md) for details on capabilities and scheduling.

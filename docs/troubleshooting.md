@@ -1,6 +1,6 @@
 # Troubleshooting & FAQ
 
-Common issues, diagnostics, and answers to frequently asked questions about OpenFang.
+Common issues, diagnostics, and answers to frequently asked questions about FreEco.ai.
 
 ## Table of Contents
 
@@ -48,12 +48,12 @@ curl http://127.0.0.1:4200/api/health/detail  # Requires auth
 
 ### View Logs
 
-OpenFang uses `tracing` for structured logging. Set the log level via environment:
+FreEco.ai uses `tracing` for structured logging. Set the log level via environment:
 
 ```bash
 RUST_LOG=info openfang start          # Default
 RUST_LOG=debug openfang start         # Verbose
-RUST_LOG=openfang=debug openfang start  # Only OpenFang debug, deps at info
+RUST_LOG=openfang=debug openfang start  # Only FreEco.ai debug, deps at info
 ```
 
 ---
@@ -90,15 +90,15 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 ### Black screen on login after install (Arch / CachyOS / fish users)
 
-**Cause**: Older OpenFang installers (`<v0.6.4`) appended a PATH line directly to `~/.config/fish/config.fish`. On Arch derivatives like CachyOS, the desktop session can source fish on login — a malformed or invalid PATH line then prevents the session from finishing, leaving you on a black screen.
+**Cause**: Older FreEco.ai installers (`<v0.6.4`) appended a PATH line directly to `~/.config/fish/config.fish`. On Arch derivatives like CachyOS, the desktop session can source fish on login — a malformed or invalid PATH line then prevents the session from finishing, leaving you on a black screen.
 
-**Fix**: Boot to a TTY (`Ctrl+Alt+F2`) and remove any OpenFang PATH lines from `config.fish`:
+**Fix**: Boot to a TTY (`Ctrl+Alt+F2`) and remove any FreEco.ai PATH lines from `config.fish`:
 ```bash
 sed -i '/openfang/d' ~/.config/fish/config.fish
 ```
 Then re-run the installer — current versions write to `~/.config/fish/conf.d/openfang.fish` (a drop-in directory) instead, and guard the path with `test -d` so a missing install dir can never wedge fish startup.
 
-To remove OpenFang's PATH entry cleanly:
+To remove FreEco.ai's PATH entry cleanly:
 ```bash
 rm ~/.config/fish/conf.d/openfang.fish
 ```
@@ -106,13 +106,13 @@ rm ~/.config/fish/conf.d/openfang.fish
 ### Docker container won't start
 
 **Common causes**:
-- No API key provided: `docker run -e GROQ_API_KEY=... ghcr.io/RightNow-AI/openfang`
+- No API key provided: `docker run -e GROQ_API_KEY=... ghcr.io/freecoda/freeco-ai`
 - Port already in use: change the port mapping `-p 3001:4200`
 - Permission denied on volume mount: check directory permissions
 
 ### Connecting to host services from Docker
 
-If you run OpenFang inside Docker and need to reach a service running on the
+If you run FreEco.ai inside Docker and need to reach a service running on the
 host (Ollama on `127.0.0.1:11434`, whisper.cpp on `127.0.0.1:8090`, a local
 Postgres, etc.), `localhost` inside the container points at the container
 itself, not the host. You must opt in to the host bridge.
@@ -126,7 +126,7 @@ docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -e OLLAMA_HOST=http://host.docker.internal:11434 \
   -p 4200:4200 \
-  ghcr.io/rightnow-ai/openfang:latest
+  ghcr.io/freedao/openfang:latest
 ```
 
 Verify the bridge works:
@@ -141,7 +141,7 @@ For Docker Compose use `extra_hosts:`:
 ```yaml
 services:
   openfang:
-    image: ghcr.io/rightnow-ai/openfang:latest
+    image: ghcr.io/freedao/openfang:latest
     ports:
       - "4200:4200"
     extra_hosts:
@@ -155,14 +155,14 @@ connection refused or DNS lookup errors.
 
 ### Curl-equipped reference image
 
-The default `ghcr.io/rightnow-ai/openfang` image does not ship `curl`, so
+The default `ghcr.io/freedao/openfang` image does not ship `curl`, so
 `docker exec openfang curl ...` returns `exec: curl: not found`. If you need
 in-container probes for healthchecks or egress verification, build a thin
 overlay image:
 
 ```dockerfile
 # Dockerfile.curl
-FROM ghcr.io/rightnow-ai/openfang:latest
+FROM ghcr.io/freedao/openfang:latest
 USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
@@ -367,7 +367,7 @@ RUST_LOG=openfang_channels=debug openfang start
 
 **Cause**: The agent is repeatedly calling the same tool with the same parameters.
 
-**Automatic protection**: OpenFang has a built-in loop guard:
+**Automatic protection**: FreEco.ai has a built-in loop guard:
 - **Warn** at 3 identical tool calls
 - **Block** at 5 identical tool calls
 - **Circuit breaker** at 30 total blocked calls (stops the agent)
@@ -547,14 +547,14 @@ Yes. Each agent can use a different provider via its manifest `[model]` section.
 2. Set the required environment variables (tokens, secrets)
 3. Restart the daemon
 
-### How do I update OpenFang?
+### How do I update FreEco.ai?
 
 ```bash
 # From source
 cd openfang && git pull && cargo install --path crates/openfang-cli
 
 # Docker
-docker pull ghcr.io/RightNow-AI/openfang:latest
+docker pull ghcr.io/freecoda/freeco-ai:latest
 ```
 
 ### Can agents talk to each other?
@@ -579,7 +579,7 @@ rm -rf ~/.openfang
 openfang init  # Start fresh
 ```
 
-### Can I run OpenFang without an internet connection?
+### Can I run FreEco.ai without an internet connection?
 
 Yes, if you use a local LLM provider:
 - **Ollama**: `ollama serve` + `ollama pull llama3.2`
@@ -593,9 +593,9 @@ provider = "ollama"
 model = "llama3.2"
 ```
 
-### What's the difference between OpenFang and OpenClaw?
+### What's the difference between FreEco.ai and OpenClaw?
 
-| Aspect | OpenFang | OpenClaw |
+| Aspect | FreEco.ai | OpenClaw |
 |--------|----------|----------|
 | Language | Rust | Python |
 | Channels | 40 | 38 |
@@ -605,7 +605,7 @@ model = "llama3.2"
 | Binary size | ~30 MB | ~200 MB |
 | Startup | <200 ms | ~3 s |
 
-OpenFang can import OpenClaw configs: `openfang migrate --from openclaw`
+FreEco.ai can import OpenClaw configs: `openfang migrate --from openclaw`
 
 ### How do I report a bug or request a feature?
 
@@ -629,7 +629,7 @@ OpenFang can import OpenClaw configs: `openfang migrate --from openclaw`
 RUST_LOG=openfang_runtime=debug,openfang_channels=info openfang start
 ```
 
-### Can I use OpenFang as a library?
+### Can I use FreEco.ai as a library?
 
 Yes. Each crate is independently usable:
 ```toml
@@ -644,11 +644,11 @@ The `openfang-kernel` crate assembles everything, but you can use individual cra
 
 ## Common Community Questions
 
-### How do I update OpenFang?
+### How do I update FreEco.ai?
 
 Re-run the install script to get the latest release:
 ```bash
-curl -fsSL https://openfang.sh/install | sh
+curl -fsSL https://freeco.ai/install | sh
 ```
 Or build from source:
 ```bash
@@ -656,13 +656,13 @@ git pull origin main
 cargo build --release -p openfang-cli
 ```
 
-### How do I run OpenFang in Docker?
+### How do I run FreEco.ai in Docker?
 
 ```bash
 docker run -d --name openfang \
   -e GROQ_API_KEY=your_key_here \
   -p 4200:4200 \
-  ghcr.io/rightnow-ai/openfang:latest
+  ghcr.io/freedao/openfang:latest
 ```
 
 To reach a host LLM (Ollama, vLLM, whisper.cpp) from inside the container,
@@ -674,7 +674,7 @@ in-container healthchecks.
 
 ### How do I protect the dashboard with a password?
 
-OpenFang has built-in dashboard authentication. Enable it in `~/.openfang/config.toml`:
+FreEco.ai has built-in dashboard authentication. Enable it in `~/.openfang/config.toml`:
 
 ```toml
 [auth]
@@ -740,7 +740,7 @@ api_key_env = "MOONSHOT_API_KEY"
 
 ### Can I use multiple Telegram bots?
 
-Not yet — each channel type currently supports one bot. Multi-bot routing is tracked as a feature request (#586). As a workaround, run multiple OpenFang instances on different ports with different configs.
+Not yet — each channel type currently supports one bot. Multi-bot routing is tracked as a feature request (#586). As a workaround, run multiple FreEco.ai instances on different ports with different configs.
 
 ### Claude Code integration shows errors
 

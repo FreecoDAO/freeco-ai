@@ -1,9 +1,9 @@
-# OpenFang Security Architecture
+# FreEco.ai Security Architecture
 
 > **Security Contact:** jaber@rightnowai.co — Report vulnerabilities via email. We respond within 48 hours.
 
 This document provides a comprehensive technical reference for every security
-system in the OpenFang Agent Operating System.  All struct names, function
+system in the FreEco.ai Agent Operating System.  All struct names, function
 signatures, constant values, and algorithm descriptions are drawn directly from
 the source code.
 
@@ -35,7 +35,7 @@ the source code.
 
 ## 1. Security Overview
 
-OpenFang implements **defense-in-depth** security.  No single mechanism is
+FreEco.ai implements **defense-in-depth** security.  No single mechanism is
 trusted to be the sole protector; instead, 16 independent systems form
 overlapping layers so that a failure in any one layer is caught by others.
 
@@ -64,7 +64,7 @@ overlapping layers so that a failure in any one layer is caught by others.
 
 **Source:** `openfang-types/src/capability.rs`
 
-OpenFang uses capability-based security.  An agent can only perform actions
+FreEco.ai uses capability-based security.  An agent can only perform actions
 it has been explicitly granted permission to do.  Capabilities are immutable
 after agent creation and are enforced at the kernel level.
 
@@ -385,7 +385,7 @@ mutexes, ensuring the audit log remains available even after a panic.
 
 **Source:** `openfang-types/src/taint.rs`
 
-OpenFang implements a lattice-based taint propagation model that prevents
+FreEco.ai implements a lattice-based taint propagation model that prevents
 tainted values from flowing into sensitive sinks without explicit
 declassification.  This guards against prompt injection, data exfiltration,
 and confused-deputy attacks.
@@ -648,7 +648,7 @@ http://example.com              ->  example.com:80
 
 **Source:** All LLM driver modules, channel adapters, and web search modules.
 
-OpenFang uses `Zeroizing<String>` from the `zeroize` crate on every field
+FreEco.ai uses `Zeroizing<String>` from the `zeroize` crate on every field
 that holds secret material.  When the value is dropped, its memory is
 overwritten with zeros, preventing secrets from lingering in memory.
 
@@ -716,7 +716,7 @@ the secret is overwritten as soon as it is no longer needed.
 
 **Source:** `openfang-wire/src/peer.rs`
 
-The OpenFang Wire Protocol (OFP) uses HMAC-SHA256 with nonce-based mutual
+The FreEco.ai Wire Protocol (OFP) uses HMAC-SHA256 with nonce-based mutual
 authentication over TCP connections.
 
 ### 9.1 Pre-Shared Key Requirement
@@ -839,7 +839,7 @@ pub async fn security_headers(request: Request<Body>, next: Next) -> Response<Bo
 
 **Source:** `openfang-api/src/rate_limiter.rs`
 
-OpenFang uses the Generic Cell Rate Algorithm (GCRA) for cost-aware API
+FreEco.ai uses the Generic Cell Rate Algorithm (GCRA) for cost-aware API
 rate limiting via the `governor` crate.
 
 ### 11.1 Algorithm
@@ -1292,7 +1292,7 @@ fn merge_content(dst: &mut MessageContent, src: MessageContent) {
 
 **Source:** `openfang-api/src/routes.rs`
 
-OpenFang provides two health endpoints with different information levels.
+FreEco.ai provides two health endpoints with different information levels.
 
 ### 17.1 Public Endpoint: `GET /api/health`
 
