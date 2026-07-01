@@ -3,11 +3,11 @@
 </p>
 
 <h1 align="center">FreEco.ai</h1>
-<h3 align="center">The Agent Operating System</h3>
+<h3 align="center">The Sustainable Ethical Agentic Operating System</h3>
 
 <p align="center">
   Open-source Agent OS built in Rust. 137K LOC. 14 crates. 1,767+ tests. Zero clippy warnings.<br/>
-  <strong>One binary. Battle-tested. Agents that actually work for you.</strong>
+  <strong>One binary. Battle-tested. Agents that actually work for you, your business and family.</strong>
 </p>
 
 <p align="center">
@@ -35,7 +35,7 @@
 
 ## What is FreEco.ai?
 
-FreEco.ai is an **open-source Agent Operating System**. Not a chatbot framework. Not a Python wrapper around an LLM. Not a "multi-agent orchestrator." A full operating system for autonomous agents, with ethical and structural enhancements.
+FreEco.ai is an SUSTAINABLE ETHICAL **open-source Agent Operating System**. Not a chatbot framework. Not a Python wrapper around an LLM. Not a "multi-agent orchestrator." A full operating system for autonomous agents, with ethical and structural enhancements for personal use, buisiness, family and kids.
 
 Traditional agent frameworks wait for you to type something. FreEco.ai runs **autonomous agents that work for you**: on schedules, 24/7, building knowledge graphs, monitoring targets, generating leads, managing your social media, and reporting results to your dashboard.
 
