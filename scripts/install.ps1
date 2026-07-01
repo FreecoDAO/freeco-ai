@@ -1,6 +1,6 @@
 # OpenFang installer for Windows
-# Usage: iwr -useb https://openfang.sh/install.ps1 | iex
-#   or:  powershell -c "irm https://openfang.sh/install.ps1 | iex"
+# Usage: iwr -useb https://www.freeco.ai/install.ps1 | iex
+#   or:  powershell -c "irm https://www.freeco.ai/install.ps1 | iex"
 #
 # Flags (via environment variables):
 #   $env:OPENFANG_INSTALL_DIR = custom install directory

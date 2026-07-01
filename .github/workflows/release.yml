@@ -116,7 +116,7 @@ jobs:
 
             **CLI (Linux/macOS)**:
             ```bash
-            curl -sSf https://openfang.sh | sh
+            curl -sSf https://www.freeco.ai | sh
             ```
 
             **Docker**:
