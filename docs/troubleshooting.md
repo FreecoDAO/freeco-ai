@@ -106,7 +106,7 @@ rm ~/.config/fish/conf.d/openfang.fish
 ### Docker container won't start
 
 **Common causes**:
-- No API key provided: `docker run -e GROQ_API_KEY=... ghcr.io/RightNow-AI/openfang`
+- No API key provided: `docker run -e GROQ_API_KEY=... ghcr.io/FreecoDAO/openfang`
 - Port already in use: change the port mapping `-p 3001:4200`
 - Permission denied on volume mount: check directory permissions
 
@@ -126,7 +126,7 @@ docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -e OLLAMA_HOST=http://host.docker.internal:11434 \
   -p 4200:4200 \
-  ghcr.io/rightnow-ai/openfang:latest
+  ghcr.io/freedao/openfang:latest
 ```
 
 Verify the bridge works:
@@ -141,7 +141,7 @@ For Docker Compose use `extra_hosts:`:
 ```yaml
 services:
   openfang:
-    image: ghcr.io/rightnow-ai/openfang:latest
+    image: ghcr.io/freedao/openfang:latest
     ports:
       - "4200:4200"
     extra_hosts:
@@ -155,14 +155,14 @@ connection refused or DNS lookup errors.
 
 ### Curl-equipped reference image
 
-The default `ghcr.io/rightnow-ai/openfang` image does not ship `curl`, so
+The default `ghcr.io/freedao/openfang` image does not ship `curl`, so
 `docker exec openfang curl ...` returns `exec: curl: not found`. If you need
 in-container probes for healthchecks or egress verification, build a thin
 overlay image:
 
 ```dockerfile
 # Dockerfile.curl
-FROM ghcr.io/rightnow-ai/openfang:latest
+FROM ghcr.io/freedao/openfang:latest
 USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
@@ -554,7 +554,7 @@ Yes. Each agent can use a different provider via its manifest `[model]` section.
 cd openfang && git pull && cargo install --path crates/openfang-cli
 
 # Docker
-docker pull ghcr.io/RightNow-AI/openfang:latest
+docker pull ghcr.io/FreecoDAO/openfang:latest
 ```
 
 ### Can agents talk to each other?
@@ -662,7 +662,7 @@ cargo build --release -p openfang-cli
 docker run -d --name openfang \
   -e GROQ_API_KEY=your_key_here \
   -p 4200:4200 \
-  ghcr.io/rightnow-ai/openfang:latest
+  ghcr.io/freedao/openfang:latest
 ```
 
 To reach a host LLM (Ollama, vLLM, whisper.cpp) from inside the container,
