@@ -1,0 +1,44 @@
+# OWASP ZAP API Security Scan
+# Replaces the removed apisec-inc/ethicalcheck-action with the maintained
+# OWASP ZAP API scanner for automated API security testing.
+
+name: EthicalCheck-Workflow
+
+on:
+  # Only runs on manual trigger or weekly schedule since it needs a live API target.
+  schedule:
+    - cron: '17 7 * * 3'
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "OpenAPI spec URL to scan"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  api-security-scan:
+    permissions:
+      security-events: write
+      actions: read
+      issues: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: OWASP ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.9.0
+        with:
+          target: ${{ github.event.inputs.target_url || 'https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/docs/openapi.yaml' }}
+          fail_action: false
+          cmd_options: '-a'
+
+      - name: Upload SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: report_json.json
+        continue-on-error: true

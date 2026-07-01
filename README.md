@@ -27,9 +27,23 @@
 
 ---
 
+## ⬇️ Download
+
+Get the latest desktop installer for your platform:
+
+| Platform | Installer |
+|----------|-----------|
+| **Windows** | [`.msi` installer](https://github.com/FreecoDAO/freeco-ai/releases/latest) |
+| **macOS** | [`.dmg` installer](https://github.com/FreecoDAO/freeco-ai/releases/latest) |
+| **Linux** | [`.AppImage`](https://github.com/FreecoDAO/freeco-ai/releases/latest) / [`.deb`](https://github.com/FreecoDAO/freeco-ai/releases/latest) |
+
+👉 **[Browse all releases](https://github.com/FreecoDAO/freeco-ai/releases/latest)**
+
+---
+
 > **v0.5.10 (April 2026)**
 >
-> FreEco.ai is feature complete but still pre-1.0. Expect rough edges and breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/RightNow-AI/openfang/issues)
+> FreEco.ai is feature complete but still pre-1.0. Expect rough edges and breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/FreecoDAO/freeco-ai/issues)
 
 ---
 
