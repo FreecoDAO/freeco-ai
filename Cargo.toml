@@ -30,7 +30,7 @@ members = [
 version = "0.6.9"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-repository = "https://github.com/FreecoDAO/openfang"
+repository = "https://github.com/FreecoDAO/FreEco-ai"
 rust-version = "1.75"
 
 [workspace.dependencies]

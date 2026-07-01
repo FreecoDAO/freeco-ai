@@ -8,7 +8,7 @@
 
 $ErrorActionPreference = 'Stop'
 
-$Repo = "FreecoDAO/openfang"
+$Repo = "FreecoDAO/FreEco-ai"
 $DefaultInstallDir = Join-Path $env:USERPROFILE ".openfang\bin"
 $InstallDir = if ($env:OPENFANG_INSTALL_DIR) { $env:OPENFANG_INSTALL_DIR } else { $DefaultInstallDir }
 
@@ -53,7 +53,7 @@ function Get-Architecture {
         { $_ -in "ARM64", "AARCH64", "ARM" }     { return "aarch64" }
         default {
             Write-Host "  Unsupported architecture: $arch (detection may have failed)" -ForegroundColor Red
-            Write-Host "  Try: cargo install --git https://github.com/FreecoDAO/openfang openfang-cli" -ForegroundColor Yellow
+            Write-Host "  Try: cargo install --git https://github.com/FreecoDAO/FreEco-ai openfang-cli" -ForegroundColor Yellow
             exit 1
         }
     }

@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-REPO="FreecoDAO/openfang"
+REPO="FreecoDAO/FreEco-ai"
 INSTALL_DIR="${OPENFANG_INSTALL_DIR:-$HOME/.openfang/bin}"
 
 detect_platform() {

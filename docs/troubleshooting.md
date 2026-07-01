@@ -106,7 +106,7 @@ rm ~/.config/fish/conf.d/openfang.fish
 ### Docker container won't start
 
 **Common causes**:
-- No API key provided: `docker run -e GROQ_API_KEY=... ghcr.io/FreecoDAO/openfang`
+- No API key provided: `docker run -e GROQ_API_KEY=... ghcr.io/freecoda/freeco-ai`
 - Port already in use: change the port mapping `-p 3001:4200`
 - Permission denied on volume mount: check directory permissions
 
@@ -554,7 +554,7 @@ Yes. Each agent can use a different provider via its manifest `[model]` section.
 cd openfang && git pull && cargo install --path crates/openfang-cli
 
 # Docker
-docker pull ghcr.io/FreecoDAO/openfang:latest
+docker pull ghcr.io/freecoda/freeco-ai:latest
 ```
 
 ### Can agents talk to each other?
