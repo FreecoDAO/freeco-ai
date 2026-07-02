@@ -12765,13 +12765,20 @@ mod whatsapp_gateway_tests {
         )
         .unwrap();
 
+        let parsed = reqwest::Url::parse(&url).expect("constructed URL must be valid");
+        let pairs: Vec<(String, String)> = parsed
+            .query_pairs()
+            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .collect();
         assert_eq!(
-            url,
-            "http://127.0.0.1:3009/login/status?session_id=abc%0D%0AX-Injected%3A+value%26next%3Dyes"
+            pairs,
+            vec![(
+                "session_id".to_string(),
+                "abc\r\nX-Injected: value&next=yes".to_string(),
+            )]
         );
         assert!(!url.contains('\r'));
         assert!(!url.contains('\n'));
-    }
 
     #[test]
     fn whatsapp_qr_status_url_rejects_invalid_gateway_url() {
