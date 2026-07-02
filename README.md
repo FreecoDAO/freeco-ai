@@ -37,7 +37,7 @@ Get the latest desktop installer for your platform:
 | **macOS** | [`.dmg` installer](https://github.com/FreecoDAO/freeco-ai/releases/latest) |
 | **Linux** | [`.AppImage`](https://github.com/FreecoDAO/freeco-ai/releases/latest) / [`.deb`](https://github.com/FreecoDAO/freeco-ai/releases/latest) |
 
-👉 **[Browse all releases](https://github.com/FreecoDAO/freeco-ai/releases/latest)**
+👉 **[Browse all releases](https://github.com/FreecoDAO/freeco-ai/releases)**
 
 ---
 
