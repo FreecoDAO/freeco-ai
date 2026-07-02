@@ -1,0 +1,153 @@
+openapi: "3.0.3"
+info:
+  title: FreEco.ai API
+  description: |
+    REST API for the FreEco.ai Agent Operating System.
+    See full documentation at https://freeco.ai/docs/api-reference
+  version: "0.6.9"
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://127.0.0.1:4200
+    description: Local daemon (default)
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      operationId: health
+      responses:
+        "200":
+          description: Daemon is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/version:
+    get:
+      summary: Get daemon version
+      operationId: version
+      responses:
+        "200":
+          description: Version information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                    example: "0.6.9"
+
+  /api/agents:
+    get:
+      summary: List all agents
+      operationId: listAgents
+      responses:
+        "200":
+          description: Array of agent summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    status:
+                      type: string
+    post:
+      summary: Spawn a new agent
+      operationId: spawnAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                profile:
+                  type: string
+      responses:
+        "201":
+          description: Agent created
+
+  /api/agents/{id}:
+    get:
+      summary: Get agent details
+      operationId: getAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent details
+        "404":
+          description: Agent not found
+    delete:
+      summary: Kill an agent
+      operationId: killAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent terminated
+
+  /api/agents/{id}/message:
+    post:
+      summary: Send a message to an agent
+      operationId: sendMessage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+              required:
+                - message
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+
+  /api/status:
+    get:
+      summary: System status
+      operationId: status
+      responses:
+        "200":
+          description: System status overview
