@@ -53,10 +53,36 @@ impl Language {
 
         // ── Spanish detection ────────────────────────────────────────────────
         let spanish_markers = [
-            " de ", " del ", " la ", " las ", " los ", " el ", " un ", " una ",
-            " y ", " o ", " con ", " por ", " para ", " en ", " que ",
-            "¿", "¡", "ñ", "leche", "queso", "aceite", "harina", "mantequilla",
-            "pan", "verduras", "frutas", "agua", "jugo", "café", "té",
+            " de ",
+            " del ",
+            " la ",
+            " las ",
+            " los ",
+            " el ",
+            " un ",
+            " una ",
+            " y ",
+            " o ",
+            " con ",
+            " por ",
+            " para ",
+            " en ",
+            " que ",
+            "¿",
+            "¡",
+            "ñ",
+            "leche",
+            "queso",
+            "aceite",
+            "harina",
+            "mantequilla",
+            "pan",
+            "verduras",
+            "frutas",
+            "agua",
+            "jugo",
+            "café",
+            "té",
         ];
         let spanish_hits = spanish_markers
             .iter()
@@ -68,11 +94,10 @@ impl Language {
 
         // ── French detection ─────────────────────────────────────────────────
         let french_markers = [
-            " de ", " du ", " des ", " le ", " la ", " les ", " un ", " une ",
-            " et ", " ou ", " avec ", " pour ", " dans ", " sur ", " au ",
-            "d'", "l'", "j'", "n'", "c'", "qu'",
-            "lait", "fromage", "huile", "farine", "beurre", "pain",
-            "légumes", "fruits", "eau", "jus", "café", "thé",
+            " de ", " du ", " des ", " le ", " la ", " les ", " un ", " une ", " et ", " ou ",
+            " avec ", " pour ", " dans ", " sur ", " au ", "d'", "l'", "j'", "n'", "c'", "qu'",
+            "lait", "fromage", "huile", "farine", "beurre", "pain", "légumes", "fruits", "eau",
+            "jus", "café", "thé",
         ];
         let french_hits = french_markers
             .iter()
@@ -115,7 +140,10 @@ mod tests {
 
     #[test]
     fn detects_french_food_words() {
-        assert_eq!(Language::detect("lait avoine fromage bio"), Language::French);
+        assert_eq!(
+            Language::detect("lait avoine fromage bio"),
+            Language::French
+        );
     }
 
     #[test]
@@ -165,6 +193,6 @@ mod tests {
     #[test]
     fn single_cyrillic_char_not_enough() {
         // Only 1 Cyrillic character — not enough confidence.
-        assert_eq!(Language::detect("buy молоко"), Language::English);
+        assert_eq!(Language::detect("buy м"), Language::English);
     }
 }

@@ -56,7 +56,10 @@ mod tests {
             .unwrap_err();
         assert!(matches!(
             err,
-            BudgetError::Exceeded { used: 999_999_999, .. }
+            BudgetError::Exceeded {
+                used: 999_999_999,
+                ..
+            }
         ));
     }
 

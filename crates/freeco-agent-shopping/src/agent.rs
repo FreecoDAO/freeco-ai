@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use agent_core::{
-    Agent, AgentContext, AgentError, AgentResponse, Capability, Message,
-    MessageContent,
+    Agent, AgentContext, AgentError, AgentResponse, Capability, Message, MessageContent,
 };
 use async_trait::async_trait;
 use tool_gateway::{LlmClient, ToolGateway};
@@ -23,18 +22,13 @@ impl ShoppingAgent {
     ///
     /// - `gateway` – permission-gated tool access (Tavily, OpenFoodFacts, GooglePlaces).
     /// - `llm`     – Novita AI / Gemma 4 26B client for recommendation synthesis.
-    pub fn new(
-        id: impl Into<String>,
-        gateway: Arc<ToolGateway>,
-        llm: Arc<LlmClient>,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, gateway: Arc<ToolGateway>, llm: Arc<LlmClient>) -> Self {
         Self {
             id: id.into(),
             researcher: ProductResearcher::new(gateway, llm),
         }
     }
 }
-
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -55,15 +49,14 @@ impl Agent for ShoppingAgent {
         ]
     }
 
-    async fn handle(
-        &self,
-        ctx: &AgentContext,
-        msg: Message,
-    ) -> Result<AgentResponse, AgentError> {
+    async fn handle(&self, ctx: &AgentContext, msg: Message) -> Result<AgentResponse, AgentError> {
         let (query, location) = match &msg.content {
             MessageContent::ShoppingQuery {
                 query, location, ..
-            } => (query.clone(), location.clone().or_else(|| ctx.location.clone())),
+            } => (
+                query.clone(),
+                location.clone().or_else(|| ctx.location.clone()),
+            ),
             MessageContent::Text(text) => (text.clone(), ctx.location.clone()),
             other => {
                 return Err(AgentError::UnsupportedMessage {
@@ -106,14 +99,12 @@ mod tests {
     }
 
     fn make_agent(tavily_url: &str, off_url: &str, llm_url: &str) -> ShoppingAgent {
-        let gateway = Arc::new(
-            ToolGateway::new_for_testing(
-                all_tools_manifest(),
-                tool_gateway::TavilyClient::new("tk".into()).with_base_url(tavily_url),
-                tool_gateway::OpenFoodFactsClient::new().with_base_url(off_url),
-                tool_gateway::GooglePlacesClient::new("gk".into()),
-            ),
-        );
+        let gateway = Arc::new(ToolGateway::new_for_testing(
+            all_tools_manifest(),
+            tool_gateway::TavilyClient::new("tk".into()).with_base_url(tavily_url),
+            tool_gateway::OpenFoodFactsClient::new().with_base_url(off_url),
+            tool_gateway::GooglePlacesClient::new("gk".into()),
+        ));
         let llm = Arc::new(LlmClient::new("lk").with_base_url(llm_url));
         ShoppingAgent::new("agent-shopping", gateway, llm)
     }
@@ -157,8 +148,7 @@ mod tests {
             .await;
 
         let agent = make_agent(&tavily_srv.url(), &off_srv.url(), &llm_srv.url());
-        let ctx = AgentContext::new("agent-shopping", "user-1")
-            .with_location("Geneva");
+        let ctx = AgentContext::new("agent-shopping", "user-1").with_location("Geneva");
         let msg = Message::shopping_query("q-1", "agent-shopping", "organic oat milk", None);
 
         let resp = agent.handle(&ctx, msg).await.unwrap();
@@ -176,12 +166,20 @@ mod tests {
         let mut off_srv = Server::new_async().await;
         let mut llm_srv = Server::new_async().await;
 
-        let _t = tavily_srv.mock("POST", "/search").with_status(200)
+        let _t = tavily_srv
+            .mock("POST", "/search")
+            .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(r#"{"results":[]}"#).create_async().await;
-        let _o = off_srv.mock("GET", mockito::Matcher::Any).with_status(200)
+            .with_body(r#"{"results":[]}"#)
+            .create_async()
+            .await;
+        let _o = off_srv
+            .mock("GET", mockito::Matcher::Any)
+            .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(r#"{"products":[]}"#).create_async().await;
+            .with_body(r#"{"products":[]}"#)
+            .create_async()
+            .await;
         let _l = llm_srv.mock("POST", "/chat/completions").with_status(200)
             .with_header("content-type", "application/json")
             .with_body(r#"{"choices":[{"message":{"content":"ANALYSIS|No results."},"finish_reason":"stop"}],"usage":{"total_tokens":10}}"#)

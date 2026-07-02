@@ -125,7 +125,9 @@ fn parse_single_item(raw: &str) -> Option<ShoppingItem> {
 /// Strip leading list markers: bullets, numbers, dashes.
 fn strip_list_marker(s: &str) -> &str {
     // Numbered: "1. ", "12) ", "3- "
-    let s = if let Some(pos) = s.find(|c: char| c == '.' || c == ')' || (c == '-' && !s.starts_with('-'))) {
+    let s = if let Some(pos) =
+        s.find(|c: char| c == '.' || c == ')' || (c == '-' && !s.starts_with('-')))
+    {
         let before = &s[..pos];
         if before.chars().all(|c| c.is_ascii_digit()) && pos < 4 {
             s[pos + 1..].trim_start()

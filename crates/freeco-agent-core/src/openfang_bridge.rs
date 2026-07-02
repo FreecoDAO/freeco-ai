@@ -4,7 +4,10 @@ use crate::{
 };
 
 /// Convert an OpenFang message into a Freeco agent-core message.
-pub fn from_openfang_message(msg: &openfang_types::message::Message, to: impl Into<String>) -> Message {
+pub fn from_openfang_message(
+    msg: &openfang_types::message::Message,
+    to: impl Into<String>,
+) -> Message {
     let role = match msg.role {
         openfang_types::message::Role::System => MessageRole::System,
         openfang_types::message::Role::User => MessageRole::User,
@@ -25,10 +28,14 @@ pub fn to_openfang_message(resp: &AgentResponse) -> openfang_types::message::Mes
     let text = match &resp.content {
         ResponseContent::Text(t) => t.clone(),
         ResponseContent::SoftError(e) => format!("error: {e}"),
-        ResponseContent::ExecutiveDecision { summary, actions, .. } => {
+        ResponseContent::ExecutiveDecision {
+            summary, actions, ..
+        } => {
             format!("{summary}\n\n{}", actions.join("\n"))
         }
-        other => serde_json::to_string(other).unwrap_or_else(|_| "unsupported response".to_string()),
+        other => {
+            serde_json::to_string(other).unwrap_or_else(|_| "unsupported response".to_string())
+        }
     };
     openfang_types::message::Message::assistant(text)
 }

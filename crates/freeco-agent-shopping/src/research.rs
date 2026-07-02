@@ -99,7 +99,11 @@ fn build_prompt(
 ) -> String {
     let mut parts = vec![format!(
         "Query: {query}\nLocation: {loc}\nSubscription: {tier}\n\nSearch Results:",
-        loc = if location.is_empty() { "Not specified" } else { location },
+        loc = if location.is_empty() {
+            "Not specified"
+        } else {
+            location
+        },
         tier = ctx.tier
     )];
 
@@ -184,9 +188,17 @@ fn parse_product_line(line: &str, food_results: &[ProductInfo]) -> Option<Recomm
         return None;
     }
 
-    let brand = parts.get(1).map(|s| s.trim()).filter(|s| !s.is_empty()).map(str::to_string);
+    let brand = parts
+        .get(1)
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
     let price_chf = parts.get(2).and_then(|s| s.trim().parse::<f32>().ok());
-    let store = parts.get(3).map(|s| s.trim()).filter(|s| !s.is_empty()).map(str::to_string);
+    let store = parts
+        .get(3)
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
     let reason = parts.get(5).copied().unwrap_or("").trim().to_string();
 
     // Enrich with Open Food Facts data when the product name matches

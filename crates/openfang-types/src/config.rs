@@ -1712,9 +1712,7 @@ impl std::fmt::Debug for KernelConfig {
                 "freeco",
                 &format!(
                     "safe_mode={} coding_enabled={} lang={}",
-                    self.freeco.safe_mode,
-                    self.freeco.coding_enabled,
-                    self.freeco.primary_language
+                    self.freeco.safe_mode, self.freeco.coding_enabled, self.freeco.primary_language
                 ),
             )
             .finish()

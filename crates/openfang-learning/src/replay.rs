@@ -5,7 +5,7 @@
 //! self-improvement across sessions.
 
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::Path;
 use tokio::fs;
 
 /// Replay configuration controlling how much history is injected.
@@ -37,26 +37,47 @@ impl Default for ReplayConfig {
 ///
 /// Returns a Markdown-formatted string suitable for inclusion in a system prompt
 /// or memory substrate seed.
-pub async fn load_session_context(
-    agent_dir: &PathBuf,
-    config: &ReplayConfig,
-) -> Result<String> {
+pub async fn load_session_context(agent_dir: &Path, config: &ReplayConfig) -> Result<String> {
     let learnings_dir = agent_dir.join(".learnings");
     let mut parts: Vec<String> = Vec::new();
 
     // Always include core learnings
-    append_file(&learnings_dir, "LEARNINGS.md", "Past Learnings & Best Practices", &mut parts).await;
+    append_file(
+        &learnings_dir,
+        "LEARNINGS.md",
+        "Past Learnings & Best Practices",
+        &mut parts,
+    )
+    .await;
 
     if config.include_errors {
-        append_file(&learnings_dir, "ERRORS.md", "Known Errors & Resolutions", &mut parts).await;
+        append_file(
+            &learnings_dir,
+            "ERRORS.md",
+            "Known Errors & Resolutions",
+            &mut parts,
+        )
+        .await;
     }
 
     if config.include_security {
-        append_file(&learnings_dir, "SECURITY.md", "Security Observations", &mut parts).await;
+        append_file(
+            &learnings_dir,
+            "SECURITY.md",
+            "Security Observations",
+            &mut parts,
+        )
+        .await;
     }
 
     if config.include_feature_requests {
-        append_file(&learnings_dir, "FEATURE_REQUESTS.md", "Feature Requests", &mut parts).await;
+        append_file(
+            &learnings_dir,
+            "FEATURE_REQUESTS.md",
+            "Feature Requests",
+            &mut parts,
+        )
+        .await;
     }
 
     let combined = parts.join("\n");
@@ -76,7 +97,7 @@ pub async fn load_session_context(
     }
 }
 
-async fn append_file(dir: &PathBuf, filename: &str, heading: &str, parts: &mut Vec<String>) {
+async fn append_file(dir: &Path, filename: &str, heading: &str, parts: &mut Vec<String>) {
     let path = dir.join(filename);
     if path.exists() {
         if let Ok(content) = fs::read_to_string(&path).await {

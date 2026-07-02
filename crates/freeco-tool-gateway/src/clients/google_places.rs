@@ -163,8 +163,7 @@ impl GooglePlacesClient {
             .into_iter()
             .map(|r| {
                 let place_location = LatLng::new(r.geometry.location.lat, r.geometry.location.lng);
-                let distance_km =
-                    Some(haversine_km(location, place_location));
+                let distance_km = Some(haversine_km(location, place_location));
                 let maps_url = format!(
                     "https://www.google.com/maps/place/?q=place_id:{}",
                     r.place_id
@@ -253,8 +252,7 @@ mod tests {
             .create_async()
             .await;
 
-        let client =
-            GooglePlacesClient::new("test-key".into()).with_base_url(server.url());
+        let client = GooglePlacesClient::new("test-key".into()).with_base_url(server.url());
         let results = client
             .find_stores("dairy alternatives", LatLng::geneva(), 5.0)
             .await
@@ -287,8 +285,7 @@ mod tests {
             .create_async()
             .await;
 
-        let client =
-            GooglePlacesClient::new("bad-key".into()).with_base_url(server.url());
+        let client = GooglePlacesClient::new("bad-key".into()).with_base_url(server.url());
         let err = client
             .find_stores("organic food", LatLng::geneva(), 5.0)
             .await

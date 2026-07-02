@@ -254,7 +254,10 @@ mod tests {
 
         let client = LlmClient::new("key").with_base_url(server.url());
         let resp = client
-            .chat(vec![ChatMessage::system("be helpful"), ChatMessage::user("hi")], 256)
+            .chat(
+                vec![ChatMessage::system("be helpful"), ChatMessage::user("hi")],
+                256,
+            )
             .await
             .unwrap();
 
@@ -333,7 +336,10 @@ mod tests {
             .with_model("my-custom-model");
 
         assert_eq!(client.model(), "my-custom-model");
-        let resp = client.chat(vec![ChatMessage::user("hi")], 32).await.unwrap();
+        let resp = client
+            .chat(vec![ChatMessage::user("hi")], 32)
+            .await
+            .unwrap();
         assert_eq!(resp.content, "ok");
     }
 }

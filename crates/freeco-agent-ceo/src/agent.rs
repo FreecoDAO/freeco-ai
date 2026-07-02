@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use agent_core::{
-    Agent, AgentContext, AgentError, AgentResponse, Capability, Message,
-    MessageContent,
+    Agent, AgentContext, AgentError, AgentResponse, Capability, Message, MessageContent,
 };
 use async_trait::async_trait;
 use openfang_runtime::kernel_handle::KernelHandle;
@@ -71,11 +70,7 @@ impl Agent for CeoAgent {
         vec![Capability::ExecutiveDecision]
     }
 
-    async fn handle(
-        &self,
-        _ctx: &AgentContext,
-        msg: Message,
-    ) -> Result<AgentResponse, AgentError> {
+    async fn handle(&self, _ctx: &AgentContext, msg: Message) -> Result<AgentResponse, AgentError> {
         let directive = match &msg.content {
             MessageContent::Directive {
                 instruction,
@@ -145,7 +140,12 @@ mod tests {
     async fn returns_executive_decision_for_directive() {
         let agent = CeoAgent::new("agent-ceo");
         let ctx = AgentContext::new("agent-ceo", "user-1");
-        let msg = Message::directive("d-1", "agent-ceo", "launch new product line", Priority::High);
+        let msg = Message::directive(
+            "d-1",
+            "agent-ceo",
+            "launch new product line",
+            Priority::High,
+        );
         let resp = agent.handle(&ctx, msg).await.unwrap();
 
         assert_eq!(resp.from_agent, "agent-ceo");
@@ -164,7 +164,10 @@ mod tests {
         let ctx = AgentContext::new("agent-ceo", "u");
         let msg = Message::user_text("m-1", "agent-ceo", "review Q3 budget");
         let resp = agent.handle(&ctx, msg).await.unwrap();
-        assert!(matches!(resp.content, ResponseContent::ExecutiveDecision { .. }));
+        assert!(matches!(
+            resp.content,
+            ResponseContent::ExecutiveDecision { .. }
+        ));
     }
 
     #[tokio::test]

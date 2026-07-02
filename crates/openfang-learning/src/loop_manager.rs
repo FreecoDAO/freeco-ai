@@ -51,16 +51,23 @@ impl LearningLoop {
         content: impl Into<String>,
     ) -> Result<LearningEvent> {
         let event = LearningEvent::new(learning_type, context, content);
-        debug!("Capturing learning: {} in context '{}'", event.id, event.context);
+        debug!(
+            "Capturing learning: {} in context '{}'",
+            event.id, event.context
+        );
 
         self.append_to_log(&event).await?;
 
         // Auto-promote if the policy threshold is met
         let score = LearningScore::compute(&event);
         if score.should_promote(&self.promotion_policy) {
-            info!("Auto-promoting learning {} (score={:.1})", event.id, score.total);
+            info!(
+                "Auto-promoting learning {} (score={:.1})",
+                event.id, score.total
+            );
             let target = self.promotion_policy.target_file(&event.learning_type);
-            self.promote_to_core_memory(&target, &event.to_markdown()).await?;
+            self.promote_to_core_memory(&target, &event.to_markdown())
+                .await?;
         }
 
         Ok(event)
@@ -87,8 +94,7 @@ impl LearningLoop {
         context: impl Into<String>,
         observation: impl Into<String>,
     ) -> Result<LearningEvent> {
-        let mut event =
-            LearningEvent::new(LearningType::SecurityObservation, context, observation);
+        let mut event = LearningEvent::new(LearningType::SecurityObservation, context, observation);
         event.impact = 10;
 
         self.append_to_log(&event).await?;
@@ -103,11 +109,7 @@ impl LearningLoop {
     ///
     /// Core memory files (e.g., `SOUL.md`, `AGENTS.md`, `TOOLS.md`) are read
     /// by the agent at the start of every session to seed its context.
-    pub async fn promote_to_core_memory(
-        &self,
-        target_filename: &str,
-        content: &str,
-    ) -> Result<()> {
+    pub async fn promote_to_core_memory(&self, target_filename: &str, content: &str) -> Result<()> {
         let file_path = self.agent_dir.join(target_filename);
 
         let mut file = OpenOptions::new()
@@ -132,7 +134,12 @@ impl LearningLoop {
     /// the agent's system prompt or memory substrate.
     pub async fn load_for_replay(&self) -> Result<String> {
         let mut combined = String::new();
-        for filename in &["LEARNINGS.md", "ERRORS.md", "FEATURE_REQUESTS.md", "SECURITY.md"] {
+        for filename in &[
+            "LEARNINGS.md",
+            "ERRORS.md",
+            "FEATURE_REQUESTS.md",
+            "SECURITY.md",
+        ] {
             let path = self.learnings_dir.join(filename);
             if path.exists() {
                 let content = fs::read_to_string(&path).await?;
