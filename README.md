@@ -1,13 +1,13 @@
 <p align="center">
-  <img src="public/assets/openfang-logo.png" width="160" alt="FreEco.ai Logo" />
+  <img src="https://github.com/user-attachments/assets/7c67fbb2-e0c9-4634-9cd0-3d78a02027ef" width="160" alt="FreEco.ai Logo" />
 </p>
 
 <h1 align="center">FreEco.ai</h1>
-<h3 align="center">The Agent Operating System</h3>
+<h3 align="center">The Sustainable Ethical Agentic Operating System</h3>
 
 <p align="center">
   Open-source Agent OS built in Rust. 137K LOC. 14 crates. 1,767+ tests. Zero clippy warnings.<br/>
-  <strong>One binary. Battle-tested. Agents that actually work for you.</strong>
+  <strong>One binary. Battle-tested. Agents that actually work for you, your business and family.</strong>
 </p>
 
 <p align="center">
@@ -49,7 +49,7 @@ Get the latest desktop installer for your platform:
 
 ## What is FreEco.ai?
 
-FreEco.ai is an **open-source Agent Operating System**. Not a chatbot framework. Not a Python wrapper around an LLM. Not a "multi-agent orchestrator." A full operating system for autonomous agents, built on the OpenFang base with ethical and structural enhancements.
+FreEco.ai is an SUSTAINABLE ETHICAL **open-source Agent Operating System**. Not a chatbot framework. Not a Python wrapper around an LLM. Not a "multi-agent orchestrator." A full operating system for autonomous agents, with ethical and structural enhancements for personal use, buisiness, family and kids.
 
 Traditional agent frameworks wait for you to type something. FreEco.ai runs **autonomous agents that work for you**: on schedules, 24/7, building knowledge graphs, monitoring targets, generating leads, managing your social media, and reporting results to your dashboard.
 
@@ -72,6 +72,40 @@ openfang start
 ```
 
 </details>
+
+<details>
+<summary><strong>Running from Source (Linux / macOS / Windows)</strong></summary>
+
+**Prerequisites:** [Rust 1.75+](https://rustup.rs/) and at least one LLM API key.
+
+```bash
+git clone https://github.com/FreecoDAO/FreEco-ai.git
+cd openfang
+cargo build --release -p openfang-cli
+./target/release/openfang init          # creates ~/.openfang/config.toml
+export GROQ_API_KEY=gsk_...             # or ANTHROPIC_API_KEY / OPENAI_API_KEY
+./target/release/openfang start
+# Dashboard live at http://localhost:4200
+```
+
+On Windows use `target\release\openfang.exe`. See [docs/getting-started.md](docs/getting-started.md) for the full guide.
+
+</details>
+
+---
+
+## Four Editions of FreEco.ai
+
+FreEco.ai ships as a single binary that you configure for your use case. The four supported assembly types are:
+
+| Edition | Who It's For | What It Does |
+|---------|-------------|--------------|
+| 🧑‍💼 **Personal Concierge** | Individuals | Hi-end Swiss-style assistant for life, work, shopping, and health coaching. Runs 24/7, proactively surfaces insights, and manages your day autonomously. |
+| 🧒 **Kids Edition** | Families & schools | Ethical, child-safe AI companion for study, daily life, and online security. Strictly guardrailed, COPPA-aligned, with parental visibility built in. |
+| 🏢 **Business Suite** | Companies & teams | Autonomous buyer and executive-agent team: lead generation, competitor intelligence, scheduling, reporting. Agent-to-agent handoffs with approval gates. |
+| 🤖 **AI Company** | Power users & builders | A self-running, fully autonomous AI company on your device. Spin up specialized agent teams that plan, delegate, execute, and report — end-to-end, no human in the loop. |
+
+You can also **import any agent from [OpenClaw Hub](https://github.com/FreecoDAO/FreEco-ai)** and create your own custom agents using `agent.toml` manifests. See [Spawn Your First Agent](docs/getting-started.md#spawn-your-first-agent).
 
 ---
 
@@ -480,7 +514,7 @@ FreEco.ai v0.5.10 is pre-1.0. The architecture is solid, the test suite is compr
 
 - **Breaking changes** may occur between minor versions until v1.0.
 - **Some Hands** are more mature than others. Browser and Researcher are the most battle tested.
-- **Edge cases** exist. If you find one, [open an issue](https://github.com/RightNow-AI/openfang/issues).
+- **Edge cases** exist. If you find one, [open an issue](https://github.com/FreecoDAO/FreEco-ai/issues).
 - **Pin to a specific commit** for production deployments until v1.0.
 
 We ship fast and fix fast. The goal is a rock solid v1.0 by mid 2026.
@@ -503,7 +537,7 @@ MIT. Use it however you want.
 
 - [Website & Documentation](https://freeco.ai)
 - [Quick Start Guide](https://freeco.ai/docs/getting-started)
-- [GitHub](https://github.com/RightNow-AI/openfang)
+- [GitHub](https://github.com/FreecoDAO/FreEco-ai)
 - [Discord](https://discord.gg/sSJqgNnq6X)
 - [Twitter / X](https://x.com/FreEcoAI)
 
