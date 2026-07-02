@@ -5,7 +5,7 @@
 //! self-improvement across sessions.
 
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::Path;
 use tokio::fs;
 
 /// Replay configuration controlling how much history is injected.
@@ -38,7 +38,7 @@ impl Default for ReplayConfig {
 /// Returns a Markdown-formatted string suitable for inclusion in a system prompt
 /// or memory substrate seed.
 pub async fn load_session_context(
-    agent_dir: &PathBuf,
+    agent_dir: &Path,
     config: &ReplayConfig,
 ) -> Result<String> {
     let learnings_dir = agent_dir.join(".learnings");
@@ -76,7 +76,7 @@ pub async fn load_session_context(
     }
 }
 
-async fn append_file(dir: &PathBuf, filename: &str, heading: &str, parts: &mut Vec<String>) {
+async fn append_file(dir: &Path, filename: &str, heading: &str, parts: &mut Vec<String>) {
     let path = dir.join(filename);
     if path.exists() {
         if let Ok(content) = fs::read_to_string(&path).await {
