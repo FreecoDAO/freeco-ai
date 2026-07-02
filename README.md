@@ -7,7 +7,218 @@
 
 <p align="center">
   Open-source Agent OS built in Rust. 137K LOC. 14 crates. 1,767+ tests. Zero clippy warnings.<br/>
-  <strong>One binary. Battle-tested. Agents that actually work for you, your business and family.</strong>
+  <strong>One binary. Battle-tested. Agents that actually work for you, your business and family. # FRE.ECO AI Node & Marketplace Roadmap
+
+## Executive Architecture (v1.0)
+
+### Vision
+
+FRE.ECO will evolve into a federated AI commerce platform based on self-sovereign user nodes.
+
+Instead of building a traditional cloud-first marketplace, FRE.ECO will first deliver a local AI-powered node ("FRE.ECO Node") running on users' devices. The cloud marketplace will then become a coordination, synchronization, and intelligence layer rather than the primary execution environment.
+
+At the core of the system is **FreEco.ai**, which ships as a **single binary** that you configure for your use case. The same runtime can be assembled into different product experiences depending on the target audience.
+
+FreEco.ai is built on and evolved from the mature, most reliable, advanced, and secure open-source AI Agentic OS **OpenFang**, which advanced the trending **OpenClaw** agentic community into a highly reliable Agentic OS with **16 security levels** and **Ethical Ecological guidelines**. This foundation gives FRE.ECO a strong, trusted, and extensible AI operating base for secure local execution, agent orchestration, and responsible ecosystem growth.
+
+The four supported assembly types are:
+
+| Edition                                                                                                           | Who It's For           | What It Does                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🧑‍💼 **Personal sustainable Free Eco AI Concierge, Personal, work, travel, shopping, Health coaching Assistant** | Individuals            | Hi-end Swiss-style assistant for life, work, shopping, and health coaching. Runs 24/7, proactively surfaces insights, and manages your day autonomously.                                                                 |
+| 🧒 **Kids Edition**                                                                                               | Families & schools     | Ethical, ecological child-safe AI companion for study, daily life, and online security. Strictly guardrailed, COPPA-aligned, with parental visibility built in.                                                          |
+| 🏢 **Free Eco Business Suite**                                                                                    | Companies & teams      | Autonomous sustainable buyer and executive-agent team for restaurants, shops, businesses, and non-profits: lead generation, competitor intelligence, scheduling, reporting. Agent-to-agent handoffs with approval gates. |
+| 🤖 **Free Eco AI Company for running Sustainable businesses, charities, nonprofits**                              | Power users & builders | A self-running, fully autonomous AI company on your device. Spin up specialized agent teams that plan, delegate, execute, and report — end-to-end, no human in the loop.                                                 |
+
+The system combines:
+
+* FreEco.ai (AI kernel)
+* FRE.ECO Node
+* FRE.ECO Marketplace
+* FRE.ECO MCP Gateway
+* FRE.ECO DAO
+* FRE.ECO Wallet
+* FRE.ECO AI Shopping Assistant
+
+---
+
+# Phase 1 — FRE.ECO Node
+
+Deliver native applications for:
+
+* Windows
+* macOS
+* Linux
+* iPhone
+* Android
+
+The user installs one application exactly like a crypto wallet.
+
+No Docker knowledge is required.
+
+Each node contains:
+
+* FreEco.ai
+* AI Shopping Assistant
+* Local encrypted database
+* Local vector memory
+* Wallet
+* Personal agents
+* Synchronization engine
+* MCP client
+* Automatic updater
+
+The node works online and offline.
+
+The FreEco.ai binary is configured at install time or first launch for the selected edition:
+
+* Personal sustainable AI Concierge
+* Kids Edition
+* Free Eco Business Suite
+* Free Eco AI Company
+
+This keeps the runtime unified while allowing the product experience to be tailored to the user’s needs.
+
+---
+
+# Phase 2 — Agent Marketplace
+
+Introduce a signed Agent Store.
+
+Examples include:
+
+* Shopping Agent
+* Travel Agent
+* Health Information Agent
+* Legal Information Agent
+* Sustainability Agent
+* Carbon Auditor
+* DAO Governance Agent
+* Personal Secretary
+
+Every agent is cryptographically signed, sandboxed, and permission-based.
+
+Agents can be installed, enabled, disabled, or upgraded independently of the core FreEco.ai binary.
+
+---
+
+# Phase 3 — FRE.ECO MCP Gateway
+
+Deploy a centralized and extensible MCP Gateway exposing secure marketplace tools.
+
+Initial MCP services:
+
+* Product search
+* Eco verification
+* Marketplace search
+* Seller verification
+* Wallet operations
+* DAO voting
+* Shipping quotations
+* Carbon footprint estimation
+* Translation
+* Personal memory retrieval
+
+The Gateway becomes the standard interface between AI agents and FRE.ECO services.
+
+It allows the same FreEco.ai runtime to interact with local tools, cloud services, and third-party systems through a consistent protocol layer.
+
+---
+
+# Phase 4 — Cloud Infrastructure
+
+Deploy scalable cloud services using Docker and Kubernetes.
+
+Services include:
+
+* Marketplace APIs
+* Authentication
+* Payments
+* AI orchestration
+* Vector databases
+* Search indexing
+* Analytics
+* Notification services
+
+Docker is used for packaging and deployment.
+
+Kubernetes provides scaling, resilience, and automated operations.
+
+The cloud layer supports synchronization, trust, and coordination, while the local FreEco.ai binary remains the primary execution environment for the user.
+
+---
+
+# Phase 5 — Federated AI Commerce Network
+
+Thousands of FRE.ECO Nodes synchronize securely.
+
+Cloud services coordinate:
+
+* Marketplace
+* Global product catalog
+* Shared AI knowledge
+* Reputation
+* Governance
+* Payments
+
+Users retain ownership of:
+
+* Identity
+* Wallet keys
+* Personal memory
+* Preferences
+* Local AI
+
+This creates a federated network where each node is sovereign, but all nodes can participate in a shared economic and intelligence ecosystem.
+
+---
+
+# AI Architecture
+
+FreEco.ai acts as the AI kernel.
+
+Responsibilities:
+
+* Task orchestration
+* Agent lifecycle
+* Scheduling
+* Memory management
+* MCP integration
+* Security
+* Local execution
+
+FreEco.ai inherits the mature Agentic OS foundation of OpenFang, including its 16 security levels and ethical ecological operating principles. This makes the runtime suitable for trusted autonomous execution, responsible agent behavior, and secure multi-edition deployment.
+
+FRE.ECO adds:
+
+* Marketplace logic
+* Commerce agents
+* DAO governance
+* Wallet integration
+* Sustainability services
+* User experience
+
+FreEco.ai is the single binary foundation. FRE.ECO defines the product layers, editions, policies, and ecosystem around it.
+
+---
+
+# Security Principles
+
+* Private keys never leave the user's device.
+* Personal memories remain encrypted.
+* Agents execute with least-privilege permissions.
+* Every installable agent is signed.
+* Cloud services receive only authenticated and authorized requests.
+* Docker containers are used only where appropriate in server infrastructure.
+* The local FreEco.ai binary is configured securely for the selected edition and use case.
+* The system follows the 16 security levels and Ethical Ecological guidelines inherited from the OpenFang Agentic OS foundation.
+
+---
+
+# Long-Term Objective
+
+Create a sovereign, AI-native, privacy-first economic operating environment where users own their identity, data, and AI while participating in a globally scalable sustainable marketplace.
+ </strong>
 </p>
 
 <p align="center">
