@@ -41,9 +41,5 @@ pub trait Agent: AgentBounds {
     /// The `ctx` holds per-request budget state and user preferences.
     /// Returning `AgentResponse` with `ResponseContent::RouteToAgent` tells
     /// the runtime to transparently forward the request to another agent.
-    async fn handle(
-        &self,
-        ctx: &AgentContext,
-        msg: Message,
-    ) -> Result<AgentResponse, AgentError>;
+    async fn handle(&self, ctx: &AgentContext, msg: Message) -> Result<AgentResponse, AgentError>;
 }

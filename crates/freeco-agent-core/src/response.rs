@@ -212,9 +212,19 @@ mod tests {
     #[test]
     fn route_response_wraps_message() {
         let fwd = Message::user_text("fwd-1", "agent-shopping", "buy oat milk");
-        let resp = AgentResponse::route("msg-1", "agent-secretary", "agent-shopping", "shopping intent", fwd);
+        let resp = AgentResponse::route(
+            "msg-1",
+            "agent-secretary",
+            "agent-shopping",
+            "shopping intent",
+            fwd,
+        );
         match resp.content {
-            ResponseContent::RouteToAgent { target_agent_id, reason, .. } => {
+            ResponseContent::RouteToAgent {
+                target_agent_id,
+                reason,
+                ..
+            } => {
                 assert_eq!(target_agent_id, "agent-shopping");
                 assert_eq!(reason, "shopping intent");
             }

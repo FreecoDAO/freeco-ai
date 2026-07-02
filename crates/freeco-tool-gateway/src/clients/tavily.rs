@@ -155,7 +155,10 @@ mod tests {
             .await;
 
         let client = TavilyClient::new("test-key".into()).with_base_url(server.url());
-        let results = client.search("vegan cheese", "Geneva Switzerland").await.unwrap();
+        let results = client
+            .search("vegan cheese", "Geneva Switzerland")
+            .await
+            .unwrap();
 
         assert!(results.is_empty());
         mock.assert_async().await;

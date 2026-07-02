@@ -45,10 +45,7 @@ impl OcrClient {
             .decode(b64)
             .map_err(|e| ParseError::Base64Decode(e.to_string()))?;
 
-        let url = format!(
-            "{}/v1/images:annotate?key={}",
-            self.base_url, self.api_key
-        );
+        let url = format!("{}/v1/images:annotate?key={}", self.base_url, self.api_key);
 
         let body = serde_json::json!({
             "requests": [{
@@ -132,14 +129,15 @@ mod tests {
             .mock("POST", mockito::Matcher::Any)
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(make_vision_response(
-                "oat milk\nvegan cheese\nolive oil",
-            ))
+            .with_body(make_vision_response("oat milk\nvegan cheese\nolive oil"))
             .create_async()
             .await;
 
         let client = OcrClient::new("test-key".into(), Client::new()).with_base_url(server.url());
-        let text = client.extract_text_from_base64(&tiny_png_b64()).await.unwrap();
+        let text = client
+            .extract_text_from_base64(&tiny_png_b64())
+            .await
+            .unwrap();
         assert_eq!(text, "oat milk\nvegan cheese\nolive oil");
     }
 
@@ -160,7 +158,10 @@ mod tests {
     #[tokio::test]
     async fn invalid_base64_returns_error() {
         let client = OcrClient::new("key".into(), Client::new());
-        let err = client.extract_text_from_base64("!!!not-valid-base64!!!").await.unwrap_err();
+        let err = client
+            .extract_text_from_base64("!!!not-valid-base64!!!")
+            .await
+            .unwrap_err();
         assert!(matches!(err, ParseError::Base64Decode(_)));
     }
 
@@ -175,7 +176,10 @@ mod tests {
             .await;
 
         let client = OcrClient::new("bad-key".into(), Client::new()).with_base_url(server.url());
-        let err = client.extract_text_from_base64(&tiny_png_b64()).await.unwrap_err();
+        let err = client
+            .extract_text_from_base64(&tiny_png_b64())
+            .await
+            .unwrap_err();
         assert!(matches!(err, ParseError::OcrFailed(_)));
     }
 
@@ -191,7 +195,10 @@ mod tests {
             .await;
 
         let client = OcrClient::new("key".into(), Client::new()).with_base_url(server.url());
-        let text = client.extract_text_from_base64(&tiny_png_b64()).await.unwrap();
+        let text = client
+            .extract_text_from_base64(&tiny_png_b64())
+            .await
+            .unwrap();
         assert_eq!(text, "");
     }
 }

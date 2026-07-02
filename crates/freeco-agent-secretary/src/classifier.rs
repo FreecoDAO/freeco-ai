@@ -26,10 +26,7 @@ Categories: SHOPPING, MEMO, WELLNESS, GENERAL";
 ///
 /// Uses a tiny `max_tokens=4` budget; falls back to [`classify_intent_heuristic`]
 /// if the LLM returns an unrecognised label.
-pub async fn classify_intent_llm(
-    text: &str,
-    llm: &LlmClient,
-) -> Result<Intent, SecretaryError> {
+pub async fn classify_intent_llm(text: &str, llm: &LlmClient) -> Result<Intent, SecretaryError> {
     let messages = vec![
         ChatMessage::system(CLASSIFY_SYSTEM),
         ChatMessage::user(text),
@@ -67,29 +64,80 @@ pub fn classify_intent_heuristic(text: &str) -> Intent {
 
     // Memo markers — checked first; most unambiguous intent signals.
     let memo_kw = [
-        "remind", "memo", "note:", "add a note", "calendar", "schedule",
-        "appointment", "meeting", "deadline", "to-do", "todo", "remember",
+        "remind",
+        "memo",
+        "note:",
+        "add a note",
+        "calendar",
+        "schedule",
+        "appointment",
+        "meeting",
+        "deadline",
+        "to-do",
+        "todo",
+        "remember",
     ];
 
     // Wellness markers — checked before shopping so "calories in oat milk"
     // is treated as nutrition advice rather than a purchase request.
     // Avoid product names like "protein powder" — those are Shopping.
     let wellness_kw = [
-        "calorie", "calories", "workout", "exercise", "diet ", "nutrition",
-        "vitamin", "supplement", "yoga", "meditation", "sleep", "stress",
-        "mental health", "fitness",
+        "calorie",
+        "calories",
+        "workout",
+        "exercise",
+        "diet ",
+        "nutrition",
+        "vitamin",
+        "supplement",
+        "yoga",
+        "meditation",
+        "sleep",
+        "stress",
+        "mental health",
+        "fitness",
     ];
 
     // Shopping markers — specific enough to avoid false positives.
     // "eco" is intentionally excluded (matches "Freeco"); use "eco-score" instead.
     let shopping_kw = [
-        "buy ", "shop", "price", "product", "organic", "vegan", "food",
-        "oat milk", "almond milk", "cheese", "olive oil", "bread", "meat",
-        "fish", "vegetable", "fruit", "supermarket", "where can i find",
-        "how much is", "cheapest", "best value", "recommend", "groceries",
-        "ingredient", "eco-score", "nutri-score", "nutriscore", "barcode",
-        "brand", "migros", "coop", "aldi", "lidl", "denner", "manor",
-        "bio ", "fairtrade",
+        "buy ",
+        "shop",
+        "price",
+        "product",
+        "organic",
+        "vegan",
+        "food",
+        "oat milk",
+        "almond milk",
+        "cheese",
+        "olive oil",
+        "bread",
+        "meat",
+        "fish",
+        "vegetable",
+        "fruit",
+        "supermarket",
+        "where can i find",
+        "how much is",
+        "cheapest",
+        "best value",
+        "recommend",
+        "groceries",
+        "ingredient",
+        "eco-score",
+        "nutri-score",
+        "nutriscore",
+        "barcode",
+        "brand",
+        "migros",
+        "coop",
+        "aldi",
+        "lidl",
+        "denner",
+        "manor",
+        "bio ",
+        "fairtrade",
     ];
 
     if memo_kw.iter().any(|kw| lower.contains(kw)) {

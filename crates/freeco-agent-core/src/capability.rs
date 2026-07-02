@@ -60,7 +60,10 @@ mod tests {
             Capability::ExecutiveDecision,
         ];
         for cap in &caps {
-            assert!(!cap.display_name().is_empty(), "{cap:?} has empty display name");
+            assert!(
+                !cap.display_name().is_empty(),
+                "{cap:?} has empty display name"
+            );
         }
     }
 

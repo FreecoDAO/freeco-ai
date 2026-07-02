@@ -166,8 +166,7 @@ mod tests {
 
     #[test]
     fn record_roundtrips_through_json() {
-        let rec = LearningRecord::new("ag", "u", "s")
-            .with_outcome(Outcome::PartialSuccess);
+        let rec = LearningRecord::new("ag", "u", "s").with_outcome(Outcome::PartialSuccess);
         let json = serde_json::to_string(&rec).unwrap();
         let back: LearningRecord = serde_json::from_str(&json).unwrap();
         assert_eq!(back.outcome, Outcome::PartialSuccess);

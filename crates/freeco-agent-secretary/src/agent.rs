@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use agent_core::{
-    Agent, AgentContext, AgentError, AgentResponse, Capability, Message,
-    MessageContent, MessageRole,
+    Agent, AgentContext, AgentError, AgentResponse, Capability, Message, MessageContent,
+    MessageRole,
 };
 use async_trait::async_trait;
 use tool_gateway::{clients::llm::ChatMessage, LlmClient};
@@ -56,7 +56,6 @@ impl SecretaryAgent {
     }
 }
 
-
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 impl Agent for SecretaryAgent {
@@ -77,11 +76,7 @@ impl Agent for SecretaryAgent {
         ]
     }
 
-    async fn handle(
-        &self,
-        ctx: &AgentContext,
-        msg: Message,
-    ) -> Result<AgentResponse, AgentError> {
+    async fn handle(&self, ctx: &AgentContext, msg: Message) -> Result<AgentResponse, AgentError> {
         // Direct shopping queries bypass classification
         if let MessageContent::ShoppingQuery { .. } = &msg.content {
             return Ok(self.route_to_shopping(msg));
@@ -142,10 +137,7 @@ impl Agent for SecretaryAgent {
                 } else {
                     "You are Freeco.AI CEO Secretary for Swiss sustainable living. Answer briefly and helpfully."
                 };
-                let messages = vec![
-                    ChatMessage::system(system),
-                    ChatMessage::user(&text),
-                ];
+                let messages = vec![ChatMessage::system(system), ChatMessage::user(&text)];
                 let resp = self
                     .llm
                     .chat(messages, 256)
@@ -199,7 +191,9 @@ mod tests {
         let msg = Message::user_text("m-1", "agent-secretary", "buy organic oat milk");
         let resp = secretary.handle(&ctx(), msg).await.unwrap();
         match resp.content {
-            ResponseContent::RouteToAgent { target_agent_id, .. } => {
+            ResponseContent::RouteToAgent {
+                target_agent_id, ..
+            } => {
                 assert_eq!(target_agent_id, "agent-shopping");
             }
             _ => panic!("expected RouteToAgent, got {:?}", resp.content),
@@ -270,10 +264,12 @@ mod tests {
         let llm_srv = Server::new_async().await;
         let secretary = make_secretary_heuristic("agent-shopping", &llm_srv.url());
         let msg = Message::user_text("m-1", "agent-secretary", "where can I buy oat milk");
-        let ctx = AgentContext::new("agent-secretary", "u")
-            .with_location("Zurich");
+        let ctx = AgentContext::new("agent-secretary", "u").with_location("Zurich");
         let resp = secretary.handle(&ctx, msg).await.unwrap();
-        if let ResponseContent::RouteToAgent { forward_message, .. } = resp.content {
+        if let ResponseContent::RouteToAgent {
+            forward_message, ..
+        } = resp.content
+        {
             if let MessageContent::ShoppingQuery { location, .. } = forward_message.content {
                 assert_eq!(location.as_deref(), Some("Zurich"));
             } else {

@@ -155,7 +155,9 @@ mod tests {
             Some("Geneva".into()),
         );
         match msg.content {
-            MessageContent::ShoppingQuery { query, location, .. } => {
+            MessageContent::ShoppingQuery {
+                query, location, ..
+            } => {
                 assert_eq!(query, "organic oat milk");
                 assert_eq!(location, Some("Geneva".into()));
             }
