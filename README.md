@@ -100,10 +100,10 @@ FreEco.ai ships as a single binary that you configure for your use case. The fou
 
 | Edition | Who It's For | What It Does |
 |---------|-------------|--------------|
-| 🧑‍💼 **Personal Concierge** | Individuals | Hi-end Swiss-style assistant for life, work, shopping, and health coaching. Runs 24/7, proactively surfaces insights, and manages your day autonomously. |
-| 🧒 **Kids Edition** | Families & schools | Ethical, child-safe AI companion for study, daily life, and online security. Strictly guardrailed, COPPA-aligned, with parental visibility built in. |
-| 🏢 **Business Suite** | Companies & teams | Autonomous buyer and executive-agent team: lead generation, competitor intelligence, scheduling, reporting. Agent-to-agent handoffs with approval gates. |
-| 🤖 **AI Company** | Power users & builders | A self-running, fully autonomous AI company on your device. Spin up specialized agent teams that plan, delegate, execute, and report — end-to-end, no human in the loop. |
+| 🧑‍💼 **Personal sustainable Free Eco AI Concierge, Personal, work, travel, shopping, Health coaching Assistant ** | Individuals | Hi-end Swiss-style assistant for life, work, shopping, and health coaching. Runs 24/7, proactively surfaces insights, and manages your day autonomously. |
+| 🧒 **Kids Edition** | Families & schools | Ethical, Ecoligical child-safe AI companion for study, daily life, and online security. Strictly guardrailed, COPPA-aligned, with parental visibility built in. |
+| 🏢 **Free Eco Business Suite** | Companies & teams | Autonomous sustainable buyer and executive-agent team for restaurants, shpops, business and non-profits: lead generation, competitor intelligence, scheduling, reporting. Agent-to-agent handoffs with approval gates. |
+| 🤖 **Free Eco AI Company for running Sustainable businesses, charities, nonprofits  ** | Power users & builders | A self-running, fully autonomous AI company on your device. Spin up specialized agent teams that plan, delegate, execute, and report — end-to-end, no human in the loop. |
 
 You can also **import any agent from [OpenClaw Hub](https://github.com/FreecoDAO/FreEco-ai)** and create your own custom agents using `agent.toml` manifests. See [Spawn Your First Agent](docs/getting-started.md#spawn-your-first-agent).
 
@@ -111,7 +111,7 @@ You can also **import any agent from [OpenClaw Hub](https://github.com/FreecoDAO
 
 ## Hands: Agents That Actually Do Things
 
-<p align="center"><em>"Traditional agents wait for you to type. Hands work <strong>for</strong> you."</em></p>
+<p align="center"><em>"Traditional agents wait for you to type. Freeco.ai makes AI work for you, your buisiness, Community, Charity. Hands work <strong>for</strong> you."</em></p>
 
 **Hands** are FreEco.ai's core innovation. Pre-built autonomous capability packages that run independently, on schedules, without you having to prompt them. This is not a chatbot. This is an agent that wakes up at 6 AM, researches your competitors, builds a knowledge graph, scores the findings, and delivers a report to your Telegram before you've had coffee.
 
@@ -523,13 +523,13 @@ We ship fast and fix fast. The goal is a rock solid v1.0 by mid 2026.
 
 ## Security
 
-To report a security vulnerability, email **jaber@rightnowai.co**. We take all reports seriously and will respond within 48 hours.
+To report a security vulnerability, email **freeco.ch@proton.me**. We take all reports seriously and will respond within 48 hours.
 
 ---
 
 ## License
 
-MIT. Use it however you want.
+MIT. Use it Good of the People, Earth, Life
 
 ---
 
@@ -538,27 +538,24 @@ MIT. Use it however you want.
 - [Website & Documentation](https://freeco.ai)
 - [Quick Start Guide](https://freeco.ai/docs/getting-started)
 - [GitHub](https://github.com/FreecoDAO/FreEco-ai)
-- [Discord](https://discord.gg/sSJqgNnq6X)
 - [Twitter / X](https://x.com/FreEcoAI)
 
 ---
 
-## Built by RightNow
+## Built by FreEco.ai for the Earth and Free Eco People
 
 <p align="center">
-  <a href="https://www.rightnowai.co/">
+  <a href="https://www.freeco.ai/">
     <img src="public/assets/rightnow-logo.webp" width="60" alt="RightNow Logo" />
   </a>
 </p>
 
 <p align="center">
-  FreEco.ai is built and maintained by <a href="https://x.com/Akashi203"><strong>Jaber</strong></a>, Founder of <a href="https://www.rightnowai.co/"><strong>RightNow</strong></a>.
-</p>
-
+  FreEco.ai 
 <p align="center">
-  <a href="https://www.rightnowai.co/">Website</a> &bull;
-  <a href="https://x.com/Akashi203">Twitter / X</a> &bull;
-  <a href="https://www.buymeacoffee.com/openfang" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+  <a href="https://www.freeco.ai/">Website</a> &bull;
+
+  <a href="https://www.buymeacoffee.com/FreecoDAO/freeco-ai" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 </p>
 
 ---
