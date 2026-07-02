@@ -12779,6 +12779,7 @@ mod whatsapp_gateway_tests {
         );
         assert!(!url.contains('\r'));
         assert!(!url.contains('\n'));
+    }
 
     #[test]
     fn whatsapp_qr_status_url_rejects_invalid_gateway_url() {
