@@ -52,6 +52,7 @@ pub async fn build_router(
         clawhub_cache: dashmap::DashMap::new(),
         provider_probe_cache: openfang_runtime::provider_health::ProbeCache::new(),
         budget_config: Arc::new(tokio::sync::RwLock::new(kernel.config.budget.clone())),
+        local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
     });
 
     // Start WS cron broadcaster — subscribes to kernel event bus and pushes
@@ -532,6 +533,14 @@ pub async fn build_router(
             axum::routing::get(routes::config_schema),
         )
         .route("/api/config/set", axum::routing::post(routes::config_set))
+        .route(
+            "/api/local-ai/status",
+            axum::routing::get(crate::local_ai::local_ai_status),
+        )
+        .route(
+            "/api/local-ai/setup",
+            axum::routing::post(crate::local_ai::local_ai_setup),
+        )
         // Approval endpoints
         .route(
             "/api/approvals",

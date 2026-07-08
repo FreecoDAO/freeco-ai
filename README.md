@@ -173,6 +173,34 @@ This creates a federated network where each node is sovereign, but all nodes can
 
 ---
 
+# Phase 6 — Self-Running AI Company (Execution Team)
+
+The long-term goal is a **self-running, self-improving AI company** with a full organizational structure of agents — and humans where a human is genuinely needed — that develops, markets, and supports FreEco.ai itself (and, as a product, any business the user runs).
+
+**What exists today (the engine):**
+
+* A real multi-agent **workflow engine** (`Workflow` → `WorkflowStep` → `WorkflowRun`, sequential and parallel) — the ChatDev-style phase pipeline.
+* A **CEO agent** that turns directives into delegation plans, plus specialist agents (developer/coder, code-reviewer, security-auditor, analyst, secretary, autonomous buyer).
+* **Approval gates** (human-in-the-loop), a **budget engine** (spend caps per agent), the **Docker execution sandbox**, and inter-agent messaging.
+
+**What Phase 6 adds (the company):**
+
+* **Org structure as a first-class concept** — a defined role hierarchy (CEO → CTO/CMO/COO → developer, tester/ethical-hacker, marketer, support, accountant), each role a signed agent with scoped permissions, composed into an "AI Company" chart.
+* **Self-development loop** — the CEO compiles inputs (roadmap, marketing signals, user feedback, metrics, the issue backlog), proposes **prioritized developments and actions**, and delegates to a developer agent (writes code in a sandboxed repo clone) and a tester/ethical-hacker agent (build, test, `cargo audit`, security review). Every change goes through an approval gate → PR → CI → merge. Human in the loop, always.
+* **Hire agents or humans on demand** — spawn a specialist agent for a task, or hand a task to a human via a task queue when judgment, credentials, or accountability require it.
+* **Business back office** — CRM integration, accounting/ledger and database, metrics and analytics, plus website and social-media development and support — so the company can actually run operations, not just write code.
+
+**Phasing (deliberate — scope beats ambition):**
+
+1. **Dev pod** — developer + tester + ethical-hacker agents work labeled GitHub issues inside the sandbox; human merges everything. (Foundation already ~80% present.)
+2. **CEO triage** — the CEO prioritizes the backlog against the roadmap and assigns work.
+3. **Signal-driven** — marketing/metrics/feedback feed the CEO's priorities; back-office integrations (CRM, accounting, metrics) come online.
+4. **Full company** — coordinated agent+human org running development, marketing, and support with human oversight at the gates.
+
+This is the "AI Company" edition pointed at FreEco.ai itself — the ultimate dogfood.
+
+---
+
 # AI Architecture
 
 FreEco.ai acts as the AI kernel.
@@ -240,7 +268,7 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 <p align="center">
   <img src="https://img.shields.io/badge/language-Rust-orange?style=flat-square" alt="Rust" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT" />
-  <img src="https://img.shields.io/badge/version-0.7.2-green?style=flat-square" alt="v0.7.2" />
+  <img src="https://img.shields.io/badge/version-0.7.3-green?style=flat-square" alt="v0.7.3" />
   <img src="https://img.shields.io/badge/tests-2,696%2B%20passing-brightgreen?style=flat-square" alt="Tests" />
   <img src="https://img.shields.io/badge/clippy-0%20warnings-brightgreen?style=flat-square" alt="Clippy" />
   <a href="https://www.buymeacoffee.com/openfang" target="_blank"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee" /></a>

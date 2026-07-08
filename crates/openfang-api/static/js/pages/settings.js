@@ -37,6 +37,42 @@ function settingsPage() {
     loading: true,
     loadError: '',
 
+    // -- Local AI (Ollama) setup --
+    localAi: { phase: 'idle', detail: '', percent: -1, running: false, ollama_detected: false },
+    localAiPoll: null,
+
+    async refreshLocalAi() {
+      try { this.localAi = await OpenFangAPI.get('/api/local-ai/status'); } catch(e) { /* silent */ }
+    },
+
+    async startLocalAiSetup() {
+      try {
+        await OpenFangAPI.post('/api/local-ai/setup', {});
+        OpenFangToast.success('Local AI setup started — this downloads a few GB, keep the app open.');
+        this.pollLocalAi();
+      } catch(e) {
+        OpenFangToast.error('Local AI setup: ' + e.message);
+      }
+    },
+
+    pollLocalAi() {
+      var self = this;
+      if (this.localAiPoll) clearInterval(this.localAiPoll);
+      this.localAiPoll = setInterval(async function() {
+        await self.refreshLocalAi();
+        if (!self.localAi.running) {
+          clearInterval(self.localAiPoll);
+          self.localAiPoll = null;
+          if (self.localAi.phase === 'done') {
+            OpenFangToast.success('Local AI is ready! Reloading configuration...');
+            try { await OpenFangAPI.post('/api/config/reload', {}); } catch(e) { /* restart applies it */ }
+          } else if (self.localAi.phase === 'error') {
+            OpenFangToast.error('Local AI setup failed: ' + self.localAi.detail);
+          }
+        }
+      }, 2500);
+    },
+
     // -- Software updates --
     updateChecking: false,
     updateStatus: '',

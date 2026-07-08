@@ -1,0 +1,28 @@
+name = "freeco-shopping"
+version = "0.1.0"
+description = "FreEco.ai autonomous buyer — native Shopping agent: three-tier product research (value / quality / sustainability, ranking organic and vegan options first) with eco verification (Rust-native)."
+author = "FreecoDAO"
+module = "freeco:shopping"
+tags = ["freeco", "edition", "shopping", "buyer", "sustainability", "native"]
+
+[model]
+provider = "default"
+model = "default"
+max_tokens = 4096
+temperature = 0.3
+system_prompt = "Native agent — this prompt is unused; research logic is implemented in Rust (freeco-agent-shopping) using the permission-gated tool gateway (Tavily search, OpenFoodFacts, Google Places)."
+
+[resources]
+max_llm_tokens_per_hour = 150000
+max_concurrent_tools = 4
+
+[capabilities]
+tools = []
+network = ["api.tavily.com", "world.openfoodfacts.org", "places.googleapis.com"]
+memory_read = ["*"]
+memory_write = ["self.*", "shared.*"]
+agent_message = ["*"]
+shell = []
+
+[autonomous]
+max_iterations = 10

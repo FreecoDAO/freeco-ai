@@ -15,6 +15,39 @@ function overviewPage() {
     loadError: '',
     refreshTimer: null,
     lastRefresh: null,
+    spawningEdition: '',
+
+    // FreEco.ai editions — each spawns a team of bundled templates.
+    editions: [
+      { id: 'concierge', emoji: '🧑‍💼', label: 'Swiss FreEco Concierge & Shopping Assistant', tier: 'Concierge', desc: 'Swiss-style assistant for life, work, travel, and health coaching — with the autonomous three-tier shopping researcher.', team: ['freeco-concierge', 'freeco-shopping'] },
+      { id: 'kids', emoji: '🧒', label: 'FreEco Kids Voice Assistant', tier: 'Family', desc: 'Child-safe voice & study companion. Strictly guardrailed: no web, no shell, parental lock and visibility.', team: ['freeco-kids'] },
+      { id: 'business', emoji: '🏢', label: 'FreEco Business Suite', tier: 'Business', desc: 'Secretary routes work; the autonomous buyer researches purchases in three tiers.', team: ['freeco-secretary', 'freeco-shopping'] },
+      { id: 'ai-company', emoji: '🤖', label: 'Free Eco AI Company', tier: 'Company', desc: 'CEO plans and delegates to the secretary and buyer — a self-running agent team.', team: ['freeco-ceo', 'freeco-secretary', 'freeco-shopping'] },
+      { id: 'dev-pod', emoji: '🛠️', label: 'Dev Pod', tier: 'Company', desc: 'Developer + tester/ethical-hacker agents that work GitHub issues in a sandbox. You merge; they build and break.', team: ['freeco-developer', 'freeco-tester'] }
+    ],
+
+    async spawnEdition(edition) {
+      if (this.spawningEdition) return;
+      this.spawningEdition = edition.id;
+      var existing = (Alpine.store('app').agents || []).map(function(a) { return a.name; });
+      var spawned = 0;
+      try {
+        for (var i = 0; i < edition.team.length; i++) {
+          var name = edition.team[i];
+          if (existing.indexOf(name) !== -1) continue; // already running
+          var data = await OpenFangAPI.get('/api/templates/' + encodeURIComponent(name));
+          if (!data.manifest_toml) throw new Error('template ' + name + ' not found');
+          var res = await OpenFangAPI.post('/api/agents', { manifest_toml: data.manifest_toml });
+          if (!res.agent_id) throw new Error(res.error || 'spawn failed for ' + name);
+          spawned++;
+        }
+        OpenFangToast.success(edition.label + ' is ready' + (spawned ? ' — ' + spawned + ' agent(s) started' : ' (already running)'));
+        await Alpine.store('app').refreshAgents();
+      } catch(e) {
+        OpenFangToast.error('Could not set up ' + edition.label + ': ' + e.message);
+      }
+      this.spawningEdition = '';
+    },
 
     async loadOverview() {
       this.loading = true;

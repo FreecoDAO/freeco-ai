@@ -43,6 +43,8 @@ pub struct AppState {
     /// Thread-safe mutable budget config. Updated via PUT /api/budget.
     /// Initialized from `kernel.config.budget` at startup.
     pub budget_config: Arc<tokio::sync::RwLock<openfang_types::config::BudgetConfig>>,
+    /// One-click local AI setup progress (Ollama install + model pull).
+    pub local_ai: crate::local_ai::SharedLocalAiStatus,
 }
 
 /// POST /api/agents — Spawn a new agent.
@@ -73,6 +75,11 @@ pub async fn spawn_agent(
                 .join("agent.toml");
             match std::fs::read_to_string(&tmpl_path) {
                 Ok(content) => content,
+                Err(_) if crate::bundled_templates::bundled_template(&safe_name).is_some() => {
+                    crate::bundled_templates::bundled_template(&safe_name)
+                        .unwrap()
+                        .to_string()
+                }
                 Err(_) => {
                     return (
                         StatusCode::NOT_FOUND,
@@ -3297,6 +3304,34 @@ pub async fn list_templates() -> impl IntoResponse {
         }
     }
 
+    // Merge compiled-in bundled templates: without this, templates added in
+    // a release are invisible to anyone whose data dir predates it (the disk
+    // copy only happens once, at `openfang init`). Disk versions win.
+    let on_disk: std::collections::HashSet<String> = templates
+        .iter()
+        .filter_map(|t| t.get("name").and_then(|n| n.as_str()).map(String::from))
+        .collect();
+    for (name, body) in crate::bundled_templates::bundled_templates() {
+        if on_disk.contains(name) {
+            continue;
+        }
+        let description = toml::from_str::<AgentManifest>(body)
+            .map(|m| m.description)
+            .unwrap_or_default();
+        templates.push(serde_json::json!({
+            "name": name,
+            "description": description,
+            "category": get_template_category(name),
+            "manifest_toml": body,
+        }));
+    }
+    templates.sort_by(|a, b| {
+        a.get("name")
+            .and_then(|n| n.as_str())
+            .unwrap_or("")
+            .cmp(b.get("name").and_then(|n| n.as_str()).unwrap_or(""))
+    });
+
     Json(serde_json::json!({
         "templates": templates,
         "total": templates.len(),
@@ -3322,11 +3357,44 @@ fn get_template_category(name: &str) -> &str {
 }
 
 /// GET /api/templates/:name — Get template details.
+///
+/// Disk templates (`$OPENFANG_HOME/agents/`) win; compiled-in bundled
+/// templates serve as the fallback so new releases' templates work
+/// without re-running `openfang init`.
 pub async fn get_template(Path(name): Path<String>) -> impl IntoResponse {
     let agents_dir = openfang_kernel::config::openfang_home().join("agents");
     let manifest_path = agents_dir.join(&name).join("agent.toml");
 
     if !manifest_path.exists() {
+        if let Some(body) = crate::bundled_templates::bundled_template(&name) {
+            return match toml::from_str::<AgentManifest>(body) {
+                Ok(manifest) => (
+                    StatusCode::OK,
+                    Json(serde_json::json!({
+                        "name": name,
+                        "manifest": {
+                            "name": manifest.name,
+                            "description": manifest.description,
+                            "module": manifest.module,
+                            "tags": manifest.tags,
+                            "model": {
+                                "provider": manifest.model.provider,
+                                "model": manifest.model.model,
+                            },
+                            "capabilities": {
+                                "tools": manifest.capabilities.tools,
+                                "network": manifest.capabilities.network,
+                            },
+                        },
+                        "manifest_toml": body,
+                    })),
+                ),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": format!("Invalid bundled manifest: {e}")})),
+                ),
+            };
+        }
         return (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "Template not found"})),
@@ -10675,6 +10743,22 @@ pub async fn upload_file(
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": "Failed to save file"})),
         );
+    }
+
+    // Also store audio under its sanitized original filename: agents are
+    // told the filename in the message text, and the media_transcribe tool
+    // falls back to the upload dir by that name.
+    if content_type.starts_with("audio/") {
+        let safe: String = filename
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
+            .collect();
+        if !safe.is_empty() && !safe.starts_with('.') {
+            let named = upload_dir.join(&safe);
+            if let Err(e) = std::fs::write(&named, &body) {
+                tracing::warn!("Failed to write named audio copy: {e}");
+            }
+        }
     }
 
     let size = body.len();

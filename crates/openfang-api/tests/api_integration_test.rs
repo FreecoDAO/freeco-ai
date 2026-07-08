@@ -80,6 +80,7 @@ async fn start_test_server_with_provider(
         clawhub_cache: dashmap::DashMap::new(),
         provider_probe_cache: openfang_runtime::provider_health::ProbeCache::new(),
         budget_config: Arc::new(tokio::sync::RwLock::new(Default::default())),
+        local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
     });
 
     let app = Router::new()
@@ -925,6 +926,7 @@ async fn start_test_server_with_auth(api_key: &str) -> TestServer {
         clawhub_cache: dashmap::DashMap::new(),
         provider_probe_cache: openfang_runtime::provider_health::ProbeCache::new(),
         budget_config: Arc::new(tokio::sync::RwLock::new(Default::default())),
+        local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
     });
 
     let api_key = state.kernel.config.api_key.trim().to_string();

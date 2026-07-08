@@ -15,6 +15,7 @@ pub mod cron_delivery;
 pub mod error;
 pub mod event_bus;
 pub mod heartbeat;
+pub mod freeco_agents;
 pub mod kernel;
 pub mod metering;
 pub mod pairing;

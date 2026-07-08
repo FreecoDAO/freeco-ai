@@ -1921,6 +1921,24 @@ impl OpenFangKernel {
                 .await
         } else if entry.manifest.module.starts_with("python:") {
             self.execute_python_agent(&entry, agent_id, message).await
+        } else if crate::freeco_agents::is_freeco_module(&entry.manifest.module) {
+            // Native FreEco edition agents (CEO / Secretary / Shopping).
+            crate::freeco_agents::execute(
+                &entry.manifest.module,
+                &entry.manifest.name,
+                message,
+                &agent_id.to_string(),
+            )
+            .await
+            .map(|out| openfang_runtime::agent_loop::AgentLoopResult {
+                response: out.response,
+                total_usage: Default::default(),
+                iterations: 1,
+                cost_usd: None,
+                silent: false,
+                directives: Default::default(),
+            })
+            .map_err(|e| KernelError::OpenFang(OpenFangError::Internal(e)))
         } else {
             // Default: LLM agent loop (builtin:chat or any unrecognized module)
             self.execute_llm_agent(

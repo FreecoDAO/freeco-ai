@@ -1,0 +1,28 @@
+name = "freeco-ceo"
+version = "0.1.0"
+description = "FreEco.ai AI Company edition — native CEO agent: converts directives into prioritized action plans and delegations (Rust-native, no LLM cost)."
+author = "FreecoDAO"
+module = "freeco:ceo"
+tags = ["freeco", "edition", "ai-company", "ceo", "executive", "native"]
+
+[model]
+provider = "default"
+model = "default"
+max_tokens = 4096
+temperature = 0.2
+system_prompt = "Native agent — this prompt is unused; planning logic is implemented in Rust (freeco-agent-ceo)."
+
+[resources]
+max_llm_tokens_per_hour = 100000
+max_concurrent_tools = 4
+
+[capabilities]
+tools = ["agent_list", "agent_send"]
+network = []
+memory_read = ["*"]
+memory_write = ["self.*", "shared.*"]
+agent_message = ["*"]
+shell = []
+
+[autonomous]
+max_iterations = 10

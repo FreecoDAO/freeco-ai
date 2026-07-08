@@ -14,6 +14,11 @@ openfang-hands = { path = "../openfang-hands" }
 openfang-extensions = { path = "../openfang-extensions" }
 openfang-wire = { path = "../openfang-wire" }
 openfang-channels = { path = "../openfang-channels" }
+freeco-agent-core = { path = "../freeco-agent-core" }
+freeco-agent-ceo = { path = "../freeco-agent-ceo" }
+freeco-agent-secretary = { path = "../freeco-agent-secretary" }
+freeco-agent-shopping = { path = "../freeco-agent-shopping" }
+freeco-tool-gateway = { path = "../freeco-tool-gateway" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -841,6 +841,33 @@
         </div>
         <div class="page-body" style="overflow-y:auto;padding:24px">
 
+          <!-- FreEco.ai Editions — one-click agent team setup -->
+          <div style="margin-bottom:28px">
+            <div class="text-sm font-bold mb-2" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">FreEco.ai Editions</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
+              <template x-for="ed in editions" :key="ed.id">
+                <div class="card" style="cursor:pointer;padding:16px" @click="spawnEdition(ed)"
+                     @mouseenter="$el.style.borderColor='var(--accent)'" @mouseleave="$el.style.borderColor='var(--border)'">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:1.6rem" x-text="ed.emoji"></span>
+                    <div>
+                      <div style="font-weight:600" x-text="ed.label"></div>
+                      <div style="font-size:11px;color:var(--text-muted)">
+                        <span x-text="ed.team.length === 1 ? '1 agent' : ed.team.length + '-agent team'"></span>
+                        <span x-show="ed.tier" style="margin-left:6px;padding:1px 7px;border-radius:99px;background:var(--accent-subtle);color:var(--accent-light);font-weight:700" x-text="ed.tier + ' tier'"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <p style="font-size:12px;color:var(--text-dim);margin-top:8px" x-text="ed.desc"></p>
+                  <div style="margin-top:10px">
+                    <span class="btn btn-ghost btn-sm" x-show="spawningEdition !== ed.id">Set up</span>
+                    <span class="btn btn-ghost btn-sm" x-show="spawningEdition === ed.id">Setting up&hellip;</span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
           <!-- Running agents — click to chat -->
           <div x-show="agents.length" style="margin-bottom:28px">
             <div class="text-sm font-bold mb-2" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">Your Agents</div>
@@ -3575,6 +3602,32 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 
           <!-- Providers tab -->
           <div x-show="tab === 'providers'">
+            <!-- Free local AI -->
+            <div class="card mb-4" x-init="refreshLocalAi()" style="border-color:var(--success)">
+              <div class="card-header" style="display:flex;align-items:center;gap:8px">
+                Free local AI — no account needed
+                <span class="badge" x-show="localAi.ollama_detected" style="background:var(--success-subtle);color:var(--success)">Ollama detected</span>
+              </div>
+              <p style="font-size:13px;color:var(--text-dim);margin-top:6px">
+                One click sets up a private assistant that runs entirely on this device: no API key,
+                no account, your conversations never leave your machine. Downloads the Ollama runtime
+                (Windows: automatic; macOS/Linux: one guided step) and a lightweight Gemma model (~3&nbsp;GB).
+              </p>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
+                <button class="btn btn-sm" style="background:var(--success);color:var(--text-on-accent)"
+                        @click="startLocalAiSetup()" :disabled="localAi.running">
+                  <span x-show="!localAi.running">Set up local AI</span>
+                  <span x-show="localAi.running">Setting up&hellip;</span>
+                </button>
+                <div x-show="localAi.phase !== 'idle'" style="flex:1;min-width:220px">
+                  <div style="font-size:12px" :style="localAi.phase === 'error' ? 'color:var(--error)' : 'color:var(--text-dim)'" x-text="localAi.detail"></div>
+                  <div x-show="localAi.percent >= 0" style="height:6px;background:var(--surface2);border-radius:3px;margin-top:6px;overflow:hidden">
+                    <div style="height:100%;background:var(--success);transition:width .4s" :style="'width:' + localAi.percent + '%'"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="info-card">
               <h4>LLM Providers</h4>
               <p>FreEco.ai ships with <span x-text="providers.length"></span> built-in providers and you can add unlimited custom ones. <span x-text="configuredProviderCount"></span> currently configured. Filter, search, or jump to a category below &mdash; only providers with a saved key (or that need none) light up models for your agents.</p>
