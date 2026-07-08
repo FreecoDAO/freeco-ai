@@ -219,6 +219,7 @@ Today, agent browsing and code execution borrow tools from the host machine: bro
 
 * **Bundled agent browser** — ship a dedicated Chromium build inside the FRE.ECO Node. Agents browse in a fully separate browser with its own empty profile, so they never touch the user's own browser, saved passwords, cookies, or sessions — and browser automation works even on machines where only Firefox is installed.
 * **Prebuilt sandbox image** — ship a ready-made, minimal Linux execution environment with the Node, so agent code runs in an isolated sandbox out of the box, without requiring the user to install or understand Docker.
+* **Built-in local AI** — a one-click "free local AI, no account needed" setup that fetches a lightweight model (e.g. Gemma) and runs it on-device, so every fresh install has a private, working assistant before any API key is entered; longer term, the inference engine ships inside the binary itself.
 
 Both layers keep the existing WASM, subprocess, and workspace sandboxes underneath — isolation is added, never traded away.
 
@@ -239,7 +240,7 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 <p align="center">
   <img src="https://img.shields.io/badge/language-Rust-orange?style=flat-square" alt="Rust" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT" />
-  <img src="https://img.shields.io/badge/version-0.6.9-green?style=flat-square" alt="v0.6.9" />
+  <img src="https://img.shields.io/badge/version-0.7.2-green?style=flat-square" alt="v0.7.2" />
   <img src="https://img.shields.io/badge/tests-2,696%2B%20passing-brightgreen?style=flat-square" alt="Tests" />
   <img src="https://img.shields.io/badge/clippy-0%20warnings-brightgreen?style=flat-square" alt="Clippy" />
   <a href="https://www.buymeacoffee.com/openfang" target="_blank"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee" /></a>

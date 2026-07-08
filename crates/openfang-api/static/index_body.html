@@ -36,6 +36,10 @@
           <div>
             <h1>FreEco.ai</h1>
             <div class="version" x-text="'v' + version"></div>
+            <a x-show="$store.app.updateAvailable" x-cloak href="#settings"
+               @click="navigate('settings')"
+               :title="'Version ' + $store.app.updateLatest + ' is available — open Settings › System'"
+               style="display:inline-block;font-size:10px;font-weight:700;color:var(--text-on-accent);background:var(--success);border-radius:99px;padding:1px 8px;margin-top:3px;text-decoration:none;cursor:pointer">update available</a>
           </div>
         </div>
       </div>
@@ -3823,6 +3827,36 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             <div class="card mt-4" x-show="sysInfo.default_provider">
               <div class="card-header">Default Model</div>
               <div class="card-meta" x-text="sysInfo.default_provider + ' : ' + sysInfo.default_model"></div>
+            </div>
+
+            <!-- Software updates -->
+            <div class="card mt-4">
+              <div class="card-header">Software Updates</div>
+              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:10px">
+                <div style="flex:1;min-width:220px">
+                  <div style="font-size:13px">
+                    Installed: <b x-text="'v' + (sysInfo.version || '-')"></b>
+                    <template x-if="updateLatest">
+                      <span> &middot; Latest: <b x-text="'v' + updateLatest"></b></span>
+                    </template>
+                  </div>
+                  <div style="font-size:12px;margin-top:4px" :style="updateAvailable ? 'color:var(--success)' : 'color:var(--text-dim)'" x-text="updateStatus || 'Updates are checked once a day while the dashboard is open.'"></div>
+                </div>
+                <button class="btn btn-ghost btn-sm" @click="checkForUpdates()" :disabled="updateChecking">
+                  <span x-show="!updateChecking">Check for updates</span>
+                  <span x-show="updateChecking">Checking&hellip;</span>
+                </button>
+                <a x-show="updateAvailable" x-cloak class="btn btn-sm" style="background:var(--success);color:var(--text-on-accent);text-decoration:none" :href="updateUrl" target="_blank" rel="noopener">Get v<span x-text="updateLatest"></span></a>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)">
+                <label class="form-checkbox" style="margin:0;display:flex;align-items:center;gap:8px;cursor:pointer">
+                  <input type="checkbox" :checked="autoUpdateCheck" @change="toggleAutoUpdateCheck()">
+                  <span style="font-size:13px">Check for updates automatically (once a day)</span>
+                </label>
+              </div>
+              <p style="font-size:12px;color:var(--text-dim);margin-top:8px">
+                The desktop app installs updates itself after you confirm. If you use the portable or CLI edition, the button above takes you to the download page — your agents, memory, and settings are kept.
+              </p>
             </div>
           </div>
 

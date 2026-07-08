@@ -2004,7 +2004,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-agent-ceo"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "freeco-agent-core",
@@ -2020,7 +2020,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-agent-core"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -2036,7 +2036,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-agent-secretary"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "freeco-agent-core",
@@ -2051,7 +2051,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-agent-shopping"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "freeco-agent-core",
@@ -2067,7 +2067,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-budget-engine"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "chrono",
  "rusqlite",
@@ -2080,7 +2080,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-input-parser"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "base64 0.22.1",
  "mockito",
@@ -2094,7 +2094,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-runtime"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "freeco-agent-core",
@@ -2111,7 +2111,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-tool-gateway"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "base64 0.22.1",
  "mockito",
@@ -4136,7 +4136,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-api"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "argon2",
  "async-trait",
@@ -4178,7 +4178,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-channels"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "aes",
  "async-trait",
@@ -4217,7 +4217,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-cli"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "clap",
  "clap_complete",
@@ -4245,7 +4245,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-desktop"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "axum",
  "open",
@@ -4271,7 +4271,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-extensions"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -4299,7 +4299,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-hands"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "chrono",
  "dashmap",
@@ -4319,7 +4319,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-kernel"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4359,7 +4359,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-learning"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4377,7 +4377,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-memory"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4397,7 +4397,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-migrate"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
@@ -4416,7 +4416,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-runtime"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4452,7 +4452,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-skills"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "chrono",
  "ed25519-dalek",
@@ -4477,7 +4477,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-types"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "bitflags 2.11.0",
@@ -4497,7 +4497,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-wire"
-version = "0.6.9"
+version = "0.7.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -9437,7 +9437,7 @@ checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
 
 [[package]]
 name = "xtask"
-version = "0.6.9"
+version = "0.7.2"
 
 [[package]]
 name = "yoke"

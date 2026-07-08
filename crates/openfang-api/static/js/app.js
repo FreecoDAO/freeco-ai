@@ -142,6 +142,29 @@ document.addEventListener('alpine:init', function() {
     showAuthPrompt: false,
     authMode: 'apikey',
     sessionUser: null,
+    updateAvailable: false,
+    updateLatest: '',
+
+    // Quiet daily update check (Settings → System has the manual button
+    // and the on/off toggle; both share the freeco_* localStorage keys).
+    async quietUpdateCheck() {
+      if (localStorage.getItem('freeco_auto_update_check') === 'off') return;
+      var last = Number(localStorage.getItem('freeco_update_last_check') || 0);
+      if (Date.now() - last < 24 * 60 * 60 * 1000) return;
+      try {
+        var res = await fetch('https://api.github.com/repos/FreecoDAO/freeco-ai/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+        if (!res.ok) return;
+        var rel = await res.json();
+        var latest = String(rel.tag_name || '').replace(/^v/, '').split('.').map(Number);
+        var current = String(this.version || '0.0.0').replace(/^v/, '').split('.').map(Number);
+        for (var i = 0; i < Math.max(latest.length, current.length); i++) {
+          var a = latest[i] || 0, b = current[i] || 0;
+          if (a !== b) { this.updateAvailable = a > b; break; }
+        }
+        this.updateLatest = String(rel.tag_name || '').replace(/^v/, '');
+        localStorage.setItem('freeco_update_last_check', String(Date.now()));
+      } catch (e) { /* silent — never bother the user over a failed check */ }
+    },
 
     toggleFocusMode() {
       this.focusMode = !this.focusMode;
@@ -181,6 +204,7 @@ document.addEventListener('alpine:init', function() {
         this.lastError = '';
         this.version = s.version || '0.1.0';
         this.agentCount = s.agent_count || 0;
+        this.quietUpdateCheck();
       } catch(e) {
         this.connected = false;
         this.lastError = e.message || 'Unknown error';

@@ -37,6 +37,14 @@ function settingsPage() {
     loading: true,
     loadError: '',
 
+    // -- Software updates --
+    updateChecking: false,
+    updateStatus: '',
+    updateLatest: '',
+    updateAvailable: false,
+    updateUrl: 'https://github.com/FreecoDAO/freeco-ai/releases/latest',
+    autoUpdateCheck: localStorage.getItem('freeco_auto_update_check') !== 'off',
+
     // -- Dynamic config state --
     configSchema: null,
     configValues: {},
@@ -181,9 +189,50 @@ function settingsPage() {
         this.loadError = e.message || 'Could not load settings.';
       }
       this.loading = false;
+      if (this.autoUpdateCheck) this.checkForUpdates();
     },
 
     async loadData() { return this.loadSettings(); },
+
+    // -- Software updates --
+    toggleAutoUpdateCheck() {
+      this.autoUpdateCheck = !this.autoUpdateCheck;
+      localStorage.setItem('freeco_auto_update_check', this.autoUpdateCheck ? 'on' : 'off');
+      if (this.autoUpdateCheck) this.checkForUpdates();
+    },
+
+    // Returns true when `latest` is a newer semver than `current`.
+    isNewerVersion(latest, current) {
+      var l = String(latest).replace(/^v/, '').split('.').map(Number);
+      var c = String(current).replace(/^v/, '').split('.').map(Number);
+      for (var i = 0; i < Math.max(l.length, c.length); i++) {
+        var a = l[i] || 0, b = c[i] || 0;
+        if (a !== b) return a > b;
+      }
+      return false;
+    },
+
+    async checkForUpdates() {
+      this.updateChecking = true;
+      this.updateStatus = '';
+      try {
+        var res = await fetch('https://api.github.com/repos/FreecoDAO/freeco-ai/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+        if (!res.ok) throw new Error('GitHub API returned ' + res.status);
+        var rel = await res.json();
+        this.updateLatest = String(rel.tag_name || '').replace(/^v/, '');
+        this.updateUrl = rel.html_url || this.updateUrl;
+        var current = (this.sysInfo.version && this.sysInfo.version !== '-') ? this.sysInfo.version : (Alpine.store('app').version || '0.0.0');
+        this.updateAvailable = this.isNewerVersion(this.updateLatest, current);
+        Alpine.store('app').updateAvailable = this.updateAvailable;
+        localStorage.setItem('freeco_update_last_check', String(Date.now()));
+        this.updateStatus = this.updateAvailable
+          ? 'Version ' + this.updateLatest + ' is available.'
+          : 'You are on the latest version.';
+      } catch (e) {
+        this.updateStatus = 'Update check failed: ' + (e.message || 'network error') + '. You can check manually on GitHub.';
+      }
+      this.updateChecking = false;
+    },
 
     async loadSysInfo() {
       try {

@@ -71,7 +71,10 @@ jobs:
           key: desktop-${{ matrix.platform.rust_target }}
 
       - name: Import macOS signing certificate
-        if: runner.os == 'macOS'
+        # Skip when Apple certificates aren't configured — the build then
+        # produces an unsigned .dmg (users right-click -> Open past Gatekeeper)
+        # instead of failing the whole macOS desktop job.
+        if: runner.os == 'macOS' && secrets.MAC_CERT_BASE64 != ''
         env:
           MAC_CERT_BASE64: ${{ secrets.MAC_CERT_BASE64 }}
           MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
@@ -104,7 +107,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.MAC_NOTARIZE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "OpenFang ${{ github.ref_name }}"
+          releaseName: "FreEco.ai ${{ github.ref_name }}"
           releaseBody: |
             ## What's New
 

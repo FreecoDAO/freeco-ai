@@ -3,54 +3,59 @@
 /* Font imports in index_head.html: Inter (body) + Geist Mono (code) */
 
 [data-theme="light"], :root {
-  /* Backgrounds — layered depth */
-  --bg: #121313;
-  --bg-primary: #171918;
-  --bg-elevated: #1D211F;
-  --surface: #232826;
-  --surface2: #2A302E;
-  --surface3: #1A1E1C;
-  --border: #35433E;
-  --border-light: #456056;
-  --border-subtle: #29312E;
+  /* Backgrounds — white, layered depth */
+  --bg: #F6FAF7;
+  --bg-primary: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface2: #EDF4F0;
+  --surface3: #F1F7F3;
+  --border: #D8E5DD;
+  --border-light: #C2D6CA;
+  --border-subtle: #E5EEE8;
 
-  /* Text hierarchy */
-  --text: #F4F7F5;
-  --text-secondary: #C6D1CB;
-  --text-dim: #98AAA2;
-  --text-muted: #6D7D76;
+  /* Text hierarchy — deep green-tinted ink */
+  --text: #14201A;
+  --text-secondary: #3C4F45;
+  --text-dim: #61776C;
+  --text-muted: #8AA096;
 
   /* Brand — Deep Forest Green accent */
   --accent: #0B3D2E;
   --accent-light: #1E6B52;
   --accent-dim: #072C22;
-  --accent-glow: rgba(11, 61, 46, 0.2);
-  --accent-subtle: rgba(11, 61, 46, 0.1);
+  --accent-glow: rgba(11, 61, 46, 0.14);
+  --accent-subtle: rgba(11, 61, 46, 0.07);
 
   /* Status colors */
-  --success: #2A9D64;
-  --success-dim: #1E734A;
-  --success-subtle: rgba(42, 157, 100, 0.12);
+  --success: #1E8552;
+  --success-dim: #166B41;
+  --success-subtle: rgba(30, 133, 82, 0.1);
   --error: #C1121F;
   --error-dim: #8F0D17;
-  --error-subtle: rgba(193, 18, 31, 0.14);
-  --warning: #B08D2F;
-  --warning-dim: #8A6E23;
-  --warning-subtle: rgba(176, 141, 47, 0.14);
-  --info: #2A7A8C;
-  --info-dim: #1F5D6A;
-  --info-subtle: rgba(42, 122, 140, 0.14);
-  --success-muted: rgba(42, 157, 100, 0.24);
-  --error-muted: rgba(193, 18, 31, 0.24);
-  --warning-muted: rgba(176, 141, 47, 0.24);
-  --info-muted: rgba(42, 122, 140, 0.24);
-  --border-strong: #557467;
-  --card-highlight: rgba(255, 255, 255, 0.03);
+  --error-subtle: rgba(193, 18, 31, 0.08);
+  --warning: #8F6F1B;
+  --warning-dim: #715712;
+  --warning-subtle: rgba(143, 111, 27, 0.1);
+  --info: #1F6D7E;
+  --info-dim: #175260;
+  --info-subtle: rgba(31, 109, 126, 0.09);
+  --success-muted: rgba(30, 133, 82, 0.2);
+  --error-muted: rgba(193, 18, 31, 0.2);
+  --warning-muted: rgba(143, 111, 27, 0.2);
+  --info-muted: rgba(31, 109, 126, 0.2);
+  --border-strong: #A9C2B5;
+  --card-highlight: rgba(11, 61, 46, 0.02);
 
   /* Chat-specific */
-  --agent-bg: #1A1E1C;
-  --user-bg: #0E2F24;
+  --agent-bg: #F1F7F3;
+  --user-bg: #DCEDE4;
   --text-on-accent: #FFFFFF;
+
+  /* Modals / inputs (previously undefined — fell back to dark) */
+  --bg-card: #FFFFFF;
+  --bg-input: #FFFFFF;
+  --bg-secondary: #EDF4F0;
 
   /* Layout */
   --sidebar-width: 240px;
@@ -128,6 +133,9 @@
   --card-highlight: rgba(255, 255, 255, 0.06);
   --agent-bg: #151B18;
   --user-bg: #0E3729;
+  --bg-card: #1E2522;
+  --bg-input: #161C19;
+  --bg-secondary: #161D1A;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.3);
