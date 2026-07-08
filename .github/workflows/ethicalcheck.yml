@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: OWASP ZAP API Scan
-        uses: zaproxy/action-api-scan@v0.9.0
+        uses: zaproxy/action-api-scan@v0.10.0
         with:
           target: ${{ github.event.inputs.target_url || 'https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/docs/openapi.yaml' }}
           fail_action: false
