@@ -48,6 +48,10 @@ jobs:
             rust_target: aarch64-pc-windows-msvc
 
     runs-on: ${{ matrix.platform.os }}
+    env:
+      # secrets aren't allowed in step-level `if:` expressions, so expose
+      # certificate presence as a job-level env flag instead.
+      HAS_MAC_CERT: ${{ secrets.MAC_CERT_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -74,7 +78,7 @@ jobs:
         # Skip when Apple certificates aren't configured — the build then
         # produces an unsigned .dmg (users right-click -> Open past Gatekeeper)
         # instead of failing the whole macOS desktop job.
-        if: runner.os == 'macOS' && secrets.MAC_CERT_BASE64 != ''
+        if: runner.os == 'macOS' && env.HAS_MAC_CERT == 'true'
         env:
           MAC_CERT_BASE64: ${{ secrets.MAC_CERT_BASE64 }}
           MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
