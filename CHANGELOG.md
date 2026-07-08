@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to OpenFang will be documented in this file.
+All notable changes to FreEco.ai will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Dashboard software updates: Settings → System now shows the installed vs latest version with a "Check for updates" button, a once-a-day automatic check (on by default, toggleable, throttled via localStorage), and a green "update available" pill in the sidebar linking to the download. Desktop-app CSP updated to allow the GitHub releases API.
+- Dashboard sidebar now shows the fre.eco logo (replaced the old logo asset served at `/logo.png`).
 - Portable / USB edition: OS-detecting launcher scripts (`scripts/portable/`) that run FreEco.ai from any folder or USB drive with all data kept alongside the binary via `OPENFANG_HOME`, plus `scripts/build-portable.sh` to assemble the bundle from release binaries, and `docs/usb-portable.md`.
 - Landing page (`docs/index.html`) — self-contained green-brand site with edition overview, download links, terminal install commands, and PayPal donation QR; deployable via GitHub Pages or any static host.
 - README roadmap: "Planned: Self-Contained Isolation Layer" (bundled agent browser + prebuilt sandbox image, Manus-style all-included isolation).
@@ -22,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - README typos ("buisiness" → "business", "an SUSTAINABLE" → "a SUSTAINABLE").
+- Dashboard light theme was a duplicate of the dark palette — it is now a real white day theme (the Light/System/Dark switcher finally has visible effect). Previously-undefined modal variables (`--bg-card`, `--bg-input`, `--bg-secondary`) no longer fall back to dark values.
+- Desktop auto-updater pointed at the upstream repository (RightNow-AI/openfang) with the upstream signing key; it now points at FreecoDAO/freeco-ai signed with the project's own key.
+- Release CI no longer fails the macOS desktop build when Apple signing certificates are absent — it produces an unsigned .dmg instead.
+- Installer branding: product renamed OpenFang → FreEco.ai (shortcuts, Add/Remove Programs, Start Menu folder), installer version no longer stuck at 0.6.9, Windows installs per-user without admin prompts.
 
 ## [0.5.10] - 2026-04-17
 
