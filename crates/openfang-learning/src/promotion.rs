@@ -54,18 +54,9 @@ mod tests {
             "SECURITY.md"
         );
         assert_eq!(policy.target_file(&LearningType::Error), "SOUL.md");
-        assert_eq!(
-            policy.target_file(&LearningType::BestPractice),
-            "TOOLS.md"
-        );
-        assert_eq!(
-            policy.target_file(&LearningType::Correction),
-            "AGENTS.md"
-        );
-        assert_eq!(
-            policy.target_file(&LearningType::KnowledgeGap),
-            "AGENTS.md"
-        );
+        assert_eq!(policy.target_file(&LearningType::BestPractice), "TOOLS.md");
+        assert_eq!(policy.target_file(&LearningType::Correction), "AGENTS.md");
+        assert_eq!(policy.target_file(&LearningType::KnowledgeGap), "AGENTS.md");
         assert_eq!(
             policy.target_file(&LearningType::FeatureRequest),
             "FEATURE_REQUESTS.md"
