@@ -52,6 +52,7 @@ jobs:
       # secrets aren't allowed in step-level `if:` expressions, so expose
       # certificate presence as a job-level env flag instead.
       HAS_MAC_CERT: ${{ secrets.MAC_CERT_BASE64 != '' }}
+      HAS_NOTARIZE: ${{ secrets.MAC_NOTARIZE_TEAM_ID != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -106,6 +107,15 @@ jobs:
         if: runner.os == 'macOS' && env.HAS_MAC_CERT != 'true'
         run: echo "APPLE_SIGNING_IDENTITY=-" >> $GITHUB_ENV
 
+      - name: Export notarization credentials
+        # Only set notarization env vars when all three secrets are configured.
+        # When unset, Tauri skips notarization (producing an unsigned .dmg).
+        if: runner.os == 'macOS' && env.HAS_NOTARIZE == 'true'
+        run: |
+          echo "APPLE_ID=${{ secrets.MAC_NOTARIZE_APPLE_ID }}" >> $GITHUB_ENV
+          echo "APPLE_PASSWORD=${{ secrets.MAC_NOTARIZE_PASSWORD }}" >> $GITHUB_ENV
+          echo "APPLE_TEAM_ID=${{ secrets.MAC_NOTARIZE_TEAM_ID }}" >> $GITHUB_ENV
+
       - name: Build and bundle Tauri desktop app
         uses: tauri-apps/tauri-action@v1
         env:
@@ -113,9 +123,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.MAC_NOTARIZE_APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.MAC_NOTARIZE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.MAC_NOTARIZE_TEAM_ID }}
+          APPLE_ID: ${{ env.APPLE_ID }}
+          APPLE_PASSWORD: ${{ env.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ env.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "FreEco.ai ${{ github.ref_name }}"
