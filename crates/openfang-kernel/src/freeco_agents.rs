@@ -16,7 +16,9 @@
 //! reports a soft error instead of failing the whole request.
 
 use freeco_agent_ceo::CeoAgent;
-use freeco_agent_core::{Agent, AgentContext, Message, MessageContent, MessageRole, ResponseContent};
+use freeco_agent_core::{
+    Agent, AgentContext, Message, MessageContent, MessageRole, ResponseContent,
+};
 use freeco_agent_secretary::SecretaryAgent;
 use freeco_agent_shopping::ShoppingAgent;
 use freeco_tool_gateway::{
