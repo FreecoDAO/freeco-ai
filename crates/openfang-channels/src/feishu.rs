@@ -1049,10 +1049,7 @@ fn combine_payload(
         *entry = vec![Vec::new(); sum];
     }
 
-    match entry.get_mut(seq) {
-        Some(slot) => *slot = payload,
-        None => return None,
-    }
+    *entry.get_mut(seq)? = payload;
 
     if entry.iter().any(|part| part.is_empty()) {
         return None;
