@@ -276,21 +276,44 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 
 ---
 
-## ⬇️ Download
+## ⬇️ Download & Install
 
-Get the latest desktop installer for your platform:
+> The one you want is the **`-setup.exe`** (Windows). Do **not** download the
+> files named `openfang-…-msvc.zip` — those are for advanced command-line
+> users and contain no installer.
 
-| Platform | Installer |
-|----------|-----------|
-| **Windows** | [`.msi` installer](https://github.com/FreecoDAO/freeco-ai/releases/latest) |
-| **macOS** | [`.dmg` installer](https://github.com/FreecoDAO/freeco-ai/releases/latest) |
-| **Linux** | [`.AppImage`](https://github.com/FreecoDAO/freeco-ai/releases/latest) / [`.deb`](https://github.com/FreecoDAO/freeco-ai/releases/latest) |
+### 🪟 Windows — step by step
 
-👉 **[Browse all releases](https://github.com/FreecoDAO/freeco-ai/releases)**
+1. Download **[FreEco.ai_x64-setup.exe](https://github.com/FreecoDAO/freeco-ai/releases/latest/download/FreEco.ai_0.7.3_x64-setup.exe)**
+   (64-bit — for almost every PC. On an ARM tablet use the
+   [arm64 setup](https://github.com/FreecoDAO/freeco-ai/releases/latest/download/FreEco.ai_0.7.3_arm64-setup.exe) instead.)
+2. **Double-click** the downloaded file.
+3. Windows may show a blue **"Windows protected your PC"** box (because the
+   app is new and not yet code-signed). Click **More info → Run anyway**.
+   This is expected and safe.
+4. Click through the installer. It creates a **FreEco.ai shortcut on your
+   Desktop** and in the Start Menu.
+5. **Double-click the Desktop shortcut** to launch. The dashboard opens
+   automatically at `http://localhost:4200`.
+6. On first launch a short setup wizard asks for an AI provider key — or
+   pick **"Free local AI (no account)"** to run entirely on your machine.
+
+### 🍎 macOS
+
+Download the **[.dmg](https://github.com/FreecoDAO/freeco-ai/releases/latest)**,
+open it, drag **FreEco.ai** to Applications. First launch: **right-click the
+app → Open** (needed once, because it isn't Apple-signed yet).
+
+### 🐧 Linux
+
+Download the **[.AppImage](https://github.com/FreecoDAO/freeco-ai/releases/latest)**
+(`chmod +x` then double-click), or the **`.deb`** (`sudo apt install ./FreEco.ai_*.deb`).
+
+👉 **[All downloads](https://github.com/FreecoDAO/freeco-ai/releases/latest)** — pick the `-setup.exe`, `.dmg`, `.AppImage`, or `.deb` for your system.
 
 ---
 
-> **v0.5.10 (April 2026)**
+> **v0.7.3 (July 2026)**
 >
 > FreEco.ai is feature complete but still pre-1.0. Expect rough edges and breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/FreecoDAO/freeco-ai/issues)
 
@@ -305,7 +328,7 @@ Traditional agent frameworks wait for you to type something. FreEco.ai runs **au
 The entire system compiles to a **single ~32MB binary**. One install, one command, your agents are live.
 
 ```bash
-curl -fsSL https://freeco.ai/install | sh
+curl -fsSL https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.sh | sh
 openfang init
 openfang start
 # Dashboard live at http://localhost:4200
@@ -315,7 +338,7 @@ openfang start
 <summary><strong>Windows</strong></summary>
 
 ```powershell
-irm https://freeco.ai/install.ps1 | iex
+irm https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.ps1 | iex
 openfang init
 openfang start
 ```
@@ -705,7 +728,7 @@ curl -X POST localhost:4200/v1/chat/completions \
 
 ```bash
 # 1. Install (macOS/Linux)
-curl -fsSL https://freeco.ai/install | sh
+curl -fsSL https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.sh | sh
 
 # 2. Initialize. Walks you through provider setup.
 openfang init
@@ -730,7 +753,7 @@ openfang agent spawn coder
 <summary><strong>Windows (PowerShell)</strong></summary>
 
 ```powershell
-irm https://freeco.ai/install.ps1 | iex
+irm https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.ps1 | iex
 openfang init
 openfang start
 ```
