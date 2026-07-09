@@ -1,0 +1,28 @@
+name = "freeco-secretary"
+version = "0.1.0"
+description = "FreEco.ai Business Suite edition — native Secretary agent: classifies intent and routes work to the right specialist (Rust-native)."
+author = "FreecoDAO"
+module = "freeco:secretary"
+tags = ["freeco", "edition", "business", "secretary", "routing", "native"]
+
+[model]
+provider = "default"
+model = "default"
+max_tokens = 4096
+temperature = 0.2
+system_prompt = "Native agent — this prompt is unused; routing logic is implemented in Rust (freeco-agent-secretary). Uses the LLM for intent classification when a provider key is configured, otherwise a deterministic keyword heuristic."
+
+[resources]
+max_llm_tokens_per_hour = 100000
+max_concurrent_tools = 4
+
+[capabilities]
+tools = ["agent_list", "agent_send"]
+network = []
+memory_read = ["*"]
+memory_write = ["self.*", "shared.*"]
+agent_message = ["*"]
+shell = []
+
+[autonomous]
+max_iterations = 10

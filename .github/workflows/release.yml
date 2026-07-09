@@ -99,6 +99,13 @@ jobs:
           echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> $GITHUB_ENV
           rm -f $RUNNER_TEMP/certificate.p12
 
+      - name: Use ad-hoc signing when no Apple certificate is configured
+        # Without this, tauri attempts codesign with an empty identity and
+        # the bundle step fails ("failed to sign app"). "-" = ad-hoc signing:
+        # the .dmg builds and runs via right-click -> Open.
+        if: runner.os == 'macOS' && env.HAS_MAC_CERT != 'true'
+        run: echo "APPLE_SIGNING_IDENTITY=-" >> $GITHUB_ENV
+
       - name: Build and bundle Tauri desktop app
         uses: tauri-apps/tauri-action@v1
         env:
@@ -252,10 +259,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Set GHCR package visibility to public
+        # FreecoDAO is a user account, not an org — the /orgs/... endpoint
+        # 404s. Best-effort: the users endpoint, and never fail the release
+        # over package visibility (it can be set once in the UI instead).
         run: |
           curl -fsSL -X PATCH \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/orgs/FreecoDAO/packages/container/freeco-ai \
-            -d '{"visibility":"public"}'
+            https://api.github.com/users/FreecoDAO/packages/container/freeco-ai \
+            -d '{"visibility":"public"}' \
+          || echo "Package visibility unchanged (set it once via GitHub UI: Packages -> freeco-ai -> settings)"

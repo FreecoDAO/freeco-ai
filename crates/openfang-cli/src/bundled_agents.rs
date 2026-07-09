@@ -49,6 +49,34 @@ pub fn bundled_agents() -> Vec<(&'static str, &'static str)> {
             include_str!("../../../agents/email-assistant/agent.toml"),
         ),
         (
+            "freeco-ceo",
+            include_str!("../../../agents/freeco-ceo/agent.toml"),
+        ),
+        (
+            "freeco-concierge",
+            include_str!("../../../agents/freeco-concierge/agent.toml"),
+        ),
+        (
+            "freeco-developer",
+            include_str!("../../../agents/freeco-developer/agent.toml"),
+        ),
+        (
+            "freeco-kids",
+            include_str!("../../../agents/freeco-kids/agent.toml"),
+        ),
+        (
+            "freeco-secretary",
+            include_str!("../../../agents/freeco-secretary/agent.toml"),
+        ),
+        (
+            "freeco-shopping",
+            include_str!("../../../agents/freeco-shopping/agent.toml"),
+        ),
+        (
+            "freeco-tester",
+            include_str!("../../../agents/freeco-tester/agent.toml"),
+        ),
+        (
             "health-tracker",
             include_str!("../../../agents/health-tracker/agent.toml"),
         ),

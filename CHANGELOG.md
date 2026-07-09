@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **FreEco.ai Editions in the dashboard** — the Overview page now offers one-click setup cards for the four editions: Personal Concierge, Kids (strictly guardrailed: no web, no shell, no agent messaging, parental visibility), Business Suite (Secretary + autonomous buyer team), and AI Company (CEO + Secretary + Shopping team). Five new bundled agent templates: `freeco-concierge`, `freeco-kids`, `freeco-ceo`, `freeco-secretary`, `freeco-shopping`.
+- **Native freeco agents wired into the kernel** — the `freeco-agent-*` crates (previously compiled but unreachable) now execute via new `freeco:*` module ids (`freeco:ceo`, `freeco:secretary`, `freeco:shopping`): kernel dispatch in `execute_agent`, message conversion via `freeco-agent-core`'s bridge, deterministic CEO delegation planning with zero LLM cost, Secretary intent routing (LLM-classified when a key exists, keyword heuristic otherwise), Shopping three-tier research through the permission-gated tool gateway.
+- **Self-development Dev Pod (Phase 6, stage 1)** — new `freeco-developer` and `freeco-tester` bundled agents: the developer implements labeled GitHub issues in a sandboxed repo clone and opens draft PRs; the tester/ethical-hacker verifies with build/test/clippy/`cargo audit` plus a security review of the diff and posts a PASS/FAIL verdict. Narrow manifests (shell limited to git/cargo/gh, network to github.com/crates.io, tester has no write access); humans merge. Dashboard gains a Dev Pod setup card; guide in `docs/self-development.md`; Phase 6 (Self-Running AI Company) added to the README roadmap.
+- **One-click free local AI** — `POST /api/local-ai/setup` + `GET /api/local-ai/status`: detects Ollama, downloads/installs it silently per-user on Windows (official installer only, with progress), streams the model pull (default: lightweight Gemma), and points `[default_model]` at the local runtime. Settings → Providers gains a "Free local AI — no account needed" card with progress bar; macOS/Linux get a guided one-step path.
+
+### CI
+
+- macOS desktop bundles with ad-hoc signing when no Apple certificate is configured (previous fix skipped the import but left an empty signing identity, failing the bundle step).
+- Tauri updater artifacts (`latest.json` + signatures) are now generated (`createUpdaterArtifacts: true`) — v0.7.3 is the first release existing installs can auto-update from.
+- GHCR package-visibility step uses the user endpoint (FreecoDAO is not an org) and no longer fails the release.
+
+### Earlier in this cycle
+
 - Dashboard software updates: Settings → System now shows the installed vs latest version with a "Check for updates" button, a once-a-day automatic check (on by default, toggleable, throttled via localStorage), and a green "update available" pill in the sidebar linking to the download. Desktop-app CSP updated to allow the GitHub releases API.
 - Dashboard sidebar now shows the fre.eco logo (replaced the old logo asset served at `/logo.png`).
 - Portable / USB edition: OS-detecting launcher scripts (`scripts/portable/`) that run FreEco.ai from any folder or USB drive with all data kept alongside the binary via `OPENFANG_HOME`, plus `scripts/build-portable.sh` to assemble the bundle from release binaries, and `docs/usb-portable.md`.
@@ -23,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Branding: browser-tab favicon and the entire desktop/installer icon set (shortcut, taskbar, Add/Remove Programs) still showed the old OpenFang cobra — all regenerated from the fre.eco logo.
+- Voice-message transcription: `media_transcribe` resolved paths against the daemon's working directory instead of the agent workspace, and dashboard audio uploads were stored only under a UUID in a temp folder — so agents were told a filename that existed nowhere they could reach ("Failed to read audio file"). The tool now resolves workspace-relative paths first and falls back to the uploads folder by filename, and audio uploads keep a sanitized filename-addressable copy.
 - README typos ("buisiness" → "business", "an SUSTAINABLE" → "a SUSTAINABLE").
 - Dashboard light theme was a duplicate of the dark palette — it is now a real white day theme (the Light/System/Dark switcher finally has visible effect). Previously-undefined modal variables (`--bg-card`, `--bg-input`, `--bg-secondary`) no longer fall back to dark values.
 - Desktop auto-updater pointed at the upstream repository (RightNow-AI/openfang) with the upstream signing key; it now points at FreecoDAO/freeco-ai signed with the project's own key.

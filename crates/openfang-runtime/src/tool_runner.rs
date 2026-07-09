@@ -329,7 +329,7 @@ pub async fn execute_tool(
 
         // Media understanding tools
         "media_describe" => tool_media_describe(input, media_engine).await,
-        "media_transcribe" => tool_media_transcribe(input, media_engine).await,
+        "media_transcribe" => tool_media_transcribe(input, media_engine, workspace_root).await,
 
         // Image generation tool
         "image_generate" => tool_image_generate(input, workspace_root, media_engine).await,
@@ -3038,14 +3038,41 @@ async fn tool_media_describe(
 async fn tool_media_transcribe(
     input: &serde_json::Value,
     media_engine: Option<&crate::media_understanding::MediaEngine>,
+    workspace_root: Option<&std::path::Path>,
 ) -> Result<String, String> {
     use base64::Engine;
     let engine = media_engine.ok_or("Media engine not available. Check media configuration.")?;
     let path = input["path"].as_str().ok_or("Missing 'path' parameter")?;
     let _ = validate_path(path)?;
 
+    // Resolve the audio file: workspace-relative first (like the file
+    // tools), then the dashboard upload dir by basename — voice messages
+    // land there and agents only know the original filename.
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+    let p = std::path::Path::new(path);
+    if p.is_absolute() {
+        candidates.push(p.to_path_buf());
+    } else {
+        if let Some(ws) = workspace_root {
+            candidates.push(ws.join(p));
+        }
+        candidates.push(p.to_path_buf());
+    }
+    if let Some(base) = p.file_name() {
+        candidates.push(std::env::temp_dir().join("openfang_uploads").join(base));
+    }
+    let resolved = candidates
+        .iter()
+        .find(|c| c.exists())
+        .cloned()
+        .ok_or_else(|| {
+            format!(
+                "Failed to read audio file: not found as '{path}' (checked workspace,                  working dir, and the uploads folder)"
+            )
+        })?;
+
     // Read audio file
-    let data = tokio::fs::read(path)
+    let data = tokio::fs::read(&resolved)
         .await
         .map_err(|e| format!("Failed to read audio file: {e}"))?;
 
