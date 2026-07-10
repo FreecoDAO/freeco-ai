@@ -160,7 +160,12 @@ async fn run_setup(
         }
     }
 
-    // 2. Pull model with streaming progress
+    // 2. Pull model with streaming progress.
+    //
+    // Network hiccups are the norm on multi-GB downloads. Ollama caches
+    // completed layers, so retrying continues from what's already on disk
+    // instead of starting over — but only if WE retry instead of failing
+    // out and making the user press the button again. Retry with backoff.
     set_status(
         status,
         "pulling-model",
@@ -168,7 +173,35 @@ async fn run_setup(
         0,
     )
     .await;
-    pull_model(status, model).await?;
+    const MAX_PULL_ATTEMPTS: u32 = 6;
+    let mut attempt = 1;
+    loop {
+        match pull_model(status, model).await {
+            Ok(()) => break,
+            Err(e) if attempt < MAX_PULL_ATTEMPTS => {
+                let wait = 5 * attempt as u64;
+                set_status(
+                    status,
+                    "pulling-model",
+                    format!(
+                        "Connection dropped ({e}) — resuming download automatically \
+                         in {wait}s (attempt {attempt}/{MAX_PULL_ATTEMPTS}, finished \
+                         parts are kept)..."
+                    ),
+                    -1,
+                )
+                .await;
+                tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
+                attempt += 1;
+            }
+            Err(e) => {
+                return Err(format!(
+                    "Model download kept failing after {MAX_PULL_ATTEMPTS} attempts: {e}. \
+                     Finished parts are kept — press Set up again to resume from where it stopped."
+                ))
+            }
+        }
+    }
 
     // 3. Point default_model at Ollama
     set_status(

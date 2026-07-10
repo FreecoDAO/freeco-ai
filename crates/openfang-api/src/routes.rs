@@ -45,6 +45,9 @@ pub struct AppState {
     pub budget_config: Arc<tokio::sync::RwLock<openfang_types::config::BudgetConfig>>,
     /// One-click local AI setup progress (Ollama install + model pull).
     pub local_ai: crate::local_ai::SharedLocalAiStatus,
+    /// Global emergency freeze. When true, every agent message is refused
+    /// before any LLM call or tool runs — the master kill switch.
+    pub frozen: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 /// POST /api/agents — Spawn a new agent.
@@ -358,6 +361,13 @@ pub async fn send_message(
             );
         }
     };
+    // Emergency freeze: master kill switch, checked before anything runs.
+    if state.frozen.load(std::sync::atomic::Ordering::Relaxed) {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": "System is frozen. Agents are paused by the emergency stop. Unfreeze from the dashboard to resume."})),
+        );
+    }
 
     // SECURITY: Reject oversized messages to prevent OOM / LLM token abuse.
     const MAX_MESSAGE_SIZE: usize = 64 * 1024; // 64KB
@@ -1555,6 +1565,13 @@ pub async fn send_message_stream(
             .into_response();
     }
 
+    if state.frozen.load(std::sync::atomic::Ordering::Relaxed) {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": "System is frozen (emergency stop). Unfreeze to resume."})),
+        )
+            .into_response();
+    }
     let agent_id: AgentId = match id.parse() {
         Ok(id) => id,
         Err(_) => {
@@ -13104,4 +13121,62 @@ mod uninstall_agent_tests {
             "sibling dir outside agents/ must NOT be deleted"
         );
     }
+}
+
+
+// ---------------------------------------------------------------------------
+// Emergency freeze (global kill switch)
+// ---------------------------------------------------------------------------
+
+/// GET /api/system/freeze — current freeze state.
+pub async fn get_freeze(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    Json(serde_json::json!({
+        "frozen": state.frozen.load(std::sync::atomic::Ordering::Relaxed)
+    }))
+}
+
+/// POST /api/system/freeze — engage the emergency stop: refuse all agent
+/// messages and suspend every running agent (agents are preserved, not
+/// deleted; unfreeze to resume).
+pub async fn freeze_system(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    state.frozen.store(true, std::sync::atomic::Ordering::Relaxed);
+    let mut suspended = 0;
+    for entry in state.kernel.registry.list() {
+        if matches!(
+            entry.state,
+            openfang_types::agent::AgentState::Running
+                | openfang_types::agent::AgentState::Created
+        ) {
+            if state
+                .kernel
+                .registry
+                .set_state(entry.id, openfang_types::agent::AgentState::Suspended)
+                .is_ok()
+            {
+                suspended += 1;
+            }
+        }
+    }
+    tracing::warn!(suspended, "EMERGENCY FREEZE engaged");
+    Json(serde_json::json!({"frozen": true, "suspended": suspended}))
+}
+
+/// POST /api/system/unfreeze — release the emergency stop and resume agents.
+pub async fn unfreeze_system(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    state.frozen.store(false, std::sync::atomic::Ordering::Relaxed);
+    let mut resumed = 0;
+    for entry in state.kernel.registry.list() {
+        if matches!(entry.state, openfang_types::agent::AgentState::Suspended) {
+            if state
+                .kernel
+                .registry
+                .set_state(entry.id, openfang_types::agent::AgentState::Running)
+                .is_ok()
+            {
+                resumed += 1;
+            }
+        }
+    }
+    tracing::info!(resumed, "Emergency freeze released");
+    Json(serde_json::json!({"frozen": false, "resumed": resumed}))
 }
