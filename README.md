@@ -309,6 +309,14 @@ app → Open** (needed once, because it isn't Apple-signed yet).
 Download the **[.AppImage](https://github.com/FreecoDAO/freeco-ai/releases/latest)**
 (`chmod +x` then double-click), or the **`.deb`** (`sudo apt install ./FreEco.ai_*.deb`).
 
+### 🔒 Coming: FreEco.ai OS — bootable USB (maximum sandbox)
+
+A **Kubuntu 24.04 LTS live-USB** with FreEco.ai, a local Gemma LLM, and the
+AI Company agents preinstalled. Boots as a second OS on any laptop from the
+USB stick: fully offline-capable, no account, and the strongest isolation
+possible — agents run in a whole separate operating system and can never
+touch your main system's files. *(Desktop/laptop only; in development.)*
+
 👉 **[All downloads](https://github.com/FreecoDAO/freeco-ai/releases/latest)** — pick the `-setup.exe`, `.dmg`, `.AppImage`, or `.deb` for your system.
 
 ---
