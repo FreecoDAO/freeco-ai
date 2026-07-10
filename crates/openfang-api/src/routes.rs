@@ -365,7 +365,9 @@ pub async fn send_message(
     if state.frozen.load(std::sync::atomic::Ordering::Relaxed) {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(serde_json::json!({"error": "System is frozen. Agents are paused by the emergency stop. Unfreeze from the dashboard to resume."})),
+            Json(
+                serde_json::json!({"error": "System is frozen. Agents are paused by the emergency stop. Unfreeze from the dashboard to resume."}),
+            ),
         );
     }
 
@@ -13123,7 +13125,6 @@ mod uninstall_agent_tests {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // Emergency freeze (global kill switch)
 // ---------------------------------------------------------------------------
@@ -13139,22 +13140,21 @@ pub async fn get_freeze(State(state): State<Arc<AppState>>) -> impl IntoResponse
 /// messages and suspend every running agent (agents are preserved, not
 /// deleted; unfreeze to resume).
 pub async fn freeze_system(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    state.frozen.store(true, std::sync::atomic::Ordering::Relaxed);
+    state
+        .frozen
+        .store(true, std::sync::atomic::Ordering::Relaxed);
     let mut suspended = 0;
     for entry in state.kernel.registry.list() {
         if matches!(
             entry.state,
-            openfang_types::agent::AgentState::Running
-                | openfang_types::agent::AgentState::Created
-        ) {
-            if state
-                .kernel
-                .registry
-                .set_state(entry.id, openfang_types::agent::AgentState::Suspended)
-                .is_ok()
-            {
-                suspended += 1;
-            }
+            openfang_types::agent::AgentState::Running | openfang_types::agent::AgentState::Created
+        ) && state
+            .kernel
+            .registry
+            .set_state(entry.id, openfang_types::agent::AgentState::Suspended)
+            .is_ok()
+        {
+            suspended += 1;
         }
     }
     tracing::warn!(suspended, "EMERGENCY FREEZE engaged");
@@ -13163,18 +13163,19 @@ pub async fn freeze_system(State(state): State<Arc<AppState>>) -> impl IntoRespo
 
 /// POST /api/system/unfreeze — release the emergency stop and resume agents.
 pub async fn unfreeze_system(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    state.frozen.store(false, std::sync::atomic::Ordering::Relaxed);
+    state
+        .frozen
+        .store(false, std::sync::atomic::Ordering::Relaxed);
     let mut resumed = 0;
     for entry in state.kernel.registry.list() {
-        if matches!(entry.state, openfang_types::agent::AgentState::Suspended) {
-            if state
+        if matches!(entry.state, openfang_types::agent::AgentState::Suspended)
+            && state
                 .kernel
                 .registry
                 .set_state(entry.id, openfang_types::agent::AgentState::Running)
                 .is_ok()
-            {
-                resumed += 1;
-            }
+        {
+            resumed += 1;
         }
     }
     tracing::info!(resumed, "Emergency freeze released");
