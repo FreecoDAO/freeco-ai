@@ -113,9 +113,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.MAC_NOTARIZE_APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.MAC_NOTARIZE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.MAC_NOTARIZE_TEAM_ID }}
+          # Notarization requires a real Apple Team ID. Only pass these when a
+          # certificate is configured — otherwise tauri tries to notarize the
+          # ad-hoc-signed app and fails ("Team ID must be at least 3 chars").
+          APPLE_ID: ${{ env.HAS_MAC_CERT == 'true' && secrets.MAC_NOTARIZE_APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ env.HAS_MAC_CERT == 'true' && secrets.MAC_NOTARIZE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ env.HAS_MAC_CERT == 'true' && secrets.MAC_NOTARIZE_TEAM_ID || '' }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "FreEco.ai ${{ github.ref_name }}"
