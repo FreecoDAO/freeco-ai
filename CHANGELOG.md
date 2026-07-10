@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Local AI model downloads now auto-resume after network drops (up to 6 retries with backoff; Ollama keeps finished layers) instead of erroring out and appearing to restart from zero.
+- Local AI model downloads now auto-resume after network drops (up to 6 total attempts with backoff; Ollama keeps finished layers) instead of erroring out and appearing to restart from zero.
 - README: dummy-proof Windows install guide with a direct `-setup.exe` link, SmartScreen note, and desktop-shortcut mention — users were downloading the bare CLI `.zip` and finding "nothing installs". Broken `freeco.ai/install` one-liners replaced with working raw-GitHub URLs; stale v0.5.10 banner updated.
 - Release CI: macOS desktop no longer fails by attempting notarization without an Apple Team ID after ad-hoc signing — the unsigned `.dmg` now builds.
 

@@ -2,7 +2,7 @@
 
 Comparing all 157 `/api/*` routes against what the dashboard surfaces. The
 recurring finding this session: **abilities exist in the backend but are
-hidden or missing in the UI.** This audit drives the v0.7.4 UI work.
+hidden or missing in the UI.** This audit is groundwork for upcoming UI work.
 
 ## Confirmed: backend exists, UI hides it (fix in v0.7.4)
 
@@ -12,9 +12,9 @@ hidden or missing in the UI.** This audit drives the v0.7.4 UI work.
 | Change a provider's base URL | `PUT /api/providers/{name}/url` | Not exposed |
 | Change model per agent | `PUT /api/agents/{id}/model` (exists, used in agent detail + `/model` chat cmd) | Discoverable only via slash command or buried detail panel — needs a visible per-agent model picker |
 | Custom models | `/api/models/custom` (GET/POST/DELETE) | Add form exists; delete/edit weak |
-| Emergency stop everything | per-agent `/api/agents/{id}/stop`; no global | No global control (added in v0.7.4: `POST /api/agents/stop-all` + floating button) |
+| Emergency stop everything | `POST /api/system/freeze` (with `GET`/`DELETE` state and `POST /api/system/unfreeze`) | No floating global control yet |
 
-## Missing entirely (build in v0.7.4+)
+## Missing entirely (build in upcoming releases)
 
 - **Global emergency freeze** — floating red button on every screen → pause
   all agents without deleting them. (v0.7.4)

@@ -447,7 +447,7 @@ fn draw_topology(f: &mut Frame, area: Rect, state: &CommsState) {
         let state_style = state_color(&root.state);
         let mut spans = vec![
             Span::styled("  ", Style::default()),
-            Span::styled(format!("[{}]", &root.state), state_style),
+            Span::styled(format!("[{}]", root.state), state_style),
             Span::styled(
                 format!(" {} ", root.name),
                 Style::default()
@@ -580,7 +580,7 @@ fn draw_send_modal(f: &mut Frame, area: Rect, state: &CommsState) {
     );
     f.render_widget(
         Paragraph::new(Span::styled(
-            format!("  {}\u{2588}", &state.send_from),
+            format!("  {}\u{2588}", state.send_from),
             Style::default().fg(theme::TEXT),
         )),
         rows[1],
@@ -591,7 +591,7 @@ fn draw_send_modal(f: &mut Frame, area: Rect, state: &CommsState) {
     );
     f.render_widget(
         Paragraph::new(Span::styled(
-            format!("  {}\u{2588}", &state.send_to),
+            format!("  {}\u{2588}", state.send_to),
             Style::default().fg(theme::TEXT),
         )),
         rows[3],
@@ -602,7 +602,7 @@ fn draw_send_modal(f: &mut Frame, area: Rect, state: &CommsState) {
     );
     f.render_widget(
         Paragraph::new(Span::styled(
-            format!("  {}\u{2588}", &state.send_msg),
+            format!("  {}\u{2588}", state.send_msg),
             Style::default().fg(theme::TEXT),
         )),
         rows[5],
@@ -655,7 +655,7 @@ fn draw_task_modal(f: &mut Frame, area: Rect, state: &CommsState) {
     );
     f.render_widget(
         Paragraph::new(Span::styled(
-            format!("  {}\u{2588}", &state.task_title),
+            format!("  {}\u{2588}", state.task_title),
             Style::default().fg(theme::TEXT),
         )),
         rows[1],
@@ -666,7 +666,7 @@ fn draw_task_modal(f: &mut Frame, area: Rect, state: &CommsState) {
     );
     f.render_widget(
         Paragraph::new(Span::styled(
-            format!("  {}\u{2588}", &state.task_desc),
+            format!("  {}\u{2588}", state.task_desc),
             Style::default().fg(theme::TEXT),
         )),
         rows[3],
@@ -680,7 +680,7 @@ fn draw_task_modal(f: &mut Frame, area: Rect, state: &CommsState) {
     );
     f.render_widget(
         Paragraph::new(Span::styled(
-            format!("  {}\u{2588}", &state.task_assign),
+            format!("  {}\u{2588}", state.task_assign),
             Style::default().fg(theme::TEXT),
         )),
         rows[5],
