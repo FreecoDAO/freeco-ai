@@ -130,11 +130,10 @@ jobs:
     name: Install Script Smoke Test
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
       - name: Fetch and syntax-check shell installer
         run: |
-          curl -fsSL https://www.freeco.ai/install -o /tmp/install.sh
-          bash -n /tmp/install.sh
+          bash -n scripts/install.sh
       - name: Fetch and syntax-check PowerShell installer
         run: |
-          curl -fsSL https://www.freeco.ai/install.ps1 -o /tmp/install.ps1
-          pwsh -NoProfile -Command "Get-Content /tmp/install.ps1 | Out-Null" 2>&1 || true
+          pwsh -NoProfile -Command "Get-Content scripts/install.ps1 | Out-Null"

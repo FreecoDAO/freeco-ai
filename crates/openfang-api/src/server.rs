@@ -53,6 +53,7 @@ pub async fn build_router(
         provider_probe_cache: openfang_runtime::provider_health::ProbeCache::new(),
         budget_config: Arc::new(tokio::sync::RwLock::new(kernel.config.budget.clone())),
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
+        frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
     });
 
     // Start WS cron broadcaster — subscribes to kernel event bus and pushes
@@ -540,6 +541,16 @@ pub async fn build_router(
         .route(
             "/api/local-ai/setup",
             axum::routing::post(crate::local_ai::local_ai_setup),
+        )
+        .route(
+            "/api/system/freeze",
+            axum::routing::get(routes::get_freeze)
+                .post(routes::freeze_system)
+                .delete(routes::unfreeze_system),
+        )
+        .route(
+            "/api/system/unfreeze",
+            axum::routing::post(routes::unfreeze_system),
         )
         // Approval endpoints
         .route(

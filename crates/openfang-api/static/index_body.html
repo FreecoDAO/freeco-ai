@@ -265,6 +265,35 @@
           </div>
           <div x-show="!loading && !loadError" style="animation:fadeIn 0.3s">
 
+          <!-- moved here: editions render in overviewPage scope -->
+          <!-- FreEco.ai Editions — one-click agent team setup -->
+          <div style="margin-bottom:28px">
+            <div class="text-sm font-bold mb-2" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">FreEco.ai Editions</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
+              <template x-for="ed in editions" :key="ed.id">
+                <div class="card" style="cursor:pointer;padding:16px" @click="spawnEdition(ed)"
+                     @mouseenter="$el.style.borderColor='var(--accent)'" @mouseleave="$el.style.borderColor='var(--border)'">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:1.6rem" x-text="ed.emoji"></span>
+                    <div>
+                      <div style="font-weight:600" x-text="ed.label"></div>
+                      <div style="font-size:11px;color:var(--text-muted)">
+                        <span x-text="ed.team.length === 1 ? '1 agent' : ed.team.length + '-agent team'"></span>
+                        <span x-show="ed.tier" style="margin-left:6px;padding:1px 7px;border-radius:99px;background:var(--accent-subtle);color:var(--accent-light);font-weight:700" x-text="ed.tier + ' tier'"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <p style="font-size:12px;color:var(--text-dim);margin-top:8px" x-text="ed.desc"></p>
+                  <div style="margin-top:10px">
+                    <span class="btn btn-ghost btn-sm" x-show="spawningEdition !== ed.id">Set up</span>
+                    <span class="btn btn-ghost btn-sm" x-show="spawningEdition === ed.id">Setting up&hellip;</span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+
           <!-- Primary stats row with icons + stagger animation -->
           <div class="stats-row stats-row-lg">
             <div class="stat-card stat-card-lg animate-entry stagger-1" @click="location.hash='agents'" style="cursor:pointer">
@@ -841,32 +870,6 @@
         </div>
         <div class="page-body" style="overflow-y:auto;padding:24px">
 
-          <!-- FreEco.ai Editions — one-click agent team setup -->
-          <div style="margin-bottom:28px">
-            <div class="text-sm font-bold mb-2" style="color:var(--text-dim);letter-spacing:0.5px;font-size:11px;text-transform:uppercase">FreEco.ai Editions</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
-              <template x-for="ed in editions" :key="ed.id">
-                <div class="card" style="cursor:pointer;padding:16px" @click="spawnEdition(ed)"
-                     @mouseenter="$el.style.borderColor='var(--accent)'" @mouseleave="$el.style.borderColor='var(--border)'">
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <span style="font-size:1.6rem" x-text="ed.emoji"></span>
-                    <div>
-                      <div style="font-weight:600" x-text="ed.label"></div>
-                      <div style="font-size:11px;color:var(--text-muted)">
-                        <span x-text="ed.team.length === 1 ? '1 agent' : ed.team.length + '-agent team'"></span>
-                        <span x-show="ed.tier" style="margin-left:6px;padding:1px 7px;border-radius:99px;background:var(--accent-subtle);color:var(--accent-light);font-weight:700" x-text="ed.tier + ' tier'"></span>
-                      </div>
-                    </div>
-                  </div>
-                  <p style="font-size:12px;color:var(--text-dim);margin-top:8px" x-text="ed.desc"></p>
-                  <div style="margin-top:10px">
-                    <span class="btn btn-ghost btn-sm" x-show="spawningEdition !== ed.id">Set up</span>
-                    <span class="btn btn-ghost btn-sm" x-show="spawningEdition === ed.id">Setting up&hellip;</span>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
 
           <!-- Running agents — click to chat -->
           <div x-show="agents.length" style="margin-bottom:28px">

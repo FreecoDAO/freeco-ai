@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-07-10
+
+### Fixed
+
+- Local AI model downloads now auto-resume after network drops (up to 6 total attempts with backoff; Ollama keeps finished layers) instead of erroring out and appearing to restart from zero.
+- README: dummy-proof Windows install guide with a direct `-setup.exe` link, SmartScreen note, and desktop-shortcut mention — users were downloading the bare CLI `.zip` and finding "nothing installs". Broken `freeco.ai/install` one-liners replaced with working raw-GitHub URLs; stale v0.5.10 banner updated.
+- Release CI: macOS desktop no longer fails by attempting notarization without an Apple Team ID after ad-hoc signing — the unsigned `.dmg` now builds.
+
+
 ### Added
 
 - **FreEco.ai Editions in the dashboard** — the Overview page now offers one-click setup cards for the four editions: Personal Concierge, Kids (strictly guardrailed: no web, no shell, no agent messaging, parental visibility), Business Suite (Secretary + autonomous buyer team), and AI Company (CEO + Secretary + Shopping team). Five new bundled agent templates: `freeco-concierge`, `freeco-kids`, `freeco-ceo`, `freeco-secretary`, `freeco-shopping`.

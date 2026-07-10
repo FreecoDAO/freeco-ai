@@ -62,6 +62,7 @@ async fn start_test_server() -> TestServer {
         provider_probe_cache: openfang_runtime::provider_health::ProbeCache::new(),
         budget_config: Arc::new(tokio::sync::RwLock::new(Default::default())),
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
+        frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
     });
 
     let app = Router::new()
