@@ -576,6 +576,24 @@ function settingsPage() {
     async saveProviderKey(provider) {
       var key = this.providerKeyInputs[provider.id];
       if (!key || !key.trim()) { OpenFangToast.error('Please enter an API key'); return; }
+      // PRIVACY RED-FLAG: connecting a cloud provider means every message the
+      // agents send is transmitted to that company. Non-technical users must
+      // understand this before it happens. Local providers never leave the
+      // device, so no warning is needed for them.
+      if (!provider.is_local) {
+        var name = provider.display_name || provider.id;
+        var confirmed = window.confirm(
+          '⚠️ Privacy warning\n\n' +
+          'You are connecting ' + name + ', an online (cloud) AI provider.\n\n' +
+          'Everything your agents send — your messages, files they read, and\n' +
+          'your company’s data — will be transmitted to ' + name + '’s servers\n' +
+          'and is subject to their privacy policy. This can expose sensitive data.\n\n' +
+          'For full privacy, use a local model instead (Settings → Providers →\n' +
+          '“Free local AI”) — it runs on this device and never sends your data out.\n\n' +
+          'Connect ' + name + ' anyway?'
+        );
+        if (!confirmed) { OpenFangToast.info('Cloud provider not connected — your data stays local.'); return; }
+      }
       try {
         var resp = await OpenFangAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/key', { key: key.trim() });
         if (resp && resp.switched_default) {
