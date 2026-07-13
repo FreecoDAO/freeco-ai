@@ -92,7 +92,7 @@ struct PkcePair {
 /// Generate a PKCE code_verifier and code_challenge (S256).
 fn generate_pkce() -> PkcePair {
     let mut bytes = [0u8; 32];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let verifier = Zeroizing::new(base64_url_encode(&bytes));
     let challenge = {
         let mut hasher = Sha256::new();
@@ -114,7 +114,7 @@ fn base64_url_encode(data: &[u8]) -> String {
 /// Generate a random state parameter for CSRF protection.
 fn generate_state() -> String {
     let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     base64_url_encode(&bytes)
 }
 
