@@ -1,5 +1,18 @@
 <body x-data="app" :data-theme="theme">
 
+<!-- Available on every page: pauses all agent dispatch until explicitly released. -->
+<button
+  class="btn btn-sm"
+  :class="$store.app.frozen ? 'btn-primary' : 'btn-danger'"
+  :disabled="$store.app.freezeBusy"
+  @click="$store.app.toggleEmergencyFreeze()"
+  :aria-label="$store.app.frozen ? 'Release emergency stop' : 'Engage emergency stop'"
+  :title="$store.app.frozen ? 'Release emergency stop' : 'Pause all agents immediately'"
+  style="position:fixed;right:20px;bottom:20px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.25)"
+>
+  <span x-text="$store.app.freezeBusy ? 'Working…' : ($store.app.frozen ? 'Resume agents' : 'Emergency stop')"></span>
+</button>
+
 <!-- Auth Prompt (API Key or Username/Password) -->
 <div x-show="$store.app.showAuthPrompt" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)" x-data="{ apiKeyInput: '', loginUser: '', loginPass: '' }">
   <div style="background:var(--bg-card,#1e1e2e);border:1px solid var(--border,#333);border-radius:12px;padding:2rem;max-width:400px;width:90%">
@@ -3624,6 +3637,14 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                 no account, your conversations never leave your machine. Downloads the Ollama runtime
                 (Windows: automatic; macOS/Linux: one guided step) and a lightweight Gemma model (~3&nbsp;GB).
               </p>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0">
+                <button class="btn btn-ghost btn-sm" @click="loadLocalAiRecommendation('general')">Check this machine</button>
+                <button class="btn btn-ghost btn-sm" @click="loadLocalAiRecommendation('coding')">Recommend coding model</button>
+                <span x-show="localAiRecommendation" class="text-xs text-dim"
+                  x-text="localAiRecommendation ? ('Recommended: ' + localAiRecommendation.recommended_model) : ''"></span>
+              </div>
+              <p x-show="localAiRecommendation" class="text-xs text-dim" style="margin:0 0 10px"
+                x-text="localAiRecommendation && localAiRecommendation.notice"></p>
               <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
                 <button class="btn btn-sm" style="background:var(--success);color:var(--text-on-accent)"
                         @click="startLocalAiSetup()" :disabled="localAi.running">

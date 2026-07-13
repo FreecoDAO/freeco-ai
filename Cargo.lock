@@ -792,9 +792,9 @@ dependencies = [
 
 [[package]]
 name = "chrono"
-version = "0.4.44"
+version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c673075a2e0e5f4a1dde27ce9dee1ea4558c7ffe648f576438a20ca1d2acc4b0"
+checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
  "js-sys",
@@ -2004,7 +2004,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-agent-ceo"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "async-trait",
  "freeco-agent-core",
@@ -2020,7 +2020,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-agent-core"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "async-trait",
  "js-sys",
@@ -2036,7 +2036,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-agent-secretary"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "async-trait",
  "freeco-agent-core",
@@ -2051,7 +2051,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-agent-shopping"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "async-trait",
  "freeco-agent-core",
@@ -2067,7 +2067,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-budget-engine"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "chrono",
  "rusqlite",
@@ -2080,7 +2080,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-input-parser"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "base64 0.22.1",
  "mockito",
@@ -2094,7 +2094,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-runtime"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "async-trait",
  "freeco-agent-core",
@@ -2111,7 +2111,7 @@ dependencies = [
 
 [[package]]
 name = "freeco-tool-gateway"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "base64 0.22.1",
  "mockito",
@@ -2913,7 +2913,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -4138,7 +4138,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-api"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "argon2",
  "async-trait",
@@ -4161,7 +4161,7 @@ dependencies = [
  "openfang-skills",
  "openfang-types",
  "openfang-wire",
- "rand 0.8.5",
+ "rand 0.9.2",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4181,7 +4181,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-channels"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "aes",
  "async-trait",
@@ -4220,7 +4220,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-cli"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "clap",
  "clap_complete",
@@ -4248,7 +4248,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-desktop"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "axum",
  "open",
@@ -4274,7 +4274,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-extensions"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -4284,7 +4284,7 @@ dependencies = [
  "dashmap",
  "dirs 6.0.0",
  "openfang-types",
- "rand 0.8.5",
+ "rand 0.9.2",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4302,7 +4302,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-hands"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "chrono",
  "dashmap",
@@ -4322,7 +4322,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-kernel"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4347,7 +4347,7 @@ dependencies = [
  "openfang-skills",
  "openfang-types",
  "openfang-wire",
- "rand 0.8.5",
+ "rand 0.9.2",
  "reqwest 0.12.28",
  "rustls",
  "serde",
@@ -4367,7 +4367,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-learning"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4385,7 +4385,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-memory"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4405,7 +4405,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-migrate"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
@@ -4424,7 +4424,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-runtime"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4460,13 +4460,13 @@ dependencies = [
 
 [[package]]
 name = "openfang-skills"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "chrono",
  "ed25519-dalek",
  "hex",
  "openfang-types",
- "rand 0.8.5",
+ "rand_core 0.6.4",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4485,7 +4485,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-types"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "async-trait",
  "bitflags 2.11.0",
@@ -4493,7 +4493,7 @@ dependencies = [
  "dirs 6.0.0",
  "ed25519-dalek",
  "hex",
- "rand 0.8.5",
+ "rand_core 0.6.4",
  "rmp-serde",
  "serde",
  "serde_json",
@@ -4505,7 +4505,7 @@ dependencies = [
 
 [[package]]
 name = "openfang-wire"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4513,7 +4513,7 @@ dependencies = [
  "hex",
  "hmac",
  "openfang-types",
- "rand 0.8.5",
+ "rand 0.9.2",
  "serde",
  "serde_json",
  "sha2",
@@ -6987,9 +6987,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-dialog"
-version = "2.6.0"
+version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9204b425d9be8d12aa60c2a83a289cf7d1caae40f57f336ed1155b3a5c0e359b"
+checksum = "65981abb771e74e571a38196c3baa11c459379164791eba0e67abc1a5fac9884"
 dependencies = [
  "log",
  "raw-window-handle",
@@ -7005,13 +7005,15 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-fs"
-version = "2.4.5"
+version = "2.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed390cc669f937afeb8b28032ce837bac8ea023d975a2e207375ec05afaf1804"
+checksum = "b7ecc274121aca0c036a2b42d1cbe83d368d348f54e0bb8a735c2b1548e8f371"
 dependencies = [
  "anyhow",
  "dunce",
  "glob",
+ "log",
+ "objc2-foundation",
  "percent-encoding",
  "schemars 0.8.22",
  "serde",
@@ -7021,7 +7023,7 @@ dependencies = [
  "tauri-plugin",
  "tauri-utils",
  "thiserror 2.0.18",
- "toml 0.9.12+spec-1.1.0",
+ "toml 1.1.0+spec-1.1.0",
  "url",
 ]
 
@@ -7523,6 +7525,21 @@ dependencies = [
  "toml_parser",
  "toml_writer",
  "winnow 0.7.15",
+]
+
+[[package]]
+name = "toml"
+version = "1.1.0+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8195ca05e4eb728f4ba94f3e3291661320af739c4e43779cbdfae82ab239fcc"
+dependencies = [
+ "indexmap 2.13.0",
+ "serde_core",
+ "serde_spanned 1.1.0",
+ "toml_datetime 1.1.0+spec-1.1.0",
+ "toml_parser",
+ "toml_writer",
+ "winnow 1.0.0",
 ]
 
 [[package]]
@@ -9435,7 +9452,7 @@ checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
 
 [[package]]
 name = "xtask"
-version = "0.7.4"
+version = "0.7.5"
 
 [[package]]
 name = "yoke"

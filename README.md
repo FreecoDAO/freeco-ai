@@ -7,7 +7,10 @@
 
 <p align="center">
   Open-source Agent OS built in Rust. 137K LOC. 14 crates. 1,767+ tests. Zero clippy warnings.<br/>
-  <strong>One binary. Battle-tested. Agents that actually work for you, your business and family. # FRE.ECO AI Node & Marketplace Roadmap
+  <strong>One binary. Battle-tested. Agents that work for you, your business, and your family.</strong>
+</p>
+
+# FRE.ECO AI Node & Marketplace Roadmap
 
 ## Executive Architecture (v1.0)
 
@@ -256,9 +259,6 @@ Both layers keep the existing WASM, subprocess, and workspace sandboxes undernea
 # Long-Term Objective
 
 Create a sovereign, AI-native, privacy-first economic operating environment where users own their identity, data, and AI while participating in a globally scalable sustainable marketplace.
- </strong>
-</p>
-
 <p align="center">
   <a href="https://freeco.ai/docs">Documentation</a> &bull;
   <a href="https://freeco.ai/docs/getting-started">Quick Start</a> &bull;
@@ -268,7 +268,7 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 <p align="center">
   <img src="https://img.shields.io/badge/language-Rust-orange?style=flat-square" alt="Rust" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT" />
-  <img src="https://img.shields.io/badge/version-0.7.5-green?style=flat-square" alt="v0.7.5" />
+  <img src="https://img.shields.io/badge/version-0.7.4-green?style=flat-square" alt="v0.7.4" />
   <img src="https://img.shields.io/badge/tests-2,696%2B%20passing-brightgreen?style=flat-square" alt="Tests" />
   <img src="https://img.shields.io/badge/clippy-0%20warnings-brightgreen?style=flat-square" alt="Clippy" />
   <a href="https://www.buymeacoffee.com/openfang" target="_blank"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee" /></a>
@@ -278,15 +278,15 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 
 ## ⬇️ Download & Install
 
-> The one you want is the **`-setup.exe`** (Windows). Do **not** download the
-> files named `openfang-…-msvc.zip` — those are for advanced command-line
-> users and contain no installer.
+> Choose a **desktop installer** for your operating system. The
+> `openfang-<target>.zip` and `.tar.gz` files are advanced CLI archives, not
+> desktop installers. The portable USB bundle is a separate download.
 
 ### 🪟 Windows — step by step
 
-1. Download **[FreEco.ai_x64-setup.exe](https://github.com/FreecoDAO/freeco-ai/releases/latest/download/FreEco.ai_0.7.4_x64-setup.exe)**
-   (64-bit — for almost every PC. On an ARM tablet use the
-   [arm64 setup](https://github.com/FreecoDAO/freeco-ai/releases/latest/download/FreEco.ai_0.7.4_arm64-setup.exe) instead.)
+1. Open the **[latest release](https://github.com/FreecoDAO/freeco-ai/releases/latest)** and download the
+   `FreEco.ai_*_x64-setup.exe` installer (64-bit — for almost every PC). On
+   an ARM tablet, download the `FreEco.ai_*_arm64-setup.exe` installer instead.
 2. **Double-click** the downloaded file.
 3. Windows may show a blue **"Windows protected your PC"** box (because the
    app is new and not yet code-signed). Click **More info → Run anyway**.
@@ -309,21 +309,26 @@ app → Open** (needed once, because it isn't Apple-signed yet).
 Download the **[.AppImage](https://github.com/FreecoDAO/freeco-ai/releases/latest)**
 (`chmod +x` then double-click), or the **`.deb`** (`sudo apt install ./FreEco.ai_*.deb`).
 
-### 🔒 Coming: FreEco.ai OS — bootable USB (maximum sandbox)
+### 🔌 Portable USB and Kubuntu live USB
 
-A **Kubuntu 24.04 LTS live-USB** with FreEco.ai, a local Gemma LLM, and the
-AI Company agents preinstalled. Boots as a second OS on any laptop from the
-USB stick: fully offline-capable, no account, and the strongest isolation
-possible — agents run in a whole separate operating system and can never
-touch your main system's files. *(Desktop/laptop only; in development.)*
+The **portable USB bundle** runs the matching Windows, macOS, or Linux binary
+from a `freeco-portable` folder while keeping all FreEco.ai data on the drive.
+For maximum host isolation, write a verified official Kubuntu LTS live ISO
+using [`scripts/kubuntu-usb.sh`](scripts/kubuntu-usb.sh), then run the portable
+bundle inside Kubuntu. A signed FreEco-customized Kubuntu image is not yet
+available, so no such image is offered as a download.
 
-👉 **[All downloads](https://github.com/FreecoDAO/freeco-ai/releases/latest)** — pick the `-setup.exe`, `.dmg`, `.AppImage`, or `.deb` for your system.
+👉 **[All downloads](https://github.com/FreecoDAO/freeco-ai/releases/latest)** — choose a Windows `-setup.exe` (x64 or ARM64), macOS `.dmg` (Intel or Apple Silicon), Linux `.AppImage`/`.deb`, or a portable bundle. Use CLI archives only for command-line deployments.
 
 ---
 
-> **v0.7.4 (July 2026)**
+> **Latest release: v0.7.4 (July 2026)**
 >
 > FreEco.ai is feature complete but still pre-1.0. Expect rough edges and breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/FreecoDAO/freeco-ai/issues)
+>
+> The next `main` release includes the completed rand 0.9 migration, a Kubuntu
+> live-USB helper, and release-workflow hardening. These changes are validated
+> before being tagged and published.
 
 ---
 
@@ -359,8 +364,8 @@ openfang start
 **Prerequisites:** [Rust 1.75+](https://rustup.rs/) and at least one LLM API key.
 
 ```bash
-git clone https://github.com/FreecoDAO/FreEco-ai.git
-cd openfang
+git clone https://github.com/FreecoDAO/freeco-ai.git
+cd freeco-ai
 cargo build --release -p openfang-cli
 ./target/release/openfang init          # creates ~/.openfang/config.toml
 export GROQ_API_KEY=gsk_...             # or ANTHROPIC_API_KEY / OPENAI_API_KEY
@@ -385,7 +390,7 @@ FreEco.ai ships as a single binary that you configure for your use case. The fou
 | 🏢 **Free Eco Business Suite** | Companies & teams | Autonomous sustainable buyer and executive-agent team for restaurants, shpops, business and non-profits: lead generation, competitor intelligence, scheduling, reporting. Agent-to-agent handoffs with approval gates. |
 | 🤖 **Free Eco AI Company for running Sustainable businesses, charities, nonprofits  ** | Power users & builders | A self-running, fully autonomous AI company on your device. Spin up specialized agent teams that plan, delegate, execute, and report — end-to-end, no human in the loop. |
 
-You can also **import any agent from [OpenClaw Hub](https://github.com/FreecoDAO/FreEco-ai)** and create your own custom agents using `agent.toml` manifests. See [Spawn Your First Agent](docs/getting-started.md#spawn-your-first-agent).
+You can also import skills from [ClawHub](https://clawhub.ai), which are staged and security-scanned before installation, and create custom agents using `agent.toml` manifests. See [Spawn Your First Agent](docs/getting-started.md#spawn-your-first-agent).
 
 ---
 

@@ -4,6 +4,24 @@ Run FreEco.ai from a USB drive (or any folder) with no installation and no
 system changes — config, agent state, and data all live next to the binary
 and travel with the drive between computers.
 
+## Kubuntu live USB (strongest host isolation)
+
+The portable bundle above runs on the host OS. For a separate operating system,
+use an official Kubuntu LTS live ISO and the safe writer in this repository:
+
+```bash
+scripts/kubuntu-usb.sh verify kubuntu-*.iso SHA256SUMS
+sudo scripts/kubuntu-usb.sh write kubuntu-*.iso SHA256SUMS /dev/sdX
+```
+
+Download the ISO and `SHA256SUMS` only from Kubuntu's official release site,
+then inspect the target device shown by the script. The writer verifies the
+official checksum and requires two explicit confirmations before erasing a USB
+device. It does not silently download models, alter the host, or bypass Secure
+Boot. Boot the official image first, then use the portable bundle and dashboard
+hardware recommendation to choose a local model. A signed FreEco-customized
+Kubuntu image is not yet released; do not treat a generic ISO as one.
+
 ## For end users
 
 1. Get a `freeco-portable` folder (from a teammate, a release download, or

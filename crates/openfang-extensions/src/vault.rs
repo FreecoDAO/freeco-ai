@@ -5,10 +5,9 @@
 //! or the `OPENFANG_VAULT_KEY` env var for headless/CI environments.
 
 use crate::{ExtensionError, ExtensionResult};
-use aes_gcm::aead::{Aead, KeyInit, OsRng};
+use aes_gcm::aead::{rand_core::RngCore, Aead, KeyInit, OsRng};
 use aes_gcm::{Aes256Gcm, Nonce};
 use argon2::Argon2;
-use rand::RngCore;
 use serde::{Deserialize, Serialize};
 // sha2 is used only in non-test keyring functions
 #[cfg(not(test))]
@@ -94,7 +93,8 @@ impl CredentialVault {
         } else {
             // Generate a random master key
             let mut kb = Zeroizing::new([0u8; 32]);
-            OsRng.fill_bytes(kb.as_mut());
+            let mut rng = OsRng;
+            rng.fill_bytes(kb.as_mut());
             let key_b64 = Zeroizing::new(base64::Engine::encode(
                 &base64::engine::general_purpose::STANDARD,
                 kb.as_ref(),
@@ -281,8 +281,9 @@ impl CredentialVault {
         // Generate salt and nonce
         let mut salt = [0u8; SALT_LEN];
         let mut nonce_bytes = [0u8; NONCE_LEN];
-        OsRng.fill_bytes(&mut salt);
-        OsRng.fill_bytes(&mut nonce_bytes);
+        let mut rng = OsRng;
+        rng.fill_bytes(&mut salt);
+        rng.fill_bytes(&mut nonce_bytes);
 
         // Derive encryption key from master key + salt using Argon2
         let derived_key = derive_key(master_key, &salt)?;
@@ -528,7 +529,8 @@ mod tests {
     /// Generate a random 32-byte master key for tests.
     fn random_key() -> Zeroizing<[u8; 32]> {
         let mut kb = Zeroizing::new([0u8; 32]);
-        OsRng.fill_bytes(kb.as_mut());
+        let mut rng = OsRng;
+        rng.fill_bytes(kb.as_mut());
         kb
     }
 

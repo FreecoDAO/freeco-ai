@@ -635,6 +635,18 @@ async fn handle_text_message(
                 return;
             }
 
+            if state.frozen.load(Ordering::Relaxed) {
+                let _ = send_json(
+                    sender,
+                    &serde_json::json!({
+                        "type": "error",
+                        "content": "System is frozen (emergency stop). Unfreeze to resume.",
+                    }),
+                )
+                .await;
+                return;
+            }
+
             // Resolve file attachments into image content blocks
             let mut has_images = false;
             let mut ws_content_blocks: Option<Vec<openfang_types::message::ContentBlock>> = None;

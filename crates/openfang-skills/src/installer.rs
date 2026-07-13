@@ -263,7 +263,7 @@ pub fn enforce_require_signed(skill_dir: &Path, opts: &InstallOptions) -> Result
 mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
-    use rand::rngs::OsRng;
+    use rand_core::OsRng;
     use tempfile::TempDir;
 
     fn write_skill_toml(dir: &Path) -> String {

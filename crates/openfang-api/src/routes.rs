@@ -48,6 +48,9 @@ pub struct AppState {
     /// Global emergency freeze. When true, every agent message is refused
     /// before any LLM call or tool runs — the master kill switch.
     pub frozen: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// Agents suspended by the current emergency freeze. This preserves any
+    /// agents that were already suspended before the emergency stop.
+    pub frozen_agents: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<AgentId>>>,
 }
 
 /// POST /api/agents — Spawn a new agent.
@@ -6841,6 +6844,15 @@ pub async fn a2a_send_task(
     State(state): State<Arc<AppState>>,
     Json(request): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    if state.frozen.load(std::sync::atomic::Ordering::Relaxed) {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(
+                serde_json::json!({"error": "System is frozen (emergency stop). Unfreeze to resume."}),
+            ),
+        );
+    }
+
     // Extract message text from A2A format
     let message_text = request["params"]["message"]["parts"]
         .as_array()
@@ -12544,6 +12556,15 @@ pub async fn comms_send(
     State(state): State<Arc<AppState>>,
     Json(req): Json<openfang_types::comms::CommsSendRequest>,
 ) -> impl IntoResponse {
+    if state.frozen.load(std::sync::atomic::Ordering::Relaxed) {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(
+                serde_json::json!({"error": "System is frozen (emergency stop). Unfreeze to resume."}),
+            ),
+        );
+    }
+
     // Validate from agent exists
     let from_id: openfang_types::agent::AgentId = match req.from_agent_id.parse() {
         Ok(id) => id,
@@ -13140,9 +13161,13 @@ pub async fn get_freeze(State(state): State<Arc<AppState>>) -> impl IntoResponse
 /// messages and suspend every running agent (agents are preserved, not
 /// deleted; unfreeze to resume).
 pub async fn freeze_system(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    state
+    if state
         .frozen
-        .store(true, std::sync::atomic::Ordering::Relaxed);
+        .swap(true, std::sync::atomic::Ordering::Relaxed)
+    {
+        return Json(serde_json::json!({"frozen": true, "suspended": 0}));
+    }
+
     let mut suspended = 0;
     for entry in state.kernel.registry.list() {
         if matches!(
@@ -13154,6 +13179,11 @@ pub async fn freeze_system(State(state): State<Arc<AppState>>) -> impl IntoRespo
             .set_state(entry.id, openfang_types::agent::AgentState::Suspended)
             .is_ok()
         {
+            state
+                .frozen_agents
+                .lock()
+                .expect("freeze tracking lock poisoned")
+                .insert(entry.id);
             suspended += 1;
         }
     }
@@ -13167,13 +13197,21 @@ pub async fn unfreeze_system(State(state): State<Arc<AppState>>) -> impl IntoRes
         .frozen
         .store(false, std::sync::atomic::Ordering::Relaxed);
     let mut resumed = 0;
-    for entry in state.kernel.registry.list() {
-        if matches!(entry.state, openfang_types::agent::AgentState::Suspended)
-            && state
-                .kernel
-                .registry
-                .set_state(entry.id, openfang_types::agent::AgentState::Running)
-                .is_ok()
+    let frozen_agents: Vec<AgentId> = state
+        .frozen_agents
+        .lock()
+        .expect("freeze tracking lock poisoned")
+        .drain()
+        .collect();
+    for agent_id in frozen_agents {
+        if matches!(
+            state.kernel.registry.get(agent_id).map(|entry| entry.state),
+            Some(openfang_types::agent::AgentState::Suspended)
+        ) && state
+            .kernel
+            .registry
+            .set_state(agent_id, openfang_types::agent::AgentState::Running)
+            .is_ok()
         {
             resumed += 1;
         }

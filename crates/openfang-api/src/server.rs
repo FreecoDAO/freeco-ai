@@ -54,6 +54,7 @@ pub async fn build_router(
         budget_config: Arc::new(tokio::sync::RwLock::new(kernel.config.budget.clone())),
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
     });
 
     // Start WS cron broadcaster — subscribes to kernel event bus and pushes
@@ -537,6 +538,10 @@ pub async fn build_router(
         .route(
             "/api/local-ai/status",
             axum::routing::get(crate::local_ai::local_ai_status),
+        )
+        .route(
+            "/api/local-ai/recommendation",
+            axum::routing::get(crate::local_ai::local_ai_recommendation),
         )
         .route(
             "/api/local-ai/setup",

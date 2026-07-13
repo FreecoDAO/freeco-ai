@@ -78,8 +78,11 @@ pub fn verify_session_token(token: &str, secret: &str) -> Option<String> {
 ///
 /// Returns a PHC-format string (e.g. `$argon2id$v=19$m=19456,t=2,p=1$...`).
 pub fn hash_password(password: &str) -> String {
-    use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
-    let salt = SaltString::generate(&mut rand::thread_rng());
+    use argon2::{
+        password_hash::{rand_core::OsRng, SaltString},
+        Argon2, PasswordHasher,
+    };
+    let salt = SaltString::generate(&mut OsRng);
     Argon2::default()
         .hash_password(password.as_bytes(), &salt)
         .expect("Argon2 hashing should not fail with valid inputs")

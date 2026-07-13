@@ -25,7 +25,175 @@ use tokio::io::AsyncWriteExt;
 const OLLAMA_BASE: &str = "http://127.0.0.1:11434";
 const OLLAMA_WINDOWS_INSTALLER: &str = "https://ollama.com/download/OllamaSetup.exe";
 /// Default starter model — small enough for ordinary laptops.
-const DEFAULT_MODEL: &str = "gemma3:4b";
+const DEFAULT_MODEL: &str = "gemma4:4b";
+
+/// Hardware requirements for a locally downloadable Ollama model. This is
+/// deliberately catalog data rather than selection logic so the dashboard and
+/// USB tooling can present the same conservative choices.
+#[derive(Debug, Clone, Serialize)]
+pub struct LocalModelProfile {
+    pub id: &'static str,
+    pub display_name: &'static str,
+    pub purpose: &'static str,
+    pub min_ram_gb: u64,
+    pub min_vram_gb: u64,
+    pub min_disk_gb: u64,
+}
+
+const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
+    LocalModelProfile {
+        id: "llama3.2:1b",
+        display_name: "Llama 3.2 1B",
+        purpose: "minimum-resource general assistant",
+        min_ram_gb: 4,
+        min_vram_gb: 0,
+        min_disk_gb: 3,
+    },
+    LocalModelProfile {
+        id: "gemma4:4b",
+        display_name: "Gemma 4 4B",
+        purpose: "recommended general assistant for ordinary laptops",
+        min_ram_gb: 8,
+        min_vram_gb: 0,
+        min_disk_gb: 6,
+    },
+    LocalModelProfile {
+        id: "qwen2.5-coder:3b",
+        display_name: "Qwen2.5-Coder 3B",
+        purpose: "resource-conscious coding assistant",
+        min_ram_gb: 8,
+        min_vram_gb: 0,
+        min_disk_gb: 5,
+    },
+    LocalModelProfile {
+        id: "qwen2.5-coder:7b",
+        display_name: "Qwen2.5-Coder 7B",
+        purpose: "recommended local coding assistant",
+        min_ram_gb: 16,
+        min_vram_gb: 8,
+        min_disk_gb: 10,
+    },
+    LocalModelProfile {
+        id: "mistral:7b",
+        display_name: "Mistral 7B",
+        purpose: "general assistant alternative",
+        min_ram_gb: 16,
+        min_vram_gb: 8,
+        min_disk_gb: 10,
+    },
+    LocalModelProfile {
+        id: "gemma4:12b",
+        display_name: "Gemma 4 12B",
+        purpose: "higher-quality general assistant",
+        min_ram_gb: 24,
+        min_vram_gb: 12,
+        min_disk_gb: 16,
+    },
+];
+
+#[derive(Debug, Clone, Serialize)]
+struct LocalHardware {
+    os: String,
+    architecture: String,
+    ram_gb: Option<u64>,
+    vram_gb: Option<u64>,
+    free_disk_gb: Option<u64>,
+    ollama_detected: bool,
+    docker_detected: bool,
+}
+
+fn linux_mem_total_gb() -> Option<u64> {
+    let meminfo = std::fs::read_to_string("/proc/meminfo").ok()?;
+    let kb = meminfo
+        .lines()
+        .find_map(|line| line.strip_prefix("MemTotal:"))?
+        .split_whitespace()
+        .next()?
+        .parse::<u64>()
+        .ok()?;
+    Some(kb / 1024 / 1024)
+}
+
+async fn command_output(command: &str, args: &[&str]) -> Option<String> {
+    let output = tokio::process::Command::new(command)
+        .args(args)
+        .output()
+        .await
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+async fn detect_hardware() -> LocalHardware {
+    let os = std::env::consts::OS.to_string();
+    let ram_gb = if os == "linux" {
+        linux_mem_total_gb()
+    } else {
+        None
+    };
+    let vram_gb = command_output(
+        "nvidia-smi",
+        &["--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+    )
+    .await
+    .and_then(|output| {
+        output
+            .lines()
+            .filter_map(|line| line.trim().parse::<u64>().ok())
+            .max()
+            .map(|mb| mb / 1024)
+    });
+    let free_disk_gb = if os == "linux" || os == "macos" {
+        command_output("df", &["-Pk", "."])
+            .await
+            .and_then(|output| {
+                output
+                    .lines()
+                    .nth(1)
+                    .and_then(|line| line.split_whitespace().nth(3))
+                    .and_then(|kb| kb.parse::<u64>().ok())
+                    .map(|kb| kb / 1024 / 1024)
+            })
+    } else {
+        None
+    };
+    let docker_detected = command_output("docker", &["version", "--format", "{{.Server.Version}}"])
+        .await
+        .is_some();
+
+    LocalHardware {
+        os,
+        architecture: std::env::consts::ARCH.to_string(),
+        ram_gb,
+        vram_gb,
+        free_disk_gb,
+        ollama_detected: ollama_running().await,
+        docker_detected,
+    }
+}
+
+fn recommended_model(hardware: &LocalHardware, purpose: &str) -> &'static str {
+    let ram = hardware.ram_gb.unwrap_or(0);
+    let vram = hardware.vram_gb.unwrap_or(0);
+    if purpose == "coding" {
+        return if ram >= 16 || vram >= 8 {
+            "qwen2.5-coder:7b"
+        } else if ram >= 8 {
+            "qwen2.5-coder:3b"
+        } else {
+            "llama3.2:1b"
+        };
+    }
+    if ram >= 24 || vram >= 12 {
+        "gemma4:12b"
+    } else if ram >= 8 {
+        DEFAULT_MODEL
+    } else {
+        "llama3.2:1b"
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct LocalAiStatus {
@@ -76,7 +244,28 @@ pub async fn local_ai_status(State(state): State<Arc<AppState>>) -> impl IntoRes
     }))
 }
 
-/// POST /api/local-ai/setup — body: optional {"model": "gemma3:4b"}
+/// GET /api/local-ai/recommendation?purpose=general|coding
+///
+/// Detects resources only; it never downloads a model or changes configuration.
+pub async fn local_ai_recommendation(
+    axum::extract::Query(query): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> impl IntoResponse {
+    let purpose = match query.get("purpose").map(String::as_str) {
+        Some("coding") => "coding",
+        _ => "general",
+    };
+    let hardware = detect_hardware().await;
+    let model = recommended_model(&hardware, purpose);
+    Json(serde_json::json!({
+        "purpose": purpose,
+        "recommended_model": model,
+        "hardware": hardware,
+        "catalog": LOCAL_MODEL_CATALOG,
+        "notice": "Recommendations are conservative estimates. Model setup requires explicit confirmation and may use more memory with larger contexts."
+    }))
+}
+
+/// POST /api/local-ai/setup — body: optional {"model": "gemma4:4b"}
 pub async fn local_ai_setup(
     State(state): State<Arc<AppState>>,
     body: Option<Json<serde_json::Value>>,
@@ -387,17 +576,17 @@ mod tests {
             "api_listen = \"127.0.0.1:4200\"\n",
         )
         .unwrap();
-        write_default_model(dir.path(), "gemma3:4b").unwrap();
+        write_default_model(dir.path(), "gemma4:4b").unwrap();
         let out = std::fs::read_to_string(dir.path().join("config.toml")).unwrap();
         assert!(out.contains("provider = \"ollama\""));
-        assert!(out.contains("gemma3:4b"));
+        assert!(out.contains("gemma4:4b"));
         // Pre-existing keys survive the rewrite.
         assert!(out.contains("api_listen"));
     }
 
     #[test]
     fn model_name_validation_pattern() {
-        for good in ["gemma3:4b", "llama3.2:1b", "qwen2.5-coder:7b"] {
+        for good in ["gemma4:4b", "llama3.2:1b", "qwen2.5-coder:7b"] {
             assert!(good
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || "._:-/".contains(c)));
@@ -405,5 +594,43 @@ mod tests {
         assert!(!"bad name; rm -rf"
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || "._:-/".contains(c)));
+    }
+
+    #[test]
+    fn recommends_conservative_general_models() {
+        let low = LocalHardware {
+            os: "linux".into(),
+            architecture: "x86_64".into(),
+            ram_gb: Some(4),
+            vram_gb: None,
+            free_disk_gb: Some(20),
+            ollama_detected: false,
+            docker_detected: false,
+        };
+        let ordinary = LocalHardware {
+            ram_gb: Some(16),
+            ..low.clone()
+        };
+        let powerful = LocalHardware {
+            ram_gb: Some(32),
+            ..low.clone()
+        };
+        assert_eq!(recommended_model(&low, "general"), "llama3.2:1b");
+        assert_eq!(recommended_model(&ordinary, "general"), "gemma4:4b");
+        assert_eq!(recommended_model(&powerful, "general"), "gemma4:12b");
+    }
+
+    #[test]
+    fn recommends_qwen_for_coding_when_resources_allow() {
+        let hardware = LocalHardware {
+            os: "linux".into(),
+            architecture: "x86_64".into(),
+            ram_gb: Some(16),
+            vram_gb: None,
+            free_disk_gb: Some(20),
+            ollama_detected: false,
+            docker_detected: false,
+        };
+        assert_eq!(recommended_model(&hardware, "coding"), "qwen2.5-coder:7b");
     }
 }
