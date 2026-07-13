@@ -539,6 +539,10 @@ pub async fn build_router(
             axum::routing::get(crate::local_ai::local_ai_status),
         )
         .route(
+            "/api/local-ai/recommendation",
+            axum::routing::get(crate::local_ai::local_ai_recommendation),
+        )
+        .route(
             "/api/local-ai/setup",
             axum::routing::post(crate::local_ai::local_ai_setup),
         )

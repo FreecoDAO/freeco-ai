@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-REPO="FreecoDAO/FreEco-ai"
+REPO="FreecoDAO/freeco-ai"
 VERSION="${1:-${OPENFANG_VERSION:-}}"
 OUT_DIR="${2:-dist/freeco-portable}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

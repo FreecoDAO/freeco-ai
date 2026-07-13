@@ -30,7 +30,7 @@ members = [
 version = "0.7.5"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-repository = "https://github.com/FreecoDAO/FreEco-ai"
+repository = "https://github.com/FreecoDAO/freeco-ai"
 rust-version = "1.75"
 
 [workspace.dependencies]

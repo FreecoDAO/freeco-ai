@@ -39,15 +39,23 @@ function settingsPage() {
 
     // -- Local AI (Ollama) setup --
     localAi: { phase: 'idle', detail: '', percent: -1, running: false, ollama_detected: false },
+    localAiRecommendation: null,
     localAiPoll: null,
 
     async refreshLocalAi() {
       try { this.localAi = await OpenFangAPI.get('/api/local-ai/status'); } catch(e) { /* silent */ }
     },
 
+    async loadLocalAiRecommendation(purpose) {
+      try {
+        this.localAiRecommendation = await OpenFangAPI.get('/api/local-ai/recommendation?purpose=' + (purpose || 'general'));
+      } catch(e) { OpenFangToast.error('Could not inspect local AI hardware: ' + e.message); }
+    },
+
     async startLocalAiSetup() {
       try {
-        await OpenFangAPI.post('/api/local-ai/setup', {});
+        var model = this.localAiRecommendation && this.localAiRecommendation.recommended_model;
+        await OpenFangAPI.post('/api/local-ai/setup', model ? { model: model } : {});
         OpenFangToast.success('Local AI setup started — this downloads a few GB, keep the app open.');
         this.pollLocalAi();
       } catch(e) {

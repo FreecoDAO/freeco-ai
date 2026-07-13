@@ -278,9 +278,9 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 
 ## ⬇️ Download & Install
 
-> The one you want is the **`-setup.exe`** (Windows). Do **not** download the
-> files named `openfang-…-msvc.zip` — those are for advanced command-line
-> users and contain no installer.
+> Choose a **desktop installer** for your operating system. The
+> `openfang-<target>.zip` and `.tar.gz` files are advanced CLI archives, not
+> desktop installers. The portable USB bundle is a separate download.
 
 ### 🪟 Windows — step by step
 
@@ -309,15 +309,16 @@ app → Open** (needed once, because it isn't Apple-signed yet).
 Download the **[.AppImage](https://github.com/FreecoDAO/freeco-ai/releases/latest)**
 (`chmod +x` then double-click), or the **`.deb`** (`sudo apt install ./FreEco.ai_*.deb`).
 
-### 🔒 Coming: FreEco.ai OS — bootable USB (maximum sandbox)
+### 🔌 Portable USB and Kubuntu live USB
 
-A **Kubuntu 24.04 LTS live-USB** with FreEco.ai, a local Gemma LLM, and the
-AI Company agents preinstalled. Boots as a second OS on any laptop from the
-USB stick: fully offline-capable, no account, and the strongest isolation
-possible — agents run in a whole separate operating system and can never
-touch your main system's files. *(Desktop/laptop only; in development.)*
+The **portable USB bundle** runs the matching Windows, macOS, or Linux binary
+from a `freeco-portable` folder while keeping all FreEco.ai data on the drive.
+For maximum host isolation, write a verified official Kubuntu LTS live ISO
+using [`scripts/kubuntu-usb.sh`](scripts/kubuntu-usb.sh), then run the portable
+bundle inside Kubuntu. A signed FreEco-customized Kubuntu image is not yet
+available, so no such image is offered as a download.
 
-👉 **[All downloads](https://github.com/FreecoDAO/freeco-ai/releases/latest)** — pick the `-setup.exe`, `.dmg`, `.AppImage`, or `.deb` for your system.
+👉 **[All downloads](https://github.com/FreecoDAO/freeco-ai/releases/latest)** — choose a Windows `-setup.exe` (x64 or ARM64), macOS `.dmg` (Intel or Apple Silicon), Linux `.AppImage`/`.deb`, or a portable bundle. Use CLI archives only for command-line deployments.
 
 ---
 
@@ -359,8 +360,8 @@ openfang start
 **Prerequisites:** [Rust 1.75+](https://rustup.rs/) and at least one LLM API key.
 
 ```bash
-git clone https://github.com/FreecoDAO/FreEco-ai.git
-cd openfang
+git clone https://github.com/FreecoDAO/freeco-ai.git
+cd freeco-ai
 cargo build --release -p openfang-cli
 ./target/release/openfang init          # creates ~/.openfang/config.toml
 export GROQ_API_KEY=gsk_...             # or ANTHROPIC_API_KEY / OPENAI_API_KEY
@@ -385,7 +386,7 @@ FreEco.ai ships as a single binary that you configure for your use case. The fou
 | 🏢 **Free Eco Business Suite** | Companies & teams | Autonomous sustainable buyer and executive-agent team for restaurants, shpops, business and non-profits: lead generation, competitor intelligence, scheduling, reporting. Agent-to-agent handoffs with approval gates. |
 | 🤖 **Free Eco AI Company for running Sustainable businesses, charities, nonprofits  ** | Power users & builders | A self-running, fully autonomous AI company on your device. Spin up specialized agent teams that plan, delegate, execute, and report — end-to-end, no human in the loop. |
 
-You can also **import any agent from [OpenClaw Hub](https://github.com/FreecoDAO/FreEco-ai)** and create your own custom agents using `agent.toml` manifests. See [Spawn Your First Agent](docs/getting-started.md#spawn-your-first-agent).
+You can also import skills from [ClawHub](https://clawhub.ai), which are staged and security-scanned before installation, and create custom agents using `agent.toml` manifests. See [Spawn Your First Agent](docs/getting-started.md#spawn-your-first-agent).
 
 ---
 
