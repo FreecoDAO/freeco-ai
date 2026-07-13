@@ -529,7 +529,8 @@ mod tests {
     /// Generate a random 32-byte master key for tests.
     fn random_key() -> Zeroizing<[u8; 32]> {
         let mut kb = Zeroizing::new([0u8; 32]);
-        OsRng.fill_bytes(kb.as_mut());
+        let mut rng = OsRng;
+        rng.fill_bytes(kb.as_mut());
         kb
     }
 
