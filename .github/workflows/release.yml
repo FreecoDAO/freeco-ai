@@ -13,11 +13,30 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  verify-release:
+    name: Verify release metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify tag, main, package version, and changelog agree
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          test "$RELEASE_TAG" = "v$version"
+          git fetch origin main
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$(git rev-parse origin/main)"
+          grep -q "^version = \"$version\"$" Cargo.toml
+          grep -q "^## \[$version\]" CHANGELOG.md
+
   # ── Tauri Desktop App (Windows + macOS + Linux) ───────────────────────────
   # Produces: .msi, .exe (Windows) | .dmg, .app (macOS) | .AppImage, .deb (Linux)
   # Also generates and uploads latest.json (the auto-updater manifest)
   desktop:
     name: Desktop / ${{ matrix.platform.name }}
+    needs: verify-release
     strategy:
       fail-fast: false
       matrix:
@@ -116,7 +135,6 @@ jobs:
           echo "APPLE_PASSWORD=${{ secrets.MAC_NOTARIZE_PASSWORD }}" >> $GITHUB_ENV
           echo "APPLE_TEAM_ID=${{ secrets.MAC_NOTARIZE_TEAM_ID }}" >> $GITHUB_ENV
       - name: Build and bundle Tauri desktop app
-      - name: Build and bundle Tauri desktop app
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -158,49 +176,10 @@ jobs:
           projectPath: crates/openfang-desktop
           args: ${{ matrix.platform.args }}
 
-      - name: Build and bundle Tauri desktop app
-        if: runner.os != 'macOS' || env.HAS_MAC_CERT != 'true'
-        uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "FreEco.ai ${{ github.ref_name }}"
-          releaseBody: |
-            ## What's New
-
-            See the [CHANGELOG](https://github.com/FreecoDAO/FreEco-ai/blob/main/CHANGELOG.md) for full details.
-
-            ## Installation
-
-            **Desktop App** — Download the installer for your platform below.
-
-            **CLI (Linux/macOS)**:
-            ```bash
-            curl -sSf https://www.freeco.ai | sh
-            ```
-
-            **Docker**:
-            ```bash
-            docker pull ghcr.io/freecodao/freeco-ai:latest
-            ```
-
-            **Coming from OpenClaw?**
-            ```bash
-            openfang migrate --from openclaw
-            ```
-          releaseDraft: false
-          prerelease: false
-          includeUpdaterJson: true
-          projectPath: crates/openfang-desktop
-          args: ${{ matrix.platform.args }}
-
   # ── CLI Binary (7 platforms) ──────────────────────────────────────────────
   cli:
     name: CLI / ${{ matrix.target }}
+    needs: verify-release
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -277,6 +256,7 @@ jobs:
   # ── Docker (linux/amd64 + linux/arm64) ────────────────────────────────────
   docker:
     name: Docker Image
+    needs: verify-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
