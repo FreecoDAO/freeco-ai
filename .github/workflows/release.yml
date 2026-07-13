@@ -18,12 +18,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Verify tag, package version, and changelog agree
+        with:
+          fetch-depth: 0
+      - name: Verify tag, main, package version, and changelog agree
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           version="${RELEASE_TAG#v}"
           test "$RELEASE_TAG" = "v$version"
+          git fetch origin main
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$(git rev-parse origin/main)"
           grep -q "^version = \"$version\"$" Cargo.toml
           grep -q "^## \[$version\]" CHANGELOG.md
 
