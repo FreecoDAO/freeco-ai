@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-07-11
+
+### Added (Tier-0 safety, from the threat model)
+
+- **Cloud data-leak warning**: connecting any online/cloud AI provider now shows a clear privacy confirmation before the key is saved — it explains that agents' messages, files, and company data will be sent to that provider, and points to the local "Free local AI" option that never leaves the device. Local providers save silently (no warning needed). Uses the existing `is_local` provider flag.
+- **Plain-language approval consequences**: every pending approval now shows, in plain words a non-technical user understands, what approving will let the agent do — with severity color: ⛔ run a command on your computer / delete data / spend money (red), ⚠️ send something out / change a file / use the internet (amber), ℹ️ review (neutral). Derived client-side from the action; no backend change.
+
+### Verified
+
+- Shell execution is gated (metacharacter block + exec-policy allowlist in `tool_runner.rs`); an agent with an empty shell policy cannot run shell commands. Documented in the threat model.
+
+
 ## [0.7.4] - 2026-07-10
 
 ### Fixed

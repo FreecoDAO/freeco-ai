@@ -1341,6 +1341,14 @@
                       <span class="badge" :class="{ 'badge-warn': a.status === 'pending', 'badge-success': a.status === 'approved', 'badge-error': a.status === 'rejected', 'badge-muted': a.status === 'expired' }" x-text="a.status"></span>
                     </div>
                     <div class="text-sm text-dim mb-2" x-text="a.description"></div>
+                    <!-- Plain-language consequence so non-technical users know what Approve means -->
+                    <template x-if="a.status === 'pending'">
+                      <div x-data="{ c: consequence(a) }" style="display:flex;gap:8px;align-items:flex-start;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px;line-height:1.45"
+                           :style="c.severity === 'danger' ? 'background:var(--error-subtle);color:var(--error);border:1px solid var(--error-muted)' : c.severity === 'warn' ? 'background:var(--warning-subtle);color:var(--warning);border:1px solid var(--warning-muted)' : 'background:var(--surface2);color:var(--text-dim);border:1px solid var(--border)'">
+                        <span x-text="c.severity === 'danger' ? '⛔' : c.severity === 'warn' ? '⚠️' : 'ℹ️'"></span>
+                        <span x-text="c.text"></span>
+                      </div>
+                    </template>
                     <div class="text-xs text-dim">Agent: <span x-text="a.agent_name"></span> &middot; <span x-text="timeAgo(a.created_at)"></span></div>
                     <template x-if="a.status === 'pending'">
                       <div class="approval-actions" style="display:flex;gap:8px;margin-top:12px">

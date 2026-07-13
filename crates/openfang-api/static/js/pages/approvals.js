@@ -34,6 +34,27 @@ function approvalsPage() {
       return this.approvals.filter(function(a) { return a.status === 'pending'; }).length;
     },
 
+    // Plain-language consequence of approving, for non-technical users.
+    // Returns { text, severity } where severity is 'danger'|'warn'|'info'.
+    // Derived from the action string so it needs no backend change.
+    consequence(a) {
+      var act = ((a.action || '') + ' ' + (a.description || '')).toLowerCase();
+      var has = function(){ for (var i=0;i<arguments.length;i++){ if (act.indexOf(arguments[i])!==-1) return true; } return false; };
+      if (has('shell', 'exec', 'command', 'bash', 'powershell'))
+        return { severity: 'danger', text: 'This lets the agent run a command on your computer — it could read, change, or delete files. Only approve if you understand the command.' };
+      if (has('delete', 'remove', 'destroy', 'wipe', 'drop'))
+        return { severity: 'danger', text: 'This permanently removes something and cannot be undone.' };
+      if (has('pay', 'buy', 'purchase', 'order', 'checkout', 'transfer', 'wallet', 'transaction'))
+        return { severity: 'danger', text: 'This can spend money or make a purchase on your behalf.' };
+      if (has('send', 'email', 'post', 'publish', 'message', 'tweet', 'whatsapp', 'telegram'))
+        return { severity: 'warn', text: 'This sends something out to other people or the internet — it leaves your device.' };
+      if (has('write', 'save', 'modify', 'edit', 'update', 'file'))
+        return { severity: 'warn', text: 'This creates or changes a file on your computer.' };
+      if (has('fetch', 'browse', 'http', 'url', 'web', 'network', 'download'))
+        return { severity: 'warn', text: 'This connects to the internet, which may share some information with an outside website.' };
+      return { severity: 'info', text: 'Review what this agent is about to do before approving.' };
+    },
+
     async loadData() {
       this.loading = true;
       this.loadError = '';
