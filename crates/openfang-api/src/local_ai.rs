@@ -225,6 +225,49 @@ async fn run_setup(
     Ok(())
 }
 
+/// Verify a downloaded Windows executable is validly Authenticode-signed by
+/// Ollama before we run it (threat-model M4). Uses PowerShell's
+/// `Get-AuthenticodeSignature`; fails closed unless the status is `Valid` and
+/// the signer's subject mentions Ollama.
+#[cfg(windows)]
+async fn verify_windows_signature(path: &std::path::Path) -> Result<(), String> {
+    let script = format!(
+        "$s = Get-AuthenticodeSignature -LiteralPath '{}'; \
+         if ($s.Status -ne 'Valid') {{ Write-Output ('INVALID:' + $s.Status); exit 0 }}; \
+         Write-Output ('OK:' + $s.SignerCertificate.Subject)",
+        path.display().to_string().replace('\'', "''")
+    );
+    let out = tokio::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .output()
+        .await
+        .map_err(|e| format!("could not run signature check: {e}"))?;
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let line = stdout.trim();
+    if let Some(subject) = line.strip_prefix("OK:") {
+        if subject.to_lowercase().contains("ollama") {
+            return Ok(());
+        }
+        return Err(format!(
+            "installer is signed, but not by Ollama (signer: {subject}). \
+             Refusing to run it for your safety."
+        ));
+    }
+    Err(format!(
+        "installer failed digital-signature verification ({}). It was not run. \
+         Install Ollama manually from https://ollama.com/download instead.",
+        line.strip_prefix("INVALID:").unwrap_or("unknown")
+    ))
+}
+
+/// Non-Windows builds never reach the Windows installer path; provide a stub
+/// so the call site compiles on all targets.
+#[cfg(not(windows))]
+#[allow(dead_code)]
+async fn verify_windows_signature(_path: &std::path::Path) -> Result<(), String> {
+    Ok(())
+}
+
 async fn install_ollama_windows(status: &SharedLocalAiStatus) -> Result<(), String> {
     set_status(
         status,
@@ -272,6 +315,22 @@ async fn install_ollama_windows(status: &SharedLocalAiStatus) -> Result<(), Stri
         }
     }
     file.flush().await.ok();
+
+    set_status(
+        status,
+        "verifying",
+        "Verifying the installer's digital signature...".into(),
+        -1,
+    )
+    .await;
+    // SECURITY (threat-model M4): never execute a downloaded installer without
+    // verifying it. HTTPS protects transit but not integrity — a compromised
+    // mirror/CDN or a changed URL could yield arbitrary code execution inside
+    // our "safe one-click" flow. We verify the Windows Authenticode signature
+    // (publisher identity), which survives Ollama's frequent version bumps
+    // better than a pinned hash would. Fail closed on anything but a valid,
+    // Ollama-signed binary.
+    verify_windows_signature(&installer).await?;
 
     set_status(
         status,

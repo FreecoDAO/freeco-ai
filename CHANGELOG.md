@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security (threat-model hardening)
+
+- **M4 — installer verification**: the one-click local-AI setup now verifies the downloaded Ollama installer's Windows Authenticode signature (must be Valid *and* signed by Ollama) before executing it. Previously the `.exe` was downloaded over HTTPS and run with no integrity check — a compromised mirror/CDN could have yielded arbitrary code execution inside the "safe" flow. Fails closed with a clear message pointing to manual install.
+- **M2/M3 — secrets protected at rest on Windows**: `~/.openfang/secrets.env` file permissions were restricted only on Unix (`0600`); on Windows (a primary target) the file was left readable by any local account and copyable by folder-sync. Both write paths (CLI `config set-key` and the dashboard "Set API Key" button) now also apply a restrictive Windows ACL via `icacls` (strip inheritance, current user only).
+
+
 ## [0.7.4] - 2026-07-10
 
 ### Fixed

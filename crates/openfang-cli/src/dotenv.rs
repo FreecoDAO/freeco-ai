@@ -179,14 +179,33 @@ fn write_env_file(path: &PathBuf, entries: &BTreeMap<String, String>) -> Result<
 
     std::fs::write(path, &content).map_err(|e| format!("Failed to write .env file: {e}"))?;
 
-    // Set 0600 permissions on Unix
+    restrict_file_to_owner(path);
+    Ok(())
+}
+
+/// Restrict a secrets file so only the current user can read it
+/// (threat-model M2/M3). On Unix this is `0600`. On Windows — a primary
+/// target where the previous code applied *no* protection — we use `icacls`
+/// to disable inheritance and grant read/write to the current user only, so
+/// the file is not readable by other local accounts or copied openly by
+/// folder-sync tooling. Best-effort: a failure never blocks saving the key.
+pub(crate) fn restrict_file_to_owner(path: &std::path::Path) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
     }
-
-    Ok(())
+    #[cfg(windows)]
+    {
+        // /inheritance:r removes inherited ACEs; grant only the current user.
+        let user = std::env::var("USERNAME").unwrap_or_default();
+        if !user.is_empty() {
+            let _ = std::process::Command::new("icacls")
+                .arg(path)
+                .args(["/inheritance:r", "/grant:r", &format!("{user}:F")])
+                .output();
+        }
+    }
 }
 
 #[cfg(test)]
