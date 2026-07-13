@@ -144,6 +144,34 @@ document.addEventListener('alpine:init', function() {
     sessionUser: null,
     updateAvailable: false,
     updateLatest: '',
+    frozen: false,
+    freezeBusy: false,
+
+    async refreshFreeze() {
+      try {
+        var result = await OpenFangAPI.get('/api/system/freeze');
+        this.frozen = !!result.frozen;
+      } catch(e) { /* do not obscure the dashboard when the optional control is unavailable */ }
+    },
+
+    async toggleEmergencyFreeze() {
+      if (this.freezeBusy) return;
+      this.freezeBusy = true;
+      try {
+        if (this.frozen) {
+          var released = await OpenFangAPI.del('/api/system/freeze');
+          this.frozen = !!released.frozen;
+          OpenFangToast.success('Emergency stop released. ' + (released.resumed || 0) + ' agent(s) resumed.');
+        } else {
+          var engaged = await OpenFangAPI.post('/api/system/freeze', {});
+          this.frozen = !!engaged.frozen;
+          OpenFangToast.warn('Emergency stop engaged. ' + (engaged.suspended || 0) + ' agent(s) paused.');
+        }
+      } catch(e) {
+        OpenFangToast.error('Could not change emergency stop: ' + e.message);
+      }
+      this.freezeBusy = false;
+    },
 
     // Quiet daily update check (Settings → System has the manual button
     // and the on/off toggle; both share the freeco_* localStorage keys).
@@ -394,11 +422,13 @@ function app() {
       // Initial data load
       this.pollStatus();
       Alpine.store('app').refreshApprovals();
+      Alpine.store('app').refreshFreeze();
       Alpine.store('app').checkOnboarding();
       Alpine.store('app').checkAuth();
       setInterval(function() {
         self.pollStatus();
         Alpine.store('app').refreshApprovals();
+        Alpine.store('app').refreshFreeze();
       }, 5000);
     },
 
