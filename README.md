@@ -284,9 +284,9 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 
 ### 🪟 Windows — step by step
 
-1. Download **[FreEco.ai_x64-setup.exe](https://github.com/FreecoDAO/freeco-ai/releases/latest/download/FreEco.ai_0.7.4_x64-setup.exe)**
-   (64-bit — for almost every PC. On an ARM tablet use the
-   [arm64 setup](https://github.com/FreecoDAO/freeco-ai/releases/latest/download/FreEco.ai_0.7.4_arm64-setup.exe) instead.)
+1. Open the **[latest release](https://github.com/FreecoDAO/freeco-ai/releases/latest)** and download the
+   `FreEco.ai_*_x64-setup.exe` installer (64-bit — for almost every PC). On
+   an ARM tablet, download the `FreEco.ai_*_arm64-setup.exe` installer instead.
 2. **Double-click** the downloaded file.
 3. Windows may show a blue **"Windows protected your PC"** box (because the
    app is new and not yet code-signed). Click **More info → Run anyway**.

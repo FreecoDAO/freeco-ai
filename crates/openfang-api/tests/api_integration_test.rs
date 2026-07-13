@@ -82,6 +82,7 @@ async fn start_test_server_with_provider(
         budget_config: Arc::new(tokio::sync::RwLock::new(Default::default())),
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
     });
 
     let app = Router::new()
@@ -130,6 +131,17 @@ async fn start_test_server_with_provider(
         )
         .route("/api/shutdown", axum::routing::post(routes::shutdown))
         .route("/api/commands", axum::routing::get(routes::list_commands))
+        .route(
+            "/api/system/freeze",
+            axum::routing::get(routes::get_freeze)
+                .post(routes::freeze_system)
+                .delete(routes::unfreeze_system),
+        )
+        .route(
+            "/a2a/tasks/send",
+            axum::routing::post(routes::a2a_send_task),
+        )
+        .route("/api/comms/send", axum::routing::post(routes::comms_send))
         .route(
             "/api/schedules",
             axum::routing::get(routes::list_schedules).post(routes::create_schedule),
@@ -232,6 +244,67 @@ async fn test_health_endpoint() {
     // Detailed fields should NOT appear in public health endpoint
     assert!(body["database"].is_null());
     assert!(body["agent_count"].is_null());
+}
+
+#[tokio::test]
+async fn test_emergency_freeze_blocks_every_message_endpoint() {
+    let server = start_test_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .post(format!("{}/api/system/freeze", server.base_url))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    assert_eq!(
+        resp.json::<serde_json::Value>().await.unwrap()["frozen"],
+        true
+    );
+
+    let direct = client
+        .post(format!(
+            "{}/api/agents/00000000-0000-0000-0000-000000000000/message",
+            server.base_url
+        ))
+        .json(&serde_json::json!({"message": "hello"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(direct.status(), 503);
+
+    let a2a = client
+        .post(format!("{}/a2a/tasks/send", server.base_url))
+        .json(&serde_json::json!({
+            "params": {"message": {"parts": [{"text": "hello"}]}}
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(a2a.status(), 503);
+
+    let comms = client
+        .post(format!("{}/api/comms/send", server.base_url))
+        .json(&serde_json::json!({
+            "from_agent_id": "not-an-id",
+            "to_agent_id": "not-an-id",
+            "message": "hello"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(comms.status(), 503);
+
+    let unfrozen = client
+        .delete(format!("{}/api/system/freeze", server.base_url))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(unfrozen.status(), 200);
+    assert_eq!(
+        unfrozen.json::<serde_json::Value>().await.unwrap()["frozen"],
+        false
+    );
 }
 
 #[tokio::test]
@@ -929,6 +1002,7 @@ async fn start_test_server_with_auth(api_key: &str) -> TestServer {
         budget_config: Arc::new(tokio::sync::RwLock::new(Default::default())),
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
     });
 
     let api_key = state.kernel.config.api_key.trim().to_string();
