@@ -25,7 +25,7 @@ use tokio::io::AsyncWriteExt;
 const OLLAMA_BASE: &str = "http://127.0.0.1:11434";
 const OLLAMA_WINDOWS_INSTALLER: &str = "https://ollama.com/download/OllamaSetup.exe";
 /// Default starter model — small enough for ordinary laptops.
-const DEFAULT_MODEL: &str = "gemma3:4b";
+const DEFAULT_MODEL: &str = "gemma4:4b";
 
 /// Hardware requirements for a locally downloadable Ollama model. This is
 /// deliberately catalog data rather than selection logic so the dashboard and
@@ -50,8 +50,8 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_disk_gb: 3,
     },
     LocalModelProfile {
-        id: "gemma3:4b",
-        display_name: "Gemma 3 4B",
+        id: "gemma4:4b",
+        display_name: "Gemma 4 4B",
         purpose: "recommended general assistant for ordinary laptops",
         min_ram_gb: 8,
         min_vram_gb: 0,
@@ -82,8 +82,8 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_disk_gb: 10,
     },
     LocalModelProfile {
-        id: "gemma3:12b",
-        display_name: "Gemma 3 12B",
+        id: "gemma4:12b",
+        display_name: "Gemma 4 12B",
         purpose: "higher-quality general assistant",
         min_ram_gb: 24,
         min_vram_gb: 12,
@@ -187,7 +187,7 @@ fn recommended_model(hardware: &LocalHardware, purpose: &str) -> &'static str {
         };
     }
     if ram >= 24 || vram >= 12 {
-        "gemma3:12b"
+        "gemma4:12b"
     } else if ram >= 8 {
         DEFAULT_MODEL
     } else {
@@ -265,7 +265,7 @@ pub async fn local_ai_recommendation(
     }))
 }
 
-/// POST /api/local-ai/setup — body: optional {"model": "gemma3:4b"}
+/// POST /api/local-ai/setup — body: optional {"model": "gemma4:4b"}
 pub async fn local_ai_setup(
     State(state): State<Arc<AppState>>,
     body: Option<Json<serde_json::Value>>,
@@ -576,17 +576,17 @@ mod tests {
             "api_listen = \"127.0.0.1:4200\"\n",
         )
         .unwrap();
-        write_default_model(dir.path(), "gemma3:4b").unwrap();
+        write_default_model(dir.path(), "gemma4:4b").unwrap();
         let out = std::fs::read_to_string(dir.path().join("config.toml")).unwrap();
         assert!(out.contains("provider = \"ollama\""));
-        assert!(out.contains("gemma3:4b"));
+        assert!(out.contains("gemma4:4b"));
         // Pre-existing keys survive the rewrite.
         assert!(out.contains("api_listen"));
     }
 
     #[test]
     fn model_name_validation_pattern() {
-        for good in ["gemma3:4b", "llama3.2:1b", "qwen2.5-coder:7b"] {
+        for good in ["gemma4:4b", "llama3.2:1b", "qwen2.5-coder:7b"] {
             assert!(good
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || "._:-/".contains(c)));
@@ -616,8 +616,8 @@ mod tests {
             ..low.clone()
         };
         assert_eq!(recommended_model(&low, "general"), "llama3.2:1b");
-        assert_eq!(recommended_model(&ordinary, "general"), "gemma3:4b");
-        assert_eq!(recommended_model(&powerful, "general"), "gemma3:12b");
+        assert_eq!(recommended_model(&ordinary, "general"), "gemma4:4b");
+        assert_eq!(recommended_model(&powerful, "general"), "gemma4:12b");
     }
 
     #[test]
