@@ -165,3 +165,121 @@ leakage isn't flagged, destructive actions lack brakes, and one marketing claim
 of them is squarely in the v0.7.4–v0.7.5 window. Fix the "last inch" and
 FreEco.ai can honestly market itself as the *safe* agent OS for families and
 small business — which no competitor currently is.
+
+---
+
+# Part II — Mythos deep pass (whole-system, 2026-07-12)
+
+_A second, deeper reading of the actual code across all crates. It **corrects
+a mistake in Part I** and adds concrete, code-referenced findings that the
+framework pass missed._
+
+## Correction to Part I (T9) — I was wrong about "16 security levels"
+
+Part I said the "16 security levels" claim had "no code behind it." **That was
+an overstatement and is retracted.** The dashboard **Security tab** documents
+**15 security features**, each with an implementation reference
+(`crates/openfang-api/static/js/pages/settings.js`, `coreFeatures` +
+`configurableFeatures`):
+
+Path-Traversal Prevention · SSRF Protection · Capability-Based Access Control ·
+Privilege-Escalation Prevention (child ⊆ parent capabilities) · Subprocess
+Environment Isolation · Security Headers · Wire HMAC Auth · Request-ID Tracking
+· API Rate Limiting · WebSocket Limits · WASM Dual Metering · Bearer-Token Auth
+· Merkle Audit Trail · Information-Flow Taint Tracking · Ed25519 Manifest
+Signing.
+
+So the claim is **~15/16ths real and code-referenced**, not marketing. The
+honest remaining work is (a) **spot-verify each of the 15 truly enforces what
+it says** (a UI list is not a proof), and (b) state the **exact number** ("15+
+enforced security controls") or formally add a 16th, rather than a round "16."
+This supersedes the earlier "substantiate or soften" framing.
+
+## New findings the framework pass missed (code-grounded)
+
+### 🔴 M1 — Loopback is fully trusted with **no authentication**
+`middleware.rs:156`: when no `api_key` is set, **any loopback request is
+allowed through with no auth.** The desktop app ships this way by default. On a
+**shared or family machine**, this means _any_ local user, _any_ other
+installed program, or _any_ downloaded malware running as the user can drive
+the entire agent fleet — spend money, run shell, read files — with zero
+credential. For a product whose headline users are **families and small
+business on shared laptops**, "localhost = trusted" is the single biggest
+real-world hole. **Fix:** optional-but-encouraged local dashboard password
+(separate from the LAN api_key), on by default for the desktop app; at minimum,
+a first-run prompt. → _new task._
+
+### 🟠 M2 / M3 — Secrets stored in **plaintext**, and unprotected on **Windows**
+API keys, and any wallet keys, are written to `~/.openfang/secrets.env` in
+plaintext (`dotenv.rs`). The code sets `0600` perms **only under `#[cfg(unix)]`
+(`dotenv.rs:183`)** — **on Windows (a primary target) the file is left at
+default ACL**, readable by any process running as the user, and copied by any
+cloud-sync of the home folder. A stolen laptop, a backup, or OneDrive
+syncing the folder = every key leaked. **Fix:** encrypt secrets at rest (OS
+keychain: Windows Credential Manager / macOS Keychain / libsecret), or at least
+apply a restrictive Windows ACL; never store wallet keys in plaintext. → _new
+task._
+
+### 🟠 M4 — Local-AI installer is **downloaded and executed without verification**
+`local_ai.rs`: `OllamaSetup.exe` is fetched over HTTPS and run with
+`/VERYSILENT` — **no SHA-256 pin, no signature check.** HTTPS protects transit,
+but there is no integrity pin: a compromised mirror, a bad CDN edge, or a
+future URL change silently yields **arbitrary code execution as the user**,
+from inside our "one-click, no-account, safe" flow — the exact opposite of the
+promise. **Fix:** pin and verify the installer's SHA-256 (or Authenticode
+signature) before executing; fail closed on mismatch. → _new task._
+
+### 🟠 M5 — Auto-backup (#17) will **exfiltrate the plaintext secrets**
+The planned auto-backup zips `OPENFANG_HOME`, which contains `secrets.env`.
+Backups may land on a **USB stick or a synced folder** → plaintext keys travel
+off-device inside a "backup." **This must be designed in before #17 is built:**
+exclude secrets from backups, or encrypt the backup, or both. → _folded into
+#17 with a blocking note._
+
+### 🟡 M6 — `exec_policy: full` is a **single flip to a wide-open shell**
+Shell is gated by an allowlist (good), but `ExecSecurityMode::Full`
+(`tool_runner.rs:278`) disables the allowlist entirely. An LLM that convinces a
+user to "set exec mode to full," or a manifest import with it preset, yields
+unrestricted shell. **Fix:** treat `full` as a red, explicitly-confirmed,
+plain-language-warned mode; flag it in the security-auditor (#18).
+
+### 🟡 M7 — Kids **content** safety is prompt-only
+Structural guardrails are strong (`shell=[]`, `network=[]`) — a child agent
+genuinely can't reach the shell or internet. But **content** safety (refusing
+harmful topics) is **prompt-level only**; a determined child or a prompt
+injection can argue the model around its instructions. **Fix:** an independent,
+non-model content filter for the Kids edition (#18/#9), not just the system
+prompt.
+
+### 🟡 M8 — Spend **hard-stop** unverified
+`freeco-budget-engine/enforcer.rs` has "exceeded" logic with tests, but I did
+**not** verify it hard-blocks a live LLM/purchase call versus only reporting
+cost after the fact. For money-spending agents this is the difference between a
+cap and a speedometer. **Fix:** verify (and test) that exceeding budget
+*prevents* the next paid action. → _verification task._
+
+### 🟡 M9 — P2P shared secret is symmetric and optional
+Wire auth is HMAC-SHA256 (good), but the `shared_secret` is one symmetric key
+for the whole mesh and can be left empty (`network.shared_secret = ""`). One
+leak compromises every peer. **Fix:** per-peer keys or asymmetric identities;
+refuse to mesh with an empty secret.
+
+## Revised priority (what actually moves risk most)
+
+| Rank | Finding | Why it's #1-worthy | Task |
+|------|---------|--------------------|------|
+| 1 | **M1** loopback = no auth on shared machines | Whole product is "families on shared laptops"; this is total local bypass | new |
+| 2 | **M4** unverified installer execution | RCE inside the "safe" one-click flow | new |
+| 3 | **M2/M3** plaintext secrets, Windows-unprotected | Primary OS leaks keys at rest | new |
+| 4 | **M5** backup exfiltrates secrets | Turns a safety feature into a leak | fold into #17 |
+| 5 | T1 plain-language approvals + T2 cloud flag | The "last inch" (already in PR #33) | #22/#16 ✅ started |
+| 6 | **M8** verify spend hard-stop | Money safety | new |
+| 7 | M6 exec-full warning · M7 Kids filter · M9 P2P keys | Hardening | #18/#9 |
+
+## Corrected one-line verdict
+The security **engineering** is real and better than Part I gave it credit for
+(≈15 code-referenced controls). The exposure is **not** in the crypto or
+sandboxes — it is in **trust defaults for the real deployment**: localhost
+treated as trusted on shared machines, secrets in plaintext on Windows, and an
+unverified installer download inside the "safe" flow. Those three are the
+Mythos headline, and none are hard to fix.
