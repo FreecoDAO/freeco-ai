@@ -26,4 +26,4 @@ zip = { workspace = true }
 tempfile = { workspace = true }
 tokio-test = { workspace = true }
 ed25519-dalek = { workspace = true }
-rand = { workspace = true }
+rand_core = { workspace = true }
