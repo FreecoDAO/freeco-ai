@@ -1,6 +1,6 @@
 # FreEco.ai Roadmap & Honest Status
 
-_Last verified: **2026-07-11**, against git tags, merged/open PRs, the GitHub
+_Last verified: **2026-07-13**, against git tags, merged/open PRs, the GitHub
 release assets, and the source on `main`. This file states what is **actually**
 shipped vs. merged-but-unreleased vs. planned — no aspirational checkmarks._
 
@@ -12,11 +12,9 @@ shipped vs. merged-but-unreleased vs. planned — no aspirational checkmarks._
 - 📋 **Planned** — agreed, not started.
 
 ## Releases that actually exist (git tags with installers)
-`v0.6.5` … `v0.6.9`, then **`v0.7.1`, `v0.7.2`, `v0.7.3`**.
-**Latest downloadable: `v0.7.3`.** Its assets: Windows `-setup.exe` + `.msi`
-(x64 & arm64), Linux `.AppImage` + `.deb` + `.rpm`. **No macOS `.dmg` in any
-release yet.** **No `v0.7.4` tag exists** — v0.7.4 code is merged to `main`
-(PRs #28 + #30, 2026-07-10) but has never been tagged or built into installers.
+`v0.6.5` … `v0.6.9`, then **`v0.7.1`, `v0.7.2`, `v0.7.3`, `v0.7.4`**.
+**Latest downloadable: `v0.7.4`** (published 2026-07-11). The next mainline
+changes remain unreleased until the next tag is created.
 
 ---
 
@@ -30,11 +28,14 @@ release yet.** **No `v0.7.4` tag exists** — v0.7.4 code is merged to `main`
 | 4 | Dev Pod templates (developer + tester) | v0.7.3 | ✅ Shipped | PR #25; templates present via `/api/templates` |
 | 5 | One-click local AI (Ollama + Gemma) | v0.7.3 | 🐞 Shipped; **download breaks on any network hiccup** | Reproduced "error decoding response body" live |
 | 6 | Editions cards on dashboard | v0.7.3 | 🐞 **Shipped invisible** — block was rendered inside the Agents page scope, so it never appeared on Overview | Confirmed in source; matches your "I don't see them" |
-| 7 | ↳ Download auto-resume (6 retries, keeps layers) | v0.7.4 | 🟨 Merged, **not released** | Code on `main`; not re-tested against a live Ollama end-to-end |
-| 8 | ↳ Editions moved into Overview scope | v0.7.4 | 🟨 Merged, **not released** | commit 9475504 on `main`; the binary you're running predates it → still invisible for you until rebuilt |
-| 9 | Windows install docs (setup.exe, shortcut, SmartScreen) | v0.7.4 | 🟨 Merged, not released | README on `main` |
-| 10 | macOS `.dmg` (ad-hoc, no notarization) | v0.7.4 | 🟨 Merged, **unproven** | Workflow edited on `main`; will only be proven when a v0.7.4 tag runs the release |
-| 11 | 🔴 Emergency freeze — backend endpoints | v0.7.4 | 🟨 Merged, not released | Live test: froze 3 / resumed 3 agents on local build |
+| 7 | ↳ Download auto-resume (6 retries, keeps layers) | v0.7.4 | ✅ Shipped | Included in the v0.7.4 release |
+| 8 | ↳ Editions moved into Overview scope | v0.7.4 | ✅ Shipped | Included in the v0.7.4 release |
+| 9 | Windows install docs (setup.exe, shortcut, SmartScreen) | v0.7.4 | ✅ Shipped | Included in the v0.7.4 release |
+| 10 | macOS `.dmg` (ad-hoc, no notarization) | v0.7.4 | 🐞 Shipped; verification needed | Release workflow supports ad-hoc signing; macOS release assets still require verification |
+| 11 | 🔴 Emergency freeze — backend endpoints | v0.7.4 | ✅ Shipped | Included in the v0.7.4 release |
+| 29 | rand 0.9 migration | Next release | 🟨 Merged, not released | PR #35 completes the migration and fixes Ed25519 test RNG compatibility |
+| 30 | Kubuntu live-USB helper | Next release | 🟨 Merged, not released | `scripts/kubuntu-usb.sh` documents a verified upstream Kubuntu ISO workflow |
+| 31 | Release workflow hardening | Next release | 🟨 Merged, not released | macOS notarization credentials are used only when configured |
 | 12 | 🔴 Emergency freeze — button on every screen (UI) | v0.7.4 | 📋 Planned | Not built |
 | 13 | Agent tuning in UI (edit skills, capabilities, prompt, model) | v0.7.4 | 📋 Planned | **Does not exist anywhere** — matches your report |
 | 14 | Confirmation-code before deleting an agent | v0.7.4 | 📋 Planned | Not built |
@@ -57,13 +58,12 @@ release yet.** **No `v0.7.4` tag exists** — v0.7.4 code is merged to `main`
 
 ## Honest summary
 
-- **Downloadable today (v0.7.3):** native agents, local-AI setup (with the
+- **Downloadable today (v0.7.4):** native agents, local-AI setup (with the
   download bug, #5), Dev Pod templates, portable USB, white theme, update
   checker, fre.eco branding. **The Editions cards shipped invisible (#6).**
-- **Merged to `main` but NOT in any release (needs a `v0.7.4` tag to reach
-  anyone):** editions-visible fix, download auto-resume, emergency-freeze
-  backend, macOS `.dmg` build, install docs. **These help nobody until v0.7.4
-  is tagged.**
+- **Merged to `main` but not yet in a release:** rand 0.9 migration, Kubuntu
+  live-USB helper, and macOS release-workflow hardening. These changes need the
+  next release tag to reach installers.
 - **Not built at all (the big v0.7.4 UI work you keep asking about):** agent
   tuning UI (#13), freeze button (#12), delete-confirmation (#14),
   security-auditor (#15), **company chart / ChatDev live view (#19)**, backups
@@ -77,16 +77,14 @@ Two different things have been in play:
 - **The real product — the desktop app** (`FreEco.ai_x.y.z_x64-setup.exe`)
   **already** installs like any app: creates a Desktop + Start-Menu shortcut,
   runs as a normal window with **no console**, per-user (no admin prompt).
-  It exists today for **v0.7.3** — but that build still has the invisible-editions
-  bug (#6). A **v0.7.4** desktop build would carry all the #7–#11 fixes.
+  It exists today for **v0.7.4**, which carries the #7–#11 fixes.
 
-➡️ **The single highest-leverage next action: tag `v0.7.4`.** That triggers CI
-to build the v0.7.4 desktop installers (editions visible, download resume,
-`.dmg` attempt) that a user can double-click — closing #6, #7, #8, #9, #10, #11
-for real.
+➡️ **The single highest-leverage next action: tag the next mainline release.**
+That publishes the rand migration, Kubuntu live-USB helper, and hardened
+macOS release workflow.
 
 ## Nearest next steps (in order)
-1. **Tag `v0.7.4`** → real installers with the merged fixes reach users.
+1. **Tag the next release** → real installers with the merged mainline fixes reach users.
 2. Build the v0.7.4 **UI batch** in one branch: freeze button (#12), agent
    tuning (#13), delete-confirmation (#14), security-auditor (#15),
    **company/ChatDev view (#19)**, backups (#17), assistant widget (#20),

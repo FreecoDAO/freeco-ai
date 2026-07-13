@@ -7,7 +7,10 @@
 
 <p align="center">
   Open-source Agent OS built in Rust. 137K LOC. 14 crates. 1,767+ tests. Zero clippy warnings.<br/>
-  <strong>One binary. Battle-tested. Agents that actually work for you, your business and family. # FRE.ECO AI Node & Marketplace Roadmap
+  <strong>One binary. Battle-tested. Agents that work for you, your business, and your family.</strong>
+</p>
+
+# FRE.ECO AI Node & Marketplace Roadmap
 
 ## Executive Architecture (v1.0)
 
@@ -256,9 +259,6 @@ Both layers keep the existing WASM, subprocess, and workspace sandboxes undernea
 # Long-Term Objective
 
 Create a sovereign, AI-native, privacy-first economic operating environment where users own their identity, data, and AI while participating in a globally scalable sustainable marketplace.
- </strong>
-</p>
-
 <p align="center">
   <a href="https://freeco.ai/docs">Documentation</a> &bull;
   <a href="https://freeco.ai/docs/getting-started">Quick Start</a> &bull;
@@ -268,7 +268,7 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 <p align="center">
   <img src="https://img.shields.io/badge/language-Rust-orange?style=flat-square" alt="Rust" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT" />
-  <img src="https://img.shields.io/badge/version-0.7.5-green?style=flat-square" alt="v0.7.5" />
+  <img src="https://img.shields.io/badge/version-0.7.4-green?style=flat-square" alt="v0.7.4" />
   <img src="https://img.shields.io/badge/tests-2,696%2B%20passing-brightgreen?style=flat-square" alt="Tests" />
   <img src="https://img.shields.io/badge/clippy-0%20warnings-brightgreen?style=flat-square" alt="Clippy" />
   <a href="https://www.buymeacoffee.com/openfang" target="_blank"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee" /></a>
@@ -322,9 +322,13 @@ available, so no such image is offered as a download.
 
 ---
 
-> **v0.7.4 (July 2026)**
+> **Latest release: v0.7.4 (July 2026)**
 >
 > FreEco.ai is feature complete but still pre-1.0. Expect rough edges and breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/FreecoDAO/freeco-ai/issues)
+>
+> The next `main` release includes the completed rand 0.9 migration, a Kubuntu
+> live-USB helper, and release-workflow hardening. These changes are validated
+> before being tagged and published.
 
 ---
 
