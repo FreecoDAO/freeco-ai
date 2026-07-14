@@ -38,6 +38,7 @@ pub mod local_ai;
 pub mod middleware;
 pub mod openai_compat;
 pub mod rate_limiter;
+pub mod security;
 pub mod routes;
 pub mod server;
 pub mod session_auth;
