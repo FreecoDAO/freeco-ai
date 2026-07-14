@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-07-14
+
+### Added
+
+- **Model tuning controls** so operators can adjust provider/model behavior for the new FreEco.ai workflows shipped on `main`.
+- **Privacy-aware routing** for cloud versus local model usage, keeping the release aligned with the new privacy-first provider flow.
+- **Security scanning coverage** for bundled skills and release surfaces that shipped with the v0.7.7 feature set.
+
+### Fixed
+
+- **Encrypted recovery handling** so recovery and persistence flows keep their protected payloads intact instead of downgrading them during repair paths.
+
 ## [0.7.6] - 2026-07-14
 
 ### Fixed
