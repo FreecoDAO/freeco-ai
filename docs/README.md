@@ -1,6 +1,6 @@
 # FreEco.ai Documentation
 
-Welcome to the FreEco.ai documentation. FreEco.ai is the open-source Agent Operating System -- 14 Rust crates, 40 channels, 60 skills, 20 LLM providers, 76 API endpoints, and 16 security systems in a single binary.
+Welcome to the FreEco.ai documentation. FreEco.ai is the open-source Agent Operating System -- 22 Rust crates plus `xtask`, 40 channels, 61 skills, 20 LLM providers, 76 API endpoints, and 16 security systems in a single binary.
 
 ---
 
@@ -17,8 +17,8 @@ Welcome to the FreEco.ai documentation. FreEco.ai is the open-source Agent Opera
 
 | Guide | Description |
 |-------|-------------|
-| [Architecture](architecture.md) | 12-crate structure, kernel boot, agent lifecycle, memory substrate |
-| [Agent Templates](agent-templates.md) | 30 pre-built agents across 4 performance tiers |
+| [Architecture](architecture.md) | Workspace structure, kernel boot, agent lifecycle, memory substrate |
+| [Agent Templates](agent-templates.md) | 38 pre-built agents across 4 performance tiers |
 | [Workflows](workflows.md) | Multi-agent pipelines with branching, fan-out, loops, and triggers |
 | [Security](security.md) | 16 defense-in-depth security systems |
 
@@ -28,7 +28,7 @@ Welcome to the FreEco.ai documentation. FreEco.ai is the open-source Agent Opera
 |-------|-------------|
 | [Channel Adapters](channel-adapters.md) | 40 messaging channels -- setup, configuration, custom adapters |
 | [LLM Providers](providers.md) | 20 providers, 51 models, 23 aliases -- setup and model routing |
-| [Skills](skill-development.md) | 60 bundled skills, custom skill development, FangHub marketplace |
+| [Skills](skill-development.md) | 61 bundled skills, custom skill development, FangHub marketplace |
 | [MCP & A2A](mcp-a2a.md) | Model Context Protocol and Agent-to-Agent protocol integration |
 
 ## Reference
@@ -69,17 +69,17 @@ openfang init && openfang start
 
 | Metric | Count |
 |--------|-------|
-| Crates | 14 |
-| Agent templates | 30 |
+| Workspace members | 23 (22 crates plus `xtask`) |
+| Agent templates | 38 |
 | Messaging channels | 40 |
-| Bundled skills | 60 |
+| Bundled skills | 61 |
 | Built-in tools | 38 |
 | LLM providers | 20 |
 | Models in catalog | 51 |
 | Model aliases | 23 |
 | API endpoints | 76 |
 | Security systems | 16 |
-| Tests | 967 |
+| Test functions | ~2,846 |
 
 ### Important Paths
 

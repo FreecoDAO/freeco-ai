@@ -149,7 +149,13 @@ impl WhatsAppAdapter {
         let url = format!("{}/message/send", gateway_url.trim_end_matches('/'));
         let body = serde_json::json!({ "to": to, "text": text });
 
-        let resp = self.client.post(&url).json(&body).send().await?;
+        let mut request = self.client.post(&url).json(&body);
+        if let Ok(token) = std::env::var("WHATSAPP_GATEWAY_TOKEN") {
+            if !token.is_empty() {
+                request = request.bearer_auth(token);
+            }
+        }
+        let resp = request.send().await?;
 
         if !resp.status().is_success() {
             let status = resp.status();

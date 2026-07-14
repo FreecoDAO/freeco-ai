@@ -3214,8 +3214,9 @@ async fn gateway_http_post(url_with_path: &str) -> Result<serde_json::Value, Str
         .await
         .map_err(|e| format!("Connect failed: {e}"))?;
 
+    let authorization = gateway_authorization_header();
     let req = format!(
-        "POST {path} HTTP/1.1\r\nHost: {host}:{port}\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}"
+        "POST {path} HTTP/1.1\r\nHost: {host}:{port}\r\nContent-Type: application/json\r\n{authorization}Content-Length: 2\r\nConnection: close\r\n\r\n{{}}"
     );
     stream
         .write_all(req.as_bytes())
@@ -3261,8 +3262,9 @@ async fn gateway_http_get(url_with_path: &str) -> Result<serde_json::Value, Stri
         .await
         .map_err(|e| format!("Connect failed: {e}"))?;
 
+    let authorization = gateway_authorization_header();
     let req = format!(
-        "GET {path_and_query} HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n"
+        "GET {path_and_query} HTTP/1.1\r\nHost: {host}:{port}\r\n{authorization}Connection: close\r\n\r\n"
     );
     stream
         .write_all(req.as_bytes())
@@ -3282,6 +3284,14 @@ async fn gateway_http_get(url_with_path: &str) -> Result<serde_json::Value, Stri
     } else {
         Err("No HTTP body in response".to_string())
     }
+}
+
+fn gateway_authorization_header() -> String {
+    std::env::var("WHATSAPP_GATEWAY_TOKEN")
+        .ok()
+        .filter(|token| !token.is_empty())
+        .map(|token| ["Authorization", ": Bearer ", token.as_str(), "\r\n"].concat())
+        .unwrap_or_default()
 }
 
 // ---------------------------------------------------------------------------

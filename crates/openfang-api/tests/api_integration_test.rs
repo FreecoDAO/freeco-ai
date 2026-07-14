@@ -129,6 +129,7 @@ async fn start_test_server_with_provider(
             "/api/workflows/{id}/runs",
             axum::routing::get(routes::list_workflow_runs),
         )
+        .route("/api/logs/stream", axum::routing::get(routes::logs_stream))
         .route("/api/shutdown", axum::routing::post(routes::shutdown))
         .route("/api/commands", axum::routing::get(routes::list_commands))
         .route(
@@ -1109,7 +1110,6 @@ async fn test_auth_rejects_no_token() {
     let client = reqwest::Client::new();
 
     // Protected endpoint without auth header → 401
-    // Note: /api/status is public (dashboard needs it), so use a protected endpoint
     let resp = client
         .get(format!("{}/api/commands", server.base_url))
         .send()
@@ -1126,7 +1126,6 @@ async fn test_auth_rejects_wrong_token() {
     let client = reqwest::Client::new();
 
     // Wrong bearer token → 401
-    // Note: /api/status is public (dashboard needs it), so use a protected endpoint
     let resp = client
         .get(format!("{}/api/commands", server.base_url))
         .header("authorization", "Bearer wrong-key")
@@ -1153,6 +1152,37 @@ async fn test_auth_accepts_correct_token() {
     assert_eq!(resp.status(), 200);
     let body: serde_json::Value = resp.json().await.unwrap();
     assert_eq!(body["status"], "running");
+}
+
+#[tokio::test]
+async fn test_auth_rejects_unauthenticated_log_stream() {
+    let server = start_test_server_with_auth("secret-key-123").await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .get(format!("{}/api/logs/stream", server.base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 401);
+}
+
+#[tokio::test]
+async fn test_auth_accepts_log_stream_query_token() {
+    let server = start_test_server_with_auth("secret-key-123").await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .get(format!(
+            "{}/api/logs/stream?token=secret-key-123",
+            server.base_url
+        ))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
 }
 
 #[tokio::test]
