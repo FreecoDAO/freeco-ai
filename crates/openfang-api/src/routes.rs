@@ -15,6 +15,7 @@ use openfang_runtime::kernel_handle::KernelHandle;
 use openfang_runtime::tool_runner::builtin_tool_definitions;
 use openfang_types::agent::{AgentId, AgentIdentity, AgentManifest};
 use std::collections::HashMap;
+use std::path::Path as FsPath;
 use std::sync::{Arc, LazyLock};
 use std::time::Instant;
 
@@ -51,6 +52,39 @@ pub struct AppState {
     /// Agents suspended by the current emergency freeze. This preserves any
     /// agents that were already suspended before the emergency stop.
     pub frozen_agents: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<AgentId>>>,
+    /// Admission-control scanner for imported agents, workflows, and charts.
+    pub security: Arc<crate::security::SecurityService>,
+}
+
+fn security_gate(
+    state: &AppState,
+    subject: &str,
+    content: &str,
+) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+    let audit = state.security.scan(subject, content);
+    state.kernel.audit_log.record(
+        "security-agent",
+        openfang_runtime::audit::AuditAction::CapabilityCheck,
+        format!("security scan {} ({})", audit.subject, audit.content_hash),
+        format!("{:?}", audit.decision),
+    );
+    match audit.decision {
+        crate::security::SecurityDecision::Allowed => Ok(()),
+        crate::security::SecurityDecision::PendingApproval => Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "error": "Security approval required",
+                "audit": audit,
+            })),
+        )),
+        crate::security::SecurityDecision::Quarantined => Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "error": "Content quarantined by Security Agent",
+                "audit": audit,
+            })),
+        )),
+    }
 }
 
 /// POST /api/agents — Spawn a new agent.
@@ -114,6 +148,9 @@ pub async fn spawn_agent(
             StatusCode::PAYLOAD_TOO_LARGE,
             Json(serde_json::json!({"error": "Manifest too large (max 1MB)"})),
         );
+    }
+    if let Err(response) = security_gate(&state, "agent-manifest", &manifest_toml) {
+        return response;
     }
 
     // SECURITY: Verify Ed25519 signature when a signed manifest is provided
@@ -931,6 +968,18 @@ pub async fn create_workflow(
     State(state): State<Arc<AppState>>,
     Json(req): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    let raw_workflow = match serde_json::to_string(&req) {
+        Ok(raw) => raw,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "Invalid workflow payload"})),
+            )
+        }
+    };
+    if let Err(response) = security_gate(&state, "workflow", &raw_workflow) {
+        return response;
+    }
     let name = req["name"].as_str().unwrap_or("unnamed").to_string();
     let description = req["description"].as_str().unwrap_or("").to_string();
 
@@ -1046,6 +1095,193 @@ pub async fn list_workflows(State(state): State<Arc<AppState>>) -> impl IntoResp
     Json(list)
 }
 
+/// GET /api/security/audits — Recent Security Agent decisions.
+pub async fn list_security_audits(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    Json(serde_json::json!({ "audits": state.security.audits() }))
+}
+
+/// GET /api/company-chart — Live organization model for the dashboard.
+pub async fn company_chart(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let agents: Vec<_> = state
+        .kernel
+        .registry
+        .list()
+        .into_iter()
+        .map(|entry| {
+            serde_json::json!({
+                "id": entry.id.to_string(),
+                "name": entry.name,
+                "team": entry.manifest.profile,
+                "state": format!("{:?}", entry.state),
+                "sandbox": format!("{:?}", entry.manifest.exec_policy),
+                "is_inferencing": state.kernel.running_tasks.contains_key(&entry.id),
+            })
+        })
+        .collect();
+    let workflows: Vec<_> = state
+        .kernel
+        .workflows
+        .list_workflows()
+        .await
+        .into_iter()
+        .map(|workflow| {
+            serde_json::json!({
+                "id": workflow.id.to_string(),
+                "name": workflow.name,
+                "steps": workflow.steps.len(),
+                "state": "registered",
+            })
+        })
+        .collect();
+    let pending_security = state
+        .security
+        .audits()
+        .into_iter()
+        .filter(|audit| {
+            matches!(
+                audit.decision,
+                crate::security::SecurityDecision::PendingApproval
+            )
+        })
+        .count();
+    Json(serde_json::json!({
+        "teams": [{"name": "Unassigned", "agents": agents}],
+        "workflows": workflows,
+        "approvals": {"security_pending": pending_security},
+        "sandbox": {"wasm": "capability-based", "docker": "configured per agent"},
+    }))
+}
+
+/// POST /api/security/scan — Scan agent, workflow, chart, or configuration content.
+pub async fn scan_security_content(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<SecurityScanRequest>,
+) -> impl IntoResponse {
+    if req.subject.trim().is_empty() || req.content.len() > 1024 * 1024 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(
+                serde_json::json!({"error": "Subject is required and content must not exceed 1MB"}),
+            ),
+        );
+    }
+    let audit = state.security.scan(&req.subject, &req.content);
+    state.kernel.audit_log.record(
+        "security-agent",
+        openfang_runtime::audit::AuditAction::CapabilityCheck,
+        format!(
+            "manual security scan {} ({})",
+            audit.subject, audit.content_hash
+        ),
+        format!("{:?}", audit.decision),
+    );
+    (StatusCode::OK, Json(serde_json::json!(audit)))
+}
+
+/// POST /api/security/approve/:content_hash — Approve a warning-only scan result.
+pub async fn approve_security_content(
+    State(state): State<Arc<AppState>>,
+    Path(content_hash): Path<String>,
+    Json(req): Json<SecurityApprovalRequest>,
+) -> impl IntoResponse {
+    if !content_hash.chars().all(|c| c.is_ascii_hexdigit()) || content_hash.len() != 64 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Invalid content hash"})),
+        );
+    }
+    if !state.security.approve(&content_hash, &req.approved_by) {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Security audit not found"})),
+        );
+    }
+    state.kernel.audit_log.record(
+        "security-agent",
+        openfang_runtime::audit::AuditAction::CapabilityCheck,
+        format!("security approval {}", content_hash),
+        req.approved_by,
+    );
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status": "approved"})),
+    )
+}
+
+/// POST /api/backups — Create an authenticated encrypted recovery archive.
+pub async fn create_backup(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<BackupRequest>,
+) -> impl IntoResponse {
+    let db_path = state
+        .kernel
+        .config
+        .memory
+        .sqlite_path
+        .clone()
+        .unwrap_or_else(|| state.kernel.config.data_dir.join("openfang.db"));
+    match crate::backup::create_backup(
+        &state.kernel.config.home_dir,
+        &state.kernel.config.data_dir,
+        &db_path,
+        req.retention.min(365),
+    ) {
+        Ok(result) => {
+            state.kernel.audit_log.record(
+                "security-agent",
+                openfang_runtime::audit::AuditAction::ConfigChange,
+                "encrypted backup created",
+                result.path.clone(),
+            );
+            (StatusCode::CREATED, Json(serde_json::json!(result)))
+        }
+        Err(error) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": error})),
+        ),
+    }
+}
+
+/// POST /api/backups/restore — Verify or stage an encrypted recovery archive.
+pub async fn restore_backup(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<RestoreRequest>,
+) -> impl IntoResponse {
+    if req.archive_name.is_empty()
+        || FsPath::new(&req.archive_name)
+            .file_name()
+            .and_then(|n| n.to_str())
+            != Some(&req.archive_name)
+        || !req.archive_name.ends_with(".ofbak")
+    {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Invalid archive name"})),
+        );
+    }
+    let archive = state
+        .kernel
+        .config
+        .home_dir
+        .join("backups")
+        .join(req.archive_name);
+    match crate::backup::restore_backup(&state.kernel.config.home_dir, &archive, req.dry_run) {
+        Ok(result) => {
+            state.kernel.audit_log.record(
+                "security-agent",
+                openfang_runtime::audit::AuditAction::ConfigChange,
+                "encrypted backup restore verified",
+                format!("dry_run={}", result.dry_run),
+            );
+            (StatusCode::OK, Json(serde_json::json!(result)))
+        }
+        Err(error) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": error})),
+        ),
+    }
+}
+
 /// POST /api/workflows/:id/run — Execute a workflow.
 pub async fn run_workflow(
     State(state): State<Arc<AppState>>,
@@ -1144,6 +1380,18 @@ pub async fn update_workflow(
     Path(id): Path<String>,
     Json(req): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    let raw_workflow = match serde_json::to_string(&req) {
+        Ok(raw) => raw,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "Invalid workflow payload"})),
+            )
+        }
+    };
+    if let Err(response) = security_gate(&state, "workflow-update", &raw_workflow) {
+        return response;
+    }
     let workflow_id = WorkflowId(match id.parse() {
         Ok(u) => u,
         Err(_) => {
@@ -1525,6 +1773,10 @@ pub async fn get_agent(
             "model": {
                 "provider": entry.manifest.model.provider,
                 "model": entry.manifest.model.model,
+                "max_tokens": entry.manifest.model.max_tokens,
+                "temperature": entry.manifest.model.temperature,
+                "api_key_env": entry.manifest.model.api_key_env,
+                "base_url": entry.manifest.model.base_url,
             },
             "capabilities": {
                 "tools": entry.manifest.capabilities.tools,
@@ -9846,7 +10098,7 @@ pub async fn update_agent_identity(
 // Agent Config Hot-Update
 // ---------------------------------------------------------------------------
 
-/// Request body for patching agent config (name, description, prompt, identity, model).
+/// Request body for patching agent config (identity and complete model configuration).
 #[derive(serde::Deserialize)]
 pub struct PatchAgentConfigRequest {
     pub name: Option<String>,
@@ -9862,10 +10114,12 @@ pub struct PatchAgentConfigRequest {
     pub provider: Option<String>,
     pub api_key_env: Option<String>,
     pub base_url: Option<String>,
+    pub max_tokens: Option<u32>,
+    pub temperature: Option<f32>,
     pub fallback_models: Option<Vec<openfang_types::agent::FallbackModel>>,
 }
 
-/// PATCH /api/agents/{id}/config — Hot-update agent name, description, system prompt, and identity.
+/// PATCH /api/agents/{id}/config — Hot-update agent configuration.
 pub async fn patch_agent_config(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
@@ -9913,6 +10167,47 @@ pub async fn patch_agent_config(
                 Json(
                     serde_json::json!({"error": format!("System prompt exceeds max length ({MAX_PROMPT_LEN} chars)")}),
                 ),
+            );
+        }
+    }
+    if let Some(max_tokens) = req.max_tokens {
+        if max_tokens == 0 {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "max_tokens must be greater than zero"})),
+            );
+        }
+    }
+    if let Some(temperature) = req.temperature {
+        if !temperature.is_finite() || !(0.0..=2.0).contains(&temperature) {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "temperature must be between 0.0 and 2.0"})),
+            );
+        }
+    }
+    if let Some(ref api_key_env) = req.api_key_env {
+        if !api_key_env.is_empty()
+            && !api_key_env.bytes().enumerate().all(|(i, byte)| {
+                byte == b'_' || (byte.is_ascii_alphabetic() || (i > 0 && byte.is_ascii_digit()))
+            })
+        {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(
+                    serde_json::json!({"error": "api_key_env must be a valid environment variable name"}),
+                ),
+            );
+        }
+    }
+    if let Some(ref base_url) = req.base_url {
+        if !base_url.is_empty()
+            && !base_url.starts_with("http://")
+            && !base_url.starts_with("https://")
+        {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "base_url must start with http:// or https://"})),
             );
         }
     }
@@ -10063,6 +10358,30 @@ pub async fn patch_agent_config(
                 }
             }
         }
+    }
+
+    if (req.max_tokens.is_some()
+        || req.temperature.is_some()
+        || req.api_key_env.is_some()
+        || req.base_url.is_some())
+        && state
+            .kernel
+            .registry
+            .update_model_tuning(
+                agent_id,
+                req.max_tokens,
+                req.temperature,
+                req.api_key_env
+                    .map(|value| (!value.is_empty()).then_some(value)),
+                req.base_url
+                    .map(|value| (!value.is_empty()).then_some(value)),
+            )
+            .is_err()
+    {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Agent not found"})),
+        );
     }
 
     // Update fallback model chain

@@ -10,6 +10,8 @@ function settingsPage() {
     config: {},
     providers: [],
     models: [],
+    settingAgents: [],
+    settingWorkflows: [],
     toolSearch: '',
     modelSearch: '',
     modelProviderFilter: '',
@@ -231,7 +233,9 @@ function settingsPage() {
           this.loadTools(),
           this.loadConfig(),
           this.loadProviders(),
-          this.loadModels()
+          this.loadModels(),
+          this.loadAgents(),
+          this.loadWorkflows()
         ]);
       } catch(e) {
         this.loadError = e.message || 'Could not load settings.';
@@ -341,6 +345,18 @@ function settingsPage() {
         var data = await OpenFangAPI.get('/api/models');
         this.models = data.models || [];
       } catch(e) { this.models = []; }
+    },
+
+    async loadAgents() {
+      try {
+        this.settingAgents = await OpenFangAPI.get('/api/agents');
+      } catch(e) { this.settingAgents = []; }
+    },
+
+    async loadWorkflows() {
+      try {
+        this.settingWorkflows = await OpenFangAPI.get('/api/workflows');
+      } catch(e) { this.settingWorkflows = []; }
     },
 
     async addCustomModel() {

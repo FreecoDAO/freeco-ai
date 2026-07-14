@@ -5,7 +5,9 @@
 //! model that can handle the task.
 
 use crate::llm_driver::CompletionRequest;
+use crate::model_catalog::ModelCatalog;
 use openfang_types::agent::ModelRoutingConfig;
+use openfang_types::model_catalog::ModelTier;
 
 /// Task complexity tier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,6 +18,23 @@ pub enum TaskComplexity {
     Medium,
     /// Multi-step reasoning, code generation, complex analysis — use the best model.
     Complex,
+}
+
+/// The model class selected by a policy-aware routing decision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelClass {
+    Local,
+    Cheap,
+    Frontier,
+}
+
+/// A routing result that can be presented for approval without exposing prompt data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoutingDecision {
+    pub complexity: TaskComplexity,
+    pub model: String,
+    pub class: ModelClass,
+    pub requires_confirmation: bool,
 }
 
 impl std::fmt::Display for TaskComplexity {
@@ -130,6 +149,63 @@ impl ModelRouter {
         (complexity, model)
     }
 
+    /// Select a model under the optional privacy-aware policy.
+    ///
+    /// `contains_sensitive_data` must be determined before this call. Sensitive
+    /// prompts are never allowed to fall back to remote models when the policy
+    /// requires local-only processing.
+    pub fn select_policy_model(
+        &self,
+        request: &CompletionRequest,
+        catalog: &ModelCatalog,
+        contains_sensitive_data: bool,
+    ) -> Result<RoutingDecision, String> {
+        let complexity = self.score(request);
+        let Some(policy) = &self.config.policy else {
+            let model = self.model_for_complexity(complexity).to_string();
+            return Ok(RoutingDecision {
+                complexity,
+                model,
+                class: ModelClass::Cheap,
+                requires_confirmation: false,
+            });
+        };
+
+        let (model, class) = if contains_sensitive_data && policy.sensitive_data_local_only {
+            (policy.local_model.as_str(), ModelClass::Local)
+        } else if complexity == TaskComplexity::Complex && !policy.frontier_model.is_empty() {
+            (policy.frontier_model.as_str(), ModelClass::Frontier)
+        } else if !policy.cheap_model.is_empty() {
+            (policy.cheap_model.as_str(), ModelClass::Cheap)
+        } else {
+            (self.model_for_complexity(complexity), ModelClass::Cheap)
+        };
+
+        if model.is_empty() {
+            return Err("routing policy requires a local model for sensitive data".to_string());
+        }
+        let entry = catalog
+            .find_model(model)
+            .ok_or_else(|| format!("routing policy model '{model}' is not in the catalog"))?;
+        if class == ModelClass::Local && entry.tier != ModelTier::Local {
+            return Err(format!(
+                "routing policy local model '{model}' is not classified as local"
+            ));
+        }
+        if !request.tools.is_empty() && !entry.supports_tools {
+            return Err(format!(
+                "routing policy model '{model}' does not support required tools"
+            ));
+        }
+        Ok(RoutingDecision {
+            complexity,
+            model: model.to_string(),
+            class,
+            requires_confirmation: class == ModelClass::Frontier
+                && policy.require_frontier_confirmation,
+        })
+    }
+
     /// Validate that all configured models exist in the catalog.
     ///
     /// Returns a list of warning messages for models not found in the catalog.
@@ -166,6 +242,7 @@ impl ModelRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use openfang_types::agent::ModelRoutingPolicy;
     use openfang_types::message::{Message, MessageContent, Role};
     use openfang_types::tool::ToolDefinition;
 
@@ -176,6 +253,7 @@ mod tests {
             complex_model: "claude-opus-4-6".to_string(),
             simple_threshold: 200,
             complex_threshold: 800,
+            policy: None,
         }
     }
 
@@ -302,6 +380,7 @@ mod tests {
             complex_model: "claude-opus-4-6".to_string(),
             simple_threshold: 200,
             complex_threshold: 800,
+            policy: None,
         };
         let router = ModelRouter::new(config);
         let warnings = router.validate_models(&catalog);
@@ -317,6 +396,7 @@ mod tests {
             complex_model: "claude-opus-4-6".to_string(),
             simple_threshold: 200,
             complex_threshold: 800,
+            policy: None,
         };
         let router = ModelRouter::new(config);
         let warnings = router.validate_models(&catalog);
@@ -333,6 +413,7 @@ mod tests {
             complex_model: "opus".to_string(),
             simple_threshold: 200,
             complex_threshold: 800,
+            policy: None,
         };
         let mut router = ModelRouter::new(config);
         router.resolve_aliases(&catalog);
@@ -377,5 +458,58 @@ mod tests {
 
         // Long system prompt should score higher or equal
         assert!(complexity_with_long_system as u32 >= complexity_short as u32);
+    }
+
+    #[test]
+    fn test_sensitive_policy_requires_local_model() {
+        let catalog = crate::model_catalog::ModelCatalog::new();
+        let mut config = default_config();
+        config.policy = Some(ModelRoutingPolicy {
+            local_model: "llama3.2".to_string(),
+            cheap_model: "llama-3.3-70b-versatile".to_string(),
+            frontier_model: "claude-opus-4-6".to_string(),
+            ..Default::default()
+        });
+        let request = make_request(
+            vec![Message {
+                role: Role::User,
+                content: MessageContent::text("My email is person@example.com"),
+                ..Default::default()
+            }],
+            vec![],
+        );
+
+        let decision = ModelRouter::new(config)
+            .select_policy_model(&request, &catalog, true)
+            .unwrap();
+        assert_eq!(decision.class, ModelClass::Local);
+        assert_eq!(decision.model, "llama3.2");
+        assert!(!decision.requires_confirmation);
+    }
+
+    #[test]
+    fn test_frontier_policy_requires_confirmation() {
+        let catalog = crate::model_catalog::ModelCatalog::new();
+        let mut config = default_config();
+        config.policy = Some(ModelRoutingPolicy {
+            local_model: "llama3.2".to_string(),
+            cheap_model: "llama-3.3-70b-versatile".to_string(),
+            frontier_model: "claude-opus-4-6".to_string(),
+            ..Default::default()
+        });
+        let request = make_request(
+            vec![Message {
+                role: Role::User,
+                content: MessageContent::text("```rust\n".repeat(400)),
+                ..Default::default()
+            }],
+            vec![],
+        );
+
+        let decision = ModelRouter::new(config)
+            .select_policy_model(&request, &catalog, false)
+            .unwrap();
+        assert_eq!(decision.class, ModelClass::Frontier);
+        assert!(decision.requires_confirmation);
     }
 }

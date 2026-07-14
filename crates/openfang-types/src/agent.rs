@@ -52,6 +52,11 @@ pub struct ModelRoutingConfig {
     pub simple_threshold: u32,
     /// Token count threshold: above this = complex.
     pub complex_threshold: u32,
+    /// Optional policy that classifies models as local, cheap, or frontier.
+    ///
+    /// When absent, routing retains the legacy complexity-only behavior.
+    #[serde(default)]
+    pub policy: Option<ModelRoutingPolicy>,
 }
 
 impl Default for ModelRoutingConfig {
@@ -62,6 +67,35 @@ impl Default for ModelRoutingConfig {
             complex_model: "claude-sonnet-4-20250514".to_string(),
             simple_threshold: 100,
             complex_threshold: 500,
+            policy: None,
+        }
+    }
+}
+
+/// Privacy-aware policy applied on top of complexity-based model routing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ModelRoutingPolicy {
+    /// Model used for sensitive content. It must be catalogued as `local`.
+    pub local_model: String,
+    /// Lower-cost cloud model for simple and standard requests.
+    pub cheap_model: String,
+    /// Premium cloud model for complex requests.
+    pub frontier_model: String,
+    /// Never transmit detected secrets or PII to a remote model.
+    pub sensitive_data_local_only: bool,
+    /// Do not select a frontier model automatically.
+    pub require_frontier_confirmation: bool,
+}
+
+impl Default for ModelRoutingPolicy {
+    fn default() -> Self {
+        Self {
+            local_model: String::new(),
+            cheap_model: String::new(),
+            frontier_model: String::new(),
+            sensitive_data_local_only: true,
+            require_frontier_confirmation: true,
         }
     }
 }
@@ -758,6 +792,25 @@ mod tests {
         let json = serde_json::to_string(&cfg).unwrap();
         let back: ModelRoutingConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(back.simple_model, cfg.simple_model);
+    }
+
+    #[test]
+    fn test_model_routing_policy_serde() {
+        let config = ModelRoutingConfig {
+            policy: Some(ModelRoutingPolicy {
+                local_model: "llama3.2".to_string(),
+                cheap_model: "llama-3.3-70b-versatile".to_string(),
+                frontier_model: "claude-opus-4-6".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let encoded = serde_json::to_string(&config).unwrap();
+        let decoded: ModelRoutingConfig = serde_json::from_str(&encoded).unwrap();
+        let policy = decoded.policy.unwrap();
+        assert!(policy.sensitive_data_local_only);
+        assert!(policy.require_frontier_confirmation);
+        assert_eq!(policy.local_model, "llama3.2");
     }
 
     #[test]

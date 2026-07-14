@@ -82,6 +82,47 @@ pub struct SkillUninstallRequest {
     pub name: String,
 }
 
+/// Content submitted for a pre-import security scan.
+#[derive(Debug, Deserialize)]
+pub struct SecurityScanRequest {
+    pub subject: String,
+    pub content: String,
+}
+
+/// Operator approval for a warning-only security finding.
+#[derive(Debug, Deserialize)]
+pub struct SecurityApprovalRequest {
+    #[serde(default = "default_security_approver")]
+    pub approved_by: String,
+}
+
+fn default_security_approver() -> String {
+    "operator".to_string()
+}
+
+/// Backup request. Retention is capped server-side.
+#[derive(Debug, Deserialize)]
+pub struct BackupRequest {
+    #[serde(default = "default_backup_retention")]
+    pub retention: usize,
+}
+
+fn default_backup_retention() -> usize {
+    7
+}
+
+/// Restore request for an archive created by this instance.
+#[derive(Debug, Deserialize)]
+pub struct RestoreRequest {
+    pub archive_name: String,
+    #[serde(default = "default_true")]
+    pub dry_run: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
 /// Request to update an agent's manifest.
 #[derive(Debug, Deserialize)]
 pub struct AgentUpdateRequest {

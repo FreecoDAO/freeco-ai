@@ -1081,6 +1081,15 @@
                 <div x-show="detailTab === 'config'">
                   <div class="form-group"><label>Name</label><input class="form-input" x-model="configForm.name"></div>
                   <div class="form-group"><label>System Prompt</label><textarea class="form-textarea" x-model="configForm.system_prompt" style="height:80px"></textarea></div>
+                  <div class="mt-4" style="border-top:1px solid var(--border);padding-top:16px">
+                    <h4 style="margin-bottom:8px;font-size:13px">Model Tuning</h4>
+                    <div class="form-group"><label>Provider</label><input class="form-input" x-model="configForm.provider" placeholder="e.g. groq"></div>
+                    <div class="form-group"><label>Model</label><input class="form-input" x-model="configForm.model" placeholder="e.g. llama-3.3-70b-versatile"></div>
+                    <div class="form-group"><label>Max Output Tokens</label><input class="form-input" type="number" min="1" step="1" x-model.number="configForm.max_tokens"></div>
+                    <div class="form-group"><label>Temperature <span class="text-dim">(0.0–2.0)</span></label><input class="form-input" type="number" min="0" max="2" step="0.1" x-model.number="configForm.temperature"></div>
+                    <div class="form-group"><label>API Key Environment Variable</label><input class="form-input" x-model="configForm.api_key_env" placeholder="e.g. GROQ_API_KEY"></div>
+                    <div class="form-group"><label>Provider Base URL</label><input class="form-input" type="url" x-model="configForm.base_url" placeholder="https://api.example.com/v1"></div>
+                  </div>
                   <div class="form-group"><label>Emoji</label>
                     <div class="emoji-grid">
                       <template x-for="em in emojiOptions" :key="em">
@@ -3626,7 +3635,10 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
           <div class="tabs" role="tablist">
             <div class="tab" role="tab" :class="{ active: tab === 'providers' }" @click="tab = 'providers'">Providers</div>
             <div class="tab" role="tab" :class="{ active: tab === 'models' }" @click="tab = 'models'">Models</div>
-            <div class="tab" role="tab" :class="{ active: tab === 'config' }" @click="tab = 'config'; if (!configSchema) loadConfigSchema()">Config</div>
+            <div class="tab" role="tab" :class="{ active: tab === 'agents' }" @click="tab = 'agents'">Agents</div>
+            <div class="tab" role="tab" :class="{ active: tab === 'workflows' }" @click="tab = 'workflows'">Workflows</div>
+            <div class="tab" role="tab" :class="{ active: tab === 'charts' }" @click="tab = 'charts'">Charts</div>
+            <div class="tab" role="tab" :class="{ active: tab === 'config' }" @click="tab = 'config'; if (!configSchema) loadConfigSchema()">Tuning</div>
             <div class="tabs-separator"></div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'tools' }" @click="tab = 'tools'">Tools</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'security' }" @click="tab = 'security'; if (!securityData && !secLoading) loadSecurity()">Security</div>
@@ -3882,6 +3894,85 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                   </template>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- Agents tab -->
+          <div x-show="tab === 'agents'">
+            <div class="card mb-4">
+              <div class="card-header flex justify-between items-center">
+                <span>Agent settings</span>
+                <button class="btn btn-ghost btn-sm" @click="loadAgents()">Refresh</button>
+              </div>
+              <p class="text-xs text-dim mb-3">Review active agents and open the dedicated Agents page to manage their configuration, capabilities, and identity.</p>
+              <div x-show="!settingAgents.length" class="text-xs text-dim">No agents are running.</div>
+              <div class="table-wrap" x-show="settingAgents.length">
+                <table>
+                  <thead><tr><th>Name</th><th>Model</th><th>State</th></tr></thead>
+                  <tbody>
+                    <template x-for="agent in settingAgents" :key="agent.id">
+                      <tr>
+                        <td x-text="agent.name"></td>
+                        <td class="text-xs text-dim" x-text="agent.model_name || '-'"></td>
+                        <td><span class="badge" :class="'badge-' + (agent.state || '').toLowerCase()" x-text="agent.state"></span></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <button class="btn btn-primary btn-sm mt-3" @click="navigate('agents')">Manage agents</button>
+            </div>
+          </div>
+
+          <!-- Workflows tab -->
+          <div x-show="tab === 'workflows'">
+            <div class="card mb-4">
+              <div class="card-header flex justify-between items-center">
+                <span>Workflow settings</span>
+                <button class="btn btn-ghost btn-sm" @click="loadWorkflows()">Refresh</button>
+              </div>
+              <p class="text-xs text-dim mb-3">Review configured workflows and open the workflow builder to create, edit, and run them.</p>
+              <div x-show="!settingWorkflows.length" class="text-xs text-dim">No workflows have been created.</div>
+              <div class="table-wrap" x-show="settingWorkflows.length">
+                <table>
+                  <thead><tr><th>Name</th><th>Description</th><th>Steps</th></tr></thead>
+                  <tbody>
+                    <template x-for="workflow in settingWorkflows" :key="workflow.id">
+                      <tr>
+                        <td x-text="workflow.name"></td>
+                        <td class="text-xs text-dim" x-text="workflow.description || '-'"></td>
+                        <td x-text="workflow.steps || 0"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <button class="btn btn-primary btn-sm mt-3" @click="navigate('workflows')">Manage workflows</button>
+            </div>
+          </div>
+
+          <!-- Charts tab -->
+          <div x-show="tab === 'charts'">
+            <div class="card mb-4">
+              <div class="card-header">Usage charts</div>
+              <p class="text-xs text-dim mb-3">Usage and cost charts are available in Analytics. The summary below uses the latest recorded usage for each agent.</p>
+              <div x-show="!usageData.length" class="text-xs text-dim">No usage data has been recorded yet.</div>
+              <div class="table-wrap" x-show="usageData.length">
+                <table>
+                  <thead><tr><th>Agent</th><th>Model</th><th>Calls</th><th>Cost</th></tr></thead>
+                  <tbody>
+                    <template x-for="usage in usageData" :key="usage.agent_id || usage.agent_name">
+                      <tr>
+                        <td x-text="usage.agent_name || usage.agent_id || '-'"></td>
+                        <td class="text-xs text-dim" x-text="usage.model || '-'"></td>
+                        <td x-text="usage.call_count || 0"></td>
+                        <td x-text="'$' + Number(usage.total_cost_usd || 0).toFixed(4)"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <button class="btn btn-primary btn-sm mt-3" @click="navigate('usage')">Open analytics charts</button>
             </div>
           </div>
 
@@ -5534,8 +5625,37 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               </table>
             </div>
 
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-header">Company chart</div>
+              <div class="text-xs text-dim mb-3">Live teams, workflow state, approval queue, and sandbox posture.</div>
+              <div class="grid grid-cols-3 gap-4">
+                <div>
+                  <div class="stat-label">Agents</div>
+                  <div class="stat-value" x-text="company.teams && company.teams[0] ? company.teams[0].agents.length : 0"></div>
+                </div>
+                <div>
+                  <div class="stat-label">Workflows</div>
+                  <div class="stat-value" x-text="company.workflows.length"></div>
+                </div>
+                <div>
+                  <div class="stat-label">Security approvals</div>
+                  <div class="stat-value" x-text="company.approvals.security_pending"></div>
+                </div>
+              </div>
+              <table class="table" style="margin-top:12px">
+                <thead><tr><th>Agent</th><th>Team</th><th>State</th><th>Sandbox</th></tr></thead>
+                <tbody>
+                  <template x-for="agent in (company.teams && company.teams[0] ? company.teams[0].agents : [])" :key="agent.id">
+                    <tr><td x-text="agent.name"></td><td x-text="agent.team || 'Unassigned'"></td><td x-text="agent.state"></td><td x-text="agent.sandbox || 'default'"></td></tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
             <div class="flex gap-2">
               <button class="btn btn-ghost btn-sm" @click="loadData()">Refresh</button>
+              <button class="btn btn-primary btn-sm" @click="createBackup()">Encrypted backup</button>
+              <span class="text-xs text-dim" x-text="backupStatus"></span>
             </div>
           </div>
         </div>

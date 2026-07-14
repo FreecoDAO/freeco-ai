@@ -83,6 +83,7 @@ async fn start_test_server_with_provider(
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
+        security: std::sync::Arc::new(openfang_api::security::SecurityService::default()),
     });
 
     let app = Router::new()
@@ -1004,6 +1005,7 @@ async fn start_test_server_with_auth(api_key: &str) -> TestServer {
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
+        security: std::sync::Arc::new(openfang_api::security::SecurityService::default()),
     });
 
     let api_key = state.kernel.config.api_key.trim().to_string();
