@@ -179,11 +179,24 @@ fn write_env_file(path: &PathBuf, entries: &BTreeMap<String, String>) -> Result<
 
     std::fs::write(path, &content).map_err(|e| format!("Failed to write .env file: {e}"))?;
 
-    // Set 0600 permissions on Unix
+    // SECURITY (threat-model M2/M3): restrict to the current user. Unix = 0600;
+    // Windows (primary target, previously unprotected) = icacls (strip
+    // inheritance, current user only) so keys aren't readable by other local
+    // accounts or copied openly by folder-sync.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    }
+    #[cfg(windows)]
+    {
+        let user = std::env::var("USERNAME").unwrap_or_default();
+        if !user.is_empty() {
+            let _ = std::process::Command::new("icacls")
+                .arg(path)
+                .args(["/inheritance:r", "/grant:r", &format!("{user}:F")])
+                .output();
+        }
     }
 
     Ok(())

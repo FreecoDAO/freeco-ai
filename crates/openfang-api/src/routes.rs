@@ -8837,11 +8837,24 @@ fn write_secret_env(path: &std::path::Path, key: &str, value: &str) -> Result<()
 
     std::fs::write(path, lines.join("\n") + "\n")?;
 
-    // SECURITY: Restrict file permissions on Unix
+    // SECURITY (threat-model M2/M3): restrict the secrets file to the current
+    // user. Unix = 0600. Windows (primary target, previously UNPROTECTED) =
+    // icacls: strip inheritance, grant the current user only — so other local
+    // accounts and folder-sync tools cannot read plaintext keys at rest.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    }
+    #[cfg(windows)]
+    {
+        let user = std::env::var("USERNAME").unwrap_or_default();
+        if !user.is_empty() {
+            let _ = std::process::Command::new("icacls")
+                .arg(path)
+                .args(["/inheritance:r", "/grant:r", &format!("{user}:F")])
+                .output();
+        }
     }
 
     Ok(())
