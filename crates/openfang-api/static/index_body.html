@@ -39,6 +39,18 @@
   </div>
 </div>
 
+<!-- First-run password setup (skippable) -->
+<div x-show="$store.app.showPasswordSetup" x-cloak style="position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)" x-data="{ password: '', confirmation: '' }">
+  <div style="background:var(--bg-card,#1e1e2e);border:1px solid var(--border,#333);border-radius:12px;padding:2rem;max-width:400px;width:90%">
+    <h3 style="margin:0 0 0.5rem;font-size:1.1rem">Protect your dashboard</h3>
+    <p style="color:var(--text-dim,#888);font-size:0.85rem;margin:0 0 1rem">Set an admin password to protect this device. You can skip this and enable it later in Settings → Security.</p>
+    <input type="password" x-model="password" minlength="12" autocomplete="new-password" placeholder="Password (12 characters minimum)" style="width:100%;padding:0.6rem;border-radius:6px;border:1px solid var(--border,#333);background:var(--bg-input,#151520);color:var(--text,#e0e0e0);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.5rem">
+    <input type="password" x-model="confirmation" minlength="12" autocomplete="new-password" placeholder="Confirm password" @keydown.enter="$store.app.setInitialPassword(password, confirmation)" style="width:100%;padding:0.6rem;border-radius:6px;border:1px solid var(--border,#333);background:var(--bg-input,#151520);color:var(--text,#e0e0e0);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.75rem">
+    <button @click="$store.app.setInitialPassword(password, confirmation)" style="width:100%;padding:0.6rem;border:none;border-radius:6px;background:var(--accent,#0B3D2E);color:#fff;font-weight:600;cursor:pointer;font-size:0.9rem">Set password</button>
+    <button @click="$store.app.skipPasswordSetup()" style="width:100%;margin-top:0.5rem;padding:0.4rem;border:none;background:transparent;color:var(--text-dim,#888);cursor:pointer;font-size:0.85rem">Skip for now</button>
+  </div>
+</div>
+
 <div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode }">
   <!-- Sidebar — x-cloak prevents Firefox flash-hidden during Alpine init -->
   <nav class="sidebar" x-cloak :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen }">
@@ -4021,6 +4033,15 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               <div>
                 <div class="security-hero-title">Defense in Depth</div>
                 <div class="security-hero-desc">FreEco.ai implements 15 layered security features across the entire stack &mdash; from network ingress to agent sandboxing to cryptographic audit trails. Core protections cannot be disabled.</div>
+              </div>
+
+              <div class="card mb-4">
+                <div class="card-header">Dashboard password</div>
+                <p class="text-xs text-dim" style="margin:6px 0 12px">Changing your password requires your current password and signs in with the new password after restart.</p>
+                <div class="form-group"><label>Current password</label><input type="password" x-model="currentPassword" autocomplete="current-password"></div>
+                <div class="form-group"><label>New password</label><input type="password" x-model="passwordInput" minlength="12" autocomplete="new-password"></div>
+                <div class="form-group"><label>Confirm new password</label><input type="password" x-model="passwordConfirmation" minlength="12" autocomplete="new-password"></div>
+                <button class="btn btn-primary" @click="changePassword()" :disabled="passwordSaving" x-text="passwordSaving ? 'Saving...' : 'Change password'"></button>
               </div>
             </div>
 

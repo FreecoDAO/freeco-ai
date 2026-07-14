@@ -803,6 +803,10 @@ pub async fn build_router(
         // Dashboard authentication endpoints
         .route("/api/auth/login", axum::routing::post(routes::auth_login))
         .route("/api/auth/logout", axum::routing::post(routes::auth_logout))
+        .route(
+            "/api/auth/set-password",
+            axum::routing::post(routes::auth_set_password),
+        )
         .route("/api/auth/check", axum::routing::get(routes::auth_check))
         .layer(axum::middleware::from_fn_with_state(
             auth_state,
