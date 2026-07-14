@@ -32,9 +32,9 @@ def main() -> None:
     cargo_path = ROOT / "Cargo.toml"
     changelog_path = ROOT / "CHANGELOG.md"
     roadmap_path = ROOT / "ROADMAP.md"
-    cargo = cargo_path.read_text()
-    changelog = changelog_path.read_text()
-    roadmap = roadmap_path.read_text()
+    cargo = cargo_path.read_text(encoding="utf-8")
+    changelog = changelog_path.read_text(encoding="utf-8")
+    roadmap = roadmap_path.read_text(encoding="utf-8")
 
     version_match = VERSION_PATTERN.search(cargo)
     if version_match is None:
@@ -81,11 +81,11 @@ def main() -> None:
     )
 
     cargo = VERSION_PATTERN.sub(f'version = "{version}"', cargo, count=1)
-    cargo_path.write_text(cargo)
-    changelog_path.write_text(changelog)
-    roadmap_path.write_text(roadmap)
+    cargo_path.write_text(cargo, encoding="utf-8")
+    changelog_path.write_text(changelog, encoding="utf-8")
+    roadmap_path.write_text(roadmap, encoding="utf-8")
     if args.github_output:
-        with args.github_output.open("a") as output:
+        with args.github_output.open("a", encoding="utf-8") as output:
             output.write(f"previous_version={previous_version}\n")
             output.write(f"version={version}\n")
 

@@ -37,8 +37,14 @@ jobs:
     steps:
       - name: Require a release token
         run: |
-          test -n "$RELEASE_TOKEN" ||
-            { echo "Set RELEASE_TOKEN to a PAT that can write contents and trigger workflows."; exit 1; }
+          # RELEASE_TOKEN must be a fine-scoped PAT (contents:write + workflows).
+          # The default GITHUB_TOKEN cannot be used: GitHub blocks it from
+          # triggering the release.yml installer build when it pushes the tag.
+          # Add it at: repo Settings -> Secrets and variables -> Actions -> New secret.
+          test -n "$RELEASE_TOKEN" || {
+            echo "::error::RELEASE_TOKEN secret is not set. Add a PAT with contents:write + workflow scope so the pushed tag can trigger the installer build."
+            exit 1
+          }
 
       - uses: actions/checkout@v7
         with:
