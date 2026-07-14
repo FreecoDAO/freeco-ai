@@ -4140,6 +4140,7 @@ dependencies = [
 name = "openfang-api"
 version = "0.7.6"
 dependencies = [
+ "aes-gcm",
  "argon2",
  "async-trait",
  "axum",
@@ -4177,6 +4178,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]

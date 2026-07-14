@@ -100,6 +100,29 @@ fn default_security_approver() -> String {
     "operator".to_string()
 }
 
+/// Backup request. Retention is capped server-side.
+#[derive(Debug, Deserialize)]
+pub struct BackupRequest {
+    #[serde(default = "default_backup_retention")]
+    pub retention: usize,
+}
+
+fn default_backup_retention() -> usize {
+    7
+}
+
+/// Restore request for an archive created by this instance.
+#[derive(Debug, Deserialize)]
+pub struct RestoreRequest {
+    pub archive_name: String,
+    #[serde(default = "default_true")]
+    pub dry_run: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
 /// Request to update an agent's manifest.
 #[derive(Debug, Deserialize)]
 pub struct AgentUpdateRequest {

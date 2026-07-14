@@ -5616,8 +5616,37 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               </table>
             </div>
 
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-header">Company chart</div>
+              <div class="text-xs text-dim mb-3">Live teams, workflow state, approval queue, and sandbox posture.</div>
+              <div class="grid grid-cols-3 gap-4">
+                <div>
+                  <div class="stat-label">Agents</div>
+                  <div class="stat-value" x-text="company.teams && company.teams[0] ? company.teams[0].agents.length : 0"></div>
+                </div>
+                <div>
+                  <div class="stat-label">Workflows</div>
+                  <div class="stat-value" x-text="company.workflows.length"></div>
+                </div>
+                <div>
+                  <div class="stat-label">Security approvals</div>
+                  <div class="stat-value" x-text="company.approvals.security_pending"></div>
+                </div>
+              </div>
+              <table class="table" style="margin-top:12px">
+                <thead><tr><th>Agent</th><th>Team</th><th>State</th><th>Sandbox</th></tr></thead>
+                <tbody>
+                  <template x-for="agent in (company.teams && company.teams[0] ? company.teams[0].agents : [])" :key="agent.id">
+                    <tr><td x-text="agent.name"></td><td x-text="agent.team || 'Unassigned'"></td><td x-text="agent.state"></td><td x-text="agent.sandbox || 'default'"></td></tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
             <div class="flex gap-2">
               <button class="btn btn-ghost btn-sm" @click="loadData()">Refresh</button>
+              <button class="btn btn-primary btn-sm" @click="createBackup()">Encrypted backup</button>
+              <span class="text-xs text-dim" x-text="backupStatus"></span>
             </div>
           </div>
         </div>

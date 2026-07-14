@@ -94,7 +94,12 @@ impl SecurityService {
                 });
             }
         }
-        for marker in ["api_key =", "secret =", "private_key", "authorization: bearer"] {
+        for marker in [
+            "api_key =",
+            "secret =",
+            "private_key",
+            "authorization: bearer",
+        ] {
             if lower.contains(marker) {
                 findings.push(SecurityFinding {
                     severity: FindingSeverity::Warning,

@@ -15,6 +15,7 @@ use openfang_runtime::kernel_handle::KernelHandle;
 use openfang_runtime::tool_runner::builtin_tool_definitions;
 use openfang_types::agent::{AgentId, AgentIdentity, AgentManifest};
 use std::collections::HashMap;
+use std::path::Path as FsPath;
 use std::sync::{Arc, LazyLock};
 use std::time::Instant;
 
@@ -1099,6 +1100,58 @@ pub async fn list_security_audits(State(state): State<Arc<AppState>>) -> impl In
     Json(serde_json::json!({ "audits": state.security.audits() }))
 }
 
+/// GET /api/company-chart — Live organization model for the dashboard.
+pub async fn company_chart(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let agents: Vec<_> = state
+        .kernel
+        .registry
+        .list()
+        .into_iter()
+        .map(|entry| {
+            serde_json::json!({
+                "id": entry.id.to_string(),
+                "name": entry.name,
+                "team": entry.manifest.profile,
+                "state": format!("{:?}", entry.state),
+                "sandbox": format!("{:?}", entry.manifest.exec_policy),
+                "is_inferencing": state.kernel.running_tasks.contains_key(&entry.id),
+            })
+        })
+        .collect();
+    let workflows: Vec<_> = state
+        .kernel
+        .workflows
+        .list_workflows()
+        .await
+        .into_iter()
+        .map(|workflow| {
+            serde_json::json!({
+                "id": workflow.id.to_string(),
+                "name": workflow.name,
+                "steps": workflow.steps.len(),
+                "state": "registered",
+            })
+        })
+        .collect();
+    let pending_security = state
+        .security
+        .audits()
+        .into_iter()
+        .filter(|audit| {
+            matches!(
+                audit.decision,
+                crate::security::SecurityDecision::PendingApproval
+            )
+        })
+        .count();
+    Json(serde_json::json!({
+        "teams": [{"name": "Unassigned", "agents": agents}],
+        "workflows": workflows,
+        "approvals": {"security_pending": pending_security},
+        "sandbox": {"wasm": "capability-based", "docker": "configured per agent"},
+    }))
+}
+
 /// POST /api/security/scan — Scan agent, workflow, chart, or configuration content.
 pub async fn scan_security_content(
     State(state): State<Arc<AppState>>,
@@ -1107,14 +1160,19 @@ pub async fn scan_security_content(
     if req.subject.trim().is_empty() || req.content.len() > 1024 * 1024 {
         return (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Subject is required and content must not exceed 1MB"})),
+            Json(
+                serde_json::json!({"error": "Subject is required and content must not exceed 1MB"}),
+            ),
         );
     }
     let audit = state.security.scan(&req.subject, &req.content);
     state.kernel.audit_log.record(
         "security-agent",
         openfang_runtime::audit::AuditAction::CapabilityCheck,
-        format!("manual security scan {} ({})", audit.subject, audit.content_hash),
+        format!(
+            "manual security scan {} ({})",
+            audit.subject, audit.content_hash
+        ),
         format!("{:?}", audit.decision),
     );
     (StatusCode::OK, Json(serde_json::json!(audit)))
@@ -1144,7 +1202,84 @@ pub async fn approve_security_content(
         format!("security approval {}", content_hash),
         req.approved_by,
     );
-    (StatusCode::OK, Json(serde_json::json!({"status": "approved"})))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status": "approved"})),
+    )
+}
+
+/// POST /api/backups — Create an authenticated encrypted recovery archive.
+pub async fn create_backup(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<BackupRequest>,
+) -> impl IntoResponse {
+    let db_path = state
+        .kernel
+        .config
+        .memory
+        .sqlite_path
+        .clone()
+        .unwrap_or_else(|| state.kernel.config.data_dir.join("openfang.db"));
+    match crate::backup::create_backup(
+        &state.kernel.config.home_dir,
+        &state.kernel.config.data_dir,
+        &db_path,
+        req.retention.min(365),
+    ) {
+        Ok(result) => {
+            state.kernel.audit_log.record(
+                "security-agent",
+                openfang_runtime::audit::AuditAction::ConfigChange,
+                "encrypted backup created",
+                result.path.clone(),
+            );
+            (StatusCode::CREATED, Json(serde_json::json!(result)))
+        }
+        Err(error) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": error})),
+        ),
+    }
+}
+
+/// POST /api/backups/restore — Verify or stage an encrypted recovery archive.
+pub async fn restore_backup(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<RestoreRequest>,
+) -> impl IntoResponse {
+    if req.archive_name.is_empty()
+        || FsPath::new(&req.archive_name)
+            .file_name()
+            .and_then(|n| n.to_str())
+            != Some(&req.archive_name)
+        || !req.archive_name.ends_with(".ofbak")
+    {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Invalid archive name"})),
+        );
+    }
+    let archive = state
+        .kernel
+        .config
+        .home_dir
+        .join("backups")
+        .join(req.archive_name);
+    match crate::backup::restore_backup(&state.kernel.config.home_dir, &archive, req.dry_run) {
+        Ok(result) => {
+            state.kernel.audit_log.record(
+                "security-agent",
+                openfang_runtime::audit::AuditAction::ConfigChange,
+                "encrypted backup restore verified",
+                format!("dry_run={}", result.dry_run),
+            );
+            (StatusCode::OK, Json(serde_json::json!(result)))
+        }
+        Err(error) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": error})),
+        ),
+    }
 }
 
 /// POST /api/workflows/:id/run — Execute a workflow.
@@ -1245,6 +1380,18 @@ pub async fn update_workflow(
     Path(id): Path<String>,
     Json(req): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    let raw_workflow = match serde_json::to_string(&req) {
+        Ok(raw) => raw,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "Invalid workflow payload"})),
+            )
+        }
+    };
+    if let Err(response) = security_gate(&state, "workflow-update", &raw_workflow) {
+        return response;
+    }
     let workflow_id = WorkflowId(match id.parse() {
         Ok(u) => u,
         Err(_) => {
