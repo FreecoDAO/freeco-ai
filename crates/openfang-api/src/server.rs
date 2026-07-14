@@ -55,6 +55,7 @@ pub async fn build_router(
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
+        security: Arc::new(crate::security::SecurityService::default()),
     });
 
     // Start WS cron broadcaster — subscribes to kernel event bus and pushes
@@ -382,6 +383,18 @@ pub async fn build_router(
         .route(
             "/api/workflows/{id}/runs",
             axum::routing::get(routes::list_workflow_runs),
+        )
+        .route(
+            "/api/security/audits",
+            axum::routing::get(routes::list_security_audits),
+        )
+        .route(
+            "/api/security/scan",
+            axum::routing::post(routes::scan_security_content),
+        )
+        .route(
+            "/api/security/approve/{content_hash}",
+            axum::routing::post(routes::approve_security_content),
         )
         // Skills endpoints
         .route("/api/skills", axum::routing::get(routes::list_skills))

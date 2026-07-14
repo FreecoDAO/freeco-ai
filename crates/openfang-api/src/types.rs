@@ -82,6 +82,24 @@ pub struct SkillUninstallRequest {
     pub name: String,
 }
 
+/// Content submitted for a pre-import security scan.
+#[derive(Debug, Deserialize)]
+pub struct SecurityScanRequest {
+    pub subject: String,
+    pub content: String,
+}
+
+/// Operator approval for a warning-only security finding.
+#[derive(Debug, Deserialize)]
+pub struct SecurityApprovalRequest {
+    #[serde(default = "default_security_approver")]
+    pub approved_by: String,
+}
+
+fn default_security_approver() -> String {
+    "operator".to_string()
+}
+
 /// Request to update an agent's manifest.
 #[derive(Debug, Deserialize)]
 pub struct AgentUpdateRequest {

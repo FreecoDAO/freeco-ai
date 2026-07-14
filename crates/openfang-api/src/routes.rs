@@ -51,6 +51,39 @@ pub struct AppState {
     /// Agents suspended by the current emergency freeze. This preserves any
     /// agents that were already suspended before the emergency stop.
     pub frozen_agents: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<AgentId>>>,
+    /// Admission-control scanner for imported agents, workflows, and charts.
+    pub security: Arc<crate::security::SecurityService>,
+}
+
+fn security_gate(
+    state: &AppState,
+    subject: &str,
+    content: &str,
+) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+    let audit = state.security.scan(subject, content);
+    state.kernel.audit_log.record(
+        "security-agent",
+        openfang_runtime::audit::AuditAction::CapabilityCheck,
+        format!("security scan {} ({})", audit.subject, audit.content_hash),
+        format!("{:?}", audit.decision),
+    );
+    match audit.decision {
+        crate::security::SecurityDecision::Allowed => Ok(()),
+        crate::security::SecurityDecision::PendingApproval => Err((
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "error": "Security approval required",
+                "audit": audit,
+            })),
+        )),
+        crate::security::SecurityDecision::Quarantined => Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "error": "Content quarantined by Security Agent",
+                "audit": audit,
+            })),
+        )),
+    }
 }
 
 /// POST /api/agents — Spawn a new agent.
@@ -114,6 +147,9 @@ pub async fn spawn_agent(
             StatusCode::PAYLOAD_TOO_LARGE,
             Json(serde_json::json!({"error": "Manifest too large (max 1MB)"})),
         );
+    }
+    if let Err(response) = security_gate(&state, "agent-manifest", &manifest_toml) {
+        return response;
     }
 
     // SECURITY: Verify Ed25519 signature when a signed manifest is provided
@@ -931,6 +967,18 @@ pub async fn create_workflow(
     State(state): State<Arc<AppState>>,
     Json(req): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    let raw_workflow = match serde_json::to_string(&req) {
+        Ok(raw) => raw,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "Invalid workflow payload"})),
+            )
+        }
+    };
+    if let Err(response) = security_gate(&state, "workflow", &raw_workflow) {
+        return response;
+    }
     let name = req["name"].as_str().unwrap_or("unnamed").to_string();
     let description = req["description"].as_str().unwrap_or("").to_string();
 
@@ -1044,6 +1092,59 @@ pub async fn list_workflows(State(state): State<Arc<AppState>>) -> impl IntoResp
         })
         .collect();
     Json(list)
+}
+
+/// GET /api/security/audits — Recent Security Agent decisions.
+pub async fn list_security_audits(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    Json(serde_json::json!({ "audits": state.security.audits() }))
+}
+
+/// POST /api/security/scan — Scan agent, workflow, chart, or configuration content.
+pub async fn scan_security_content(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<SecurityScanRequest>,
+) -> impl IntoResponse {
+    if req.subject.trim().is_empty() || req.content.len() > 1024 * 1024 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Subject is required and content must not exceed 1MB"})),
+        );
+    }
+    let audit = state.security.scan(&req.subject, &req.content);
+    state.kernel.audit_log.record(
+        "security-agent",
+        openfang_runtime::audit::AuditAction::CapabilityCheck,
+        format!("manual security scan {} ({})", audit.subject, audit.content_hash),
+        format!("{:?}", audit.decision),
+    );
+    (StatusCode::OK, Json(serde_json::json!(audit)))
+}
+
+/// POST /api/security/approve/:content_hash — Approve a warning-only scan result.
+pub async fn approve_security_content(
+    State(state): State<Arc<AppState>>,
+    Path(content_hash): Path<String>,
+    Json(req): Json<SecurityApprovalRequest>,
+) -> impl IntoResponse {
+    if !content_hash.chars().all(|c| c.is_ascii_hexdigit()) || content_hash.len() != 64 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Invalid content hash"})),
+        );
+    }
+    if !state.security.approve(&content_hash, &req.approved_by) {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Security audit not found"})),
+        );
+    }
+    state.kernel.audit_log.record(
+        "security-agent",
+        openfang_runtime::audit::AuditAction::CapabilityCheck,
+        format!("security approval {}", content_hash),
+        req.approved_by,
+    );
+    (StatusCode::OK, Json(serde_json::json!({"status": "approved"})))
 }
 
 /// POST /api/workflows/:id/run — Execute a workflow.
