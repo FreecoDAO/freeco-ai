@@ -698,6 +698,13 @@ Anthropic, Gemini, OpenAI, Groq, DeepSeek, OpenRouter, Together, Mistral, Firewo
 
 Intelligent routing with task complexity scoring, automatic fallback, cost tracking, and per-model pricing.
 
+### Tune an agent in the dashboard
+
+Open an agent's **Config** tab to view and update every model setting: provider,
+model, system prompt, output-token limit, temperature, API-key environment
+variable, and provider base URL. Changes persist across restarts and apply to
+the agent's next request.
+
 ---
 
 ## Migrate from OpenClaw

@@ -14,6 +14,8 @@ document.addEventListener('alpine:init', function() {
       logLevel: '-',
       networkEnabled: false,
       providers: [],
+      company: { teams: [], workflows: [], approvals: { security_pending: 0 } },
+      backupStatus: '',
 
       async loadData() {
         this.loading = true;
@@ -22,12 +24,14 @@ document.addEventListener('alpine:init', function() {
             OpenFangAPI.get('/api/status'),
             OpenFangAPI.get('/api/version'),
             OpenFangAPI.get('/api/providers'),
-            OpenFangAPI.get('/api/agents')
+            OpenFangAPI.get('/api/agents'),
+            OpenFangAPI.get('/api/company-chart')
           ]);
           var status = results[0];
           var ver = results[1];
           var prov = results[2];
           var agents = results[3];
+          this.company = results[4] || this.company;
 
           this.version = ver.version || '-';
           this.platform = ver.platform || '-';
@@ -53,6 +57,18 @@ document.addEventListener('alpine:init', function() {
           console.error('Runtime load error:', e);
         }
         this.loading = false;
+      },
+
+      async createBackup() {
+        this.backupStatus = 'Creating encrypted backup...';
+        try {
+          var result = await OpenFangAPI.post('/api/backups', { retention: 7 });
+          this.backupStatus = 'Backup created: ' + result.files + ' files';
+          OpenFangToast.success(this.backupStatus);
+        } catch (e) {
+          this.backupStatus = 'Backup failed';
+          OpenFangToast.error('Encrypted backup failed');
+        }
       }
     };
   });
