@@ -6,7 +6,7 @@
 <h3 align="center">The Sustainable Ethical Agentic Operating System</h3>
 
 <p align="center">
-  Open-source Agent OS built in Rust. 137K LOC. 14 crates. 1,767+ tests. Zero clippy warnings.<br/>
+  Open-source Agent OS built in Rust. 207K Rust LOC. 22 crates plus xtask. 2,846+ tests. Zero clippy warnings.<br/>
   <strong>One binary. Battle-tested. Agents that work for you, your business, and your family.</strong>
 </p>
 
@@ -572,7 +572,7 @@ openfang-api         140+ REST/WS/SSE endpoints, OpenAI-compatible API, dashboar
 openfang-channels    40 messaging adapters with rate limiting, DM/group policies
 openfang-memory      SQLite persistence, vector embeddings, canonical sessions, compaction
 openfang-types       Core types, taint tracking, Ed25519 manifest signing, model catalog
-openfang-skills      60 bundled skills, SKILL.md parser, FangHub marketplace
+openfang-skills      61 bundled skills, SKILL.md parser, FangHub marketplace
 openfang-hands       7 autonomous Hands, HAND.toml parser, lifecycle management
 openfang-extensions  25 MCP templates, AES-256-GCM credential vault, OAuth2 PKCE
 openfang-wire        OFP P2P protocol with HMAC-SHA256 mutual authentication
@@ -781,7 +781,7 @@ openfang start
 # Build the workspace
 cargo build --workspace --lib
 
-# Run all tests (1,767+)
+# Run all tests (2,846+)
 cargo test --workspace
 
 # Lint (must be 0 warnings)

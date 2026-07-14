@@ -114,9 +114,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Install trufflehog
+      - name: Install TruffleHog v3.95.9
         run: |
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL -o /tmp/trufflehog.tar.gz \
+            https://github.com/trufflesecurity/trufflehog/releases/download/v3.95.9/trufflehog_3.95.9_linux_amd64.tar.gz
+          echo "f6d1106b85107d79527ed7a5b98b592beadd8b770dc3c9e8c1ad99e1b2cf127e  /tmp/trufflehog.tar.gz" | sha256sum --check
+          tar -xzf /tmp/trufflehog.tar.gz -C /usr/local/bin trufflehog
       - name: Scan for secrets
         run: |
           trufflehog filesystem . \

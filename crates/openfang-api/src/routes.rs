@@ -3214,8 +3214,9 @@ async fn gateway_http_post(url_with_path: &str) -> Result<serde_json::Value, Str
         .await
         .map_err(|e| format!("Connect failed: {e}"))?;
 
+    let authorization = gateway_authorization_header();
     let req = format!(
-        "POST {path} HTTP/1.1\r\nHost: {host}:{port}\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}"
+        "POST {path} HTTP/1.1\r\nHost: {host}:{port}\r\nContent-Type: application/json\r\n{authorization}Content-Length: 2\r\nConnection: close\r\n\r\n{{}}"
     );
     stream
         .write_all(req.as_bytes())
@@ -3261,8 +3262,9 @@ async fn gateway_http_get(url_with_path: &str) -> Result<serde_json::Value, Stri
         .await
         .map_err(|e| format!("Connect failed: {e}"))?;
 
+    let authorization = gateway_authorization_header();
     let req = format!(
-        "GET {path_and_query} HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n"
+        "GET {path_and_query} HTTP/1.1\r\nHost: {host}:{port}\r\n{authorization}Connection: close\r\n\r\n"
     );
     stream
         .write_all(req.as_bytes())
@@ -3282,6 +3284,14 @@ async fn gateway_http_get(url_with_path: &str) -> Result<serde_json::Value, Stri
     } else {
         Err("No HTTP body in response".to_string())
     }
+}
+
+fn gateway_authorization_header() -> String {
+    std::env::var("WHATSAPP_GATEWAY_TOKEN")
+        .ok()
+        .filter(|token| !token.is_empty())
+        .map(|token| ["Authorization", ": Bearer ", token.as_str(), "\r\n"].concat())
+        .unwrap_or_default()
 }
 
 // ---------------------------------------------------------------------------
@@ -12794,6 +12804,141 @@ pub async fn auth_logout() -> impl IntoResponse {
     )
 }
 
+/// POST /api/auth/set-password — Set the initial dashboard password or change it.
+///
+/// Initial setup is restricted to loopback clients. Once configured, a valid
+/// dashboard session and the current password are required to make a change.
+pub async fn auth_set_password(
+    State(state): State<Arc<AppState>>,
+    axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let password = req.get("password").and_then(|v| v.as_str()).unwrap_or("");
+    if password.len() < 12 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": "Password must be at least 12 characters long"
+            })),
+        );
+    }
+
+    let config_path = state.kernel.config.home_dir.join("config.toml");
+    let mut table: toml::value::Table = if config_path.exists() {
+        let content = match std::fs::read_to_string(&config_path) {
+            Ok(content) => content,
+            Err(_) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": "Could not read configuration"})),
+                );
+            }
+        };
+        match toml::from_str(&content) {
+            Ok(table) => table,
+            Err(_) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": "Could not parse configuration"})),
+                );
+            }
+        }
+    } else {
+        toml::value::Table::new()
+    };
+
+    let auth_table = table
+        .entry("auth".to_string())
+        .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
+    let Some(auth) = auth_table.as_table_mut() else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Invalid authentication configuration"})),
+        );
+    };
+    let password_hash = auth
+        .get("password_hash")
+        .and_then(toml::Value::as_str)
+        .unwrap_or("");
+    let username = auth
+        .get("username")
+        .and_then(toml::Value::as_str)
+        .unwrap_or("admin");
+
+    if password_hash.is_empty() {
+        if !peer.ip().is_loopback() {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(
+                    serde_json::json!({"error": "Initial password setup is only available from this device"}),
+                ),
+            );
+        }
+    } else {
+        let current_password = req
+            .get("current_password")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let secret = {
+            let api_key = state.kernel.config.api_key.trim();
+            if api_key.is_empty() {
+                password_hash
+            } else {
+                api_key
+            }
+        };
+        let session_user = crate::session_auth::extract_session_cookie(&headers)
+            .and_then(|token| crate::session_auth::verify_session_token(&token, secret));
+        if session_user.as_deref() != Some(username)
+            || !crate::session_auth::verify_password(current_password, password_hash)
+        {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "Current credentials are invalid"})),
+            );
+        }
+    }
+
+    auth.insert("enabled".to_string(), toml::Value::Boolean(true));
+    auth.insert(
+        "password_hash".to_string(),
+        toml::Value::String(crate::session_auth::hash_password(password)),
+    );
+    auth.entry("username".to_string())
+        .or_insert_with(|| toml::Value::String("admin".to_string()));
+
+    let toml_string = match toml::to_string_pretty(&table) {
+        Ok(value) => value,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "Could not save configuration"})),
+            );
+        }
+    };
+    if std::fs::write(&config_path, toml_string).is_err() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Could not save configuration"})),
+        );
+    }
+
+    state.kernel.audit_log.record(
+        "system",
+        openfang_runtime::audit::AuditAction::ConfigChange,
+        "dashboard password updated",
+        "completed",
+    );
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "status": "ok",
+            "restart_required": true,
+        })),
+    )
+}
+
 /// GET /api/auth/check — Check current authentication state.
 pub async fn auth_check(
     State(state): State<Arc<AppState>>,
@@ -12804,6 +12949,7 @@ pub async fn auth_check(
         return Json(serde_json::json!({
             "authenticated": true,
             "mode": "none",
+            "password_configured": false,
         }));
     }
 
@@ -12824,11 +12970,13 @@ pub async fn auth_check(
             "authenticated": true,
             "mode": "session",
             "username": username,
+            "password_configured": true,
         }))
     } else {
         Json(serde_json::json!({
             "authenticated": false,
             "mode": "session",
+            "password_configured": true,
         }))
     }
 }

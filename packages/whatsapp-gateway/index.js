@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import http from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +18,8 @@ const __dirname = path.dirname(__filename);
 const PORT = parseInt(process.env.WHATSAPP_GATEWAY_PORT || '3009', 10);
 const OPENFANG_URL = (process.env.OPENFANG_URL || 'http://127.0.0.1:4200').replace(/\/+$/, '');
 const DEFAULT_AGENT = process.env.OPENFANG_DEFAULT_AGENT || 'assistant';
+const GATEWAY_TOKEN = process.env.WHATSAPP_GATEWAY_TOKEN || '';
+const OPENFANG_API_KEY = process.env.OPENFANG_API_KEY || '';
 
 // ---------------------------------------------------------------------------
 // State
@@ -199,10 +201,14 @@ function forwardToOpenFang(text, phone, pushName, metadata) {
         port: url.port || 4200,
         path: url.pathname,
         method: 'POST',
-        headers: {
+        headers: (() => {
+          const headers = {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
-        },
+          };
+          if (OPENFANG_API_KEY) headers.Authorization = ['Bearer', OPENFANG_API_KEY].join(' ');
+          return headers;
+        })(),
         timeout: 120_000, // LLM calls can be slow
       },
       (res) => {
@@ -267,18 +273,32 @@ function jsonResponse(res, status, data) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(body),
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': OPENFANG_URL,
+    'Vary': 'Origin',
   });
   res.end(body);
+}
+
+function hasValidToken(req) {
+  const authorization = req.headers.authorization || '';
+  const supplied = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+  if (!GATEWAY_TOKEN || !supplied) return false;
+  const expected = Buffer.from(GATEWAY_TOKEN);
+  const actual = Buffer.from(supplied);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 const server = http.createServer(async (req, res) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
+    if (req.headers.origin !== OPENFANG_URL) {
+      return jsonResponse(res, 403, { error: 'Untrusted origin' });
+    }
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': OPENFANG_URL,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Vary': 'Origin',
     });
     return res.end();
   }
@@ -287,6 +307,10 @@ const server = http.createServer(async (req, res) => {
   const pathname = url.pathname;
 
   try {
+    if (!hasValidToken(req)) {
+      return jsonResponse(res, 401, { error: 'Unauthorized' });
+    }
+
     // POST /login/start — start Baileys connection, return QR
     if (req.method === 'POST' && pathname === '/login/start') {
       // If already connected, just return success

@@ -1,0 +1,136 @@
+name: Prepare release
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Release increment (auto derives from the merged PR title)
+        required: true
+        default: auto
+        type: choice
+        options: [auto, patch, minor, major]
+
+permissions:
+  contents: write
+  issues: write
+  repository-projects: write
+
+jobs:
+  prepare:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release'))
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      REQUESTED_BUMP: ${{ inputs.bump }}
+      REPOSITORY: ${{ github.repository }}
+      PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+      PROJECT_STATUS_FIELD: ${{ vars.PROJECT_STATUS_FIELD }}
+      PROJECT_RELEASED_OPTION: ${{ vars.PROJECT_RELEASED_OPTION }}
+    steps:
+      - name: Require a release token
+        run: |
+          test -n "$RELEASE_TOKEN" ||
+            { echo "Set RELEASE_TOKEN to a PAT that can write contents and trigger workflows."; exit 1; }
+
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ secrets.RELEASE_TOKEN }}
+          fetch-depth: 0
+
+      - name: Determine the semantic version increment
+        id: bump
+        run: |
+          bump="$REQUESTED_BUMP"
+          if [ "$bump" = "auto" ] || [ -z "$bump" ]; then
+            case "$PR_TITLE" in
+              *"!"*|*"BREAKING CHANGE"*) bump=major ;;
+              feat*|feature*) bump=minor ;;
+              *) bump=patch ;;
+            esac
+          fi
+          echo "value=$bump" >> "$GITHUB_OUTPUT"
+
+      - name: Update release metadata
+        id: metadata
+        run: |
+          python3 scripts/prepare_release_metadata.py \
+            --bump "${{ steps.bump.outputs.value }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Commit and tag the release
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml CHANGELOG.md ROADMAP.md
+          git commit -m "chore(release): v$VERSION"
+          git tag --annotate "v$VERSION" --message "v$VERSION"
+          git push origin HEAD:main --follow-tags
+
+      - name: Close current and create next milestone
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS_VERSION: ${{ steps.metadata.outputs.previous_version }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          current_milestone="$(gh api "/repos/$REPOSITORY/milestones?state=open&per_page=100" \
+            --jq ".[] | select(.title == \"v$PREVIOUS_VERSION\") | .number")"
+          if [ -n "$current_milestone" ]; then
+            gh api --method PATCH "/repos/$REPOSITORY/milestones/$current_milestone" -f state=closed
+          fi
+          next_milestone="$(gh api "/repos/$REPOSITORY/milestones?state=all&per_page=100" \
+            --jq ".[] | select(.title == \"v$VERSION\") | .number")"
+          if [ -z "$next_milestone" ]; then
+            gh api --method POST "/repos/$REPOSITORY/milestones" \
+              -f "title=v$VERSION" -f "description=Release v$VERSION"
+          fi
+
+      - name: Update configured GitHub Project items
+        if: env.PROJECTS_TOKEN != '' && env.PROJECT_NUMBER != '' && env.PROJECT_STATUS_FIELD != '' && env.PROJECT_RELEASED_OPTION != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+          PREVIOUS_VERSION: ${{ steps.metadata.outputs.previous_version }}
+        run: |
+          project_id="$(gh api graphql -f query='
+            query($owner: String!, $number: Int!) {
+              user(login: $owner) { projectV2(number: $number) { id } }
+            }' -f owner="${{ github.repository_owner }}" -F number="$PROJECT_NUMBER" \
+            --jq '.data.user.projectV2.id')"
+          gh api graphql -f query='
+            query($project: ID!) {
+              node(id: $project) {
+                ... on ProjectV2 {
+                  items(first: 100) {
+                    nodes {
+                      id
+                      content { ... on Issue { milestone { title } } }
+                    }
+                  }
+                }
+              }
+            }' -f project="$project_id" > "$RUNNER_TEMP/project.json"
+          jq -r --arg version "v$PREVIOUS_VERSION" \
+            '.data.node.items.nodes[] | select(.content.milestone.title == $version) | .id' \
+            "$RUNNER_TEMP/project.json" |
+            while read -r item_id; do
+              [ -n "$item_id" ] || continue
+              gh api graphql -f query='
+                mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $project, itemId: $item, fieldId: $field,
+                    value: { singleSelectOptionId: $option }
+                  }) { projectV2Item { id } }
+                }' -f project="$project_id" -f item="$item_id" \
+                -f field="$PROJECT_STATUS_FIELD" -f option="$PROJECT_RELEASED_OPTION"
+            done
