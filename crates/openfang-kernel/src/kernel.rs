@@ -2918,7 +2918,20 @@ impl OpenFangKernel {
                 system: Some(manifest.model.system_prompt.clone()),
                 thinking: None,
             };
-            let (complexity, routed_model) = router.select_model(&probe);
+            let contains_sensitive_data = Self::contains_sensitive_data(message)
+                || Self::contains_sensitive_data(&manifest.model.system_prompt);
+            let catalog = self.model_catalog.read().unwrap_or_else(|e| e.into_inner());
+            let decision = router
+                .select_policy_model(&probe, &catalog, contains_sensitive_data)
+                .map_err(|error| KernelError::OpenFang(OpenFangError::InvalidInput(error)))?;
+            drop(catalog);
+            let complexity = decision.complexity;
+            let routed_model = decision.model;
+            if decision.requires_confirmation {
+                return Err(KernelError::OpenFang(OpenFangError::InvalidInput(
+                    "frontier model routing requires explicit user confirmation".to_string(),
+                )));
+            }
             info!(
                 agent = %manifest.name,
                 complexity = %complexity,
@@ -3046,6 +3059,23 @@ impl OpenFangKernel {
         }
 
         Ok(result)
+    }
+
+    /// Conservatively identify common secret and PII forms before any remote routing.
+    /// The value is deliberately not logged or retained by this check.
+    fn contains_sensitive_data(value: &str) -> bool {
+        let lower = value.to_ascii_lowercase();
+        lower.contains("-----begin ")
+            || lower.contains("api_key")
+            || lower.contains("api key")
+            || lower.contains("password")
+            || lower.contains("secret")
+            || lower.contains("authorization: bearer")
+            || lower.contains("ssn")
+            || value.split_whitespace().any(|word| {
+                let parts: Vec<_> = word.split('@').collect();
+                parts.len() == 2 && !parts[0].is_empty() && parts[1].contains('.')
+            })
     }
 
     /// Resolve a module path relative to the kernel's home directory.
