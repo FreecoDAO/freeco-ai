@@ -1,6 +1,6 @@
 # FreEco.ai Roadmap & verified status
 
-_Last verified: **2026-07-14** against this repository's `v0.7.5` tag,
+_Last verified: **2026-07-14** against this repository's `v0.7.6` tag,
 workspace manifest, changelog, and source tree._
 
 ## Status legend
@@ -9,7 +9,7 @@ workspace manifest, changelog, and source tree._
 - 🟨 **Unreleased** — merged on the current branch, not yet tagged.
 - 📋 **Planned** — intended work that is not implemented.
 
-## Shipped in v0.7.5
+## Shipped in v0.7.6
 
 - ✅ Local-first Agent OS with desktop and CLI clients.
 - ✅ Multi-agent workflows, approvals, budgets, audit records, and channel
@@ -19,15 +19,14 @@ workspace manifest, changelog, and source tree._
 - ✅ Cloud-data disclosure confirmation and plain-language approval
   consequences.
 - ✅ Shell-execution policy gate verification.
+- ✅ Operational API authentication hardening, including the audit-log SSE
+  stream.
+- ✅ Token-authenticated, loopback-only WhatsApp Web gateway with a trusted
+  local browser origin.
+- ✅ Reproducible TruffleHog CI installation with a pinned checksum.
+- ✅ Operator and contributor documentation in `wiki/`.
 
 ## Unreleased
-
-- 🟨 Operational API authentication hardening, including the audit-log SSE
-  stream.
-- 🟨 Token-authenticated, loopback-only WhatsApp Web gateway with a trusted
-  local browser origin.
-- 🟨 Reproducible TruffleHog CI installation with a pinned checksum.
-- 🟨 Operator and contributor documentation in `wiki/`.
 
 ## Planned
 

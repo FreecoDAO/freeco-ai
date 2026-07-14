@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-07-14
+
 ### Fixed
 
 - **"Update check failed: Failed to fetch"**: the dashboard page's Content-Security-Policy (`connect-src`) did not include `https://api.github.com`, so the Settings → Software Updates check was blocked by CSP. Added the GitHub API host to the dashboard CSP (it was already allowed in the Tauri shell CSP, but the page-level CSP is the one that governs the fetch).
-
 
 ## [0.7.5] - 2026-07-11
 
