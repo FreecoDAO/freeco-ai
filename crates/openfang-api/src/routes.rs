@@ -10360,12 +10360,11 @@ pub async fn patch_agent_config(
         }
     }
 
-    if req.max_tokens.is_some()
+    if (req.max_tokens.is_some()
         || req.temperature.is_some()
         || req.api_key_env.is_some()
-        || req.base_url.is_some()
-    {
-        if state
+        || req.base_url.is_some())
+        && state
             .kernel
             .registry
             .update_model_tuning(
@@ -10378,12 +10377,11 @@ pub async fn patch_agent_config(
                     .map(|value| (!value.is_empty()).then_some(value)),
             )
             .is_err()
-        {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({"error": "Agent not found"})),
-            );
-        }
+    {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Agent not found"})),
+        );
     }
 
     // Update fallback model chain
