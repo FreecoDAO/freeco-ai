@@ -8854,17 +8854,25 @@ fn write_secret_env(path: &std::path::Path, key: &str, value: &str) -> Result<()
             _ => String::new(),
         };
         if !user.is_empty() {
-            let system_root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
-            let icacls = std::path::PathBuf::from(system_root).join("System32").join("icacls.exe");
+            let system_root =
+                std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+            let icacls = std::path::PathBuf::from(system_root)
+                .join("System32")
+                .join("icacls.exe");
             let out = std::process::Command::new(icacls)
                 .arg(path)
                 .args(["/inheritance:r", "/grant:r", &format!("{user}:F")])
                 .output()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("icacls failed: {e}")))?;
+                .map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, format!("icacls failed: {e}"))
+                })?;
             if !out.status.success() {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
-                    format!("icacls failed: {}", String::from_utf8_lossy(&out.stderr).trim()),
+                    format!(
+                        "icacls failed: {}",
+                        String::from_utf8_lossy(&out.stderr).trim()
+                    ),
                 ));
             }
         }

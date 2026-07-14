@@ -197,8 +197,11 @@ fn write_env_file(path: &PathBuf, entries: &BTreeMap<String, String>) -> Result<
             _ => String::new(),
         };
         if !user.is_empty() {
-            let system_root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
-            let icacls = std::path::PathBuf::from(system_root).join("System32").join("icacls.exe");
+            let system_root =
+                std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+            let icacls = std::path::PathBuf::from(system_root)
+                .join("System32")
+                .join("icacls.exe");
             let out = std::process::Command::new(icacls)
                 .arg(path)
                 .args(["/inheritance:r", "/grant:r", &format!("{user}:F")])
