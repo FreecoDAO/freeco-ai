@@ -1064,6 +1064,7 @@ async fn start_test_server_with_auth(api_key: &str) -> TestServer {
             "/api/workflows/{id}/runs",
             axum::routing::get(routes::list_workflow_runs),
         )
+        .route("/api/logs/stream", axum::routing::get(routes::logs_stream))
         .route("/api/shutdown", axum::routing::post(routes::shutdown))
         .layer(axum::middleware::from_fn_with_state(
             auth_state,
