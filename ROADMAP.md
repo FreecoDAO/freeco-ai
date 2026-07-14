@@ -28,10 +28,14 @@ workspace manifest, changelog, and source tree._
 
 ## Unreleased
 
+- 🟨 Dashboard agent configuration now presents and updates all persisted model
+  settings, including provider, model, output-token limit, temperature, API-key
+  environment variable, and provider base URL.
+
 ## Planned
 
 - 📋 Emergency-freeze control on every dashboard screen.
-- 📋 Agent tuning and deletion-confirmation UI.
+- 📋 Agent deletion-confirmation UI.
 - 📋 Automated backup and recovery workflows.
 - 📋 Company chart and live multi-agent view.
 - 📋 Global assistant widget and voice experience.

@@ -1773,6 +1773,10 @@ pub async fn get_agent(
             "model": {
                 "provider": entry.manifest.model.provider,
                 "model": entry.manifest.model.model,
+                "max_tokens": entry.manifest.model.max_tokens,
+                "temperature": entry.manifest.model.temperature,
+                "api_key_env": entry.manifest.model.api_key_env,
+                "base_url": entry.manifest.model.base_url,
             },
             "capabilities": {
                 "tools": entry.manifest.capabilities.tools,
@@ -10094,7 +10098,7 @@ pub async fn update_agent_identity(
 // Agent Config Hot-Update
 // ---------------------------------------------------------------------------
 
-/// Request body for patching agent config (name, description, prompt, identity, model).
+/// Request body for patching agent config (identity and complete model configuration).
 #[derive(serde::Deserialize)]
 pub struct PatchAgentConfigRequest {
     pub name: Option<String>,
@@ -10110,10 +10114,12 @@ pub struct PatchAgentConfigRequest {
     pub provider: Option<String>,
     pub api_key_env: Option<String>,
     pub base_url: Option<String>,
+    pub max_tokens: Option<u32>,
+    pub temperature: Option<f32>,
     pub fallback_models: Option<Vec<openfang_types::agent::FallbackModel>>,
 }
 
-/// PATCH /api/agents/{id}/config — Hot-update agent name, description, system prompt, and identity.
+/// PATCH /api/agents/{id}/config — Hot-update agent configuration.
 pub async fn patch_agent_config(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
@@ -10161,6 +10167,47 @@ pub async fn patch_agent_config(
                 Json(
                     serde_json::json!({"error": format!("System prompt exceeds max length ({MAX_PROMPT_LEN} chars)")}),
                 ),
+            );
+        }
+    }
+    if let Some(max_tokens) = req.max_tokens {
+        if max_tokens == 0 {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "max_tokens must be greater than zero"})),
+            );
+        }
+    }
+    if let Some(temperature) = req.temperature {
+        if !temperature.is_finite() || !(0.0..=2.0).contains(&temperature) {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "temperature must be between 0.0 and 2.0"})),
+            );
+        }
+    }
+    if let Some(ref api_key_env) = req.api_key_env {
+        if !api_key_env.is_empty()
+            && !api_key_env.bytes().enumerate().all(|(i, byte)| {
+                byte == b'_' || (byte.is_ascii_alphabetic() || (i > 0 && byte.is_ascii_digit()))
+            })
+        {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(
+                    serde_json::json!({"error": "api_key_env must be a valid environment variable name"}),
+                ),
+            );
+        }
+    }
+    if let Some(ref base_url) = req.base_url {
+        if !base_url.is_empty()
+            && !base_url.starts_with("http://")
+            && !base_url.starts_with("https://")
+        {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "base_url must start with http:// or https://"})),
             );
         }
     }
@@ -10310,6 +10357,32 @@ pub async fn patch_agent_config(
                     );
                 }
             }
+        }
+    }
+
+    if req.max_tokens.is_some()
+        || req.temperature.is_some()
+        || req.api_key_env.is_some()
+        || req.base_url.is_some()
+    {
+        if state
+            .kernel
+            .registry
+            .update_model_tuning(
+                agent_id,
+                req.max_tokens,
+                req.temperature,
+                req.api_key_env
+                    .map(|value| (!value.is_empty()).then_some(value)),
+                req.base_url
+                    .map(|value| (!value.is_empty()).then_some(value)),
+            )
+            .is_err()
+        {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error": "Agent not found"})),
+            );
         }
     }
 

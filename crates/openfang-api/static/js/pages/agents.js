@@ -339,9 +339,16 @@ function agentsPage() {
 
     buildConfigForm(agent) {
       var identity = (agent && agent.identity) || {};
+      var model = (agent && agent.model) || {};
       return {
         name: (agent && agent.name) || '',
         system_prompt: (agent && agent.system_prompt) || '',
+        provider: model.provider || (agent && agent.model_provider) || '',
+        model: model.model || (agent && agent.model_name) || '',
+        max_tokens: model.max_tokens || 4096,
+        temperature: model.temperature === undefined ? 0.7 : model.temperature,
+        api_key_env: model.api_key_env || '',
+        base_url: model.base_url || '',
         emoji: identity.emoji || '',
         color: identity.color || '#0B3D2E',
         archetype: identity.archetype || '',
