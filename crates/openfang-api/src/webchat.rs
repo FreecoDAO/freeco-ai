@@ -93,7 +93,7 @@ pub async fn webchat_page() -> impl IntoResponse {
          script-src 'self' 'nonce-{nonce}' 'unsafe-eval' https://cdn.jsdelivr.net; \
          style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net; \
          img-src 'self' data: blob:; \
-         connect-src 'self' ws://localhost:* ws://127.0.0.1:* wss://localhost:* wss://127.0.0.1:* https://cdn.jsdelivr.net; \
+         connect-src 'self' ws://localhost:* ws://127.0.0.1:* wss://localhost:* wss://127.0.0.1:* https://cdn.jsdelivr.net https://api.github.com; \
          font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; \
          media-src 'self' blob:; \
          frame-src 'self' blob:; \
