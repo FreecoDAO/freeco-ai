@@ -19,6 +19,38 @@ permissions:
   repository-projects: write
 
 jobs:
+
+  # Additive guard: fail visibly when a version bump lands without `release` label
+  guard:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Check version bump vs release label
+        env:
+          LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          prev="$(git show HEAD~1:Cargo.toml | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
+          curr="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+
+          echo "Previous version: $prev"
+          echo "Current version:  $curr"
+
+          # No version bump => nothing to enforce.
+          [ "$prev" = "$curr" ] && exit 0
+
+          # Version bumped, require `release` label.
+          if printf '%s' "$LABELS_JSON" | grep -q '"release"'; then
+            echo "release label present — ok"
+            exit 0
+          fi
+
+          echo "::error::Cargo.toml version changed ($prev -> $curr) but PR is missing the 'release' label."
+          exit 1
+
   prepare:
     if: >-
       github.event_name == 'workflow_dispatch' ||
