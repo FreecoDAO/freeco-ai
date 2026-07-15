@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-07-15
+
+### Added
+
+- **Release guard workflow** (`prepare-release.yml`): a `guard` job now fires on every merged PR to `main`. If `Cargo.toml` version was bumped but the `release` label is absent the workflow fails with a visible `::error::` annotation instead of silently vanishing.
+- **Auto-tag workflow** (`auto-tag.yml`): fires on every push to `main`, reads the current version from `Cargo.toml`, and pushes an annotated `vX.Y.Z` tag (using `RELEASE_TOKEN`) whenever the version has no tag yet and `CHANGELOG.md` has a matching section — triggering the full release pipeline automatically. Silently no-ops when `RELEASE_TOKEN` is unset or the tag already exists.
+
+## [0.7.6] - 2026-07-13
+
+### Fixed
+
+- Skipped release: internal tooling patch; no user-visible changes.
+
 ## [0.7.5] - 2026-07-11
 
 ### Added (Tier-0 safety, from the threat model)

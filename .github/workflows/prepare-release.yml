@@ -1,0 +1,42 @@
+name: Prepare Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  # ── Guard: fail visibly when a version bump lands without the release label ──
+  guard:
+    name: Guard — version bump without release label
+    # Only run on actual merges (not closed-without-merge)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need the parent commit to compare versions
+          fetch-depth: 2
+
+      - name: Check version bump vs release label
+        run: |
+          PREV=$(git show HEAD~1:Cargo.toml | grep '^version' | head -1 | sed 's/version = "\(.*\)"/\1/')
+          CURR=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "Previous version: $PREV"
+          echo "Current version:  $CURR"
+
+          if [ "$PREV" = "$CURR" ]; then
+            echo "No version bump — OK"
+            exit 0
+          fi
+
+          echo "Version was bumped: $PREV → $CURR"
+
+          # Check for the 'release' label on this PR
+          LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+          if echo "$LABELS" | grep -q '"release"'; then
+            echo "'release' label found — OK"
+          else
+            echo "::error::Version bumped ($PREV → $CURR) but the 'release' label is absent on this PR. Add the 'release' label and re-merge, or revert the version bump."
+            exit 1
+          fi

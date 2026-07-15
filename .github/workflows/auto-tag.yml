@@ -1,0 +1,50 @@
+name: Auto Tag
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  auto-tag:
+    name: Push annotated tag for untagged releases
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history needed to check existing tags
+          fetch-depth: 0
+
+      - name: Read version and conditionally push tag
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          # Silently skip when RELEASE_TOKEN is not configured
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "RELEASE_TOKEN is not set — skipping auto-tag"
+            exit 0
+          fi
+
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          TAG="v${VERSION}"
+          echo "Detected version: ${VERSION}  (tag: ${TAG})"
+
+          # Silently skip if the tag already exists on the remote
+          if git ls-remote --tags origin "${TAG}" | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag ${TAG} already exists — skipping"
+            exit 0
+          fi
+
+          # Silently skip when CHANGELOG.md has no section for this version
+          if ! grep -q "## \[${VERSION}\]" CHANGELOG.md; then
+            echo "No CHANGELOG section for ${VERSION} — skipping"
+            exit 0
+          fi
+
+          # Push the annotated tag
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin \
+            "https://x-access-token:${RELEASE_TOKEN}@github.com/${{ github.repository }}.git"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"
+          echo "Pushed tag ${TAG} — release.yml will now build artifacts"
