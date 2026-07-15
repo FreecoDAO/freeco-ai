@@ -5,14 +5,14 @@ This wiki mirrors the verified status in the repository root
 
 ## Shipped
 
-The latest verified tag is `v0.7.5`. It includes the Agent OS foundation,
+The latest verified tag is `v0.7.7`. It includes the Agent OS foundation,
 FreEco agent templates, local-AI setup, approval privacy messaging, and
-shell-policy verification.
+shell-policy verification, plus model tuning, privacy-aware routing,
+encrypted recovery fixes, and security scanning coverage.
 
 ## Unreleased
 
-The current branch hardens operational API and WhatsApp gateway authentication,
-makes the TruffleHog CI installation reproducible, and adds this operator wiki.
+The current branch is ready for work beyond the v0.7.7 release line.
 
 ## Planned
 
