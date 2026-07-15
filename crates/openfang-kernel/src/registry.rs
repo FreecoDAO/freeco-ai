@@ -292,6 +292,35 @@ impl AgentRegistry {
         Ok(())
     }
 
+    /// Update an agent's LLM tuning settings.
+    pub fn update_model_tuning(
+        &self,
+        id: AgentId,
+        max_tokens: Option<u32>,
+        temperature: Option<f32>,
+        api_key_env: Option<Option<String>>,
+        base_url: Option<Option<String>>,
+    ) -> OpenFangResult<()> {
+        let mut entry = self
+            .agents
+            .get_mut(&id)
+            .ok_or_else(|| OpenFangError::AgentNotFound(id.to_string()))?;
+        if let Some(max_tokens) = max_tokens {
+            entry.manifest.model.max_tokens = max_tokens;
+        }
+        if let Some(temperature) = temperature {
+            entry.manifest.model.temperature = temperature;
+        }
+        if let Some(api_key_env) = api_key_env {
+            entry.manifest.model.api_key_env = api_key_env;
+        }
+        if let Some(base_url) = base_url {
+            entry.manifest.model.base_url = base_url;
+        }
+        entry.last_active = chrono::Utc::now();
+        Ok(())
+    }
+
     /// Update an agent's name (also updates the name index).
     pub fn update_name(&self, id: AgentId, new_name: String) -> OpenFangResult<()> {
         if let Some(existing_id) = self.name_index.get(&new_name).as_deref().copied() {
@@ -462,5 +491,32 @@ mod tests {
         registry.register(entry).unwrap();
         registry.remove(id).unwrap();
         assert!(registry.get(id).is_none());
+    }
+
+    #[test]
+    fn test_update_model_tuning() {
+        let registry = AgentRegistry::new();
+        let entry = test_entry("tunable");
+        let id = entry.id;
+        registry.register(entry).unwrap();
+
+        registry
+            .update_model_tuning(
+                id,
+                Some(1024),
+                Some(0.2),
+                Some(Some("CUSTOM_API_KEY".to_string())),
+                Some(Some("https://llm.example.com/v1".to_string())),
+            )
+            .unwrap();
+
+        let model = &registry.get(id).unwrap().manifest.model;
+        assert_eq!(model.max_tokens, 1024);
+        assert_eq!(model.temperature, 0.2);
+        assert_eq!(model.api_key_env.as_deref(), Some("CUSTOM_API_KEY"));
+        assert_eq!(
+            model.base_url.as_deref(),
+            Some("https://llm.example.com/v1")
+        );
     }
 }

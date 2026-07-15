@@ -179,11 +179,41 @@ fn write_env_file(path: &PathBuf, entries: &BTreeMap<String, String>) -> Result<
 
     std::fs::write(path, &content).map_err(|e| format!("Failed to write .env file: {e}"))?;
 
-    // Set 0600 permissions on Unix
+    // SECURITY (threat-model M2/M3): restrict to the current user.
+    // Unix: set 0600 permissions. Windows: remove inherited ACEs and ensure the
+    // current user has Full Control. If hardening fails, return an error rather
+    // than leaving secrets readable to other accounts.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("Failed to secure .env file permissions: {e}"))?;
+    }
+    #[cfg(windows)]
+    {
+        let user = match (std::env::var("USERDOMAIN"), std::env::var("USERNAME")) {
+            (Ok(domain), Ok(name)) if !name.is_empty() => format!(r"{domain}\\{name}"),
+            (_, Ok(name)) if !name.is_empty() => name,
+            _ => String::new(),
+        };
+        if !user.is_empty() {
+            let system_root =
+                std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+            let icacls = std::path::PathBuf::from(system_root)
+                .join("System32")
+                .join("icacls.exe");
+            let out = std::process::Command::new(icacls)
+                .arg(path)
+                .args(["/inheritance:r", "/grant:r", &format!("{user}:F")])
+                .output()
+                .map_err(|e| format!("Failed to secure .env file permissions (icacls): {e}"))?;
+            if !out.status.success() {
+                return Err(format!(
+                    "Failed to secure .env file permissions (icacls): {}",
+                    String::from_utf8_lossy(&out.stderr).trim()
+                ));
+            }
+        }
     }
 
     Ok(())

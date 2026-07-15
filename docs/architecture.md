@@ -24,7 +24,7 @@ This document describes the internal architecture of FreEco.ai, the open-source 
 
 ## Crate Structure
 
-FreEco.ai is organized as a Cargo workspace with 14 crates (13 code crates + xtask). Dependencies flow downward (lower crates depend on nothing above them).
+FreEco.ai is organized as a Cargo workspace with 22 crates plus `xtask`. Dependencies flow downward (lower crates depend on nothing above them).
 
 ```
 openfang-cli            CLI interface, daemon auto-detect, MCP server
@@ -39,7 +39,7 @@ openfang-kernel         Kernel: assembles all subsystems, workflow engine, RBAC,
     +-- openfang-channels   40 channel adapters, bridge, formatter, rate limiter
     +-- openfang-wire       OFP peer-to-peer networking with HMAC-SHA256 auth
     +-- openfang-migrate    Migration engine (OpenClaw YAML->TOML)
-    +-- openfang-skills     60 bundled skills, FangHub marketplace, ClawHub client
+    +-- openfang-skills     61 bundled skills, FangHub marketplace, ClawHub client
     |
 openfang-memory         SQLite memory substrate, sessions, semantic search, usage tracking
     |
@@ -61,7 +61,7 @@ openfang-types          Shared types: Agent, Capability, Event, Memory, Message,
 | **openfang-cli** | Clap-based CLI. Supports all commands: `init`, `start`, `status`, `doctor`, `agent spawn/list/chat/kill`, `workflow list/create/run`, `trigger list/create/delete`, `migrate`, `skill install/list/remove/search/create`, `channel list/setup/test/enable/disable`, `config show/edit`, `chat`, `mcp`. Daemon auto-detect: checks `~/.openfang/daemon.json` and health pings; uses HTTP when a daemon is running, boots an in-process kernel as fallback. Built-in MCP server mode. |
 | **openfang-desktop** | Tauri 2.0 native desktop application. Boots the kernel in-process, runs the axum server on a background thread, and points a WebView at `http://127.0.0.1:{random_port}`. Features: system tray (Show/Browser/Status/Quit), single-instance enforcement, desktop notifications, hide-to-tray on close. IPC commands: `get_port`, `get_status`. Mobile-ready with `#[cfg(desktop)]` guards. |
 | **openfang-migrate** | Migration engine. Supports OpenClaw (`~/.openclaw/`). Converts YAML configs to TOML, maps tool names, maps provider names, imports agent manifests, copies memory files, converts channel configs. Produces a `MigrationReport` with imported items, skipped items, and warnings. |
-| **openfang-skills** | Skill system for pluggable tool bundles. 60 bundled skills compiled via `include_str!()`. Skills are `skill.toml` + Python/WASM/Node.js/PromptOnly code. `SkillManifest` defines metadata, runtime config, provided tools, and requirements. `SkillRegistry` manages installed and bundled skills. `FangHubClient` connects to FangHub marketplace. `ClawHubClient` connects to clawhub.ai for cross-ecosystem skill discovery. `SKILL.md` parser for OpenClaw compatibility (YAML frontmatter + Markdown body). `SkillVerifier` with SHA256 verification. Prompt injection scanner (`scan_prompt_content()`) detects override attempts, data exfiltration, and shell references. |
+| **openfang-skills** | Skill system for pluggable tool bundles. 61 bundled skills compiled via `include_str!()`. Skills are `skill.toml` + Python/WASM/Node.js/PromptOnly code. `SkillManifest` defines metadata, runtime config, provided tools, and requirements. `SkillRegistry` manages installed and bundled skills. `FangHubClient` connects to FangHub marketplace. `ClawHubClient` connects to clawhub.ai for cross-ecosystem skill discovery. `SKILL.md` parser for OpenClaw compatibility (YAML frontmatter + Markdown body). `SkillVerifier` with SHA256 verification. Prompt injection scanner (`scan_prompt_content()`) detects override attempts, data exfiltration, and shell references. |
 | **xtask** | Build automation tasks (cargo-xtask pattern). |
 
 ---
@@ -118,7 +118,7 @@ When `OpenFangKernel::boot_with_config()` is called (either by the daemon or in-
    - Set up channel identity resolution
 
 10. Initialize skill registry
-    - Load 60 bundled skills via parse_bundled()
+    - Load 61 bundled skills via parse_bundled()
     - Load user-installed skills from disk
     - Wire skill tools into tool_runner fallback chain
     - Inject PromptOnly skill context into system prompts
@@ -606,7 +606,7 @@ The channel system (`openfang-channels`) provides 40 adapters for messaging plat
 
 ## Skill System
 
-The skill system (`openfang-skills`) provides 60 bundled skills and supports external skill installation.
+The skill system (`openfang-skills`) provides 61 bundled skills and supports external skill installation.
 
 ### Skill Types
 
@@ -830,7 +830,7 @@ The desktop app (`openfang-desktop`) wraps the full FreEco.ai stack in a native 
 |  +----------------+  +------------------+  +-------------------+   |
 |  +----------------+  +------------------+  +-------------------+   |
 |  | HeartbeatMon   |  | SetupWizard      |  | SkillRegistry     |   |
-|  | (agent health) |  | (NL agent setup) |  | (60 bundled)      |   |
+|  | (agent health) |  | (NL agent setup) |  | (61 bundled)      |   |
 |  +----------------+  +------------------+  +-------------------+   |
 |  +----------------+  +------------------+                          |
 |  | MCP Connections|  | WebToolsContext  |                          |

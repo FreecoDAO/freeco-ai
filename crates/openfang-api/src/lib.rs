@@ -32,6 +32,7 @@ fn hex_val(b: u8) -> Option<u8> {
     }
 }
 
+pub mod backup;
 pub mod bundled_templates;
 pub mod channel_bridge;
 pub mod local_ai;
@@ -39,6 +40,7 @@ pub mod middleware;
 pub mod openai_compat;
 pub mod rate_limiter;
 pub mod routes;
+pub mod security;
 pub mod server;
 pub mod session_auth;
 pub mod stream_chunker;

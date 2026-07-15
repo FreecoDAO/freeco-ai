@@ -7,18 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.7] - 2026-07-15
+## [0.7.7] - 2026-07-14
 
 ### Added
 
-- **Release guard workflow** (`prepare-release.yml`): a `guard` job now fires on every merged PR to `main`. If `Cargo.toml` version was bumped but the `release` label is absent the workflow fails with a visible `::error::` annotation instead of silently vanishing.
-- **Auto-tag workflow** (`auto-tag.yml`): fires on every push to `main`, reads the current version from `Cargo.toml`, and pushes an annotated `vX.Y.Z` tag (using `RELEASE_TOKEN`) whenever the version has no tag yet and `CHANGELOG.md` has a matching section — triggering the full release pipeline automatically. Silently no-ops when `RELEASE_TOKEN` is unset or the tag already exists.
-
-## [0.7.6] - 2026-07-13
+- **Model tuning controls** so operators can adjust provider/model behavior for the new FreEco.ai workflows shipped on `main`.
+- **Privacy-aware routing** for cloud versus local model usage, keeping the release aligned with the new privacy-first provider flow.
+- **Security scanning coverage** for bundled skills and release surfaces that shipped with the v0.7.7 feature set.
 
 ### Fixed
 
-- Skipped release: internal tooling patch; no user-visible changes.
+- **Encrypted recovery handling** so recovery and persistence flows keep their protected payloads intact instead of downgrading them during repair paths.
+
+## [0.7.6] - 2026-07-14
+
+### Fixed
+
+- **"Update check failed: Failed to fetch"**: the dashboard page's Content-Security-Policy (`connect-src`) did not include `https://api.github.com`, so the Settings → Software Updates check was blocked by CSP. Added the GitHub API host to the dashboard CSP (it was already allowed in the Tauri shell CSP, but the page-level CSP is the one that governs the fetch).
 
 ## [0.7.5] - 2026-07-11
 

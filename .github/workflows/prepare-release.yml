@@ -1,42 +1,174 @@
-name: Prepare Release
+name: Prepare release
 
 on:
   pull_request:
-    types: [closed]
     branches: [main]
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Release increment (auto derives from the merged PR title)
+        required: true
+        default: auto
+        type: choice
+        options: [auto, patch, minor, major]
+
+permissions:
+  contents: write
+  issues: write
+  repository-projects: write
 
 jobs:
-  # ── Guard: fail visibly when a version bump lands without the release label ──
+
+  # Additive guard: fail visibly when a version bump lands without `release` label
   guard:
-    name: Guard — version bump without release label
-    # Only run on actual merges (not closed-without-merge)
-    if: github.event.pull_request.merged == true
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
-          # Need the parent commit to compare versions
           fetch-depth: 2
 
       - name: Check version bump vs release label
+        env:
+          LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
-          PREV=$(git show HEAD~1:Cargo.toml | grep '^version' | head -1 | sed 's/version = "\(.*\)"/\1/')
-          CURR=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          echo "Previous version: $PREV"
-          echo "Current version:  $CURR"
+          prev="$(git show HEAD~1:Cargo.toml | sed -n 's/^version = "\(.*\)"//p' | head -1)"
+          curr="$(sed -n 's/^version = "\(.*\)"//p' Cargo.toml | head -1)"
 
-          if [ "$PREV" = "$CURR" ]; then
-            echo "No version bump — OK"
+          echo "Previous version: $prev"
+          echo "Current version:  $curr"
+
+          # No version bump => nothing to enforce.
+          [ "$prev" = "$curr" ] && exit 0
+
+          # Version bumped, require `release` label.
+          if printf '%s' "$LABELS_JSON" | grep -q '"release"'; then
+            echo "release label present — ok"
             exit 0
           fi
 
-          echo "Version was bumped: $PREV → $CURR"
+          echo "::error::Cargo.toml version changed ($prev -> $curr) but PR is missing the 'release' label."
+          exit 1
 
-          # Check for the 'release' label on this PR
-          LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
-          if echo "$LABELS" | grep -q '"release"'; then
-            echo "'release' label found — OK"
-          else
-            echo "::error::Version bumped ($PREV → $CURR) but the 'release' label is absent on this PR. Add the 'release' label and re-merge, or revert the version bump."
+  prepare:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release'))
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      REQUESTED_BUMP: ${{ inputs.bump }}
+      REPOSITORY: ${{ github.repository }}
+      PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+      PROJECT_STATUS_FIELD: ${{ vars.PROJECT_STATUS_FIELD }}
+      PROJECT_RELEASED_OPTION: ${{ vars.PROJECT_RELEASED_OPTION }}
+    steps:
+      - name: Require a release token
+        run: |
+          # RELEASE_TOKEN must be a fine-scoped PAT (contents:write + workflows).
+          # The default GITHUB_TOKEN cannot be used: GitHub blocks it from
+          # triggering the release.yml installer build when it pushes the tag.
+          # Add it at: repo Settings -> Secrets and variables -> Actions -> New secret.
+          test -n "$RELEASE_TOKEN" || {
+            echo "::error::RELEASE_TOKEN secret is not set. Add a PAT with contents:write + workflow scope so the pushed tag can trigger the installer build."
             exit 1
+          }
+
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ secrets.RELEASE_TOKEN }}
+          fetch-depth: 0
+
+      - name: Determine the semantic version increment
+        id: bump
+        run: |
+          bump="$REQUESTED_BUMP"
+          if [ "$bump" = "auto" ] || [ -z "$bump" ]; then
+            case "$PR_TITLE" in
+              *"!"*|*"BREAKING CHANGE"*) bump=major ;;
+              feat*|feature*) bump=minor ;;
+              *) bump=patch ;;
+            esac
           fi
+          echo "value=$bump" >> "$GITHUB_OUTPUT"
+
+      - name: Update release metadata
+        id: metadata
+        run: |
+          python3 scripts/prepare_release_metadata.py \
+            --bump "${{ steps.bump.outputs.value }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Commit and tag the release
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml CHANGELOG.md ROADMAP.md
+          git commit -m "chore(release): v$VERSION"
+          git tag --annotate "v$VERSION" --message "v$VERSION"
+          git push origin HEAD:main --follow-tags
+
+      - name: Close current and create next milestone
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS_VERSION: ${{ steps.metadata.outputs.previous_version }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          current_milestone="$(gh api "/repos/$REPOSITORY/milestones?state=open&per_page=100" \
+            --jq ".[] | select(.title == \"v$PREVIOUS_VERSION\") | .number")"
+          if [ -n "$current_milestone" ]; then
+            gh api --method PATCH "/repos/$REPOSITORY/milestones/$current_milestone" -f state=closed
+          fi
+          next_milestone="$(gh api "/repos/$REPOSITORY/milestones?state=all&per_page=100" \
+            --jq ".[] | select(.title == \"v$VERSION\") | .number")"
+          if [ -z "$next_milestone" ]; then
+            gh api --method POST "/repos/$REPOSITORY/milestones" \
+              -f "title=v$VERSION" -f "description=Release v$VERSION"
+          fi
+
+      - name: Update configured GitHub Project items
+        if: env.PROJECTS_TOKEN != '' && env.PROJECT_NUMBER != '' && env.PROJECT_STATUS_FIELD != '' && env.PROJECT_RELEASED_OPTION != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+          PREVIOUS_VERSION: ${{ steps.metadata.outputs.previous_version }}
+        run: |
+          project_id="$(gh api graphql -f query='
+            query($owner: String!, $number: Int!) {
+              user(login: $owner) { projectV2(number: $number) { id } }
+            }' -f owner="${{ github.repository_owner }}" -F number="$PROJECT_NUMBER" \
+            --jq '.data.user.projectV2.id')"
+          gh api graphql -f query='
+            query($project: ID!) {
+              node(id: $project) {
+                ... on ProjectV2 {
+                  items(first: 100) {
+                    nodes {
+                      id
+                      content { ... on Issue { milestone { title } } }
+                    }
+                  }
+                }
+              }
+            }' -f project="$project_id" > "$RUNNER_TEMP/project.json"
+          jq -r --arg version "v$PREVIOUS_VERSION" \
+            '.data.node.items.nodes[] | select(.content.milestone.title == $version) | .id' \
+            "$RUNNER_TEMP/project.json" |
+            while read -r item_id; do
+              [ -n "$item_id" ] || continue
+              gh api graphql -f query='
+                mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $project, itemId: $item, fieldId: $field,
+                    value: { singleSelectOptionId: $option }
+                  }) { projectV2Item { id } }
+                }' -f project="$project_id" -f item="$item_id" \
+                -f field="$PROJECT_STATUS_FIELD" -f option="$PROJECT_RELEASED_OPTION"
+            done

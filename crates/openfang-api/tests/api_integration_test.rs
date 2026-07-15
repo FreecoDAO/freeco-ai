@@ -83,6 +83,7 @@ async fn start_test_server_with_provider(
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
+        security: std::sync::Arc::new(openfang_api::security::SecurityService::default()),
     });
 
     let app = Router::new()
@@ -129,6 +130,7 @@ async fn start_test_server_with_provider(
             "/api/workflows/{id}/runs",
             axum::routing::get(routes::list_workflow_runs),
         )
+        .route("/api/logs/stream", axum::routing::get(routes::logs_stream))
         .route("/api/shutdown", axum::routing::post(routes::shutdown))
         .route("/api/commands", axum::routing::get(routes::list_commands))
         .route(
@@ -1003,6 +1005,7 @@ async fn start_test_server_with_auth(api_key: &str) -> TestServer {
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
+        security: std::sync::Arc::new(openfang_api::security::SecurityService::default()),
     });
 
     let api_key = state.kernel.config.api_key.trim().to_string();
@@ -1063,6 +1066,7 @@ async fn start_test_server_with_auth(api_key: &str) -> TestServer {
             "/api/workflows/{id}/runs",
             axum::routing::get(routes::list_workflow_runs),
         )
+        .route("/api/logs/stream", axum::routing::get(routes::logs_stream))
         .route("/api/shutdown", axum::routing::post(routes::shutdown))
         .layer(axum::middleware::from_fn_with_state(
             auth_state,
@@ -1109,7 +1113,6 @@ async fn test_auth_rejects_no_token() {
     let client = reqwest::Client::new();
 
     // Protected endpoint without auth header → 401
-    // Note: /api/status is public (dashboard needs it), so use a protected endpoint
     let resp = client
         .get(format!("{}/api/commands", server.base_url))
         .send()
@@ -1126,7 +1129,6 @@ async fn test_auth_rejects_wrong_token() {
     let client = reqwest::Client::new();
 
     // Wrong bearer token → 401
-    // Note: /api/status is public (dashboard needs it), so use a protected endpoint
     let resp = client
         .get(format!("{}/api/commands", server.base_url))
         .header("authorization", "Bearer wrong-key")
@@ -1153,6 +1155,37 @@ async fn test_auth_accepts_correct_token() {
     assert_eq!(resp.status(), 200);
     let body: serde_json::Value = resp.json().await.unwrap();
     assert_eq!(body["status"], "running");
+}
+
+#[tokio::test]
+async fn test_auth_rejects_unauthenticated_log_stream() {
+    let server = start_test_server_with_auth("secret-key-123").await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .get(format!("{}/api/logs/stream", server.base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 401);
+}
+
+#[tokio::test]
+async fn test_auth_accepts_log_stream_query_token() {
+    let server = start_test_server_with_auth("secret-key-123").await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .get(format!(
+            "{}/api/logs/stream?token=secret-key-123",
+            server.base_url
+        ))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
 }
 
 #[tokio::test]

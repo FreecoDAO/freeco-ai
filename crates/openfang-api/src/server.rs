@@ -55,7 +55,18 @@ pub async fn build_router(
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
+        security: Arc::new(crate::security::SecurityService::default()),
     });
+    start_backup_scheduler(
+        kernel.config.home_dir.clone(),
+        kernel.config.data_dir.clone(),
+        kernel
+            .config
+            .memory
+            .sqlite_path
+            .clone()
+            .unwrap_or_else(|| kernel.config.data_dir.join("openfang.db")),
+    );
 
     // Start WS cron broadcaster — subscribes to kernel event bus and pushes
     // cron job results to all connected WebSocket clients in real-time.
@@ -76,6 +87,7 @@ pub async fn build_router(
                 if let Ok(v) = format!("http://127.0.0.1:{p}").parse() {
                     origins.push(v);
                 }
+
                 if let Ok(v) = format!("http://localhost:{p}").parse() {
                     origins.push(v);
                 }
@@ -382,6 +394,27 @@ pub async fn build_router(
         .route(
             "/api/workflows/{id}/runs",
             axum::routing::get(routes::list_workflow_runs),
+        )
+        .route(
+            "/api/security/audits",
+            axum::routing::get(routes::list_security_audits),
+        )
+        .route(
+            "/api/company-chart",
+            axum::routing::get(routes::company_chart),
+        )
+        .route(
+            "/api/security/scan",
+            axum::routing::post(routes::scan_security_content),
+        )
+        .route(
+            "/api/security/approve/{content_hash}",
+            axum::routing::post(routes::approve_security_content),
+        )
+        .route("/api/backups", axum::routing::post(routes::create_backup))
+        .route(
+            "/api/backups/restore",
+            axum::routing::post(routes::restore_backup),
         )
         // Skills endpoints
         .route("/api/skills", axum::routing::get(routes::list_skills))
@@ -803,6 +836,10 @@ pub async fn build_router(
         // Dashboard authentication endpoints
         .route("/api/auth/login", axum::routing::post(routes::auth_login))
         .route("/api/auth/logout", axum::routing::post(routes::auth_logout))
+        .route(
+            "/api/auth/set-password",
+            axum::routing::post(routes::auth_set_password),
+        )
         .route("/api/auth/check", axum::routing::get(routes::auth_check))
         .layer(axum::middleware::from_fn_with_state(
             auth_state,
@@ -820,6 +857,34 @@ pub async fn build_router(
         .with_state(state.clone());
 
     (app, state)
+}
+
+/// Create an encrypted recovery point daily. Individual failures are logged and
+/// never prevent the local control plane from starting.
+fn start_backup_scheduler(
+    home_dir: std::path::PathBuf,
+    data_dir: std::path::PathBuf,
+    db_path: std::path::PathBuf,
+) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(24 * 60 * 60));
+        interval.tick().await;
+        loop {
+            let home_dir = home_dir.clone();
+            let data_dir = data_dir.clone();
+            let db_path = db_path.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                crate::backup::create_backup(&home_dir, &data_dir, &db_path, 7)
+            })
+            .await;
+            match result {
+                Ok(Ok(backup)) => info!(path = %backup.path, "scheduled encrypted backup created"),
+                Ok(Err(error)) => tracing::warn!(%error, "scheduled encrypted backup failed"),
+                Err(error) => tracing::warn!(%error, "scheduled backup task failed"),
+            }
+            interval.tick().await;
+        }
+    });
 }
 
 /// Start the OpenFang daemon: boot kernel + HTTP API server.

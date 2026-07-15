@@ -25,7 +25,7 @@ use tokio::io::AsyncWriteExt;
 const OLLAMA_BASE: &str = "http://127.0.0.1:11434";
 const OLLAMA_WINDOWS_INSTALLER: &str = "https://ollama.com/download/OllamaSetup.exe";
 /// Default starter model — small enough for ordinary laptops.
-const DEFAULT_MODEL: &str = "gemma4:4b";
+const DEFAULT_MODEL: &str = "gemma4:e4b";
 
 /// Hardware requirements for a locally downloadable Ollama model. This is
 /// deliberately catalog data rather than selection logic so the dashboard and
@@ -50,7 +50,18 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_disk_gb: 3,
     },
     LocalModelProfile {
-        id: "gemma4:4b",
+        // Gemma has no sub-4B in the 4-series; the Gemma 3 "Nano" 2B is the
+        // smallest verified-existing Gemma for weak machines (gemma4:1b/2b
+        // do NOT exist on Ollama's registry — they 404).
+        id: "gemma3n:e2b",
+        display_name: "Gemma 3 Nano 2B",
+        purpose: "lightweight assistant for weaker laptops",
+        min_ram_gb: 6,
+        min_vram_gb: 0,
+        min_disk_gb: 4,
+    },
+    LocalModelProfile {
+        id: "gemma4:e4b",
         display_name: "Gemma 4 4B",
         purpose: "recommended general assistant for ordinary laptops",
         min_ram_gb: 8,
@@ -190,6 +201,8 @@ fn recommended_model(hardware: &LocalHardware, purpose: &str) -> &'static str {
         "gemma4:12b"
     } else if ram >= 8 {
         DEFAULT_MODEL
+    } else if ram >= 6 {
+        "gemma3n:e2b"
     } else {
         "llama3.2:1b"
     }
@@ -265,7 +278,7 @@ pub async fn local_ai_recommendation(
     }))
 }
 
-/// POST /api/local-ai/setup — body: optional {"model": "gemma4:4b"}
+/// POST /api/local-ai/setup — body: optional {"model": "gemma4:e4b"}
 pub async fn local_ai_setup(
     State(state): State<Arc<AppState>>,
     body: Option<Json<serde_json::Value>>,
@@ -414,6 +427,44 @@ async fn run_setup(
     Ok(())
 }
 
+/// Verify a downloaded Windows executable is validly Authenticode-signed by
+/// Ollama before we run it (threat-model M4). Fails closed unless the status is
+/// `Valid` and the signer's subject mentions Ollama.
+#[cfg(windows)]
+async fn verify_windows_signature(path: &std::path::Path) -> Result<(), String> {
+    let script = format!(
+        "$s = Get-AuthenticodeSignature -LiteralPath '{}'; \
+         if ($s.Status -ne 'Valid') {{ Write-Output ('INVALID:' + $s.Status); exit 0 }}; \
+         Write-Output ('OK:' + $s.SignerCertificate.Subject)",
+        path.display().to_string().replace('\'', "''")
+    );
+    let out = tokio::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .output()
+        .await
+        .map_err(|e| format!("could not run signature check: {e}"))?;
+    let line = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if let Some(subject) = line.strip_prefix("OK:") {
+        if subject.to_lowercase().contains("ollama") {
+            return Ok(());
+        }
+        return Err(format!(
+            "installer is signed, but not by Ollama (signer: {subject}). Refusing to run it."
+        ));
+    }
+    Err(format!(
+        "installer failed digital-signature verification ({}). It was not run. \
+         Install Ollama manually from https://ollama.com/download instead.",
+        line.strip_prefix("INVALID:").unwrap_or("unknown")
+    ))
+}
+
+#[cfg(not(windows))]
+#[allow(dead_code)]
+async fn verify_windows_signature(_path: &std::path::Path) -> Result<(), String> {
+    Ok(())
+}
+
 async fn install_ollama_windows(status: &SharedLocalAiStatus) -> Result<(), String> {
     set_status(
         status,
@@ -461,6 +512,21 @@ async fn install_ollama_windows(status: &SharedLocalAiStatus) -> Result<(), Stri
         }
     }
     file.flush().await.ok();
+
+    // SECURITY (threat-model M4): never execute a downloaded installer without
+    // verifying it. HTTPS protects transit but not integrity — a compromised
+    // mirror/CDN or changed URL could yield arbitrary code execution inside our
+    // "safe one-click" flow. Verify the Windows Authenticode signature
+    // (publisher = Ollama), which survives Ollama's frequent version bumps
+    // better than a pinned hash. Fail closed on anything else.
+    set_status(
+        status,
+        "verifying",
+        "Verifying the installer's digital signature...".into(),
+        -1,
+    )
+    .await;
+    verify_windows_signature(&installer).await?;
 
     set_status(
         status,
@@ -576,17 +642,17 @@ mod tests {
             "api_listen = \"127.0.0.1:4200\"\n",
         )
         .unwrap();
-        write_default_model(dir.path(), "gemma4:4b").unwrap();
+        write_default_model(dir.path(), "gemma4:e4b").unwrap();
         let out = std::fs::read_to_string(dir.path().join("config.toml")).unwrap();
         assert!(out.contains("provider = \"ollama\""));
-        assert!(out.contains("gemma4:4b"));
+        assert!(out.contains("gemma4:e4b"));
         // Pre-existing keys survive the rewrite.
         assert!(out.contains("api_listen"));
     }
 
     #[test]
     fn model_name_validation_pattern() {
-        for good in ["gemma4:4b", "llama3.2:1b", "qwen2.5-coder:7b"] {
+        for good in ["gemma4:e4b", "llama3.2:1b", "qwen2.5-coder:7b"] {
             assert!(good
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || "._:-/".contains(c)));
@@ -616,7 +682,7 @@ mod tests {
             ..low.clone()
         };
         assert_eq!(recommended_model(&low, "general"), "llama3.2:1b");
-        assert_eq!(recommended_model(&ordinary, "general"), "gemma4:4b");
+        assert_eq!(recommended_model(&ordinary, "general"), "gemma4:e4b");
         assert_eq!(recommended_model(&powerful, "general"), "gemma4:12b");
     }
 

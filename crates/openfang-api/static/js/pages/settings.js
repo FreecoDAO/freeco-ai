@@ -10,6 +10,8 @@ function settingsPage() {
     config: {},
     providers: [],
     models: [],
+    settingAgents: [],
+    settingWorkflows: [],
     toolSearch: '',
     modelSearch: '',
     modelProviderFilter: '',
@@ -100,6 +102,10 @@ function settingsPage() {
     secLoading: false,
     verifyingChain: false,
     chainResult: null,
+    passwordInput: '',
+    passwordConfirmation: '',
+    currentPassword: '',
+    passwordSaving: false,
 
     coreFeatures: [
       {
@@ -227,7 +233,9 @@ function settingsPage() {
           this.loadTools(),
           this.loadConfig(),
           this.loadProviders(),
-          this.loadModels()
+          this.loadModels(),
+          this.loadAgents(),
+          this.loadWorkflows()
         ]);
       } catch(e) {
         this.loadError = e.message || 'Could not load settings.';
@@ -337,6 +345,18 @@ function settingsPage() {
         var data = await OpenFangAPI.get('/api/models');
         this.models = data.models || [];
       } catch(e) { this.models = []; }
+    },
+
+    async loadAgents() {
+      try {
+        this.settingAgents = await OpenFangAPI.get('/api/agents');
+      } catch(e) { this.settingAgents = []; }
+    },
+
+    async loadWorkflows() {
+      try {
+        this.settingWorkflows = await OpenFangAPI.get('/api/workflows');
+      } catch(e) { this.settingWorkflows = []; }
     },
 
     async addCustomModel() {
@@ -753,6 +773,30 @@ function settingsPage() {
         this.securityData = null;
       }
       this.secLoading = false;
+    },
+
+    async changePassword() {
+      if (this.passwordSaving) return;
+      if (this.passwordInput !== this.passwordConfirmation) {
+        OpenFangToast.error('New passwords do not match');
+        return;
+      }
+      this.passwordSaving = true;
+      try {
+        var result = await OpenFangAPI.post('/api/auth/set-password', {
+          password: this.passwordInput,
+          current_password: this.currentPassword
+        });
+        if (result.status === 'ok') {
+          this.passwordInput = '';
+          this.passwordConfirmation = '';
+          this.currentPassword = '';
+          OpenFangToast.success('Password changed. Restart FreEco.ai to apply it.');
+        }
+      } catch(e) {
+        OpenFangToast.error(e.message || 'Could not change password');
+      }
+      this.passwordSaving = false;
     },
 
     isActive(key) {
