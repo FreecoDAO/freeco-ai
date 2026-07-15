@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   auto-tag:
     name: Push annotated tag for untagged releases
