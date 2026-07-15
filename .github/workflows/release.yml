@@ -17,7 +17,7 @@ jobs:
     name: Verify release metadata
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Verify tag, main, package version, and changelog agree
@@ -73,7 +73,7 @@ jobs:
       HAS_MAC_CERT: ${{ secrets.MAC_CERT_BASE64 != '' }}
       HAS_NOTARIZE: ${{ secrets.MAC_NOTARIZE_TEAM_ID != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system deps (Linux)
         if: runner.os == 'Linux'
@@ -208,7 +208,7 @@ jobs:
             archive: zip
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -259,7 +259,7 @@ jobs:
     needs: verify-release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Log in to GHCR
         uses: docker/login-action@v4
         with:
