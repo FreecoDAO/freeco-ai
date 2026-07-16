@@ -30,6 +30,8 @@ jobs:
           test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$(git rev-parse origin/main)"
           grep -q "^version = \"$version\"$" Cargo.toml
           grep -q "^## \[$version\]" CHANGELOG.md
+          tauri_version="$(python3 -c 'import json; print(json.load(open("crates/openfang-desktop/tauri.conf.json"))["version"])')"
+          test "$tauri_version" = "$version"
 
   # ── Tauri Desktop App (Windows + macOS + Linux) ───────────────────────────
   # Produces: .msi, .exe (Windows) | .dmg, .app (macOS) | .AppImage, .deb (Linux)
