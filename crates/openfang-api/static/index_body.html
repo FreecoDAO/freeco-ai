@@ -4034,7 +4034,10 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                   <span x-show="!updateChecking">Check for updates</span>
                   <span x-show="updateChecking">Checking&hellip;</span>
                 </button>
-                <a x-show="updateAvailable" x-cloak class="btn btn-sm" style="background:var(--success);color:var(--text-on-accent);text-decoration:none" :href="updateUrl" target="_blank" rel="noopener">Get v<span x-text="updateLatest"></span></a>
+                <button x-show="updateAvailable" x-cloak class="btn btn-sm" style="background:var(--success);color:var(--text-on-accent)" @click="getUpdate()" :disabled="updateBusy">
+                  <span x-show="!updateBusy">Get v<span x-text="updateLatest"></span></span>
+                  <span x-show="updateBusy">Working&hellip;</span>
+                </button>
               </div>
               <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)">
                 <label class="form-checkbox" style="margin:0;display:flex;align-items:center;gap:8px;cursor:pointer">
