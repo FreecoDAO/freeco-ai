@@ -48,9 +48,11 @@ def main() -> None:
     changelog_match = re.search(
         r"(?ms)^## \[Unreleased\]\n(?P<body>.*?)(?=^## \[)", changelog
     )
-    if changelog_match is None or not changelog_match.group("body").strip():
-        raise SystemExit("CHANGELOG.md must contain Unreleased release notes.")
+    if changelog_match is None:
+        raise SystemExit("CHANGELOG.md must contain an Unreleased section.")
     release_notes = changelog_match.group("body").strip()
+    if not release_notes:
+        release_notes = "### Changed\n\n- Maintenance release."
     changelog = (
         changelog[: changelog_match.start()]
         + f"## [Unreleased]\n\n## [{version}] - {args.date}\n\n{release_notes}\n\n"
