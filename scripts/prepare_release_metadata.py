@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import re
 from pathlib import Path
 
@@ -32,6 +33,7 @@ def main() -> None:
     cargo_path = ROOT / "Cargo.toml"
     changelog_path = ROOT / "CHANGELOG.md"
     roadmap_path = ROOT / "ROADMAP.md"
+    tauri_conf_path = ROOT / "crates" / "openfang-desktop" / "tauri.conf.json"
     cargo = cargo_path.read_text(encoding="utf-8")
     changelog = changelog_path.read_text(encoding="utf-8")
     roadmap = roadmap_path.read_text(encoding="utf-8")
@@ -84,6 +86,9 @@ def main() -> None:
     cargo_path.write_text(cargo, encoding="utf-8")
     changelog_path.write_text(changelog, encoding="utf-8")
     roadmap_path.write_text(roadmap, encoding="utf-8")
+    tauri_conf = json.loads(tauri_conf_path.read_text(encoding="utf-8"))
+    tauri_conf["version"] = version
+    tauri_conf_path.write_text(json.dumps(tauri_conf, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     if args.github_output:
         with args.github_output.open("a", encoding="utf-8") as output:
             output.write(f"previous_version={previous_version}\n")
