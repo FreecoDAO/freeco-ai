@@ -13026,6 +13026,204 @@ pub async fn comms_task(
 
 // ── Dashboard Authentication (username/password sessions) ──
 
+#[derive(Clone, Debug)]
+struct DashboardAccount {
+    username: String,
+    role: String,
+    password_hash: String,
+    enabled: bool,
+}
+
+fn normalize_role(raw: &str) -> String {
+    match raw.to_ascii_lowercase().as_str() {
+        "owner" | "admin" | "user" | "kid" | "viewer" => raw.to_ascii_lowercase(),
+        _ => "user".to_string(),
+    }
+}
+
+fn collect_dashboard_accounts(config: &openfang_types::config::KernelConfig) -> Vec<DashboardAccount> {
+    let mut users: Vec<DashboardAccount> = config
+        .users
+        .iter()
+        .filter_map(|u| {
+            let hash = u.password_hash.as_deref().unwrap_or("").trim();
+            if hash.is_empty() {
+                return None;
+            }
+            Some(DashboardAccount {
+                username: u.name.clone(),
+                role: normalize_role(&u.role),
+                password_hash: hash.to_string(),
+                enabled: u.enabled,
+            })
+        })
+        .collect();
+
+    if users.is_empty() && config.auth.enabled && !config.auth.password_hash.trim().is_empty() {
+        users.push(DashboardAccount {
+            username: config.auth.username.clone(),
+            role: "owner".to_string(),
+            password_hash: config.auth.password_hash.clone(),
+            enabled: true,
+        });
+    }
+
+    users
+}
+
+fn derive_session_secret(
+    config: &openfang_types::config::KernelConfig,
+    users: &[DashboardAccount],
+) -> String {
+    let api_key = config.api_key.trim().to_string();
+    if !api_key.is_empty() {
+        return api_key;
+    }
+    if !config.auth.password_hash.trim().is_empty() {
+        return config.auth.password_hash.clone();
+    }
+    users
+        .iter()
+        .find(|u| u.enabled)
+        .map(|u| u.password_hash.clone())
+        .unwrap_or_default()
+}
+
+fn role_rank(role: &str) -> u8 {
+    match normalize_role(role).as_str() {
+        "owner" => 5,
+        "admin" => 4,
+        "user" => 3,
+        "kid" => 2,
+        "viewer" => 1,
+        _ => 0,
+    }
+}
+
+fn build_capabilities(role: &str) -> serde_json::Value {
+    let rank = role_rank(role);
+    serde_json::json!({
+        "chat": rank >= role_rank("kid"),
+        "view_config": rank >= role_rank("user"),
+        "manage_agents": rank >= role_rank("admin"),
+        "manage_integrations": rank >= role_rank("admin"),
+        "manage_users": rank >= role_rank("owner"),
+        "step_up_required_for_sensitive_actions": true,
+    })
+}
+
+fn current_os_username() -> String {
+    std::env::var("USERNAME")
+        .or_else(|_| std::env::var("USER"))
+        .ok()
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or_else(|| "owner".to_string())
+}
+
+fn parse_config_table(config_path: &std::path::Path) -> Result<toml::value::Table, &'static str> {
+    if !config_path.exists() {
+        return Ok(toml::value::Table::new());
+    }
+    let content = std::fs::read_to_string(config_path).map_err(|_| "Could not read configuration")?;
+    toml::from_str(&content).map_err(|_| "Could not parse configuration")
+}
+
+fn write_config_table(
+    config_path: &std::path::Path,
+    table: &toml::value::Table,
+) -> Result<(), &'static str> {
+    let toml_string = toml::to_string_pretty(table).map_err(|_| "Could not save configuration")?;
+    std::fs::write(config_path, toml_string).map_err(|_| "Could not save configuration")
+}
+
+fn ensure_users_array_mut(
+    table: &mut toml::value::Table,
+) -> Result<&mut Vec<toml::Value>, &'static str> {
+    let users = table
+        .entry("users".to_string())
+        .or_insert_with(|| toml::Value::Array(Vec::new()));
+    users.as_array_mut().ok_or("Invalid users configuration")
+}
+
+fn ensure_user_password_hash(
+    table: &mut toml::value::Table,
+    username: &str,
+    role: &str,
+    password_hash: &str,
+    enabled: bool,
+) -> Result<(), &'static str> {
+    let users = ensure_users_array_mut(table)?;
+    for value in users.iter_mut() {
+        let Some(entry) = value.as_table_mut() else {
+            continue;
+        };
+        let is_target = entry
+            .get("name")
+            .and_then(toml::Value::as_str)
+            .map(|name| name == username)
+            .unwrap_or(false);
+        if is_target {
+            entry.insert("role".to_string(), toml::Value::String(normalize_role(role)));
+            entry.insert(
+                "password_hash".to_string(),
+                toml::Value::String(password_hash.to_string()),
+            );
+            entry.insert("enabled".to_string(), toml::Value::Boolean(enabled));
+            return Ok(());
+        }
+    }
+
+    let mut user = toml::value::Table::new();
+    user.insert("name".to_string(), toml::Value::String(username.to_string()));
+    user.insert("role".to_string(), toml::Value::String(normalize_role(role)));
+    user.insert(
+        "password_hash".to_string(),
+        toml::Value::String(password_hash.to_string()),
+    );
+    user.insert("enabled".to_string(), toml::Value::Boolean(enabled));
+    user.insert(
+        "channel_bindings".to_string(),
+        toml::Value::Table(toml::value::Table::new()),
+    );
+    users.push(toml::Value::Table(user));
+    Ok(())
+}
+
+fn upsert_legacy_auth(table: &mut toml::value::Table, username: &str, password_hash: &str) {
+    let auth_table = table
+        .entry("auth".to_string())
+        .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
+    if let Some(auth) = auth_table.as_table_mut() {
+        auth.insert("enabled".to_string(), toml::Value::Boolean(true));
+        auth.insert(
+            "username".to_string(),
+            toml::Value::String(username.to_string()),
+        );
+        auth.insert(
+            "password_hash".to_string(),
+            toml::Value::String(password_hash.to_string()),
+        );
+    }
+}
+
+fn read_session_claims_from_headers(
+    headers: &axum::http::HeaderMap,
+    secret: &str,
+) -> Option<crate::session_auth::SessionClaims> {
+    crate::session_auth::extract_session_cookie(headers)
+        .and_then(|token| crate::session_auth::verify_session_claims(&token, secret))
+}
+
+/// GET /api/auth/accounts — list sign-in accounts.
+pub async fn auth_accounts(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let accounts = collect_dashboard_accounts(&state.kernel.config)
+        .into_iter()
+        .filter(|u| u.enabled)
+        .map(|u| serde_json::json!({ "username": u.username, "role": u.role }))
+        .collect::<Vec<_>>();
+    Json(serde_json::json!({ "accounts": accounts }))
+}
+
 /// POST /api/auth/login — Authenticate with username/password, returns session token.
 pub async fn auth_login(
     State(state): State<Arc<AppState>>,
@@ -13034,33 +13232,27 @@ pub async fn auth_login(
     use axum::body::Body;
     use axum::response::Response;
 
-    let auth_cfg = &state.kernel.config.auth;
-    if !auth_cfg.enabled {
+    let accounts = collect_dashboard_accounts(&state.kernel.config);
+    if accounts.is_empty() {
         return Response::builder()
             .status(StatusCode::NOT_FOUND)
             .header("content-type", "application/json")
             .body(Body::from(
-                serde_json::json!({"error": "Auth not enabled"}).to_string(),
+                serde_json::json!({"error": "No dashboard accounts configured"}).to_string(),
             ))
             .unwrap();
     }
 
     let username = req.get("username").and_then(|v| v.as_str()).unwrap_or("");
     let password = req.get("password").and_then(|v| v.as_str()).unwrap_or("");
+    let account = accounts
+        .iter()
+        .find(|a| a.enabled && a.username == username)
+        .cloned();
 
-    // Constant-time username comparison to prevent timing attacks
-    let username_ok = {
-        use subtle::ConstantTimeEq;
-        let stored = auth_cfg.username.as_bytes();
-        let provided = username.as_bytes();
-        if stored.len() != provided.len() {
-            false
-        } else {
-            bool::from(stored.ct_eq(provided))
-        }
-    };
-
-    if !username_ok || !crate::session_auth::verify_password(password, &auth_cfg.password_hash) {
+    if account.as_ref().is_none_or(|a| {
+        !crate::session_auth::verify_password(password, &a.password_hash)
+    }) {
         // Audit log the failed attempt
         state.kernel.audit_log.record(
             "system",
@@ -13077,17 +13269,17 @@ pub async fn auth_login(
             .unwrap();
     }
 
-    // Derive the session secret the same way as server.rs
-    let api_key = state.kernel.config.api_key.trim().to_string();
-    let secret = if !api_key.is_empty() {
-        api_key
-    } else {
-        auth_cfg.password_hash.clone()
-    };
+    let account = account.expect("checked above");
+    let secret = derive_session_secret(&state.kernel.config, &accounts);
 
-    let token =
-        crate::session_auth::create_session_token(username, &secret, auth_cfg.session_ttl_hours);
-    let ttl_secs = auth_cfg.session_ttl_hours * 3600;
+    let token = crate::session_auth::create_session_token_with_role(
+        username,
+        &account.role,
+        &secret,
+        state.kernel.config.auth.session_ttl_hours,
+        0,
+    );
+    let ttl_secs = state.kernel.config.auth.session_ttl_hours * 3600;
     let cookie =
         format!("openfang_session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={ttl_secs}");
 
@@ -13107,6 +13299,8 @@ pub async fn auth_login(
                 "status": "ok",
                 "token": token,
                 "username": username,
+                "role": account.role,
+                "capabilities": build_capabilities(&account.role),
             })
             .to_string(),
         ))
@@ -13120,6 +13314,168 @@ pub async fn auth_logout() -> impl IntoResponse {
         StatusCode::OK,
         [("content-type", "application/json"), ("set-cookie", cookie)],
         serde_json::json!({"status": "ok"}).to_string(),
+    )
+}
+
+/// POST /api/auth/step-up — elevate session for sensitive actions.
+pub async fn auth_step_up(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let accounts = collect_dashboard_accounts(&state.kernel.config);
+    let secret = derive_session_secret(&state.kernel.config, &accounts);
+    let claims = match read_session_claims_from_headers(&headers, &secret) {
+        Some(claims) => claims,
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "Authentication required"})),
+            );
+        }
+    };
+    let account = match accounts.iter().find(|a| a.username == claims.username) {
+        Some(a) => a,
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "Unknown account"})),
+            );
+        }
+    };
+
+    let method = req
+        .get("method")
+        .and_then(|v| v.as_str())
+        .unwrap_or("password");
+    let verified = if method == "biometric" {
+        req.get("biometric_asserted")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    } else {
+        let password = req.get("password").and_then(|v| v.as_str()).unwrap_or("");
+        crate::session_auth::verify_password(password, &account.password_hash)
+    };
+    if !verified {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Step-up verification failed"})),
+        );
+    }
+
+    let step_up_until_unix = chrono::Utc::now().timestamp() + 300;
+    let token = crate::session_auth::create_session_token_with_role(
+        &claims.username,
+        &claims.role,
+        &secret,
+        state.kernel.config.auth.session_ttl_hours,
+        step_up_until_unix,
+    );
+    let ttl_secs = state.kernel.config.auth.session_ttl_hours * 3600;
+    let cookie =
+        format!("openfang_session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={ttl_secs}");
+    (
+        StatusCode::OK,
+        [("set-cookie", cookie)],
+        Json(serde_json::json!({
+            "status": "ok",
+            "method": method,
+            "step_up_until_unix": step_up_until_unix
+        })),
+    )
+}
+
+/// POST /api/auth/bootstrap — first-run setup (skip / use-current-user / create-account).
+pub async fn auth_bootstrap(
+    State(state): State<Arc<AppState>>,
+    axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    Json(req): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    if !peer.ip().is_loopback() {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Bootstrap is only available on this device"})),
+        );
+    }
+    if !collect_dashboard_accounts(&state.kernel.config).is_empty() {
+        return (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({"error": "Accounts are already configured"})),
+        );
+    }
+    let action = req.get("action").and_then(|v| v.as_str()).unwrap_or("skip");
+    if action == "skip" {
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({"status": "ok", "mode": "skip"})),
+        );
+    }
+
+    let username = if action == "use_current_user" {
+        current_os_username()
+    } else {
+        req.get("username")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string()
+    };
+    if username.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Username is required"})),
+        );
+    }
+    let role = req
+        .get("role")
+        .and_then(|v| v.as_str())
+        .map(normalize_role)
+        .unwrap_or_else(|| "owner".to_string());
+    let password = req
+        .get("password")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if password.len() < 12 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Password must be at least 12 characters long"})),
+        );
+    }
+
+    let password_hash = crate::session_auth::hash_password(&password);
+    let config_path = state.kernel.config.home_dir.join("config.toml");
+    let mut table = match parse_config_table(&config_path) {
+        Ok(table) => table,
+        Err(msg) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": msg })),
+            );
+        }
+    };
+    if let Err(msg) = ensure_user_password_hash(&mut table, &username, &role, &password_hash, true) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": msg })),
+        );
+    }
+    upsert_legacy_auth(&mut table, &username, &password_hash);
+    if let Err(msg) = write_config_table(&config_path, &table) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": msg })),
+        );
+    }
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "status": "ok",
+            "username": username,
+            "role": role,
+            "restart_required": true,
+        })),
     )
 }
 
@@ -13144,48 +13500,30 @@ pub async fn auth_set_password(
     }
 
     let config_path = state.kernel.config.home_dir.join("config.toml");
-    let mut table: toml::value::Table = if config_path.exists() {
-        let content = match std::fs::read_to_string(&config_path) {
-            Ok(content) => content,
-            Err(_) => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({"error": "Could not read configuration"})),
-                );
-            }
-        };
-        match toml::from_str(&content) {
-            Ok(table) => table,
-            Err(_) => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({"error": "Could not parse configuration"})),
-                );
-            }
+    let mut table = match parse_config_table(&config_path) {
+        Ok(table) => table,
+        Err(msg) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": msg })),
+            );
         }
-    } else {
-        toml::value::Table::new()
     };
-
-    let auth_table = table
-        .entry("auth".to_string())
-        .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
-    let Some(auth) = auth_table.as_table_mut() else {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": "Invalid authentication configuration"})),
-        );
-    };
-    let password_hash = auth
-        .get("password_hash")
-        .and_then(toml::Value::as_str)
-        .unwrap_or("");
-    let username = auth
+    let users = collect_dashboard_accounts(&state.kernel.config);
+    let secret = derive_session_secret(&state.kernel.config, &users);
+    let desired_username = req
         .get("username")
-        .and_then(toml::Value::as_str)
-        .unwrap_or("admin");
+        .and_then(|v| v.as_str())
+        .filter(|v| !v.trim().is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(current_os_username);
+    let role = req
+        .get("role")
+        .and_then(|v| v.as_str())
+        .map(normalize_role)
+        .unwrap_or_else(|| "owner".to_string());
 
-    if password_hash.is_empty() {
+    if users.is_empty() {
         if !peer.ip().is_loopback() {
             return (
                 StatusCode::FORBIDDEN,
@@ -13199,47 +13537,54 @@ pub async fn auth_set_password(
             .get("current_password")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let secret = {
-            let api_key = state.kernel.config.api_key.trim();
-            if api_key.is_empty() {
-                password_hash
-            } else {
-                api_key
-            }
+        let claims = read_session_claims_from_headers(&headers, &secret);
+        let Some(claims) = claims else {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "Current credentials are invalid"})),
+            );
         };
-        let session_user = crate::session_auth::extract_session_cookie(&headers)
-            .and_then(|token| crate::session_auth::verify_session_token(&token, secret));
-        if session_user.as_deref() != Some(username)
-            || !crate::session_auth::verify_password(current_password, password_hash)
-        {
+        let Some(account) = users.iter().find(|u| u.username == claims.username) else {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "Current credentials are invalid"})),
+            );
+        };
+        if !crate::session_auth::verify_password(current_password, &account.password_hash) {
             return (
                 StatusCode::UNAUTHORIZED,
                 Json(serde_json::json!({"error": "Current credentials are invalid"})),
             );
         }
-    }
-
-    auth.insert("enabled".to_string(), toml::Value::Boolean(true));
-    auth.insert(
-        "password_hash".to_string(),
-        toml::Value::String(crate::session_auth::hash_password(password)),
-    );
-    auth.entry("username".to_string())
-        .or_insert_with(|| toml::Value::String("admin".to_string()));
-
-    let toml_string = match toml::to_string_pretty(&table) {
-        Ok(value) => value,
-        Err(_) => {
+        if !crate::session_auth::has_recent_step_up(&claims) {
             return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Could not save configuration"})),
+                StatusCode::FORBIDDEN,
+                Json(serde_json::json!({"error": "Step-up verification required"})),
             );
         }
+    }
+
+    let password_hash = crate::session_auth::hash_password(password);
+    let target_username = if users.is_empty() {
+        desired_username
+    } else {
+        read_session_claims_from_headers(&headers, &secret)
+            .map(|c| c.username)
+            .unwrap_or_else(|| "admin".to_string())
     };
-    if std::fs::write(&config_path, toml_string).is_err() {
+    if let Err(msg) =
+        ensure_user_password_hash(&mut table, &target_username, &role, &password_hash, true)
+    {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": "Could not save configuration"})),
+            Json(serde_json::json!({ "error": msg })),
+        );
+    }
+    upsert_legacy_auth(&mut table, &target_username, &password_hash);
+    if let Err(msg) = write_config_table(&config_path, &table) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": msg })),
         );
     }
 
@@ -13263,41 +13608,236 @@ pub async fn auth_check(
     State(state): State<Arc<AppState>>,
     request: axum::http::Request<axum::body::Body>,
 ) -> impl IntoResponse {
-    let auth_cfg = &state.kernel.config.auth;
-    if !auth_cfg.enabled {
+    let users = collect_dashboard_accounts(&state.kernel.config);
+    if users.is_empty() {
         return Json(serde_json::json!({
             "authenticated": true,
             "mode": "none",
             "password_configured": false,
+            "accounts": [],
         }));
     }
 
-    // Derive the session secret the same way as server.rs
-    let api_key = state.kernel.config.api_key.trim().to_string();
-    let secret = if !api_key.is_empty() {
-        api_key
-    } else {
-        auth_cfg.password_hash.clone()
-    };
+    let secret = derive_session_secret(&state.kernel.config, &users);
 
     // Check session cookie
-    let session_user = crate::session_auth::extract_session_cookie(request.headers())
-        .and_then(|token| crate::session_auth::verify_session_token(&token, &secret));
+    let session_claims = crate::session_auth::extract_session_cookie(request.headers())
+        .and_then(|token| crate::session_auth::verify_session_claims(&token, &secret));
 
-    if let Some(username) = session_user {
+    if let Some(claims) = session_claims {
         Json(serde_json::json!({
             "authenticated": true,
             "mode": "session",
-            "username": username,
+            "username": claims.username,
+            "role": claims.role,
+            "capabilities": build_capabilities(&claims.role),
+            "step_up_active": crate::session_auth::has_recent_step_up(&claims),
             "password_configured": true,
+            "accounts": users.iter().filter(|u| u.enabled).map(|u| serde_json::json!({
+                "username": u.username,
+                "role": u.role
+            })).collect::<Vec<_>>(),
         }))
     } else {
         Json(serde_json::json!({
             "authenticated": false,
             "mode": "session",
             "password_configured": true,
+            "accounts": users.iter().filter(|u| u.enabled).map(|u| serde_json::json!({
+                "username": u.username,
+                "role": u.role
+            })).collect::<Vec<_>>(),
         }))
     }
+}
+
+fn require_owner_step_up(
+    headers: &axum::http::HeaderMap,
+    config: &openfang_types::config::KernelConfig,
+) -> Result<crate::session_auth::SessionClaims, (StatusCode, Json<serde_json::Value>)> {
+    let users = collect_dashboard_accounts(config);
+    let secret = derive_session_secret(config, &users);
+    let Some(claims) = read_session_claims_from_headers(headers, &secret) else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Authentication required"})),
+        ));
+    };
+    if role_rank(&claims.role) < role_rank("owner") {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Owner role required"})),
+        ));
+    }
+    if !crate::session_auth::has_recent_step_up(&claims) {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Step-up verification required"})),
+        ));
+    }
+    Ok(claims)
+}
+
+/// GET /api/users — List dashboard users.
+pub async fn users_list(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    if let Err(err) = require_owner_step_up(&headers, &state.kernel.config) {
+        return err;
+    }
+    let users: Vec<serde_json::Value> = state
+        .kernel
+        .config
+        .users
+        .iter()
+        .map(|u| {
+            serde_json::json!({
+                "name": u.name,
+                "role": normalize_role(&u.role),
+                "enabled": u.enabled,
+                "has_password": u.password_hash.as_ref().is_some_and(|h| !h.trim().is_empty()),
+            })
+        })
+        .collect();
+    (StatusCode::OK, Json(serde_json::json!({ "users": users })))
+}
+
+/// POST /api/users — Create dashboard user account.
+pub async fn users_create(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    if let Err(err) = require_owner_step_up(&headers, &state.kernel.config) {
+        return err;
+    }
+    let username = req
+        .get("username")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    if username.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Username is required"})),
+        );
+    }
+    let role = normalize_role(req.get("role").and_then(|v| v.as_str()).unwrap_or("user"));
+    let password = req
+        .get("password")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    if password.len() < 12 {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Password must be at least 12 characters long"})),
+        );
+    }
+    let config_path = state.kernel.config.home_dir.join("config.toml");
+    let mut table = match parse_config_table(&config_path) {
+        Ok(table) => table,
+        Err(msg) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": msg })),
+            )
+        }
+    };
+    let users = collect_dashboard_accounts(&state.kernel.config);
+    if users.iter().any(|u| u.username == username) {
+        return (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({"error": "User already exists"})),
+        );
+    }
+    let hash = crate::session_auth::hash_password(password);
+    if let Err(msg) = ensure_user_password_hash(&mut table, username, &role, &hash, true) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": msg })),
+        );
+    }
+    if let Err(msg) = write_config_table(&config_path, &table) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": msg })),
+        );
+    }
+    (
+        StatusCode::CREATED,
+        Json(serde_json::json!({"status":"ok","username":username,"role":role,"restart_required":true})),
+    )
+}
+
+/// PATCH /api/users/:name — Update role/enabled for a dashboard user.
+pub async fn users_update(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    Path(name): Path<String>,
+    Json(req): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    if let Err(err) = require_owner_step_up(&headers, &state.kernel.config) {
+        return err;
+    }
+    let config_path = state.kernel.config.home_dir.join("config.toml");
+    let mut table = match parse_config_table(&config_path) {
+        Ok(table) => table,
+        Err(msg) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": msg })),
+            )
+        }
+    };
+    let users = match ensure_users_array_mut(&mut table) {
+        Ok(users) => users,
+        Err(msg) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": msg })),
+            )
+        }
+    };
+    let mut updated = false;
+    for value in users.iter_mut() {
+        let Some(user) = value.as_table_mut() else {
+            continue;
+        };
+        let is_target = user
+            .get("name")
+            .and_then(toml::Value::as_str)
+            .map(|v| v == name)
+            .unwrap_or(false);
+        if !is_target {
+            continue;
+        }
+        if let Some(role) = req.get("role").and_then(|v| v.as_str()) {
+            user.insert("role".to_string(), toml::Value::String(normalize_role(role)));
+        }
+        if let Some(enabled) = req.get("enabled").and_then(|v| v.as_bool()) {
+            user.insert("enabled".to_string(), toml::Value::Boolean(enabled));
+        }
+        updated = true;
+        break;
+    }
+    if !updated {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error":"User not found"})),
+        );
+    }
+    if let Err(msg) = write_config_table(&config_path, &table) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": msg })),
+        );
+    }
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status":"ok","restart_required":true})),
+    )
 }
 
 /// Remove a `[section]` and its contents from a TOML string.

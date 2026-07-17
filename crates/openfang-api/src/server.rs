@@ -160,13 +160,32 @@ pub async fn build_router(
         }
     }
 
+    let users_have_password = state.kernel.config.users.iter().any(|u| {
+        u.enabled
+            && u.password_hash
+                .as_ref()
+                .is_some_and(|h| !h.trim().is_empty())
+    });
+    let auth_enabled = state.kernel.config.auth.enabled || users_have_password;
     let auth_state = crate::middleware::AuthState {
         api_key: api_key.clone(),
-        auth_enabled: state.kernel.config.auth.enabled,
+        auth_enabled,
         session_secret: if !api_key.is_empty() {
             api_key.clone()
-        } else if state.kernel.config.auth.enabled {
+        } else if !state.kernel.config.auth.password_hash.trim().is_empty() {
             state.kernel.config.auth.password_hash.clone()
+        } else if users_have_password {
+            state.kernel
+                .config
+                .users
+                .iter()
+                .find_map(|u| {
+                    u.password_hash
+                        .as_ref()
+                        .filter(|h| !h.trim().is_empty())
+                        .cloned()
+                })
+                .unwrap_or_default()
         } else {
             String::new()
         },
@@ -834,13 +853,21 @@ pub async fn build_router(
             axum::routing::get(crate::openai_compat::list_models),
         )
         // Dashboard authentication endpoints
+        .route("/api/auth/accounts", axum::routing::get(routes::auth_accounts))
+        .route(
+            "/api/auth/bootstrap",
+            axum::routing::post(routes::auth_bootstrap),
+        )
         .route("/api/auth/login", axum::routing::post(routes::auth_login))
         .route("/api/auth/logout", axum::routing::post(routes::auth_logout))
+        .route("/api/auth/step-up", axum::routing::post(routes::auth_step_up))
         .route(
             "/api/auth/set-password",
             axum::routing::post(routes::auth_set_password),
         )
         .route("/api/auth/check", axum::routing::get(routes::auth_check))
+        .route("/api/users", axum::routing::get(routes::users_list).post(routes::users_create))
+        .route("/api/users/{name}", axum::routing::patch(routes::users_update))
         .layer(axum::middleware::from_fn_with_state(
             auth_state,
             middleware::auth,

@@ -54,6 +54,39 @@ pub struct AuthState {
     pub allow_no_auth: bool,
 }
 
+fn role_rank(role: &str) -> u8 {
+    match role.to_ascii_lowercase().as_str() {
+        "owner" => 5,
+        "admin" => 4,
+        "user" => 3,
+        "kid" => 2,
+        "viewer" => 1,
+        _ => 0,
+    }
+}
+
+fn required_role_for_request(path: &str, method: &axum::http::Method) -> Option<&'static str> {
+    if path.starts_with("/api/users") {
+        return Some("owner");
+    }
+    if path == "/api/auth/set-password" || path == "/api/auth/step-up" {
+        return Some("user");
+    }
+    if method != axum::http::Method::GET {
+        if path.starts_with("/api/agents")
+            || path.starts_with("/api/channels")
+            || path.starts_with("/api/providers")
+            || path.starts_with("/api/skills")
+            || path.starts_with("/api/workflows")
+            || path.starts_with("/api/budget")
+            || path.starts_with("/api/security")
+        {
+            return Some("admin");
+        }
+    }
+    None
+}
+
 /// Bearer token authentication middleware.
 ///
 /// When `api_key` is non-empty (after trimming), requests to non-public
@@ -106,6 +139,8 @@ pub async fn auth(
         || path.starts_with("/api/providers/github-copilot/oauth/")
         || path == "/api/auth/login"
         || path == "/api/auth/logout"
+        || (path == "/api/auth/accounts" && is_get)
+        || path == "/api/auth/bootstrap"
         || path == "/api/auth/set-password"
         || (path == "/api/auth/check" && is_get);
 
@@ -187,9 +222,19 @@ pub async fn auth(
     // Check session cookie (dashboard login sessions)
     if auth_state.auth_enabled {
         if let Some(token) = crate::session_auth::extract_session_cookie(request.headers()) {
-            if crate::session_auth::verify_session_token(&token, &auth_state.session_secret)
-                .is_some()
+            if let Some(claims) =
+                crate::session_auth::verify_session_claims(&token, &auth_state.session_secret)
             {
+                if let Some(required) = required_role_for_request(path, &method) {
+                    if role_rank(&claims.role) < role_rank(required) {
+                        return Response::builder()
+                            .status(StatusCode::FORBIDDEN)
+                            .body(Body::from(
+                                serde_json::json!({"error": "Insufficient role privileges"}).to_string(),
+                            ))
+                            .unwrap_or_default();
+                    }
+                }
                 return next.run(request).await;
             }
         }

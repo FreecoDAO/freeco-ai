@@ -783,6 +783,15 @@ function settingsPage() {
       }
       this.passwordSaving = true;
       try {
+        var step = await OpenFangAPI.post('/api/auth/step-up', {
+          method: 'password',
+          password: this.currentPassword
+        });
+        if (!step || step.status !== 'ok') {
+          this.passwordSaving = false;
+          OpenFangToast.error('Verification failed');
+          return;
+        }
         var result = await OpenFangAPI.post('/api/auth/set-password', {
           password: this.passwordInput,
           current_password: this.currentPassword

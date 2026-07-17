@@ -15,18 +15,21 @@ use tracing::info;
 pub enum UserRole {
     /// Read-only access — can view agent output but cannot interact.
     Viewer = 0,
+    /// Child account — can chat with kid-safe policy, but no config visibility.
+    Kid = 1,
     /// Standard user — can chat with agents.
-    User = 1,
+    User = 2,
     /// Admin — can spawn/kill agents, install skills, view usage.
-    Admin = 2,
+    Admin = 3,
     /// Owner — full access including user management and config changes.
-    Owner = 3,
+    Owner = 4,
 }
 
 impl fmt::Display for UserRole {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             UserRole::Viewer => write!(f, "viewer"),
+            UserRole::Kid => write!(f, "kid"),
             UserRole::User => write!(f, "user"),
             UserRole::Admin => write!(f, "admin"),
             UserRole::Owner => write!(f, "owner"),
@@ -40,6 +43,7 @@ impl UserRole {
         match s.to_lowercase().as_str() {
             "owner" => UserRole::Owner,
             "admin" => UserRole::Admin,
+            "kid" => UserRole::Kid,
             "viewer" => UserRole::Viewer,
             _ => UserRole::User,
         }
@@ -71,7 +75,7 @@ impl Action {
     /// Minimum role required for this action.
     fn required_role(&self) -> UserRole {
         match self {
-            Action::ChatWithAgent => UserRole::User,
+            Action::ChatWithAgent => UserRole::Kid,
             Action::ViewConfig => UserRole::User,
             Action::ViewUsage => UserRole::Admin,
             Action::SpawnAgent => UserRole::Admin,
@@ -205,6 +209,8 @@ mod tests {
                     m
                 },
                 api_key_hash: None,
+                password_hash: None,
+                enabled: true,
             },
             UserConfig {
                 name: "Guest".to_string(),
@@ -215,12 +221,28 @@ mod tests {
                     m
                 },
                 api_key_hash: None,
+                password_hash: None,
+                enabled: true,
             },
             UserConfig {
                 name: "ReadOnly".to_string(),
                 role: "viewer".to_string(),
                 channel_bindings: HashMap::new(),
                 api_key_hash: None,
+                password_hash: None,
+                enabled: true,
+            },
+            UserConfig {
+                name: "Kiddo".to_string(),
+                role: "kid".to_string(),
+                channel_bindings: {
+                    let mut m = HashMap::new();
+                    m.insert("telegram".to_string(), "777777".to_string());
+                    m
+                },
+                api_key_hash: None,
+                password_hash: None,
+                enabled: true,
             },
         ]
     }
@@ -229,7 +251,7 @@ mod tests {
     fn test_user_registration() {
         let manager = AuthManager::new(&test_configs());
         assert!(manager.is_enabled());
-        assert_eq!(manager.user_count(), 3);
+        assert_eq!(manager.user_count(), 4);
     }
 
     #[test]
@@ -276,6 +298,15 @@ mod tests {
         assert!(manager.authorize(guest_id, &Action::SpawnAgent).is_err());
         assert!(manager.authorize(guest_id, &Action::KillAgent).is_err());
         assert!(manager.authorize(guest_id, &Action::ManageUsers).is_err());
+    }
+
+    #[test]
+    fn test_kid_can_chat_only() {
+        let manager = AuthManager::new(&test_configs());
+        let kid_id = manager.identify("telegram", "777777").unwrap();
+        assert!(manager.authorize(kid_id, &Action::ChatWithAgent).is_ok());
+        assert!(manager.authorize(kid_id, &Action::ViewConfig).is_err());
+        assert!(manager.authorize(kid_id, &Action::SpawnAgent).is_err());
     }
 
     #[test]

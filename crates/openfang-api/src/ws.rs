@@ -325,11 +325,29 @@ pub async fn agent_ws(
 
     // Mirror the session_secret derivation in server.rs::AuthState so cookies
     // issued by /api/auth/login verify the same way over HTTP and WS.
-    let auth_enabled = state.kernel.config.auth.enabled;
+    let users_have_password = state.kernel.config.users.iter().any(|u| {
+        u.enabled
+            && u.password_hash
+                .as_ref()
+                .is_some_and(|h| !h.trim().is_empty())
+    });
+    let auth_enabled = state.kernel.config.auth.enabled || users_have_password;
     let session_secret_owned: String = if !api_key.is_empty() {
         api_key.to_string()
-    } else if auth_enabled {
+    } else if !state.kernel.config.auth.password_hash.trim().is_empty() {
         state.kernel.config.auth.password_hash.clone()
+    } else if users_have_password {
+        state.kernel
+            .config
+            .users
+            .iter()
+            .find_map(|u| {
+                u.password_hash
+                    .as_ref()
+                    .filter(|h| !h.trim().is_empty())
+                    .cloned()
+            })
+            .unwrap_or_default()
     } else {
         String::new()
     };

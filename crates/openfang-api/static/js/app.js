@@ -143,6 +143,10 @@ document.addEventListener('alpine:init', function() {
     showPasswordSetup: false,
     authMode: 'apikey',
     sessionUser: null,
+    sessionRole: null,
+    capabilities: {},
+    authAccounts: [],
+    canSkipSignIn: false,
     updateAvailable: false,
     updateLatest: '',
     frozen: false,
@@ -265,6 +269,7 @@ document.addEventListener('alpine:init', function() {
       try {
         // First check if session-based auth is configured
         var authInfo = await OpenFangAPI.get('/api/auth/check');
+        this.authAccounts = Array.isArray(authInfo.accounts) ? authInfo.accounts : [];
         if (!authInfo.password_configured && !localStorage.getItem('openfang-password-setup-skipped')) {
           this.showPasswordSetup = true;
         }
@@ -272,10 +277,16 @@ document.addEventListener('alpine:init', function() {
           // No session auth — fall back to API key detection
           this.authMode = 'apikey';
           this.sessionUser = null;
+          this.sessionRole = null;
+          this.capabilities = {};
+          this.canSkipSignIn = true;
         } else if (authInfo.mode === 'session') {
           this.authMode = 'session';
+          this.canSkipSignIn = false;
           if (authInfo.authenticated) {
             this.sessionUser = authInfo.username;
+            this.sessionRole = authInfo.role || null;
+            this.capabilities = authInfo.capabilities || {};
             this.showAuthPrompt = false;
             return;
           }
@@ -314,6 +325,8 @@ document.addEventListener('alpine:init', function() {
         var result = await OpenFangAPI.post('/api/auth/login', { username: username, password: password });
         if (result.status === 'ok') {
           this.sessionUser = result.username;
+          this.sessionRole = result.role || null;
+          this.capabilities = result.capabilities || {};
           this.showAuthPrompt = false;
           this.refreshAgents();
         } else {
@@ -330,7 +343,7 @@ document.addEventListener('alpine:init', function() {
         return;
       }
       try {
-        var result = await OpenFangAPI.post('/api/auth/set-password', { password: password });
+        var result = await OpenFangAPI.post('/api/auth/set-password', { password: password, role: 'owner' });
         if (result.status === 'ok') {
           this.showPasswordSetup = false;
           localStorage.setItem('openfang-password-setup-skipped', 'true');
@@ -346,11 +359,79 @@ document.addEventListener('alpine:init', function() {
       localStorage.setItem('openfang-password-setup-skipped', 'true');
     },
 
+    async bootstrapSkip() {
+      try {
+        await OpenFangAPI.post('/api/auth/bootstrap', { action: 'skip' });
+      } catch(e) { /* ignore */ }
+      this.showPasswordSetup = false;
+      this.showAuthPrompt = false;
+      this.canSkipSignIn = true;
+      localStorage.setItem('openfang-password-setup-skipped', 'true');
+    },
+
+    async bootstrapUseCurrentUser() {
+      var pwd = window.prompt('Set password for your current OS account (12+ chars):') || '';
+      if (pwd.length < 12) {
+        OpenFangToast.error('Password must be at least 12 characters');
+        return;
+      }
+      try {
+        var result = await OpenFangAPI.post('/api/auth/bootstrap', {
+          action: 'use_current_user',
+          password: pwd,
+          role: 'owner'
+        });
+        if (result.status === 'ok') {
+          this.showPasswordSetup = false;
+          OpenFangToast.success('Account created. Restart FreEco.ai to load multi-user auth.');
+        }
+      } catch(e) {
+        OpenFangToast.error(e.message || 'Bootstrap failed');
+      }
+    },
+
+    async bootstrapCreateAccount(username, role, password, confirmation) {
+      if (password !== confirmation) {
+        OpenFangToast.error('Passwords do not match');
+        return;
+      }
+      try {
+        var result = await OpenFangAPI.post('/api/auth/bootstrap', {
+          action: 'create_account',
+          username: username,
+          role: role,
+          password: password
+        });
+        if (result.status === 'ok') {
+          this.showPasswordSetup = false;
+          OpenFangToast.success('Account created. Restart FreEco.ai to load multi-user auth.');
+        }
+      } catch(e) {
+        OpenFangToast.error(e.message || 'Bootstrap failed');
+      }
+    },
+
+    async ensureStepUp(password, method) {
+      try {
+        await OpenFangAPI.post('/api/auth/step-up', {
+          method: method || 'password',
+          password: password || '',
+          biometric_asserted: method === 'biometric'
+        });
+        return true;
+      } catch(e) {
+        OpenFangToast.error(e.message || 'Verification failed');
+        return false;
+      }
+    },
+
     async sessionLogout() {
       try {
         await OpenFangAPI.post('/api/auth/logout');
       } catch(e) { /* ignore */ }
       this.sessionUser = null;
+      this.sessionRole = null;
+      this.capabilities = {};
       this.showAuthPrompt = true;
     },
 

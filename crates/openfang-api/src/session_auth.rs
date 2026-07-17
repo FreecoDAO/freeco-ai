@@ -6,11 +6,30 @@ use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionClaims {
+    pub username: String,
+    pub role: String,
+    pub expiry_unix: i64,
+    pub step_up_until_unix: i64,
+}
+
 /// Create a session token: base64(username:expiry_unix:hmac_hex)
 pub fn create_session_token(username: &str, secret: &str, ttl_hours: u64) -> String {
+    create_session_token_with_role(username, "admin", secret, ttl_hours, 0)
+}
+
+/// Create a session token with role + optional step-up expiry.
+pub fn create_session_token_with_role(
+    username: &str,
+    role: &str,
+    secret: &str,
+    ttl_hours: u64,
+    step_up_until_unix: i64,
+) -> String {
     use base64::Engine;
     let expiry = chrono::Utc::now().timestamp() + (ttl_hours as i64 * 3600);
-    let payload = format!("{username}:{expiry}");
+    let payload = format!("{username}:{role}:{expiry}:{step_up_until_unix}");
     let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC key");
     mac.update(payload.as_bytes());
     let signature = hex::encode(mac.finalize().into_bytes());
@@ -38,23 +57,46 @@ pub fn extract_session_cookie(headers: &axum::http::HeaderMap) -> Option<String>
 
 /// Verify a session token. Returns the username if valid and not expired.
 pub fn verify_session_token(token: &str, secret: &str) -> Option<String> {
+    verify_session_claims(token, secret).map(|claims| claims.username)
+}
+
+/// Verify a session token. Returns full claims if valid and not expired.
+pub fn verify_session_claims(token: &str, secret: &str) -> Option<SessionClaims> {
     use base64::Engine;
     let decoded = base64::engine::general_purpose::STANDARD
         .decode(token)
         .ok()?;
     let decoded_str = String::from_utf8(decoded).ok()?;
-    let parts: Vec<&str> = decoded_str.splitn(3, ':').collect();
-    if parts.len() != 3 {
+    let parts: Vec<&str> = decoded_str.split(':').collect();
+
+    let (username, role, expiry_str, step_up_until_str, provided_sig, payload) = match parts.as_slice()
+    {
+        // v2 format: username:role:expiry:step_up_until:signature
+        [username, role, expiry_str, step_up_until_str, provided_sig] => (
+            *username,
+            *role,
+            *expiry_str,
+            *step_up_until_str,
+            *provided_sig,
+            format!("{username}:{role}:{expiry_str}:{step_up_until_str}"),
+        ),
+        // legacy format: username:expiry:signature
+        [username, expiry_str, provided_sig] => (
+            *username,
+            "admin",
+            *expiry_str,
+            "0",
+            *provided_sig,
+            format!("{username}:{expiry_str}"),
+        ),
+        _ => return None,
+    };
+
+    let expiry_unix: i64 = expiry_str.parse().ok()?;
+    if chrono::Utc::now().timestamp() > expiry_unix {
         return None;
     }
-    let (username, expiry_str, provided_sig) = (parts[0], parts[1], parts[2]);
 
-    let expiry: i64 = expiry_str.parse().ok()?;
-    if chrono::Utc::now().timestamp() > expiry {
-        return None;
-    }
-
-    let payload = format!("{username}:{expiry_str}");
     let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).ok()?;
     mac.update(payload.as_bytes());
     let expected_sig = hex::encode(mac.finalize().into_bytes());
@@ -68,10 +110,19 @@ pub fn verify_session_token(token: &str, secret: &str) -> Option<String> {
         .ct_eq(expected_sig.as_bytes())
         .into()
     {
-        Some(username.to_string())
+        Some(SessionClaims {
+            username: username.to_string(),
+            role: role.to_string(),
+            expiry_unix,
+            step_up_until_unix: step_up_until_str.parse().ok()?,
+        })
     } else {
         None
     }
+}
+
+pub fn has_recent_step_up(claims: &SessionClaims) -> bool {
+    claims.step_up_until_unix > chrono::Utc::now().timestamp()
 }
 
 /// Hash a password with Argon2id for config storage.
@@ -137,6 +188,15 @@ mod tests {
         let token = create_session_token("admin", "my-secret", 1);
         let user = verify_session_token(&token, "my-secret");
         assert_eq!(user, Some("admin".to_string()));
+    }
+
+    #[test]
+    fn test_create_and_verify_token_with_role() {
+        let token = create_session_token_with_role("kiddo", "kid", "my-secret", 1, 12345);
+        let claims = verify_session_claims(&token, "my-secret").expect("valid claims");
+        assert_eq!(claims.username, "kiddo");
+        assert_eq!(claims.role, "kid");
+        assert_eq!(claims.step_up_until_unix, 12345);
     }
 
     #[test]

@@ -173,10 +173,11 @@ pub enum KernelMode {
 
 /// User configuration for RBAC multi-user support.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct UserConfig {
     /// User display name.
     pub name: String,
-    /// User role (owner, admin, user, viewer).
+    /// User role (owner, admin, user, kid, viewer).
     #[serde(default = "default_role")]
     pub role: String,
     /// Channel bindings: maps channel platform IDs to this user.
@@ -186,10 +187,33 @@ pub struct UserConfig {
     /// Optional API key hash for API authentication.
     #[serde(default)]
     pub api_key_hash: Option<String>,
+    /// Optional dashboard password hash for username/password sign-in.
+    #[serde(default)]
+    pub password_hash: Option<String>,
+    /// Whether this account can authenticate.
+    #[serde(default = "default_user_enabled")]
+    pub enabled: bool,
 }
 
 fn default_role() -> String {
     "user".to_string()
+}
+
+fn default_user_enabled() -> bool {
+    true
+}
+
+impl Default for UserConfig {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            role: default_role(),
+            channel_bindings: HashMap::new(),
+            api_key_hash: None,
+            password_hash: None,
+            enabled: default_user_enabled(),
+        }
+    }
 }
 
 /// Web search provider selection.
@@ -4176,6 +4200,8 @@ mod tests {
                 m
             },
             api_key_hash: None,
+            password_hash: None,
+            enabled: true,
         };
         let json = serde_json::to_string(&uc).unwrap();
         let back: UserConfig = serde_json::from_str(&json).unwrap();
