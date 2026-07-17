@@ -13322,25 +13322,33 @@ pub async fn auth_step_up(
     State(state): State<Arc<AppState>>,
     headers: axum::http::HeaderMap,
     Json(req): Json<serde_json::Value>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    use axum::body::Body;
+    use axum::response::Response;
     let accounts = collect_dashboard_accounts(&state.kernel.config);
     let secret = derive_session_secret(&state.kernel.config, &accounts);
     let claims = match read_session_claims_from_headers(&headers, &secret) {
         Some(claims) => claims,
         None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({"error": "Authentication required"})),
-            );
+            return Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"error": "Authentication required"}).to_string(),
+                ))
+                .unwrap();
         }
     };
     let account = match accounts.iter().find(|a| a.username == claims.username) {
         Some(a) => a,
         None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({"error": "Unknown account"})),
-            );
+            return Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({"error": "Unknown account"}).to_string(),
+                ))
+                .unwrap();
         }
     };
 
@@ -13357,10 +13365,13 @@ pub async fn auth_step_up(
         crate::session_auth::verify_password(password, &account.password_hash)
     };
     if !verified {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Step-up verification failed"})),
-        );
+        return Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .header("content-type", "application/json")
+            .body(Body::from(
+                serde_json::json!({"error": "Step-up verification failed"}).to_string(),
+            ))
+            .unwrap();
     }
 
     let step_up_until_unix = chrono::Utc::now().timestamp() + 300;
@@ -13374,15 +13385,19 @@ pub async fn auth_step_up(
     let ttl_secs = state.kernel.config.auth.session_ttl_hours * 3600;
     let cookie =
         format!("openfang_session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={ttl_secs}");
-    (
-        StatusCode::OK,
-        [("set-cookie", cookie)],
-        Json(serde_json::json!({
-            "status": "ok",
-            "method": method,
-            "step_up_until_unix": step_up_until_unix
-        })),
-    )
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "application/json")
+        .header("set-cookie", cookie)
+        .body(Body::from(
+            serde_json::json!({
+                "status": "ok",
+                "method": method,
+                "step_up_until_unix": step_up_until_unix
+            })
+            .to_string(),
+        ))
+        .unwrap()
 }
 
 /// POST /api/auth/bootstrap — first-run setup (skip / use-current-user / create-account).
