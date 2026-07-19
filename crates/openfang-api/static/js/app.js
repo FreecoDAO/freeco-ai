@@ -270,9 +270,6 @@ document.addEventListener('alpine:init', function() {
         // First check if session-based auth is configured
         var authInfo = await OpenFangAPI.get('/api/auth/check');
         this.authAccounts = Array.isArray(authInfo.accounts) ? authInfo.accounts : [];
-        if (!authInfo.password_configured && !localStorage.getItem('openfang-password-setup-skipped')) {
-          this.showPasswordSetup = true;
-        }
         if (authInfo.mode === 'none') {
           // No session auth — fall back to API key detection
           this.authMode = 'apikey';
@@ -337,27 +334,6 @@ document.addEventListener('alpine:init', function() {
       }
     },
 
-    async setInitialPassword(password, confirmation) {
-      if (password !== confirmation) {
-        OpenFangToast.error('Passwords do not match');
-        return;
-      }
-      try {
-        var result = await OpenFangAPI.post('/api/auth/set-password', { password: password, role: 'owner' });
-        if (result.status === 'ok') {
-          this.showPasswordSetup = false;
-          localStorage.setItem('openfang-password-setup-skipped', 'true');
-          OpenFangToast.success('Password saved. Restart FreEco.ai to enable sign-in.');
-        }
-      } catch(e) {
-        OpenFangToast.error(e.message || 'Could not save password');
-      }
-    },
-
-    skipPasswordSetup() {
-      this.showPasswordSetup = false;
-      localStorage.setItem('openfang-password-setup-skipped', 'true');
-    },
 
     async bootstrapSkip() {
       try {

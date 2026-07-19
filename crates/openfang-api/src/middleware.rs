@@ -72,6 +72,9 @@ fn required_role_for_request(path: &str, method: &axum::http::Method) -> Option<
     if path == "/api/auth/set-password" || path == "/api/auth/step-up" {
         return Some("user");
     }
+    if path == "/api/config/set" || path == "/api/config/reload" {
+        return Some("admin");
+    }
     if method != axum::http::Method::GET {
         if path.starts_with("/api/agents")
             || path.starts_with("/api/channels")
@@ -140,8 +143,6 @@ pub async fn auth(
         || path == "/api/auth/login"
         || path == "/api/auth/logout"
         || (path == "/api/auth/accounts" && is_get)
-        || path == "/api/auth/bootstrap"
-        || path == "/api/auth/set-password"
         || (path == "/api/auth/check" && is_get);
 
     if is_public {

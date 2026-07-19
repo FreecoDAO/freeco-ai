@@ -13075,18 +13075,25 @@ fn derive_session_secret(
     config: &openfang_types::config::KernelConfig,
     users: &[DashboardAccount],
 ) -> String {
-    let api_key = config.api_key.trim().to_string();
-    if !api_key.is_empty() {
-        return api_key;
-    }
-    if !config.auth.password_hash.trim().is_empty() {
-        return config.auth.password_hash.clone();
-    }
-    users
+    use sha2::{Digest, Sha256};
+
+    // Session signatures are derived from every enabled account hash rather than
+    // the API key, so any password reset immediately invalidates every session.
+    let mut hashes: Vec<&str> = users
         .iter()
-        .find(|u| u.enabled)
-        .map(|u| u.password_hash.clone())
-        .unwrap_or_default()
+        .filter(|user| user.enabled)
+        .map(|user| user.password_hash.as_str())
+        .collect();
+    hashes.sort_unstable();
+    if hashes.is_empty() && !config.auth.password_hash.trim().is_empty() {
+        hashes.push(config.auth.password_hash.as_str());
+    }
+    let mut hasher = Sha256::new();
+    for hash in hashes {
+        hasher.update(hash.as_bytes());
+        hasher.update([0]);
+    }
+    hex::encode(hasher.finalize())
 }
 
 fn role_rank(role: &str) -> u8 {
@@ -13356,14 +13363,18 @@ pub async fn auth_step_up(
         .get("method")
         .and_then(|v| v.as_str())
         .unwrap_or("password");
-    let verified = if method == "biometric" {
-        req.get("biometric_asserted")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false)
-    } else {
-        let password = req.get("password").and_then(|v| v.as_str()).unwrap_or("");
-        crate::session_auth::verify_password(password, &account.password_hash)
-    };
+    if method != "password" {
+        return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .header("content-type", "application/json")
+            .body(Body::from(
+                serde_json::json!({"error": "Only password step-up is currently supported"})
+                    .to_string(),
+            ))
+            .unwrap();
+    }
+    let password = req.get("password").and_then(|v| v.as_str()).unwrap_or("");
+    let verified = crate::session_auth::verify_password(password, &account.password_hash);
     if !verified {
         return Response::builder()
             .status(StatusCode::UNAUTHORIZED)
@@ -13403,93 +13414,12 @@ pub async fn auth_step_up(
 /// POST /api/auth/bootstrap — first-run setup (skip / use-current-user / create-account).
 pub async fn auth_bootstrap(
     State(state): State<Arc<AppState>>,
-    axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>,
-    Json(req): Json<serde_json::Value>,
+    _req: Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    if !peer.ip().is_loopback() {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": "Bootstrap is only available on this device"})),
-        );
-    }
-    if !collect_dashboard_accounts(&state.kernel.config).is_empty() {
-        return (
-            StatusCode::CONFLICT,
-            Json(serde_json::json!({"error": "Accounts are already configured"})),
-        );
-    }
-    let action = req.get("action").and_then(|v| v.as_str()).unwrap_or("skip");
-    if action == "skip" {
-        return (
-            StatusCode::OK,
-            Json(serde_json::json!({"status": "ok", "mode": "skip"})),
-        );
-    }
-
-    let username = if action == "use_current_user" {
-        current_os_username()
-    } else {
-        req.get("username")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim()
-            .to_string()
-    };
-    if username.is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Username is required"})),
-        );
-    }
-    let role = req
-        .get("role")
-        .and_then(|v| v.as_str())
-        .map(normalize_role)
-        .unwrap_or_else(|| "owner".to_string());
-    let password = req
-        .get("password")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
-    if password.len() < 12 {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Password must be at least 12 characters long"})),
-        );
-    }
-
-    let password_hash = crate::session_auth::hash_password(&password);
-    let config_path = state.kernel.config.home_dir.join("config.toml");
-    let mut table = match parse_config_table(&config_path) {
-        Ok(table) => table,
-        Err(msg) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": msg })),
-            );
-        }
-    };
-    if let Err(msg) = ensure_user_password_hash(&mut table, &username, &role, &password_hash, true) {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": msg })),
-        );
-    }
-    upsert_legacy_auth(&mut table, &username, &password_hash);
-    if let Err(msg) = write_config_table(&config_path, &table) {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": msg })),
-        );
-    }
     (
-        StatusCode::OK,
+        StatusCode::GONE,
         Json(serde_json::json!({
-            "status": "ok",
-            "username": username,
-            "role": role,
-            "restart_required": true,
+            "error": "Browser bootstrap is disabled. Run `openfang auth recover` on the host to create the owner account."
         })),
     )
 }
@@ -13500,7 +13430,6 @@ pub async fn auth_bootstrap(
 /// dashboard session and the current password are required to make a change.
 pub async fn auth_set_password(
     State(state): State<Arc<AppState>>,
-    axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>,
     headers: axum::http::HeaderMap,
     Json(req): Json<serde_json::Value>,
 ) -> impl IntoResponse {
@@ -13532,21 +13461,13 @@ pub async fn auth_set_password(
         .filter(|v| !v.trim().is_empty())
         .map(str::to_string)
         .unwrap_or_else(current_os_username);
-    let role = req
-        .get("role")
-        .and_then(|v| v.as_str())
-        .map(normalize_role)
-        .unwrap_or_else(|| "owner".to_string());
-
     if users.is_empty() {
-        if !peer.ip().is_loopback() {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(
-                    serde_json::json!({"error": "Initial password setup is only available from this device"}),
-                ),
-            );
-        }
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "error": "Create the first owner with `openfang auth recover` on the host"
+            })),
+        );
     } else {
         let current_password = req
             .get("current_password")
@@ -13580,12 +13501,16 @@ pub async fn auth_set_password(
     }
 
     let password_hash = crate::session_auth::hash_password(password);
-    let target_username = if users.is_empty() {
-        desired_username
+    let (target_username, role) = if users.is_empty() {
+        (desired_username, "owner".to_string())
     } else {
-        read_session_claims_from_headers(&headers, &secret)
-            .map(|c| c.username)
-            .unwrap_or_else(|| "admin".to_string())
+        let claims = read_session_claims_from_headers(&headers, &secret)
+            .expect("claims were verified before password update");
+        let account = users
+            .iter()
+            .find(|user| user.username == claims.username)
+            .expect("account was verified before password update");
+        (claims.username, account.role.clone())
     };
     if let Err(msg) =
         ensure_user_password_hash(&mut table, &target_username, &role, &password_hash, true)
