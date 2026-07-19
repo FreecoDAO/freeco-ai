@@ -6304,8 +6304,23 @@ fn cmd_auth_hash_password() {
         ui::error("Empty password.");
         std::process::exit(1);
     }
+    let confirm = prompt_input("Confirm password: ");
+    if password != confirm {
+        ui::error("Passwords do not match.");
+        std::process::exit(1);
+    }
+    let hash = openfang_api::session_auth::hash_password(&password);
+    println!();
+    ui::success("Argon2id hash generated. Add this to your config.toml:");
+    println!();
+    println!("  [auth]");
+    println!("  enabled = true");
+    println!("  password_hash = \"{}\"", hash);
+    println!();
+    ui::hint("Restart the daemon after updating config.toml");
+}
 
-    fn cmd_auth_recover(requested_username: Option<&str>) {
+fn cmd_auth_recover(requested_username: Option<&str>) {
         if find_daemon().is_some() {
             ui::error("Stop the daemon before recovering an account.");
             ui::hint("Run `openfang stop`, then run `openfang auth recover` again.");
@@ -6351,14 +6366,21 @@ fn cmd_auth_hash_password() {
             .filter(|name| !name.is_empty())
             .map(str::to_string)
             .or_else(|| {
-                table.get("users").and_then(toml::Value::as_array).and_then(|users| {
-                    users.iter().find_map(|user| {
-                        let user = user.as_table()?;
-                        (user.get("role").and_then(toml::Value::as_str) == Some("owner"))
-                            .then(|| user.get("name").and_then(toml::Value::as_str).map(str::to_string))
-                            .flatten()
+                table
+                    .get("users")
+                    .and_then(toml::Value::as_array)
+                    .and_then(|users| {
+                        users.iter().find_map(|user| {
+                            let user = user.as_table()?;
+                            (user.get("role").and_then(toml::Value::as_str) == Some("owner"))
+                                .then(|| {
+                                    user.get("name")
+                                        .and_then(toml::Value::as_str)
+                                        .map(str::to_string)
+                                })
+                                .flatten()
+                        })
                     })
-                })
             })
             .unwrap_or_else(|| {
                 std::env::var("USERNAME")
@@ -6381,7 +6403,10 @@ fn cmd_auth_hash_password() {
             };
             if user.get("name").and_then(toml::Value::as_str) == Some(username.as_str()) {
                 user.insert("role".to_string(), toml::Value::String("owner".to_string()));
-                user.insert("password_hash".to_string(), toml::Value::String(password_hash.clone()));
+                user.insert(
+                    "password_hash".to_string(),
+                    toml::Value::String(password_hash.clone()),
+                );
                 user.insert("enabled".to_string(), toml::Value::Boolean(true));
                 found = true;
                 break;
@@ -6391,9 +6416,15 @@ fn cmd_auth_hash_password() {
             let mut owner = toml::value::Table::new();
             owner.insert("name".to_string(), toml::Value::String(username.clone()));
             owner.insert("role".to_string(), toml::Value::String("owner".to_string()));
-            owner.insert("password_hash".to_string(), toml::Value::String(password_hash.clone()));
+            owner.insert(
+                "password_hash".to_string(),
+                toml::Value::String(password_hash.clone()),
+            );
             owner.insert("enabled".to_string(), toml::Value::Boolean(true));
-            owner.insert("channel_bindings".to_string(), toml::Value::Table(toml::value::Table::new()));
+            owner.insert(
+                "channel_bindings".to_string(),
+                toml::Value::Table(toml::value::Table::new()),
+            );
             users.push(toml::Value::Table(owner));
         }
         let auth = table
@@ -6404,11 +6435,21 @@ fn cmd_auth_hash_password() {
             return;
         };
         auth.insert("enabled".to_string(), toml::Value::Boolean(true));
-        auth.insert("username".to_string(), toml::Value::String(username.clone()));
-        auth.insert("password_hash".to_string(), toml::Value::String(password_hash));
+        auth.insert(
+            "username".to_string(),
+            toml::Value::String(username.clone()),
+        );
+        auth.insert(
+            "password_hash".to_string(),
+            toml::Value::String(password_hash),
+        );
         auth.insert(
             "session_secret".to_string(),
-            toml::Value::String(format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple())),
+            toml::Value::String(format!(
+                "{}{}",
+                uuid::Uuid::new_v4().simple(),
+                uuid::Uuid::new_v4().simple()
+            )),
         );
         let serialized = match toml::to_string_pretty(&table) {
             Ok(serialized) => serialized,
@@ -6417,7 +6458,9 @@ fn cmd_auth_hash_password() {
                 return;
             }
         };
-        if let Err(e) = std::fs::create_dir_all(&home_dir).and_then(|_| std::fs::write(&config_path, serialized)) {
+        if let Err(e) = std::fs::create_dir_all(&home_dir)
+            .and_then(|_| std::fs::write(&config_path, serialized))
+        {
             ui::error(&format!("Could not save {}: {e}", config_path.display()));
             return;
         }
@@ -6431,29 +6474,24 @@ fn cmd_auth_hash_password() {
             .create(true)
             .append(true)
             .open(&audit_path)
-            .and_then(|mut file| writeln!(file, "{timestamp} local owner recovery: username={username}; sessions invalidated"))
+            .and_then(|mut file| {
+                writeln!(
+                    file,
+                    "{timestamp} local owner recovery: username={username}; sessions invalidated"
+                )
+            })
         {
-            ui::warn_with_fix(&format!("Account recovered, but audit logging failed: {e}"), "Check filesystem permissions.");
+            ui::warn_with_fix(
+                &format!("Account recovered, but audit logging failed: {e}"),
+                "Check filesystem permissions.",
+            );
         } else {
             restrict_file_permissions(&audit_path);
         }
-        ui::success(&format!("Owner account `{username}` recovered; all dashboard sessions were invalidated."));
+        ui::success(&format!(
+            "Owner account `{username}` recovered; all dashboard sessions were invalidated."
+        ));
         ui::hint("Restart the daemon with `openfang start`.");
-    }
-    let confirm = prompt_input("Confirm password: ");
-    if password != confirm {
-        ui::error("Passwords do not match.");
-        std::process::exit(1);
-    }
-    let hash = openfang_api::session_auth::hash_password(&password);
-    println!();
-    ui::success("Argon2id hash generated. Add this to your config.toml:");
-    println!();
-    println!("  [auth]");
-    println!("  enabled = true");
-    println!("  password_hash = \"{}\"", hash);
-    println!();
-    ui::hint("Restart the daemon after updating config.toml");
 }
 
 fn cmd_security_status(json: bool) {

@@ -13216,14 +13216,51 @@ fn upsert_legacy_auth(table: &mut toml::value::Table, username: &str, password_h
         );
     }
 
-    fn rotate_session_secret(table: &mut toml::value::Table) {
-        let auth_table = table
-            .entry("auth".to_string())
-            .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
-        if let Some(auth) = auth_table.as_table_mut() {
-            let secret = format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple());
-            auth.insert("session_secret".to_string(), toml::Value::String(secret));
-        }
+}
+
+fn rotate_session_secret(table: &mut toml::value::Table) {
+    let auth_table = table
+        .entry("auth".to_string())
+        .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
+    if let Some(auth) = auth_table.as_table_mut() {
+        let secret = format!(
+            "{}{}",
+            uuid::Uuid::new_v4().simple(),
+            uuid::Uuid::new_v4().simple()
+        );
+        auth.insert("session_secret".to_string(), toml::Value::String(secret));
+    }
+}
+
+#[cfg(test)]
+mod dashboard_auth_tests {
+    use super::*;
+
+    #[test]
+    fn persisted_session_secret_overrides_legacy_derived_secret() {
+        let mut config = openfang_types::config::KernelConfig::default();
+        config.auth.session_secret = "rotated-secret".to_string();
+        config.api_key = "api-key".to_string();
+
+        assert_eq!(derive_session_secret(&config, &[]), "rotated-secret");
+    }
+
+    #[test]
+    fn rotating_session_secret_writes_a_fresh_secret() {
+        let mut table = toml::value::Table::new();
+        rotate_session_secret(&mut table);
+        let first = table["auth"]["session_secret"]
+            .as_str()
+            .expect("session secret")
+            .to_string();
+        rotate_session_secret(&mut table);
+        let second = table["auth"]["session_secret"]
+            .as_str()
+            .expect("session secret");
+
+        assert_eq!(first.len(), 64);
+        assert_eq!(second.len(), 64);
+        assert_ne!(first, second);
     }
 }
 
@@ -13427,7 +13464,7 @@ pub async fn auth_step_up(
 
 /// POST /api/auth/bootstrap — first-run setup (skip / use-current-user / create-account).
 pub async fn auth_bootstrap(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     _req: Json<serde_json::Value>,
 ) -> impl IntoResponse {
     (
