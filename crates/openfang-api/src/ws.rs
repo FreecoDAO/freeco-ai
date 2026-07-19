@@ -323,8 +323,6 @@ pub async fn agent_ws(
         .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "on"))
         .unwrap_or(false);
 
-    // Mirror the session_secret derivation in server.rs::AuthState so cookies
-    // issued by /api/auth/login verify the same way over HTTP and WS.
     let users_have_password = state.kernel.config.users.iter().any(|u| {
         u.enabled
             && u.password_hash
@@ -332,25 +330,8 @@ pub async fn agent_ws(
                 .is_some_and(|h| !h.trim().is_empty())
     });
     let auth_enabled = state.kernel.config.auth.enabled || users_have_password;
-    let session_secret_owned: String = if !api_key.is_empty() {
-        api_key.to_string()
-    } else if !state.kernel.config.auth.password_hash.trim().is_empty() {
-        state.kernel.config.auth.password_hash.clone()
-    } else if users_have_password {
-        state.kernel
-            .config
-            .users
-            .iter()
-            .find_map(|u| {
-                u.password_hash
-                    .as_ref()
-                    .filter(|h| !h.trim().is_empty())
-                    .cloned()
-            })
-            .unwrap_or_default()
-    } else {
-        String::new()
-    };
+    let session_secret_owned =
+        crate::session_auth::derive_dashboard_session_secret(&state.kernel.config);
 
     let auth_ctx = WsAuthCtx {
         api_key,

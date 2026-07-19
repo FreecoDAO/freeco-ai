@@ -13073,31 +13073,9 @@ fn collect_dashboard_accounts(config: &openfang_types::config::KernelConfig) -> 
 
 fn derive_session_secret(
     config: &openfang_types::config::KernelConfig,
-    users: &[DashboardAccount],
+    _users: &[DashboardAccount],
 ) -> String {
-    if !config.auth.session_secret.trim().is_empty() {
-        return config.auth.session_secret.clone();
-    }
-
-    use sha2::{Digest, Sha256};
-
-    // Session signatures are derived from every enabled account hash rather than
-    // the API key, so any password reset immediately invalidates every session.
-    let mut hashes: Vec<&str> = users
-        .iter()
-        .filter(|user| user.enabled)
-        .map(|user| user.password_hash.as_str())
-        .collect();
-    hashes.sort_unstable();
-    if hashes.is_empty() && !config.auth.password_hash.trim().is_empty() {
-        hashes.push(config.auth.password_hash.as_str());
-    }
-    let mut hasher = Sha256::new();
-    for hash in hashes {
-        hasher.update(hash.as_bytes());
-        hasher.update([0]);
-    }
-    hex::encode(hasher.finalize())
+    crate::session_auth::derive_dashboard_session_secret(config)
 }
 
 fn role_rank(role: &str) -> u8 {

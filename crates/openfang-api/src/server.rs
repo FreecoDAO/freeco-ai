@@ -170,25 +170,7 @@ pub async fn build_router(
     let auth_state = crate::middleware::AuthState {
         api_key: api_key.clone(),
         auth_enabled,
-        session_secret: if !api_key.is_empty() {
-            api_key.clone()
-        } else if !state.kernel.config.auth.password_hash.trim().is_empty() {
-            state.kernel.config.auth.password_hash.clone()
-        } else if users_have_password {
-            state.kernel
-                .config
-                .users
-                .iter()
-                .find_map(|u| {
-                    u.password_hash
-                        .as_ref()
-                        .filter(|h| !h.trim().is_empty())
-                        .cloned()
-                })
-                .unwrap_or_default()
-        } else {
-            String::new()
-        },
+        session_secret: crate::session_auth::derive_dashboard_session_secret(&state.kernel.config),
         allow_no_auth,
     };
     let gcra_limiter = rate_limiter::create_rate_limiter();

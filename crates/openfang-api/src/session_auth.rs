@@ -6,6 +6,37 @@ use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
+/// Return the secret used to sign all dashboard sessions.
+///
+/// The persisted value takes precedence. The legacy fallback remains so existing
+/// password configurations keep working until their next password change.
+pub(crate) fn derive_dashboard_session_secret(
+    config: &openfang_types::config::KernelConfig,
+) -> String {
+    if !config.auth.session_secret.trim().is_empty() {
+        return config.auth.session_secret.clone();
+    }
+
+    use sha2::Digest;
+    let mut hashes: Vec<&str> = config
+        .users
+        .iter()
+        .filter(|user| user.enabled)
+        .filter_map(|user| user.password_hash.as_deref())
+        .filter(|hash| !hash.trim().is_empty())
+        .collect();
+    hashes.sort_unstable();
+    if hashes.is_empty() && !config.auth.password_hash.trim().is_empty() {
+        hashes.push(config.auth.password_hash.as_str());
+    }
+    let mut hasher = Sha256::new();
+    for hash in hashes {
+        hasher.update(hash.as_bytes());
+        hasher.update([0]);
+    }
+    hex::encode(hasher.finalize())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionClaims {
     pub username: String,
