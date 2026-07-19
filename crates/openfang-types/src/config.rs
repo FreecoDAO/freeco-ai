@@ -1404,6 +1404,8 @@ pub struct AuthConfig {
     /// Argon2id password hash (PHC string format).
     /// Generate with: openfang auth hash-password
     pub password_hash: String,
+    /// Random secret used to sign dashboard sessions. Rotated after password recovery.
+    pub session_secret: String,
     /// Session token lifetime in hours (default: 168 = 7 days).
     pub session_ttl_hours: u64,
 }
@@ -1414,6 +1416,7 @@ impl Default for AuthConfig {
             enabled: false,
             username: "admin".to_string(),
             password_hash: String::new(),
+            session_secret: String::new(),
             session_ttl_hours: 168,
         }
     }

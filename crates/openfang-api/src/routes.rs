@@ -13075,6 +13075,10 @@ fn derive_session_secret(
     config: &openfang_types::config::KernelConfig,
     users: &[DashboardAccount],
 ) -> String {
+    if !config.auth.session_secret.trim().is_empty() {
+        return config.auth.session_secret.clone();
+    }
+
     use sha2::{Digest, Sha256};
 
     // Session signatures are derived from every enabled account hash rather than
@@ -13210,6 +13214,16 @@ fn upsert_legacy_auth(table: &mut toml::value::Table, username: &str, password_h
             "password_hash".to_string(),
             toml::Value::String(password_hash.to_string()),
         );
+    }
+
+    fn rotate_session_secret(table: &mut toml::value::Table) {
+        let auth_table = table
+            .entry("auth".to_string())
+            .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
+        if let Some(auth) = auth_table.as_table_mut() {
+            let secret = format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple());
+            auth.insert("session_secret".to_string(), toml::Value::String(secret));
+        }
     }
 }
 
@@ -13521,6 +13535,7 @@ pub async fn auth_set_password(
         );
     }
     upsert_legacy_auth(&mut table, &target_username, &password_hash);
+    rotate_session_secret(&mut table);
     if let Err(msg) = write_config_table(&config_path, &table) {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,

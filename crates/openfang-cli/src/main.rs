@@ -710,6 +710,12 @@ enum CronCommands {
 enum AuthCommands {
     /// Generate an Argon2id password hash for dashboard authentication.
     HashPassword,
+    /// Recover access by creating or resetting an owner account on this host.
+    Recover {
+        /// Owner account name. Defaults to the first existing owner, or your OS user.
+        #[arg(long)]
+        username: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1099,6 +1105,7 @@ fn main() {
         Some(Commands::Health { json }) => cmd_health(json),
         Some(Commands::Auth(sub)) => match sub {
             AuthCommands::HashPassword => cmd_auth_hash_password(),
+            AuthCommands::Recover { username } => cmd_auth_recover(username.as_deref()),
         },
         Some(Commands::Security(sub)) => match sub {
             SecurityCommands::Status { json } => cmd_security_status(json),
@@ -6296,6 +6303,142 @@ fn cmd_auth_hash_password() {
     if password.is_empty() {
         ui::error("Empty password.");
         std::process::exit(1);
+    }
+
+    fn cmd_auth_recover(requested_username: Option<&str>) {
+        if find_daemon().is_some() {
+            ui::error("Stop the daemon before recovering an account.");
+            ui::hint("Run `openfang stop`, then run `openfang auth recover` again.");
+            return;
+        }
+
+        println!("This local recovery resets an owner password, invalidates all dashboard sessions, and requires a daemon restart.");
+        if prompt_input("Type RECOVER to continue: ") != "RECOVER" {
+            ui::warn_with_fix("Recovery cancelled.", "No changes were made.");
+            return;
+        }
+
+        let password = prompt_input("New owner password (12 characters minimum): ");
+        if password.len() < 12 {
+            ui::error("Password must be at least 12 characters long.");
+            return;
+        }
+        if password != prompt_input("Confirm new owner password: ") {
+            ui::error("Passwords do not match.");
+            return;
+        }
+
+        let home_dir = cli_openfang_home();
+        let config_path = home_dir.join("config.toml");
+        let content = match std::fs::read_to_string(&config_path) {
+            Ok(content) => content,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => {
+                ui::error(&format!("Could not read {}: {e}", config_path.display()));
+                return;
+            }
+        };
+        let mut table: toml::value::Table = match toml::from_str(&content) {
+            Ok(table) => table,
+            Err(e) => {
+                ui::error(&format!("Could not parse {}: {e}", config_path.display()));
+                return;
+            }
+        };
+
+        let username = requested_username
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_string)
+            .or_else(|| {
+                table.get("users").and_then(toml::Value::as_array).and_then(|users| {
+                    users.iter().find_map(|user| {
+                        let user = user.as_table()?;
+                        (user.get("role").and_then(toml::Value::as_str) == Some("owner"))
+                            .then(|| user.get("name").and_then(toml::Value::as_str).map(str::to_string))
+                            .flatten()
+                    })
+                })
+            })
+            .unwrap_or_else(|| {
+                std::env::var("USERNAME")
+                    .or_else(|_| std::env::var("USER"))
+                    .unwrap_or_else(|_| "owner".to_string())
+            });
+        let password_hash = openfang_api::session_auth::hash_password(&password);
+        let users = table
+            .entry("users".to_string())
+            .or_insert_with(|| toml::Value::Array(Vec::new()))
+            .as_array_mut();
+        let Some(users) = users else {
+            ui::error("Invalid users configuration.");
+            return;
+        };
+        let mut found = false;
+        for user in users.iter_mut() {
+            let Some(user) = user.as_table_mut() else {
+                continue;
+            };
+            if user.get("name").and_then(toml::Value::as_str) == Some(username.as_str()) {
+                user.insert("role".to_string(), toml::Value::String("owner".to_string()));
+                user.insert("password_hash".to_string(), toml::Value::String(password_hash.clone()));
+                user.insert("enabled".to_string(), toml::Value::Boolean(true));
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            let mut owner = toml::value::Table::new();
+            owner.insert("name".to_string(), toml::Value::String(username.clone()));
+            owner.insert("role".to_string(), toml::Value::String("owner".to_string()));
+            owner.insert("password_hash".to_string(), toml::Value::String(password_hash.clone()));
+            owner.insert("enabled".to_string(), toml::Value::Boolean(true));
+            owner.insert("channel_bindings".to_string(), toml::Value::Table(toml::value::Table::new()));
+            users.push(toml::Value::Table(owner));
+        }
+        let auth = table
+            .entry("auth".to_string())
+            .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
+        let Some(auth) = auth.as_table_mut() else {
+            ui::error("Invalid auth configuration.");
+            return;
+        };
+        auth.insert("enabled".to_string(), toml::Value::Boolean(true));
+        auth.insert("username".to_string(), toml::Value::String(username.clone()));
+        auth.insert("password_hash".to_string(), toml::Value::String(password_hash));
+        auth.insert(
+            "session_secret".to_string(),
+            toml::Value::String(format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple())),
+        );
+        let serialized = match toml::to_string_pretty(&table) {
+            Ok(serialized) => serialized,
+            Err(e) => {
+                ui::error(&format!("Could not save configuration: {e}"));
+                return;
+            }
+        };
+        if let Err(e) = std::fs::create_dir_all(&home_dir).and_then(|_| std::fs::write(&config_path, serialized)) {
+            ui::error(&format!("Could not save {}: {e}", config_path.display()));
+            return;
+        }
+        restrict_file_permissions(&config_path);
+        let audit_path = home_dir.join("recovery-audit.log");
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|time| time.as_secs())
+            .unwrap_or_default();
+        if let Err(e) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&audit_path)
+            .and_then(|mut file| writeln!(file, "{timestamp} local owner recovery: username={username}; sessions invalidated"))
+        {
+            ui::warn_with_fix(&format!("Account recovered, but audit logging failed: {e}"), "Check filesystem permissions.");
+        } else {
+            restrict_file_permissions(&audit_path);
+        }
+        ui::success(&format!("Owner account `{username}` recovered; all dashboard sessions were invalidated."));
+        ui::hint("Restart the daemon with `openfang start`.");
     }
     let confirm = prompt_input("Confirm password: ");
     if password != confirm {
