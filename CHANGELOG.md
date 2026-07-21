@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.8] - 2026-07-21
 
+### Added
+
+- **Freeco Assistant — a global AI concierge on every page**: a floating assistant (bottom-right, present on every dashboard screen) that chats, listens (hold-to-talk voice), and helps set things up. Quick-setup shortcuts route to the right builder (company/nonprofit, agent team, workflow, tools/MCP, channels, local AI) and hand the concierge a guiding prompt; it talks to a concierge agent over the normal message API. Ships with `docs/freeco-concierge-guide.md` — a user guide for building a self-running company/nonprofit (org chart, tools & MCP setup, open-source connectors, per-function recipes).
+
 ### Fixed
 
 - **Local-AI (Ollama) setup now works on any connection**: the installer download is resilient to flaky/slow links. It resumes with an HTTP Range request after a dropped connection (instead of restarting), retries up to 8 times with backoff, and verifies the downloaded file matches the server's Content-Length before use. This fixes the confusing `installer failed digital-signature verification ()` error, which was caused by a truncated download producing an unreadable signature — the check now also reports the real reason (empty/missing file, invalid status, or an actual signer mismatch) instead of a blank `()`.
@@ -16,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"Get update" button did nothing**: it was a bare link that silently failed in the desktop webview and gave no feedback. It now runs the desktop auto-updater (download + install + relaunch) when available, or opens the download page in the browser edition — with a toast/status at every step (checking, downloading, installing, error), never silent.
 - **Update check now distinguishes "offline"** from a real failure, showing a calm "you're offline" message instead of a scary network error.
 - **Release verify-release** relaxed from exact tag==main-HEAD to `git merge-base --is-ancestor`, so a tag that is a few commits behind main (e.g. after an auto-tag) still releases. The version/CHANGELOG/tauri-version consistency checks are retained (they catch mislabeled installers).
+
+### Docs / tooling
+
+- **Windows GNU-toolchain build guide** (`docs/building-on-windows.md`) + `scripts/dev-build.ps1` / `dev-build.sh` that auto-select a working toolchain (MSVC when present, else GNU with MinGW on PATH), so contributors without the MSVC Build Tools don't lose time to cryptic linker errors.
 
 
 ## [0.7.7] - 2026-07-14
