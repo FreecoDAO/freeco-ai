@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.8] - 2026-07-21
+
 ### Fixed
 
+- **Local-AI (Ollama) setup now works on any connection**: the installer download is resilient to flaky/slow links. It resumes with an HTTP Range request after a dropped connection (instead of restarting), retries up to 8 times with backoff, and verifies the downloaded file matches the server's Content-Length before use. This fixes the confusing `installer failed digital-signature verification ()` error, which was caused by a truncated download producing an unreadable signature — the check now also reports the real reason (empty/missing file, invalid status, or an actual signer mismatch) instead of a blank `()`.
+- **Desktop app branding**: the window title bar, system-tray tooltip/menu ("Quit FreEco.ai"), and update notifications now read **FreEco.ai** instead of the internal "OpenFang" name.
 - **"Get update" button did nothing**: it was a bare link that silently failed in the desktop webview and gave no feedback. It now runs the desktop auto-updater (download + install + relaunch) when available, or opens the download page in the browser edition — with a toast/status at every step (checking, downloading, installing, error), never silent.
 - **Update check now distinguishes "offline"** from a real failure, showing a calm "you're offline" message instead of a scary network error.
 - **Release verify-release** relaxed from exact tag==main-HEAD to `git merge-base --is-ancestor`, so a tag that is a few commits behind main (e.g. after an auto-tag) still releases. The version/CHANGELOG/tauri-version consistency checks are retained (they catch mislabeled installers).

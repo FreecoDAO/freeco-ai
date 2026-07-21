@@ -432,9 +432,30 @@ async fn run_setup(
 /// `Valid` and the signer's subject mentions Ollama.
 #[cfg(windows)]
 async fn verify_windows_signature(path: &std::path::Path) -> Result<(), String> {
+    // Guard first: a missing or empty file is the classic cause of a blank
+    // status from Get-AuthenticodeSignature. Report it honestly rather than as
+    // an empty "()" so a flaky-download failure is not mistaken for tampering.
+    match tokio::fs::metadata(path).await {
+        Ok(m) if m.len() == 0 => {
+            return Err("downloaded installer is empty (0 bytes) — the download did not \
+                        complete. Check your connection and press Set up again."
+                .into());
+        }
+        Ok(_) => {}
+        Err(e) => {
+            return Err(format!(
+                "downloaded installer is missing ({e}) — the download did not complete. \
+                 Check your connection and press Set up again."
+            ));
+        }
+    }
+
     let script = format!(
         "$s = Get-AuthenticodeSignature -LiteralPath '{}'; \
-         if ($s.Status -ne 'Valid') {{ Write-Output ('INVALID:' + $s.Status); exit 0 }}; \
+         if ($null -eq $s) {{ Write-Output 'INVALID:NoSignatureObject'; exit 0 }}; \
+         if ($s.Status -ne 'Valid') {{ \
+             $m = if ($s.StatusMessage) {{ $s.StatusMessage }} else {{ 'no detail' }}; \
+             Write-Output ('INVALID:' + $s.Status + ' - ' + $m); exit 0 }}; \
          Write-Output ('OK:' + $s.SignerCertificate.Subject)",
         path.display().to_string().replace('\'', "''")
     );
@@ -452,10 +473,21 @@ async fn verify_windows_signature(path: &std::path::Path) -> Result<(), String> 
             "installer is signed, but not by Ollama (signer: {subject}). Refusing to run it."
         ));
     }
+    // Surface a real reason: prefer the parsed INVALID: detail, then any
+    // PowerShell stderr, then an explicit "unreadable" note — never an empty ().
+    let detail = line.strip_prefix("INVALID:").map(str::to_string).unwrap_or_else(|| {
+        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        if !err.is_empty() {
+            format!("signature check error: {err}")
+        } else if line.is_empty() {
+            "status unreadable (installer may be incomplete or corrupt)".into()
+        } else {
+            line.clone()
+        }
+    });
     Err(format!(
-        "installer failed digital-signature verification ({}). It was not run. \
-         Install Ollama manually from https://ollama.com/download instead.",
-        line.strip_prefix("INVALID:").unwrap_or("unknown")
+        "installer failed digital-signature verification ({detail}). It was not run — \
+         press Set up again to re-download."
     ))
 }
 
@@ -463,6 +495,150 @@ async fn verify_windows_signature(path: &std::path::Path) -> Result<(), String> 
 #[allow(dead_code)]
 async fn verify_windows_signature(_path: &std::path::Path) -> Result<(), String> {
     Ok(())
+}
+
+/// Download `url` to `dest`, surviving flaky connections: it resumes with an
+/// HTTP Range request after a dropped stream instead of starting over, and it
+/// verifies the file on disk matches the server's Content-Length before
+/// returning. This is what makes local-AI setup work "on any connection" —
+/// a truncated file would otherwise fail signature verification with a blank
+/// status downstream.
+async fn download_with_resume(
+    status: &SharedLocalAiStatus,
+    url: &str,
+    dest: &std::path::Path,
+    label: &str,
+) -> Result<(), String> {
+    use futures::StreamExt;
+
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("http client: {e}"))?;
+
+    let max_attempts = 8u32;
+    let mut last_err = String::from("unknown error");
+
+    for attempt in 1..=max_attempts {
+        let backoff = std::time::Duration::from_secs((attempt as u64).min(5));
+
+        // Bytes already on disk from a previous attempt — resume from here.
+        let mut have = tokio::fs::metadata(dest).await.map(|m| m.len()).unwrap_or(0);
+
+        let mut req = client.get(url);
+        if have > 0 {
+            req = req.header(reqwest::header::RANGE, format!("bytes={have}-"));
+        }
+
+        let resp = match req.send().await.and_then(|r| r.error_for_status()) {
+            Ok(r) => r,
+            Err(e) => {
+                last_err = format!("connection error: {e}");
+                set_status(
+                    status,
+                    "downloading-installer",
+                    format!("{label}: connection issue, retrying ({attempt}/{max_attempts})..."),
+                    -1,
+                )
+                .await;
+                tokio::time::sleep(backoff).await;
+                continue;
+            }
+        };
+
+        // If we requested a range but the server ignored it (200, not 206),
+        // restart from scratch so we don't append onto a full body.
+        let resuming = resp.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+        if have > 0 && !resuming {
+            let _ = tokio::fs::remove_file(dest).await;
+            have = 0;
+        }
+
+        let body_len = resp.content_length().unwrap_or(0);
+        let total = if resuming { have + body_len } else { body_len };
+
+        let mut file = match if have > 0 {
+            tokio::fs::OpenOptions::new().append(true).open(dest).await
+        } else {
+            tokio::fs::File::create(dest).await
+        } {
+            Ok(f) => f,
+            Err(e) => return Err(format!("open {label} file: {e}")),
+        };
+
+        let mut got = have;
+        let mut stream = resp.bytes_stream();
+        let mut interrupted = false;
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(chunk) => {
+                    if let Err(e) = file.write_all(&chunk).await {
+                        return Err(format!("write {label}: {e}"));
+                    }
+                    got += chunk.len() as u64;
+                    if total > 0 {
+                        let pct = ((got as f64 / total as f64) * 100.0) as i32;
+                        set_status(
+                            status,
+                            "downloading-installer",
+                            format!("Downloading {label}... {pct}%"),
+                            pct,
+                        )
+                        .await;
+                    }
+                }
+                Err(e) => {
+                    last_err = format!("stream interrupted: {e}");
+                    interrupted = true;
+                    break;
+                }
+            }
+        }
+        let _ = file.flush().await;
+
+        if interrupted {
+            set_status(
+                status,
+                "downloading-installer",
+                format!("{label}: connection dropped, resuming ({attempt}/{max_attempts})..."),
+                -1,
+            )
+            .await;
+            tokio::time::sleep(backoff).await;
+            continue;
+        }
+
+        // Completeness check: if the server told us the size, the file must match.
+        let on_disk = tokio::fs::metadata(dest).await.map(|m| m.len()).unwrap_or(0);
+        if total > 0 && on_disk < total {
+            last_err = format!("incomplete download ({on_disk} of {total} bytes)");
+            set_status(
+                status,
+                "downloading-installer",
+                format!("{label}: incomplete, resuming ({attempt}/{max_attempts})..."),
+                -1,
+            )
+            .await;
+            tokio::time::sleep(backoff).await;
+            continue;
+        }
+
+        // Sanity floor: a real installer is several MB. If we got a tiny file
+        // (e.g. an error page with no Content-Length), retry from scratch.
+        if on_disk < 1_000_000 {
+            last_err = format!("downloaded file implausibly small ({on_disk} bytes)");
+            let _ = tokio::fs::remove_file(dest).await;
+            tokio::time::sleep(backoff).await;
+            continue;
+        }
+
+        return Ok(());
+    }
+
+    Err(format!(
+        "could not download {label} after {max_attempts} attempts ({last_err}). \
+         Check your internet connection and press Set up again."
+    ))
 }
 
 async fn install_ollama_windows(status: &SharedLocalAiStatus) -> Result<(), String> {
@@ -478,40 +654,10 @@ async fn install_ollama_windows(status: &SharedLocalAiStatus) -> Result<(), Stri
     std::fs::create_dir_all(&dir).map_err(|e| format!("temp dir: {e}"))?;
     let installer = dir.join("OllamaSetup.exe");
 
-    let client = reqwest::Client::new();
-    let resp = client
-        .get(OLLAMA_WINDOWS_INSTALLER)
-        .send()
-        .await
-        .map_err(|e| format!("download failed: {e}"))?
-        .error_for_status()
-        .map_err(|e| format!("download failed: {e}"))?;
-    let total = resp.content_length().unwrap_or(0);
-
-    let mut file = tokio::fs::File::create(&installer)
-        .await
-        .map_err(|e| format!("create installer file: {e}"))?;
-    let mut stream = resp.bytes_stream();
-    let mut got: u64 = 0;
-    use futures::StreamExt;
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("download interrupted: {e}"))?;
-        file.write_all(&chunk)
-            .await
-            .map_err(|e| format!("write installer: {e}"))?;
-        got += chunk.len() as u64;
-        if total > 0 {
-            let pct = ((got as f64 / total as f64) * 100.0) as i32;
-            set_status(
-                status,
-                "downloading-installer",
-                format!("Downloading Ollama installer... {pct}%"),
-                pct,
-            )
-            .await;
-        }
-    }
-    file.flush().await.ok();
+    // Download robustly: resume on dropped connections and verify completeness
+    // before we ever hand the file to the signature check. On a flaky link a
+    // truncated installer is what produced the empty "()" verification failure.
+    download_with_resume(status, OLLAMA_WINDOWS_INSTALLER, &installer, "Ollama installer").await?;
 
     // SECURITY (threat-model M4): never execute a downloaded installer without
     // verifying it. HTTPS protects transit but not integrity — a compromised
