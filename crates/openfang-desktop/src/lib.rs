@@ -114,7 +114,7 @@ pub fn run() {
                 "main",
                 WebviewUrl::External(url.parse().expect("Invalid server URL")),
             )
-            .title("OpenFang")
+            .title("FreEco.ai")
             .inner_size(1280.0, 800.0)
             .min_inner_size(800.0, 600.0)
             .center()
@@ -145,7 +145,7 @@ pub fn run() {
                                 ),
                                 EventPayload::System(SystemEvent::KernelStopping) => (
                                     "Kernel Stopping".to_string(),
-                                    "OpenFang kernel is shutting down".to_string(),
+                                    "FreEco.ai is shutting down".to_string(),
                                 ),
                                 EventPayload::System(SystemEvent::QuotaEnforced {
                                     agent_id,
