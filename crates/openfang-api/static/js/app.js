@@ -143,6 +143,7 @@ document.addEventListener('alpine:init', function() {
     showPasswordSetup: false,
     authMode: 'apikey',
     sessionUser: null,
+    sessionRole: null,  // RBAC role of the logged-in dashboard user (owner|admin|user|kid|viewer)
     updateAvailable: false,
     updateLatest: '',
     frozen: false,
@@ -276,6 +277,7 @@ document.addEventListener('alpine:init', function() {
           this.authMode = 'session';
           if (authInfo.authenticated) {
             this.sessionUser = authInfo.username;
+            this.sessionRole = authInfo.role || 'owner';
             this.showAuthPrompt = false;
             return;
           }
@@ -314,6 +316,7 @@ document.addEventListener('alpine:init', function() {
         var result = await OpenFangAPI.post('/api/auth/login', { username: username, password: password });
         if (result.status === 'ok') {
           this.sessionUser = result.username;
+          this.sessionRole = result.role || 'owner';
           this.showAuthPrompt = false;
           this.refreshAgents();
         } else {
