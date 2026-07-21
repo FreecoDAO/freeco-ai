@@ -5668,6 +5668,63 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
   </main>
 </div>
 
+<!-- Freeco Assistant — global concierge widget, present on every page -->
+<div x-data="freecoAssistant" x-init="init()" @freeco-navigate.window="navigate($event.detail)" class="freeco-dock">
+  <!-- Panel -->
+  <div class="freeco-panel" x-show="open" x-cloak x-transition.origin.bottom.right>
+    <div class="freeco-panel-header">
+      <div class="freeco-brand">
+        <span class="freeco-avatar">✦</span>
+        <div>
+          <div class="freeco-title">Freeco</div>
+          <div class="freeco-sub">Your AI concierge</div>
+        </div>
+      </div>
+      <button class="freeco-x" @click="open = false" title="Close" aria-label="Close assistant">&times;</button>
+    </div>
+
+    <div class="freeco-thread" id="freeco-thread">
+      <template x-for="m in messages" :key="m.id">
+        <div class="freeco-msg" :class="'freeco-msg-' + m.role">
+          <div class="freeco-bubble" x-html="m.html"></div>
+        </div>
+      </template>
+      <!-- First-run: no agents yet -->
+      <div x-show="noAgents && messages.length <= 1" class="freeco-hint">
+        You have no agents yet. <a href="#" @click.prevent="navigate('agents'); open=false">Create your first agent</a> and I’ll guide the rest.
+      </div>
+    </div>
+
+    <!-- Quick-setup shortcuts -->
+    <div class="freeco-topics" x-show="messages.length <= 1">
+      <template x-for="t in topics" :key="t.id">
+        <button class="freeco-chip" @click="quick(t)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="t.icon"/></svg>
+          <span x-text="t.label"></span>
+        </button>
+      </template>
+    </div>
+
+    <div class="freeco-input-row">
+      <textarea id="freeco-input" class="freeco-input" rows="1" x-model="input" @keydown="onKey($event)"
+        :placeholder="recording ? ('Listening… ' + voiceTime()) : 'Ask Freeco to set something up…'"></textarea>
+      <button class="freeco-mic" :class="{ 'freeco-mic-on': recording }" @mousedown="startVoice()" @mouseup="stopVoice()" @mouseleave="if(recording) stopVoice()" title="Hold to talk" aria-label="Hold to talk">
+        <svg x-show="!recording" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        <span x-show="recording" class="freeco-rec-dot"></span>
+      </button>
+      <button class="freeco-send" @click="send()" :disabled="sending || !input.trim()" title="Send" aria-label="Send">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Floating launcher button -->
+  <button class="freeco-fab" @click="toggle()" :class="{ 'freeco-fab-open': open }" :title="open ? 'Close Freeco' : 'Ask Freeco'" aria-label="Ask Freeco assistant">
+    <svg x-show="!open" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 15 9l7 .5-5.3 4.6L18.2 21 12 17l-6.2 4 1.5-6.9L2 9.5 9 9z"/></svg>
+    <svg x-show="open" x-cloak width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  </button>
+</div>
+
 <!-- Toast notification container -->
 <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
