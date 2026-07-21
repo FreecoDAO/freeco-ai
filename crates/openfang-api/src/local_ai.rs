@@ -437,9 +437,11 @@ async fn verify_windows_signature(path: &std::path::Path) -> Result<(), String> 
     // an empty "()" so a flaky-download failure is not mistaken for tampering.
     match tokio::fs::metadata(path).await {
         Ok(m) if m.len() == 0 => {
-            return Err("downloaded installer is empty (0 bytes) — the download did not \
+            return Err(
+                "downloaded installer is empty (0 bytes) — the download did not \
                         complete. Check your connection and press Set up again."
-                .into());
+                    .into(),
+            );
         }
         Ok(_) => {}
         Err(e) => {
@@ -475,16 +477,19 @@ async fn verify_windows_signature(path: &std::path::Path) -> Result<(), String> 
     }
     // Surface a real reason: prefer the parsed INVALID: detail, then any
     // PowerShell stderr, then an explicit "unreadable" note — never an empty ().
-    let detail = line.strip_prefix("INVALID:").map(str::to_string).unwrap_or_else(|| {
-        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
-        if !err.is_empty() {
-            format!("signature check error: {err}")
-        } else if line.is_empty() {
-            "status unreadable (installer may be incomplete or corrupt)".into()
-        } else {
-            line.clone()
-        }
-    });
+    let detail = line
+        .strip_prefix("INVALID:")
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            if !err.is_empty() {
+                format!("signature check error: {err}")
+            } else if line.is_empty() {
+                "status unreadable (installer may be incomplete or corrupt)".into()
+            } else {
+                line.clone()
+            }
+        });
     Err(format!(
         "installer failed digital-signature verification ({detail}). It was not run — \
          press Set up again to re-download."
@@ -523,7 +528,10 @@ async fn download_with_resume(
         let backoff = std::time::Duration::from_secs((attempt as u64).min(5));
 
         // Bytes already on disk from a previous attempt — resume from here.
-        let mut have = tokio::fs::metadata(dest).await.map(|m| m.len()).unwrap_or(0);
+        let mut have = tokio::fs::metadata(dest)
+            .await
+            .map(|m| m.len())
+            .unwrap_or(0);
 
         let mut req = client.get(url);
         if have > 0 {
@@ -609,7 +617,10 @@ async fn download_with_resume(
         }
 
         // Completeness check: if the server told us the size, the file must match.
-        let on_disk = tokio::fs::metadata(dest).await.map(|m| m.len()).unwrap_or(0);
+        let on_disk = tokio::fs::metadata(dest)
+            .await
+            .map(|m| m.len())
+            .unwrap_or(0);
         if total > 0 && on_disk < total {
             last_err = format!("incomplete download ({on_disk} of {total} bytes)");
             set_status(
@@ -657,7 +668,13 @@ async fn install_ollama_windows(status: &SharedLocalAiStatus) -> Result<(), Stri
     // Download robustly: resume on dropped connections and verify completeness
     // before we ever hand the file to the signature check. On a flaky link a
     // truncated installer is what produced the empty "()" verification failure.
-    download_with_resume(status, OLLAMA_WINDOWS_INSTALLER, &installer, "Ollama installer").await?;
+    download_with_resume(
+        status,
+        OLLAMA_WINDOWS_INSTALLER,
+        &installer,
+        "Ollama installer",
+    )
+    .await?;
 
     // SECURITY (threat-model M4): never execute a downloaded installer without
     // verifying it. HTTPS protects transit but not integrity — a compromised
