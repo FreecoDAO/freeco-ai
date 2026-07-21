@@ -85,6 +85,7 @@ function settingsPage() {
 
     // -- Software updates --
     updateChecking: false,
+    updateBusy: false,
     updateStatus: '',
     updateLatest: '',
     updateAvailable: false,
@@ -281,9 +282,61 @@ function settingsPage() {
           ? 'Version ' + this.updateLatest + ' is available.'
           : 'You are on the latest version.';
       } catch (e) {
-        this.updateStatus = 'Update check failed: ' + (e.message || 'network error') + '. You can check manually on GitHub.';
+        // Distinguish "offline" from a real failure so the message isn't scary.
+        var offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+        this.updateStatus = offline
+          ? "You're offline — can't check for updates right now. This is normal for a fully local install."
+          : 'Update check failed: ' + (e.message || 'network error') + '. You can check manually on GitHub.';
       }
       this.updateChecking = false;
+    },
+
+    // Handle the "Get update" button. Never do nothing silently: on the desktop
+    // app, run the built-in auto-updater (download + install + relaunch) with a
+    // toast at every stage; in the browser/portable edition, open the download
+    // page with clear feedback.
+    async getUpdate() {
+      if (this.updateBusy) return;
+      this.updateBusy = true;
+      var tauri = (typeof window !== 'undefined') && window.__TAURI__;
+      try {
+        if (tauri && tauri.updater && tauri.updater.check) {
+          // Desktop app: real download + install.
+          this.updateStatus = 'Checking for the update package...';
+          var update = await tauri.updater.check();
+          if (!update || !update.available) {
+            this.updateStatus = 'You are already on the latest version.';
+            OpenFangToast.success('You are on the latest version.');
+            return;
+          }
+          this.updateStatus = 'Downloading v' + (update.version || this.updateLatest) + '...';
+          OpenFangToast.info('Downloading the update — this can take a minute.');
+          await update.downloadAndInstall(function(ev) {
+            if (ev && ev.event === 'Progress' && ev.data && ev.data.contentLength) {
+              // best-effort progress; not all platforms report it
+            }
+          });
+          this.updateStatus = 'Update installed. Restarting FreEco.ai...';
+          OpenFangToast.success('Update installed — restarting.');
+          if (tauri.process && tauri.process.relaunch) await tauri.process.relaunch();
+          return;
+        }
+        // Browser / portable / CLI: open the download page (no in-app install).
+        var url = this.updateUrl || 'https://github.com/FreecoDAO/freeco-ai/releases/latest';
+        this.updateStatus = 'Opening the download page in your browser...';
+        OpenFangToast.info('Opening the download page — download and run the installer; your data is kept.');
+        var win = window.open(url, '_blank', 'noopener');
+        if (!win) {
+          // popup blocked or webview refused _blank — fall back + show the URL.
+          this.updateStatus = 'Could not open a new tab. Download manually: ' + url;
+          OpenFangToast.warn('Your browser blocked the popup. Open this link: ' + url);
+        }
+      } catch (e) {
+        this.updateStatus = 'Update failed: ' + (e.message || 'unknown error');
+        OpenFangToast.error('Update failed: ' + (e.message || 'unknown error'));
+      } finally {
+        this.updateBusy = false;
+      }
     },
 
     async loadSysInfo() {

@@ -27,7 +27,11 @@ jobs:
           version="${RELEASE_TAG#v}"
           test "$RELEASE_TAG" = "v$version"
           git fetch origin main
-          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$(git rev-parse origin/main)"
+          # The tag must be ON the main line, but need not be the exact HEAD:
+          # commits can legitimately land after an auto-tag is pushed. Requiring
+          # exact equality made releases fail whenever main advanced by even one
+          # commit. Ancestor-of-main is the correct, race-free invariant.
+          git merge-base --is-ancestor "$RELEASE_TAG" origin/main
           grep -q "^version = \"$version\"$" Cargo.toml
           grep -q "^## \[$version\]" CHANGELOG.md
           tauri_version="$(python3 -c 'import json; print(json.load(open("crates/openfang-desktop/tauri.conf.json"))["version"])')"

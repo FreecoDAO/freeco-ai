@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Get update" button did nothing**: it was a bare link that silently failed in the desktop webview and gave no feedback. It now runs the desktop auto-updater (download + install + relaunch) when available, or opens the download page in the browser edition — with a toast/status at every step (checking, downloading, installing, error), never silent.
+- **Update check now distinguishes "offline"** from a real failure, showing a calm "you're offline" message instead of a scary network error.
+- **Release verify-release** relaxed from exact tag==main-HEAD to `git merge-base --is-ancestor`, so a tag that is a few commits behind main (e.g. after an auto-tag) still releases. The version/CHANGELOG/tauri-version consistency checks are retained (they catch mislabeled installers).
+
+
 ## [0.7.7] - 2026-07-14
 
 ### Added
