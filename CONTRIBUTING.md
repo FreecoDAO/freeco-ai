@@ -24,6 +24,9 @@ Thank you for your interest in contributing to OpenFang. This guide covers every
 - **Git**
 - **Python 3.8+** (optional, for Python runtime and skills)
 - A supported LLM API key (Anthropic, OpenAI, Groq, etc.) for end-to-end testing
+- **Windows without MSVC Build Tools?** Use the GNU toolchain — see
+  [Building on Windows](docs/building-on-windows.md), or just run `./scripts/dev-build.ps1`
+  (PowerShell) / `./scripts/dev-build.sh` (Git Bash), which pick a working toolchain for you.
 
 ### Clone and Build
 

@@ -362,6 +362,8 @@ openfang start
 <summary><strong>Running from Source (Linux / macOS / Windows)</strong></summary>
 
 **Prerequisites:** [Rust 1.75+](https://rustup.rs/) and at least one LLM API key.
+On Windows without the MSVC Build Tools, see [Building on Windows](docs/building-on-windows.md)
+(or just use `./scripts/dev-build.ps1` / `./scripts/dev-build.sh`).
 
 ```bash
 git clone https://github.com/FreecoDAO/freeco-ai.git
