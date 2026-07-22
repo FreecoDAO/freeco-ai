@@ -13027,6 +13027,43 @@ pub async fn comms_task(
 // ── Dashboard Authentication (username/password sessions) ──
 
 /// POST /api/auth/login — Authenticate with username/password, returns session token.
+/// Pure role resolution (unit-testable): map an authenticated dashboard
+/// username to its RBAC role string.
+///
+/// The legacy single admin account (`admin_username`) is always the **owner**.
+/// Any other name is looked up in `users`; an enabled match uses its configured
+/// role, everything else falls back to the least-privileged `viewer` so an
+/// unknown or disabled session can never inherit power by default.
+fn role_for(
+    username: &str,
+    admin_username: &str,
+    users: &[openfang_types::config::UserConfig],
+) -> &'static str {
+    if username == admin_username {
+        return "owner";
+    }
+    match users.iter().find(|u| u.enabled && u.name == username) {
+        Some(u) => match openfang_kernel::auth::UserRole::from_str_role(&u.role) {
+            openfang_kernel::auth::UserRole::Owner => "owner",
+            openfang_kernel::auth::UserRole::Admin => "admin",
+            openfang_kernel::auth::UserRole::User => "user",
+            openfang_kernel::auth::UserRole::Kid => "kid",
+            openfang_kernel::auth::UserRole::Viewer => "viewer",
+        },
+        None => "viewer",
+    }
+}
+
+/// Resolve the RBAC role for an authenticated dashboard username against the
+/// running kernel config.
+fn resolve_user_role(state: &AppState, username: &str) -> &'static str {
+    role_for(
+        username,
+        &state.kernel.config.auth.username,
+        &state.kernel.config.users,
+    )
+}
+
 pub async fn auth_login(
     State(state): State<Arc<AppState>>,
     Json(req): Json<serde_json::Value>,
@@ -13048,19 +13085,28 @@ pub async fn auth_login(
     let username = req.get("username").and_then(|v| v.as_str()).unwrap_or("");
     let password = req.get("password").and_then(|v| v.as_str()).unwrap_or("");
 
-    // Constant-time username comparison to prevent timing attacks
-    let username_ok = {
+    // Authenticate against (a) the legacy single admin account, or (b) any
+    // per-user account defined in `config.users` with its own password_hash.
+    // The resolved role travels with the session (see `resolve_user_role`), so
+    // the dashboard can enforce RBAC instead of treating every login as owner.
+    let legacy_admin_ok = {
         use subtle::ConstantTimeEq;
         let stored = auth_cfg.username.as_bytes();
         let provided = username.as_bytes();
-        if stored.len() != provided.len() {
-            false
-        } else {
-            bool::from(stored.ct_eq(provided))
-        }
+        let name_match = stored.len() == provided.len() && bool::from(stored.ct_eq(provided));
+        name_match && crate::session_auth::verify_password(password, &auth_cfg.password_hash)
     };
 
-    if !username_ok || !crate::session_auth::verify_password(password, &auth_cfg.password_hash) {
+    let multiuser_ok = !legacy_admin_ok
+        && state.kernel.config.users.iter().any(|u| {
+            u.enabled
+                && u.name == username
+                && u.password_hash.as_deref().is_some_and(|h| {
+                    !h.is_empty() && crate::session_auth::verify_password(password, h)
+                })
+        });
+
+    if !legacy_admin_ok && !multiuser_ok {
         // Audit log the failed attempt
         state.kernel.audit_log.record(
             "system",
@@ -13107,6 +13153,7 @@ pub async fn auth_login(
                 "status": "ok",
                 "token": token,
                 "username": username,
+                "role": resolve_user_role(&state, username),
             })
             .to_string(),
         ))
@@ -13285,10 +13332,12 @@ pub async fn auth_check(
         .and_then(|token| crate::session_auth::verify_session_token(&token, &secret));
 
     if let Some(username) = session_user {
+        let role = resolve_user_role(&state, &username);
         Json(serde_json::json!({
             "authenticated": true,
             "mode": "session",
             "username": username,
+            "role": role,
             "password_configured": true,
         }))
     } else {
@@ -13719,4 +13768,53 @@ pub async fn unfreeze_system(State(state): State<Arc<AppState>>) -> impl IntoRes
     }
     tracing::info!(resumed, "Emergency freeze released");
     Json(serde_json::json!({"frozen": false, "resumed": resumed}))
+}
+
+#[cfg(test)]
+mod role_resolution_tests {
+    use super::role_for;
+    use openfang_types::config::UserConfig;
+
+    fn user(name: &str, role: &str, enabled: bool) -> UserConfig {
+        UserConfig {
+            name: name.to_string(),
+            role: role.to_string(),
+            enabled,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn legacy_admin_is_owner() {
+        assert_eq!(role_for("admin", "admin", &[]), "owner");
+    }
+
+    #[test]
+    fn known_users_get_their_role() {
+        let users = vec![
+            user("alice", "admin", true),
+            user("bobby", "kid", true),
+            user("val", "viewer", true),
+            user("uma", "user", true),
+        ];
+        assert_eq!(role_for("alice", "admin", &users), "admin");
+        assert_eq!(role_for("bobby", "admin", &users), "kid");
+        assert_eq!(role_for("val", "admin", &users), "viewer");
+        assert_eq!(role_for("uma", "admin", &users), "user");
+    }
+
+    #[test]
+    fn disabled_or_unknown_users_fall_back_to_viewer() {
+        let users = vec![user("carol", "admin", false)];
+        // Disabled admin account must NOT resolve to admin.
+        assert_eq!(role_for("carol", "admin", &users), "viewer");
+        // Completely unknown name is least-privileged.
+        assert_eq!(role_for("nobody", "admin", &users), "viewer");
+    }
+
+    #[test]
+    fn unrecognized_role_string_defaults_to_user() {
+        let users = vec![user("dave", "wizard", true)];
+        assert_eq!(role_for("dave", "admin", &users), "user");
+    }
 }

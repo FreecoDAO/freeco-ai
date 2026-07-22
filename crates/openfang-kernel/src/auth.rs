@@ -15,18 +15,22 @@ use tracing::info;
 pub enum UserRole {
     /// Read-only access — can view agent output but cannot interact.
     Viewer = 0,
+    /// Child account — can chat with a kid-safe agent, but no config, no
+    /// spawn/kill, no billing. The basis for the Kids edition.
+    Kid = 1,
     /// Standard user — can chat with agents.
-    User = 1,
+    User = 2,
     /// Admin — can spawn/kill agents, install skills, view usage.
-    Admin = 2,
+    Admin = 3,
     /// Owner — full access including user management and config changes.
-    Owner = 3,
+    Owner = 4,
 }
 
 impl fmt::Display for UserRole {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             UserRole::Viewer => write!(f, "viewer"),
+            UserRole::Kid => write!(f, "kid"),
             UserRole::User => write!(f, "user"),
             UserRole::Admin => write!(f, "admin"),
             UserRole::Owner => write!(f, "owner"),
@@ -40,6 +44,7 @@ impl UserRole {
         match s.to_lowercase().as_str() {
             "owner" => UserRole::Owner,
             "admin" => UserRole::Admin,
+            "kid" => UserRole::Kid,
             "viewer" => UserRole::Viewer,
             _ => UserRole::User,
         }
@@ -71,7 +76,7 @@ impl Action {
     /// Minimum role required for this action.
     fn required_role(&self) -> UserRole {
         match self {
-            Action::ChatWithAgent => UserRole::User,
+            Action::ChatWithAgent => UserRole::Kid,
             Action::ViewConfig => UserRole::User,
             Action::ViewUsage => UserRole::Admin,
             Action::SpawnAgent => UserRole::Admin,
@@ -205,6 +210,7 @@ mod tests {
                     m
                 },
                 api_key_hash: None,
+                ..Default::default()
             },
             UserConfig {
                 name: "Guest".to_string(),
@@ -215,12 +221,14 @@ mod tests {
                     m
                 },
                 api_key_hash: None,
+                ..Default::default()
             },
             UserConfig {
                 name: "ReadOnly".to_string(),
                 role: "viewer".to_string(),
                 channel_bindings: HashMap::new(),
                 api_key_hash: None,
+                ..Default::default()
             },
         ]
     }
