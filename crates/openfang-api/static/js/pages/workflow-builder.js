@@ -37,6 +37,67 @@ function workflowBuilder() {
       { type: 'end', label: 'End', color: '#ef4444', icon: 'E', ports: { in: 1, out: 0 } }
     ],
 
+    // ChatDev-style company templates — pick one to lay out a whole org as a
+    // wired sequence of role steps. Assign an agent to each role, then Save/Run.
+    companyTemplates: [
+      { id: 'startup', name: 'Lean startup', description: 'Idea → market → sell → build → account.', roles: [
+        { label: 'Strategy & Planning', prompt: 'You are the strategist. Turn the goal into a concrete plan, structure, and this week’s priorities.\n\nInput: {{input}}' },
+        { label: 'Marketing & Content', prompt: 'You are the marketer. From the strategy, draft site copy, an email, and a social post.\n\nStrategy: {{input}}' },
+        { label: 'Sales & CRM', prompt: 'You are the sales lead. Turn the marketing into an outreach list, a proposal draft, and follow-ups.\n\nMarketing: {{input}}' },
+        { label: 'Product / Development', prompt: 'You are the builder. Produce or update the product/site/automation the plan needs.\n\nContext: {{input}}' },
+        { label: 'Finance / Bookkeeping', prompt: 'You are the bookkeeper. Log income/expenses implied by the work and give a short status.\n\nWork: {{input}}' }
+      ]},
+      { id: 'nonprofit', name: 'Nonprofit / charity', description: 'Programs, fundraising, comms, volunteers, finance.', roles: [
+        { label: 'Programs & Impact', prompt: 'You run programs. Define the program, its beneficiaries, and success measures.\n\nMission: {{input}}' },
+        { label: 'Fundraising & Grants', prompt: 'You lead fundraising. Draft a donor/grant outreach plan and a thank-you flow.\n\nProgram: {{input}}' },
+        { label: 'Communications', prompt: 'You run comms. Write the public update, newsletter, and social posts.\n\nContext: {{input}}' },
+        { label: 'Volunteers & Ops', prompt: 'You coordinate volunteers and operations. Plan roles, schedule, and logistics.\n\nContext: {{input}}' },
+        { label: 'Finance & Reporting', prompt: 'You handle finance. Track funds and produce a simple transparency report.\n\nActivity: {{input}}' }
+      ]},
+      { id: 'agency', name: 'Content agency', description: 'Account → strategy → creative → production → QA.', roles: [
+        { label: 'Account / Brief', prompt: 'You are the account lead. Turn the client ask into a clear brief with goals and constraints.\n\nAsk: {{input}}' },
+        { label: 'Strategy', prompt: 'You are the strategist. Turn the brief into an approach, audience, and key messages.\n\nBrief: {{input}}' },
+        { label: 'Creative', prompt: 'You are the creative. Produce concepts and copy from the strategy.\n\nStrategy: {{input}}' },
+        { label: 'Production', prompt: 'You are production. Turn the concepts into finished deliverables.\n\nConcepts: {{input}}' },
+        { label: 'QA & Delivery', prompt: 'You are QA. Check against the brief, fix issues, and prepare final delivery.\n\nDeliverables: {{input}}' }
+      ]}
+    ],
+
+    // Lay a company template onto the canvas as start → role steps → end.
+    loadCompanyTemplate: function(id) {
+      var tpl = null;
+      for (var i = 0; i < this.companyTemplates.length; i++) {
+        if (this.companyTemplates[i].id === id) { tpl = this.companyTemplates[i]; break; }
+      }
+      if (!tpl) return;
+      this.nodes = [];
+      this.connections = [];
+      this.nextId = 1;
+      this.selectedNode = null;
+      this.showNodeEditor = false;
+      this.workflowName = tpl.name;
+      this.workflowDescription = tpl.description;
+      var start = this.addNode('start', 60, 240);
+      var prevId = start.id;
+      var x = 280;
+      var self = this;
+      tpl.roles.forEach(function(role) {
+        var n = self.addNode('agent', x, 240);
+        n.label = role.label;
+        n.config.agent_name = '';
+        n.config.prompt = role.prompt;
+        self.connections.push({ from: prevId, fromPort: 0, to: n.id, toPort: 0 });
+        prevId = n.id;
+        x += 210;
+      });
+      var end = self.addNode('end', x, 240);
+      self.connections.push({ from: prevId, fromPort: 0, to: end.id, toPort: 0 });
+      self.scheduleRender();
+      if (typeof OpenFangToast !== 'undefined') {
+        OpenFangToast.success('Loaded "' + tpl.name + '" — assign an agent to each role, then Save.');
+      }
+    },
+
     _renderScheduled: false,
     _lastClickNodeId: null,
     _lastClickTime: 0,
