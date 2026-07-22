@@ -74,6 +74,73 @@ function workflowBuilder() {
       ]}
     ],
 
+    // One-click "hire the whole team": create a real agent for every role step
+    // on the canvas and wire it into that step, so a company template goes from
+    // a drawing to a runnable org without assigning each agent by hand.
+    spawningTeam: false,
+
+    async spawnTeam() {
+      if (this.spawningTeam) return;
+      var roleNodes = this.nodes.filter(function(n) { return n.type === 'agent'; });
+      if (!roleNodes.length) {
+        OpenFangToast.error('Load a company template (or add agent steps) first.');
+        return;
+      }
+      var todo = roleNodes.filter(function(n) { return !n.config.agent_name; });
+      if (!todo.length) {
+        OpenFangToast.info('Every role already has an agent assigned.');
+        return;
+      }
+
+      this.spawningTeam = true;
+      var created = 0;
+      var failures = [];
+
+      for (var i = 0; i < todo.length; i++) {
+        var node = todo[i];
+        var roleName = (node.label || ('Role ' + (i + 1))).trim();
+        var prompt = node.config.prompt || ('You are the ' + roleName + ' for this organization.');
+        var toml = [
+          'name = "' + tomlBasicEscape(roleName) + '"',
+          'description = "' + tomlBasicEscape(roleName + ' — created from a FreEco.ai company template') + '"',
+          'module = "builtin:chat"',
+          'profile = "full"',
+          '',
+          '[model]',
+          'provider = "default"',
+          'model = "default"',
+          'system_prompt = """\n' + tomlMultilineEscape(prompt) + '\n"""'
+        ].join('\n');
+
+        try {
+          var res = await OpenFangAPI.post('/api/agents', { manifest_toml: toml });
+          node.config.agent_name = (res && res.name) || roleName;
+          created++;
+          this.scheduleRender();
+        } catch (e) {
+          failures.push(roleName + ': ' + (e.message || 'failed'));
+        }
+      }
+
+      // Refresh the agent dropdown + global list so the new hires appear.
+      try {
+        var list = await OpenFangAPI.get('/api/agents');
+        this.agents = Array.isArray(list) ? list : [];
+      } catch (e) { /* dropdown will refresh on next load */ }
+      try { Alpine.store('app').refreshAgents(); } catch (e) { /* optional */ }
+
+      this.spawningTeam = false;
+      this.scheduleRender();
+
+      if (created && !failures.length) {
+        OpenFangToast.success('Hired ' + created + ' agent(s) and wired them into the workflow. Save it to keep the org.');
+      } else if (created) {
+        OpenFangToast.warn('Hired ' + created + ', but ' + failures.length + ' failed: ' + failures[0]);
+      } else {
+        OpenFangToast.error('Could not create the team: ' + (failures[0] || 'unknown error'));
+      }
+    },
+
     // Lay a company template onto the canvas as start → role steps → end.
     loadCompanyTemplate: function(id) {
       var tpl = null;

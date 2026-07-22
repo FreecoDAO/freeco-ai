@@ -1560,13 +1560,19 @@
             <div class="wf-palette">
               <div class="wf-palette-title">Company templates</div>
               <div class="text-xs text-dim mb-2">Lay out a whole org, then assign an agent to each role.</div>
-              <div class="flex flex-col gap-1 mb-3">
+              <div class="flex flex-col gap-1 mb-2">
                 <template x-for="ct in companyTemplates" :key="ct.id">
                   <button class="btn btn-ghost btn-sm btn-block" style="text-align:left" @click="loadCompanyTemplate(ct.id)" :title="ct.description">
                     <span x-text="ct.name"></span>
                   </button>
                 </template>
               </div>
+              <button class="btn btn-sm btn-block mb-3" style="background:var(--accent);color:var(--text-on-accent)"
+                      @click="spawnTeam()" :disabled="spawningTeam"
+                      title="Create a real agent for every role on the canvas and wire it in">
+                <span x-show="!spawningTeam">Hire the whole team</span>
+                <span x-show="spawningTeam">Hiring&hellip;</span>
+              </button>
               <hr style="border-color:var(--border);margin:12px 0">
               <div class="wf-palette-title">Node Palette</div>
               <div class="text-xs text-dim mb-3">Drag nodes onto the canvas</div>
