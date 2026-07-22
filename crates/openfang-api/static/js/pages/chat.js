@@ -1383,11 +1383,21 @@ function chatPage() {
         // Remove the "Transcribing..." message
         this.messages = this.messages.filter(function(m) { return !m.thinking || m.role !== 'system'; });
 
-        // Use server-side transcription if available, otherwise fall back to placeholder
-        var text = (upload.transcription && upload.transcription.trim())
-          ? upload.transcription.trim()
-          : '[Voice message - audio: ' + upload.filename + ']';
-        this._sendPayload(text, [upload], []);
+        // Use server-side transcription when available. If speech-to-text is not
+        // configured the server now tells us why — surface that instead of
+        // silently sending an opaque "[Voice message]" the agent can't read.
+        var said = (upload.transcription && upload.transcription.trim()) ? upload.transcription.trim() : '';
+        if (!said) {
+          this.messages.push({
+            id: ++msgId, role: 'system', ts: Date.now(), tools: [],
+            text: upload.transcription_error
+              ? ('Voice: ' + upload.transcription_error)
+              : 'Voice: could not transcribe that audio. Check your speech-to-text setup in Settings.'
+          });
+          this.scrollToBottom();
+          return;
+        }
+        this._sendPayload(said, [upload], []);
       } catch(e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking || m.role !== 'system'; });
         if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Failed to upload audio: ' + (e.message || 'unknown error'));
