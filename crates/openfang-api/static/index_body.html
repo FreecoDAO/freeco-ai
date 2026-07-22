@@ -8,7 +8,7 @@
   @click="$store.app.toggleEmergencyFreeze()"
   :aria-label="$store.app.frozen ? 'Release emergency stop' : 'Engage emergency stop'"
   :title="$store.app.frozen ? 'Release emergency stop' : 'Pause all agents immediately'"
-  style="position:fixed;right:20px;bottom:20px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.25)"
+  style="position:fixed;left:20px;bottom:20px;z-index:9800;box-shadow:0 8px 24px rgba(0,0,0,.25)"
 >
   <span x-text="$store.app.freezeBusy ? 'Working…' : ($store.app.frozen ? 'Resume agents' : 'Emergency stop')"></span>
 </button>
