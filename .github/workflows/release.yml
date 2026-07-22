@@ -140,16 +140,22 @@ jobs:
           echo "APPLE_ID=${{ secrets.MAC_NOTARIZE_APPLE_ID }}" >> $GITHUB_ENV
           echo "APPLE_PASSWORD=${{ secrets.MAC_NOTARIZE_PASSWORD }}" >> $GITHUB_ENV
           echo "APPLE_TEAM_ID=${{ secrets.MAC_NOTARIZE_TEAM_ID }}" >> $GITHUB_ENV
+
       - name: Build and bundle Tauri desktop app
         uses: tauri-apps/tauri-action@v1
+        # NOTE: do NOT list APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID here.
+        # `env: FOO: ${{ env.FOO }}` defines FOO as an EMPTY STRING when it is
+        # unset, and Tauri treats a *present* APPLE_ID as "notarize this build",
+        # then aborts with "Team ID must be at least 3 characters". The
+        # conditional step above writes them to $GITHUB_ENV, which already
+        # propagates to this step when the secrets are configured — so
+        # notarization still happens when set up, and is cleanly skipped
+        # (unsigned .dmg) when it is not.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ env.APPLE_ID }}
-          APPLE_PASSWORD: ${{ env.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ env.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "FreEco.ai ${{ github.ref_name }}"
