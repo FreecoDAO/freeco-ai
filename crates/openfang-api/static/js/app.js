@@ -266,7 +266,10 @@ document.addEventListener('alpine:init', function() {
       try {
         // First check if session-based auth is configured
         var authInfo = await OpenFangAPI.get('/api/auth/check');
-        if (!authInfo.password_configured && !localStorage.getItem('openfang-password-setup-skipped')) {
+        // Server-persisted dismissal wins (survives the desktop's random-port
+        // relaunch, which wipes origin-scoped localStorage). localStorage is
+        // kept only as a same-session fast path.
+        if (!authInfo.password_configured && !authInfo.setup_dismissed && !localStorage.getItem('openfang-password-setup-skipped')) {
           this.showPasswordSetup = true;
         }
         if (authInfo.mode === 'none') {
@@ -337,6 +340,7 @@ document.addEventListener('alpine:init', function() {
         if (result.status === 'ok') {
           this.showPasswordSetup = false;
           localStorage.setItem('openfang-password-setup-skipped', 'true');
+          OpenFangAPI.post('/api/auth/dismiss-setup', {}).catch(function() {});
           OpenFangToast.success('Password saved. Restart FreEco.ai to enable sign-in.');
         }
       } catch(e) {
@@ -347,6 +351,8 @@ document.addEventListener('alpine:init', function() {
     skipPasswordSetup() {
       this.showPasswordSetup = false;
       localStorage.setItem('openfang-password-setup-skipped', 'true');
+      // Persist server-side so the prompt stays dismissed across restarts.
+      OpenFangAPI.post('/api/auth/dismiss-setup', {}).catch(function() {});
     },
 
     async sessionLogout() {

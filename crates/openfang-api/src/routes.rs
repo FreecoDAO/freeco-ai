@@ -13306,16 +13306,45 @@ pub async fn auth_set_password(
 }
 
 /// GET /api/auth/check — Check current authentication state.
+/// Path to the marker file recording that first-run dashboard setup was
+/// dismissed or completed. Persisted server-side so the decision survives the
+/// desktop app's random-port relaunch (browser localStorage does not).
+fn setup_dismissed_marker(state: &AppState) -> std::path::PathBuf {
+    state
+        .kernel
+        .config
+        .home_dir
+        .join(".dashboard_setup_dismissed")
+}
+
+/// POST /api/auth/dismiss-setup — record that the user skipped or finished the
+/// first-run "protect your dashboard" prompt so it is not shown again.
+pub async fn auth_dismiss_setup(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let marker = setup_dismissed_marker(&state);
+    match std::fs::write(&marker, b"1") {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("could not persist: {e}")})),
+        ),
+    }
+}
+
 pub async fn auth_check(
     State(state): State<Arc<AppState>>,
     request: axum::http::Request<axum::body::Body>,
 ) -> impl IntoResponse {
     let auth_cfg = &state.kernel.config.auth;
+    // Whether the user already dismissed (or completed) first-run setup. This is
+    // persisted server-side because the desktop app binds a random port each
+    // launch, so browser localStorage (keyed by origin) cannot remember it.
+    let setup_dismissed = setup_dismissed_marker(&state).exists();
     if !auth_cfg.enabled {
         return Json(serde_json::json!({
             "authenticated": true,
             "mode": "none",
             "password_configured": false,
+            "setup_dismissed": setup_dismissed,
         }));
     }
 
