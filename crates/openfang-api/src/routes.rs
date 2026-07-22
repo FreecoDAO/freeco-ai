@@ -13455,7 +13455,11 @@ pub async fn user_upsert(
     if let Err((code, body)) = require_owner(&state, &headers) {
         return (code, body).into_response();
     }
-    let name = req.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let name = req
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     let role = req
         .get("role")
         .and_then(|v| v.as_str())
@@ -13535,7 +13539,9 @@ pub async fn user_delete(
     }
     let config_path = state.kernel.config.home_dir.join("config.toml");
     match delete_user(&config_path, &name) {
-        Ok(true) => Json(serde_json::json!({"status": "ok", "restart_required": true})).into_response(),
+        Ok(true) => {
+            Json(serde_json::json!({"status": "ok", "restart_required": true})).into_response()
+        }
         Ok(false) => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "no such account"})),
@@ -13622,7 +13628,12 @@ fn delete_user(
         return Ok(false);
     };
     let before = arr.len();
-    arr.retain(|v| v.as_table().and_then(|t| t.get("name")).and_then(|n| n.as_str()) != Some(name));
+    arr.retain(|v| {
+        v.as_table()
+            .and_then(|t| t.get("name"))
+            .and_then(|n| n.as_str())
+            != Some(name)
+    });
     let removed = arr.len() != before;
     if removed {
         let _ = std::fs::copy(config_path, config_path.with_extension("toml.bak"));
