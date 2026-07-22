@@ -49,8 +49,8 @@
 }
 
 .sidebar-logo img {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   opacity: 0.8;
   transition: opacity 0.2s, transform 0.2s;
 }
