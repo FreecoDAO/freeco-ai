@@ -107,6 +107,7 @@ pub async fn auth(
         || path == "/api/auth/login"
         || path == "/api/auth/logout"
         || path == "/api/auth/set-password"
+        || path == "/api/auth/dismiss-setup"
         || (path == "/api/auth/check" && is_get);
 
     if is_public {

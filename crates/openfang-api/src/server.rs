@@ -841,6 +841,10 @@ pub async fn build_router(
             axum::routing::post(routes::auth_set_password),
         )
         .route("/api/auth/check", axum::routing::get(routes::auth_check))
+        .route(
+            "/api/auth/dismiss-setup",
+            axum::routing::post(routes::auth_dismiss_setup),
+        )
         .layer(axum::middleware::from_fn_with_state(
             auth_state,
             middleware::auth,
