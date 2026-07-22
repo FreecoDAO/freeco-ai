@@ -13101,9 +13101,9 @@ pub async fn auth_login(
         && state.kernel.config.users.iter().any(|u| {
             u.enabled
                 && u.name == username
-                && u.password_hash
-                    .as_deref()
-                    .is_some_and(|h| !h.is_empty() && crate::session_auth::verify_password(password, h))
+                && u.password_hash.as_deref().is_some_and(|h| {
+                    !h.is_empty() && crate::session_auth::verify_password(password, h)
+                })
         });
 
     if !legacy_admin_ok && !multiuser_ok {
