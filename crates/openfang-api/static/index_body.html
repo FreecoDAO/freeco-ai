@@ -1553,6 +1553,16 @@
           <div class="wf-builder-layout">
             <!-- Node palette (left sidebar) -->
             <div class="wf-palette">
+              <div class="wf-palette-title">Company templates</div>
+              <div class="text-xs text-dim mb-2">Lay out a whole org, then assign an agent to each role.</div>
+              <div class="flex flex-col gap-1 mb-3">
+                <template x-for="ct in companyTemplates" :key="ct.id">
+                  <button class="btn btn-ghost btn-sm btn-block" style="text-align:left" @click="loadCompanyTemplate(ct.id)" :title="ct.description">
+                    <span x-text="ct.name"></span>
+                  </button>
+                </template>
+              </div>
+              <hr style="border-color:var(--border);margin:12px 0">
               <div class="wf-palette-title">Node Palette</div>
               <div class="text-xs text-dim mb-3">Drag nodes onto the canvas</div>
               <template x-for="nt in nodeTypes" :key="nt.type">
