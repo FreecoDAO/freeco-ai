@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.9] - 2026-07-22
+
+### Added
+
+- **Multiuser accounts with roles (RBAC)**: create accounts in **Settings → People** with a role — `owner`, `admin`, `user`, `kid`, or `viewer`. A new **Kid** role sits between viewer and user: a child account can chat with an agent but cannot change settings, spawn agents, or see billing. Dashboard sign-in is now role-aware (the legacy admin account is always owner; unknown or disabled accounts fall back to the least-privileged viewer). Accounts are stored in `config.toml` and apply on restart.
+- **Company templates in the visual Workflow Builder**: one click lays out a whole organization as a wired sequence of role steps — **Lean startup**, **Nonprofit / charity**, or **Content agency** — each role pre-filled with a starter prompt. Assign an agent per role, then save/run.
+
+### Fixed
+
+- **"Skip" on the first-run password prompt now sticks.** The desktop app binds a random port each launch, and browser `localStorage` is keyed by origin (host **+ port**), so the skip flag was wiped on every restart and the prompt kept reappearing. The dismissal is now persisted server-side (`POST /api/auth/dismiss-setup`), so skipping is permanent.
+- **Logo rendered dark in the light/day theme** — a `filter: invert(1)` was flipping the green-on-white mark. The original green-on-white logo now shows in both day and night themes, and is slightly larger.
+
 ## [0.7.8] - 2026-07-21
 
 ### Added
