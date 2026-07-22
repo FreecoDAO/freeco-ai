@@ -286,14 +286,22 @@ const COMPLEX_MODEL_LADDER: &[(&str, &str, &str)] = &[
     ("GEMINI_API_KEY", "gemini", "gemini-2.5-pro"),
     ("NOVITA_API_KEY", "novita", "zai-org/glm-5.2"),
     ("GROQ_API_KEY", "groq", "llama-3.3-70b-versatile"),
-    ("OPENROUTER_API_KEY", "openrouter", "anthropic/claude-sonnet-4"),
+    (
+        "OPENROUTER_API_KEY",
+        "openrouter",
+        "anthropic/claude-sonnet-4",
+    ),
 ];
 
 /// Pick the strongest cloud model whose API key is actually configured.
 fn detect_complex_model() -> Option<(&'static str, &'static str, &'static str)> {
     COMPLEX_MODEL_LADDER
         .iter()
-        .find(|(env, _, _)| std::env::var(env).map(|v| !v.trim().is_empty()).unwrap_or(false))
+        .find(|(env, _, _)| {
+            std::env::var(env)
+                .map(|v| !v.trim().is_empty())
+                .unwrap_or(false)
+        })
         .copied()
 }
 
@@ -346,11 +354,7 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
 }
 
 /// Write `[complex_model]` in config.toml — the escalation tier for hard tasks.
-fn write_complex_model(
-    home: &std::path::Path,
-    provider: &str,
-    model: &str,
-) -> Result<(), String> {
+fn write_complex_model(home: &std::path::Path, provider: &str, model: &str) -> Result<(), String> {
     let path = home.join("config.toml");
     let existing = std::fs::read_to_string(&path).unwrap_or_default();
     let mut table: toml::Table = existing.parse().unwrap_or_default();
