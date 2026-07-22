@@ -3738,6 +3738,27 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                 no account, your conversations never leave your machine. Downloads the Ollama runtime
                 (Windows: automatic; macOS/Linux: one guided step) and a lightweight Gemma model (~3&nbsp;GB).
               </p>
+              <!-- One-click model policy -->
+              <div style="border:1px solid var(--border-subtle);border-radius:8px;padding:10px;margin:10px 0;background:var(--surface2)">
+                <div style="font-weight:600;font-size:13px;margin-bottom:4px">Auto-configure models (local-first)</div>
+                <p class="text-xs text-dim" style="margin:0 0 8px">
+                  Runs everyday work on a free, private <strong>local Gemma</strong> sized to this machine, and
+                  automatically uses your strongest configured cloud model for <strong>complex tasks</strong>.
+                  If you have no cloud key, everything simply stays local.
+                </p>
+                <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)"
+                        @click="autoConfigureModels()" :disabled="autoConfigBusy">
+                  <span x-show="!autoConfigBusy">Auto-configure models</span>
+                  <span x-show="autoConfigBusy">Configuring&hellip;</span>
+                </button>
+                <template x-if="autoConfigResult">
+                  <div class="text-xs" style="margin-top:8px">
+                    <div>Everyday: <strong x-text="autoConfigResult.default_model && autoConfigResult.default_model.model"></strong> <span class="text-dim">(local)</span></div>
+                    <div x-show="autoConfigResult.complex_model">Complex: <strong x-text="autoConfigResult.complex_model && (autoConfigResult.complex_model.provider + ' / ' + autoConfigResult.complex_model.model)"></strong></div>
+                    <div x-show="!autoConfigResult.complex_model" class="text-dim">Complex: none — no cloud key configured, staying fully local.</div>
+                  </div>
+                </template>
+              </div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0">
                 <button class="btn btn-ghost btn-sm" @click="loadLocalAiRecommendation('general')">Check this machine</button>
                 <button class="btn btn-ghost btn-sm" @click="loadLocalAiRecommendation('coding')">Recommend coding model</button>

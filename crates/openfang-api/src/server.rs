@@ -581,6 +581,10 @@ pub async fn build_router(
             axum::routing::post(crate::local_ai::local_ai_setup),
         )
         .route(
+            "/api/models/autoconfig",
+            axum::routing::post(crate::local_ai::models_autoconfig),
+        )
+        .route(
             "/api/system/freeze",
             axum::routing::get(routes::get_freeze)
                 .post(routes::freeze_system)
