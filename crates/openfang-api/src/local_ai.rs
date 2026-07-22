@@ -278,6 +278,96 @@ pub async fn local_ai_recommendation(
     }))
 }
 
+/// Top-tier cloud models for hard work, best first. Each entry is
+/// `(env var, provider, model)`; the first whose key is configured wins.
+const COMPLEX_MODEL_LADDER: &[(&str, &str, &str)] = &[
+    ("ANTHROPIC_API_KEY", "anthropic", "claude-sonnet-4-20250514"),
+    ("OPENAI_API_KEY", "openai", "gpt-4o"),
+    ("GEMINI_API_KEY", "gemini", "gemini-2.5-pro"),
+    ("NOVITA_API_KEY", "novita", "zai-org/glm-5.2"),
+    ("GROQ_API_KEY", "groq", "llama-3.3-70b-versatile"),
+    (
+        "OPENROUTER_API_KEY",
+        "openrouter",
+        "anthropic/claude-sonnet-4",
+    ),
+];
+
+/// Pick the strongest cloud model whose API key is actually configured.
+fn detect_complex_model() -> Option<(&'static str, &'static str, &'static str)> {
+    COMPLEX_MODEL_LADDER
+        .iter()
+        .find(|(env, _, _)| {
+            std::env::var(env)
+                .map(|v| !v.trim().is_empty())
+                .unwrap_or(false)
+        })
+        .copied()
+}
+
+/// POST /api/models/autoconfig — one-click model policy: run everyday work on a
+/// free, private local Gemma sized to this machine, and register the strongest
+/// configured cloud model as the `complex` tier for hard tasks.
+///
+/// Local-first by default: if no cloud key is configured the complex tier is
+/// simply left unset and everything stays local.
+pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let home = state.kernel.config.home_dir.clone();
+    let hardware = detect_hardware().await;
+    let local_model = recommended_model(&hardware, "general");
+    let ollama_ready = ollama_running().await;
+
+    if let Err(e) = write_default_model(&home, local_model) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e})),
+        );
+    }
+
+    let complex = detect_complex_model();
+    if let Some((_, provider, model)) = complex {
+        if let Err(e) = write_complex_model(&home, provider, model) {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e})),
+            );
+        }
+    }
+
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "status": "ok",
+            "default_model": { "provider": "ollama", "model": local_model, "local": true },
+            "complex_model": complex.map(|(env, provider, model)| serde_json::json!({
+                "provider": provider, "model": model, "api_key_env": env
+            })),
+            "ollama_ready": ollama_ready,
+            "restart_required": true,
+            "message": if ollama_ready {
+                "Everyday work now runs on your local Gemma (free and private). Restart FreEco.ai to apply."
+            } else {
+                "Saved. Local AI is not installed yet — run Settings > Providers > Set up local AI, then restart."
+            }
+        })),
+    )
+}
+
+/// Write `[complex_model]` in config.toml — the escalation tier for hard tasks.
+fn write_complex_model(home: &std::path::Path, provider: &str, model: &str) -> Result<(), String> {
+    let path = home.join("config.toml");
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut table: toml::Table = existing.parse().unwrap_or_default();
+
+    let mut cm = toml::Table::new();
+    cm.insert("provider".into(), toml::Value::String(provider.into()));
+    cm.insert("model".into(), toml::Value::String(model.into()));
+    table.insert("complex_model".into(), toml::Value::Table(cm));
+
+    let rendered = toml::to_string_pretty(&table).map_err(|e| format!("render config: {e}"))?;
+    std::fs::write(&path, rendered).map_err(|e| format!("write config.toml: {e}"))
+}
+
 /// POST /api/local-ai/setup — body: optional {"model": "gemma4:e4b"}
 pub async fn local_ai_setup(
     State(state): State<Arc<AppState>>,

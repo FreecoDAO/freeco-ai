@@ -168,8 +168,16 @@ function freecoAssistant() {
         var up = await OpenFangAPI.upload(this.agent.id, file);
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         var said = (up.transcription && up.transcription.trim()) ? up.transcription.trim() : '';
-        if (said) { this.input = said; this.send(); }
-        else { this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: 'Could not transcribe audio — no speech-to-text provider is configured. Set one up in Settings, or type instead.' }); this._scroll(); }
+        if (said) {
+          this.input = said;
+          this.send();
+        } else {
+          this.messages.push({
+            id: ++mId, role: 'system', ts: Date.now(),
+            html: this._escape(up.transcription_error || 'Could not transcribe that audio. Check your speech-to-text setup in Settings, or type instead.')
+          });
+          this._scroll();
+        }
       } catch (e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: 'Voice upload failed: ' + self._escape(e.message || 'unknown') });

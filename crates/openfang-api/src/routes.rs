@@ -11165,6 +11165,10 @@ pub async fn upload_file(
     );
 
     // Auto-transcribe audio uploads using the media engine
+    // Why transcription failed, surfaced to the client. Voice used to fail
+    // silently here (the error was logged and dropped), so the dashboard just
+    // showed "[Voice message]" with no hint that speech-to-text was unconfigured.
+    let mut transcription_error: Option<String> = None;
     let transcription = if content_type.starts_with("audio/") {
         let attachment = openfang_types::media::MediaAttachment {
             media_type: openfang_types::media::MediaType::Audio,
@@ -11186,6 +11190,7 @@ pub async fn upload_file(
             }
             Err(e) => {
                 tracing::warn!("Audio transcription failed: {e}");
+                transcription_error = Some(e.to_string());
                 None
             }
         }
@@ -11193,16 +11198,17 @@ pub async fn upload_file(
         None
     };
 
-    (
-        StatusCode::CREATED,
-        Json(serde_json::json!(UploadResponse {
-            file_id,
-            filename,
-            content_type,
-            size,
-            transcription,
-        })),
-    )
+    let mut body = serde_json::json!(UploadResponse {
+        file_id,
+        filename,
+        content_type,
+        size,
+        transcription,
+    });
+    if let Some(err) = transcription_error {
+        body["transcription_error"] = serde_json::Value::String(err);
+    }
+    (StatusCode::CREATED, Json(body))
 }
 
 /// GET /api/uploads/{file_id} — Serve an uploaded file.

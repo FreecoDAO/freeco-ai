@@ -55,6 +55,24 @@ function settingsPage() {
       try { this.localAi = await OpenFangAPI.get('/api/local-ai/status'); } catch(e) { /* silent */ }
     },
 
+    // One-click model policy: everyday work on a free local Gemma, hard tasks
+    // on the strongest cloud model whose key is configured.
+    autoConfigBusy: false,
+    autoConfigResult: null,
+
+    async autoConfigureModels() {
+      if (this.autoConfigBusy) return;
+      this.autoConfigBusy = true;
+      try {
+        var res = await OpenFangAPI.post('/api/models/autoconfig', {});
+        this.autoConfigResult = res;
+        OpenFangToast.success(res.message || 'Models configured.');
+      } catch(e) {
+        OpenFangToast.error('Auto-configure failed: ' + (e.message || 'unknown error'));
+      }
+      this.autoConfigBusy = false;
+    },
+
     async loadLocalAiRecommendation(purpose) {
       try {
         this.localAiRecommendation = await OpenFangAPI.get('/api/local-ai/recommendation?purpose=' + (purpose || 'general'));

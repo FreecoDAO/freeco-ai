@@ -71,13 +71,26 @@ impl MediaEngine {
             return Err("Expected audio attachment".into());
         }
 
+        // Any OpenAI-compatible transcription endpoint works: when
+        // `audio_base_url` is set (a local Whisper server, or a compatible
+        // cloud provider such as Novita), fall back to the OpenAI wire format
+        // even without a Groq/OpenAI key — local servers accept any bearer.
         let provider = self
             .config
             .audio_provider
             .as_deref()
             .or_else(|| detect_audio_provider())
+            .or_else(|| {
+                if self.config.audio_base_url.is_some() {
+                    Some("openai")
+                } else {
+                    None
+                }
+            })
             .ok_or(
-                "No audio transcription provider configured. Set GROQ_API_KEY or OPENAI_API_KEY",
+                "Voice needs a speech-to-text service. Add a GROQ_API_KEY or OPENAI_API_KEY, \
+                 or point [media].audio_base_url at an OpenAI-compatible transcription endpoint \
+                 (a local Whisper server, or a compatible provider).",
             )?;
 
         let _permit = self.semaphore.acquire().await.map_err(|e| e.to_string())?;
@@ -146,18 +159,20 @@ impl MediaEngine {
                 )
             }
             "openai" => {
-                let url = self
-                    .config
-                    .audio_base_url
-                    .as_deref()
+                let custom = self.config.audio_base_url.as_deref();
+                let url = custom
                     .map(|base| format!("{}/v1/audio/transcriptions", base.trim_end_matches('/')))
                     .unwrap_or_else(|| {
                         "https://api.openai.com/v1/audio/transcriptions".to_string()
                     });
-                (
-                    url,
-                    std::env::var("OPENAI_API_KEY").map_err(|_| "OPENAI_API_KEY not set")?,
-                )
+                // With a custom endpoint the key is optional — local Whisper
+                // servers accept any non-empty bearer token.
+                let key = match std::env::var("OPENAI_API_KEY") {
+                    Ok(k) => k,
+                    Err(_) if custom.is_some() => "local".to_string(),
+                    Err(_) => return Err("OPENAI_API_KEY not set".to_string()),
+                };
+                (url, key)
             }
             other => return Err(format!("Unsupported audio provider: {}", other)),
         };

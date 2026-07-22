@@ -182,7 +182,12 @@ jobs:
             ```bash
             openfang migrate --from openclaw
             ```
-          releaseDraft: false
+          # Build into a DRAFT. This repo has GitHub "immutable releases"
+          # enabled: once a release is published its assets are frozen, so the
+          # first matrix job to publish would lock every other job out with
+          # "Cannot upload asset ... to an immutable release". All jobs upload
+          # to the draft; the publish-release job flips it live at the end.
+          releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
           projectPath: crates/openfang-desktop
@@ -262,6 +267,9 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: openfang-${{ matrix.target }}.*
+          # Keep the release a draft while assets land — see releaseDraft note
+          # in the desktop job (immutable releases reject post-publish uploads).
+          draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -312,3 +320,26 @@ jobs:
             https://api.github.com/users/FreecoDAO/packages/container/freeco-ai \
             -d '{"visibility":"public"}' \
           || echo "Package visibility unchanged (set it once via GitHub UI: Packages -> freeco-ai -> settings)"
+
+  # ── Publish the draft once every artifact is uploaded ─────────────────────
+  # GitHub "immutable releases" freeze a release's assets the moment it is
+  # published, so the desktop/cli jobs build into a DRAFT. This job flips it
+  # live after all of them succeed. Docker is intentionally not a dependency:
+  # it publishes to GHCR, not to the release, and must not gate the download
+  # links.
+  publish-release:
+    name: Publish release
+    needs: [desktop, cli]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Flip draft to published
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false --latest
+          echo "Published ${{ github.ref_name }} with all assets attached."
