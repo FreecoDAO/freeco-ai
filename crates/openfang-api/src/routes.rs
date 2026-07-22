@@ -13378,6 +13378,259 @@ pub async fn auth_check(
     }
 }
 
+// ---------------------------------------------------------------------------
+// User management (RBAC accounts) — owner-gated CRUD over config.users.
+// Persisted to config.toml; applied on next restart (kernel config is loaded
+// at boot), consistent with the existing "restart to enable sign-in" flow.
+// ---------------------------------------------------------------------------
+
+/// The five roles the dashboard understands, least → most privileged.
+const VALID_ROLES: [&str; 5] = ["viewer", "kid", "user", "admin", "owner"];
+
+/// Gate a request to the owner. On the local desktop (auth disabled) the single
+/// local user IS the owner, so it is allowed; once dashboard auth is enabled,
+/// only a session whose resolved role is `owner` may manage accounts.
+fn require_owner(
+    state: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+    let auth_cfg = &state.kernel.config.auth;
+    if !auth_cfg.enabled {
+        return Ok(());
+    }
+    let api_key = state.kernel.config.api_key.trim().to_string();
+    let secret = if !api_key.is_empty() {
+        api_key
+    } else {
+        auth_cfg.password_hash.clone()
+    };
+    let username = crate::session_auth::extract_session_cookie(headers)
+        .and_then(|t| crate::session_auth::verify_session_token(&t, &secret));
+    match username {
+        Some(u) if resolve_user_role(state, &u) == "owner" => Ok(()),
+        _ => Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Owner role required"})),
+        )),
+    }
+}
+
+/// GET /api/users — list dashboard accounts (owner only).
+pub async fn users_list(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+) -> axum::response::Response {
+    if let Err((code, body)) = require_owner(&state, &headers) {
+        return (code, body).into_response();
+    }
+    let users: Vec<serde_json::Value> = state
+        .kernel
+        .config
+        .users
+        .iter()
+        .map(|u| {
+            serde_json::json!({
+                "name": u.name,
+                "role": u.role,
+                "enabled": u.enabled,
+                "has_password": u.password_hash.as_deref().map(|h| !h.is_empty()).unwrap_or(false),
+            })
+        })
+        .collect();
+    Json(serde_json::json!({
+        "users": users,
+        "admin_username": state.kernel.config.auth.username,
+        "roles": VALID_ROLES,
+    }))
+    .into_response()
+}
+
+/// POST /api/users — create or update an account (owner only).
+/// Body: `{ "name", "role", "password"?, "enabled"? }`.
+pub async fn user_upsert(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<serde_json::Value>,
+) -> axum::response::Response {
+    if let Err((code, body)) = require_owner(&state, &headers) {
+        return (code, body).into_response();
+    }
+    let name = req.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let role = req
+        .get("role")
+        .and_then(|v| v.as_str())
+        .unwrap_or("user")
+        .to_lowercase();
+    let enabled = req.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+    let password = req.get("password").and_then(|v| v.as_str());
+
+    if name.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "name is required"})),
+        )
+            .into_response();
+    }
+    if name == state.kernel.config.auth.username {
+        return (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({"error": "that name is the reserved admin/owner account"})),
+        )
+            .into_response();
+    }
+    if !VALID_ROLES.contains(&role.as_str()) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": format!("role must be one of {VALID_ROLES:?}")})),
+        )
+            .into_response();
+    }
+    // A brand-new account needs a password to be able to sign in; require >= 8.
+    let existing = state.kernel.config.users.iter().find(|u| u.name == name);
+    let password_hash = match password {
+        Some(p) if !p.is_empty() => {
+            if p.len() < 8 {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": "password must be at least 8 characters"})),
+                )
+                    .into_response();
+            }
+            Some(crate::session_auth::hash_password(p))
+        }
+        _ => None,
+    };
+    if existing.is_none() && password_hash.is_none() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "a new account needs a password"})),
+        )
+            .into_response();
+    }
+
+    let config_path = state.kernel.config.home_dir.join("config.toml");
+    match persist_user(&config_path, name, &role, enabled, password_hash) {
+        Ok(()) => Json(serde_json::json!({
+            "status": "ok",
+            "restart_required": true,
+            "message": "Account saved. Restart FreEco.ai for it to take effect."
+        }))
+        .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("could not save: {e}")})),
+        )
+            .into_response(),
+    }
+}
+
+/// DELETE /api/users/:name — remove an account (owner only).
+pub async fn user_delete(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::extract::Path(name): axum::extract::Path<String>,
+) -> axum::response::Response {
+    if let Err((code, body)) = require_owner(&state, &headers) {
+        return (code, body).into_response();
+    }
+    let config_path = state.kernel.config.home_dir.join("config.toml");
+    match delete_user(&config_path, &name) {
+        Ok(true) => Json(serde_json::json!({"status": "ok", "restart_required": true})).into_response(),
+        Ok(false) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "no such account"})),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("could not delete: {e}")})),
+        )
+            .into_response(),
+    }
+}
+
+/// Create or update a `[[users]]` entry in config.toml. A `None` password_hash
+/// on an existing user leaves that user's password unchanged.
+fn persist_user(
+    config_path: &std::path::Path,
+    name: &str,
+    role: &str,
+    enabled: bool,
+    password_hash: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let content = if config_path.exists() {
+        std::fs::read_to_string(config_path)?
+    } else {
+        String::new()
+    };
+    let mut doc: toml::Value = if content.trim().is_empty() {
+        toml::Value::Table(toml::map::Map::new())
+    } else {
+        toml::from_str(&content)?
+    };
+    let root = doc.as_table_mut().ok_or("config is not a TOML table")?;
+    let arr = root
+        .entry("users")
+        .or_insert_with(|| toml::Value::Array(Vec::new()))
+        .as_array_mut()
+        .ok_or("users is not an array")?;
+
+    if let Some(existing) = arr.iter_mut().find_map(|v| {
+        let t = v.as_table_mut()?;
+        if t.get("name").and_then(|n| n.as_str()) == Some(name) {
+            Some(t)
+        } else {
+            None
+        }
+    }) {
+        existing.insert("role".into(), toml::Value::String(role.to_string()));
+        existing.insert("enabled".into(), toml::Value::Boolean(enabled));
+        if let Some(h) = password_hash {
+            existing.insert("password_hash".into(), toml::Value::String(h));
+        }
+    } else {
+        let mut t = toml::map::Map::new();
+        t.insert("name".into(), toml::Value::String(name.to_string()));
+        t.insert("role".into(), toml::Value::String(role.to_string()));
+        t.insert("enabled".into(), toml::Value::Boolean(enabled));
+        if let Some(h) = password_hash {
+            t.insert("password_hash".into(), toml::Value::String(h));
+        }
+        arr.push(toml::Value::Table(t));
+    }
+
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let _ = std::fs::copy(config_path, config_path.with_extension("toml.bak"));
+    std::fs::write(config_path, toml::to_string_pretty(&doc)?)?;
+    Ok(())
+}
+
+/// Remove a `[[users]]` entry by name. Returns `Ok(true)` if one was removed.
+fn delete_user(
+    config_path: &std::path::Path,
+    name: &str,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    if !config_path.exists() {
+        return Ok(false);
+    }
+    let content = std::fs::read_to_string(config_path)?;
+    let mut doc: toml::Value = toml::from_str(&content)?;
+    let root = doc.as_table_mut().ok_or("config is not a TOML table")?;
+    let Some(arr) = root.get_mut("users").and_then(|v| v.as_array_mut()) else {
+        return Ok(false);
+    };
+    let before = arr.len();
+    arr.retain(|v| v.as_table().and_then(|t| t.get("name")).and_then(|n| n.as_str()) != Some(name));
+    let removed = arr.len() != before;
+    if removed {
+        let _ = std::fs::copy(config_path, config_path.with_extension("toml.bak"));
+        std::fs::write(config_path, toml::to_string_pretty(&doc)?)?;
+    }
+    Ok(removed)
+}
+
 /// Remove a `[section]` and its contents from a TOML string.
 #[allow(dead_code)]
 fn backup_config(config_path: &std::path::Path) {
