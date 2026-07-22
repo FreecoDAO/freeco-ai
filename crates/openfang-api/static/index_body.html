@@ -3642,10 +3642,77 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             <div class="tabs-separator"></div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'tools' }" @click="tab = 'tools'">Tools</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'security' }" @click="tab = 'security'; if (!securityData && !secLoading) loadSecurity()">Security</div>
+            <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'people' }" @click="tab = 'people'; loadUsers()">People</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'network' }" @click="tab = 'network'; if (!peers.length && !peersLoading) { loadPeers(); startPeerPolling(); }">Network</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'budget' }" @click="tab = 'budget'">Budget</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'info' }" @click="tab = 'info'">System</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'migration' }" @click="tab = 'migration'">Migration</div>
+          </div>
+
+          <!-- People / Accounts tab -->
+          <div x-show="tab === 'people'">
+            <div class="card mb-4">
+              <div class="card-header">People &amp; accounts</div>
+              <p style="font-size:13px;color:var(--text-dim);margin:6px 0 14px">
+                Add accounts with a role. A <strong>kid</strong> can chat with a safe assistant but can't
+                change settings, spawn agents, or see billing; <strong>viewer</strong> is read-only;
+                <strong>admin</strong> can run agents; <strong>owner</strong> manages everything.
+                New accounts take effect after a restart.
+              </p>
+
+              <!-- Existing accounts -->
+              <div x-show="usersLoadError" class="text-xs" style="color:var(--error);margin-bottom:10px" x-text="usersLoadError"></div>
+              <table class="data-table" x-show="!usersLoadError" style="width:100%;margin-bottom:16px">
+                <thead><tr><th>Name</th><th>Role</th><th>Sign-in</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td x-text="adminUsername"></td>
+                    <td><span class="badge">owner</span></td>
+                    <td class="text-xs text-dim">admin password</td>
+                    <td class="text-xs text-dim">built-in</td>
+                    <td></td>
+                  </tr>
+                  <template x-for="u in users" :key="u.name">
+                    <tr>
+                      <td x-text="u.name"></td>
+                      <td><span class="badge" x-text="u.role"></span></td>
+                      <td class="text-xs text-dim" x-text="u.has_password ? 'password set' : 'no password'"></td>
+                      <td class="text-xs" :style="u.enabled ? 'color:var(--success)' : 'color:var(--text-dim)'" x-text="u.enabled ? 'enabled' : 'disabled'"></td>
+                      <td style="text-align:right">
+                        <button class="btn btn-ghost btn-sm" @click="deleteUser(u.name)" title="Remove account" style="color:var(--error)">Remove</button>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="!users.length">
+                    <td colspan="5" class="text-xs text-dim" style="padding:10px 0">No extra accounts yet — add one below.</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Add / update account -->
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;border-top:1px solid var(--border-subtle);padding-top:14px">
+                <div style="flex:1;min-width:140px">
+                  <label class="text-xs text-dim">Name</label>
+                  <input x-model="newUser.name" placeholder="e.g. Sam" class="input" style="width:100%">
+                </div>
+                <div style="min-width:120px">
+                  <label class="text-xs text-dim">Role</label>
+                  <select x-model="newUser.role" class="input" style="width:100%">
+                    <option value="kid">kid</option>
+                    <option value="viewer">viewer</option>
+                    <option value="user">user</option>
+                    <option value="admin">admin</option>
+                    <option value="owner">owner</option>
+                  </select>
+                </div>
+                <div style="flex:1;min-width:160px">
+                  <label class="text-xs text-dim">Password (min 8)</label>
+                  <input x-model="newUser.password" type="password" autocomplete="new-password" placeholder="account password" class="input" style="width:100%">
+                </div>
+                <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)" @click="addUser()" :disabled="usersBusy">Add account</button>
+              </div>
+              <p x-show="usersMsg" class="text-xs" style="color:var(--success);margin-top:8px" x-text="usersMsg"></p>
+            </div>
           </div>
 
           <!-- Providers tab -->

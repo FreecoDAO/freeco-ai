@@ -4,6 +4,13 @@
 function settingsPage() {
   return {
     tab: 'providers',
+    // People / accounts (RBAC)
+    users: [],
+    adminUsername: 'admin',
+    newUser: { name: '', role: 'kid', password: '' },
+    usersLoadError: '',
+    usersMsg: '',
+    usersBusy: false,
     sysInfo: {},
     usageData: [],
     tools: [],
@@ -815,6 +822,51 @@ function settingsPage() {
         OpenFangToast.error('Failed to add provider: ' + e.message);
       }
       this.addingCustomProvider = false;
+    },
+
+    // -- People / accounts (RBAC) --
+    async loadUsers() {
+      this.usersLoadError = '';
+      try {
+        var data = await OpenFangAPI.get('/api/users');
+        this.users = data.users || [];
+        if (data.admin_username) this.adminUsername = data.admin_username;
+      } catch(e) {
+        this.usersLoadError = (e.message && e.message.indexOf('Owner') >= 0)
+          ? 'Only the owner can manage accounts.'
+          : ('Could not load accounts: ' + (e.message || 'error'));
+      }
+    },
+
+    async addUser() {
+      if (this.usersBusy) return;
+      var u = this.newUser;
+      if (!u.name.trim()) { OpenFangToast.error('Enter a name'); return; }
+      if (!u.password || u.password.length < 8) { OpenFangToast.error('Password must be at least 8 characters'); return; }
+      this.usersBusy = true;
+      this.usersMsg = '';
+      try {
+        var res = await OpenFangAPI.post('/api/users', { name: u.name.trim(), role: u.role, password: u.password, enabled: true });
+        this.usersMsg = res.message || 'Account saved. Restart FreEco.ai for it to take effect.';
+        this.newUser = { name: '', role: 'kid', password: '' };
+        await this.loadUsers();
+      } catch(e) {
+        OpenFangToast.error(e.message || 'Could not add account');
+      }
+      this.usersBusy = false;
+    },
+
+    deleteUser(name) {
+      var self = this;
+      OpenFangToast.confirm('Remove account', 'Remove the account "' + name + '"? This takes effect after a restart.', async function() {
+        try {
+          await OpenFangAPI.del('/api/users/' + encodeURIComponent(name));
+          self.usersMsg = 'Account removed. Restart FreEco.ai for it to take effect.';
+          await self.loadUsers();
+        } catch(e) {
+          OpenFangToast.error(e.message || 'Could not remove account');
+        }
+      });
     },
 
     // -- Security methods --

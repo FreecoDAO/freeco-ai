@@ -845,6 +845,15 @@ pub async fn build_router(
             "/api/auth/dismiss-setup",
             axum::routing::post(routes::auth_dismiss_setup),
         )
+        // User management (RBAC accounts) — owner-gated inside the handlers.
+        .route(
+            "/api/users",
+            axum::routing::get(routes::users_list).post(routes::user_upsert),
+        )
+        .route(
+            "/api/users/{name}",
+            axum::routing::delete(routes::user_delete),
+        )
         .layer(axum::middleware::from_fn_with_state(
             auth_state,
             middleware::auth,
