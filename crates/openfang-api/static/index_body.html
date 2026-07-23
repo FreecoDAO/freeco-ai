@@ -4099,6 +4099,21 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               </div>
               <p x-show="mcpMsg" class="text-xs" style="color:var(--success);margin:0 0 10px" x-text="mcpMsg"></p>
 
+              <!-- Generic connector: shopping (kroger-mcp), CRM/accounting wrappers, graphify, etc. -->
+              <details style="margin:0 0 12px">
+                <summary class="text-xs" style="cursor:pointer;color:var(--accent-light)">Add another tool server (shopping, CRM, accounting, retrieval…)</summary>
+                <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px">
+                  <div style="min-width:120px"><label class="text-xs text-dim">Name</label>
+                    <input x-model="newMcp.name" class="input" style="width:100%" placeholder="e.g. shopping"></div>
+                  <div style="min-width:110px"><label class="text-xs text-dim">Type</label>
+                    <select x-model="newMcp.type" class="input" style="width:100%"><option value="stdio">stdio (command)</option><option value="http">http (url)</option></select></div>
+                  <div style="flex:1;min-width:200px"><label class="text-xs text-dim" x-text="newMcp.type === 'http' ? 'URL' : 'Command + args (space-separated)'"></label>
+                    <input x-model="newMcp.value" class="input" style="width:100%" :placeholder="newMcp.type === 'http' ? 'http://localhost:8080/mcp' : 'uvx kroger-mcp'"></div>
+                  <button class="btn btn-ghost btn-sm" @click="addCustomMcp()" :disabled="mcpBusy">Connect</button>
+                </div>
+                <p class="text-xs text-dim" style="margin-top:6px">Examples: <strong>uvx kroger-mcp</strong> (organic/vegan shopping), or a <strong>twenty</strong> CRM / <strong>akaunting</strong> / <strong>graphify</strong> MCP wrapper URL.</p>
+              </details>
+
               <div x-show="mcpServers.length" class="text-xs text-dim mb-1">Connected servers</div>
               <table class="data-table" x-show="mcpServers.length" style="width:100%">
                 <tbody>

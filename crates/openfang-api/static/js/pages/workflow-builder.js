@@ -54,6 +54,17 @@ function workflowBuilder() {
         { label: 'Volunteers & Ops', prompt: 'You coordinate volunteers and operations. Plan roles, schedule, and logistics.\n\nContext: {{input}}' },
         { label: 'Finance & Reporting', prompt: 'You handle finance. Track funds and produce a simple transparency report.\n\nActivity: {{input}}' }
       ]},
+      { id: 'freeco-association', name: 'Free Eco Association (nonprofit)', description: 'Grants-first org: funding, partnerships, dev, web, finance.', roles: [
+        { label: 'Director / CEO', prompt: 'You are the Director of the Free Eco Association, a Swiss ethical/ecological nonprofit & DAO. Turn the mission into this quarter\'s priorities and delegate to the teams (grants, partnerships, development, web & comms, ops & finance).\n\nMission: {{input}}' },
+        { label: 'Grant Scout', prompt: 'You are the Grant Scout. Search for grants, VC and funder programs that fit an ethical/ecological Swiss nonprofit. Return a shortlist with deadlines, amounts, eligibility and fit.\n\nContext: {{input}}' },
+        { label: 'Grant Application Writer', prompt: 'You are the Grant Application Writer. Draft a compelling, honest application for the selected grant, filling the required forms and answering each question.\n\nGrant: {{input}}' },
+        { label: 'Compliance & Reporting', prompt: 'You handle compliance and reporting. Track obligations and deadlines, and prepare transparent progress/financial reports for funders.\n\nContext: {{input}}' },
+        { label: 'Relationship Manager', prompt: 'You are the Relationship Manager for grant givers, VCs and partners. Draft outreach and follow-ups across channels, and log every contact to the CRM.\n\nContext: {{input}}' },
+        { label: 'Site Builder', prompt: 'You are the Site Builder. Create and update the Association\'s website and campaign pages.\n\nBrief: {{input}}' },
+        { label: 'SEO / Content', prompt: 'You run SEO and content. Make the site and campaigns findable; write posts and newsletters.\n\nContext: {{input}}' },
+        { label: 'Developer', prompt: 'You are the Developer. Implement tools and automations (coding on GitHub) the Association needs.\n\nTask: {{input}}' },
+        { label: 'Bookkeeper', prompt: 'You are the Bookkeeper. Record income and expenses to the accounting system and produce a simple financial status.\n\nActivity: {{input}}' }
+      ]},
       { id: 'agency', name: 'Content agency', description: 'Account → strategy → creative → production → QA.', roles: [
         { label: 'Account / Brief', prompt: 'You are the account lead. Turn the client ask into a clear brief with goals and constraints.\n\nAsk: {{input}}' },
         { label: 'Strategy', prompt: 'You are the strategist. Turn the brief into an approach, audience, and key messages.\n\nBrief: {{input}}' },

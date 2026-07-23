@@ -80,6 +80,33 @@ function settingsPage() {
       } catch (e) { this.mcpServers = []; }
     },
 
+    newMcp: { name: '', type: 'stdio', value: '' },
+
+    async addCustomMcp() {
+      if (this.mcpBusy) return;
+      var m = this.newMcp;
+      var name = (m.name || '').trim();
+      var value = (m.value || '').trim();
+      if (!name || !value) { OpenFangToast.error('Enter a name and a URL/command'); return; }
+      var transport;
+      if (m.type === 'http') {
+        transport = { type: 'http', url: value };
+      } else {
+        var parts = value.split(/\s+/);
+        transport = { type: 'stdio', command: parts[0], args: parts.slice(1) };
+      }
+      this.mcpBusy = true; this.mcpMsg = '';
+      try {
+        var res = await OpenFangAPI.post('/api/mcp/servers', { name: name, transport: transport });
+        this.mcpMsg = res.message || ('Connected "' + name + '". Restart to activate.');
+        this.newMcp = { name: '', type: 'stdio', value: '' };
+        await this.loadMcpServers();
+      } catch (e) {
+        OpenFangToast.error('Could not connect: ' + (e.message || 'error'));
+      }
+      this.mcpBusy = false;
+    },
+
     async connectDograh() {
       if (this.mcpBusy) return;
       var url = (this.dographUrl || '').trim();
