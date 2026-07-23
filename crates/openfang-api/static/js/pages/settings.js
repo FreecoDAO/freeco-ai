@@ -55,6 +55,59 @@ function settingsPage() {
       try { this.localAi = await OpenFangAPI.get('/api/local-ai/status'); } catch(e) { /* silent */ }
     },
 
+    // -- MCP / voice AI (dograh) connectors --
+    mcpServers: [],
+    dographUrl: 'http://localhost:8000/mcp',
+    mcpBusy: false,
+    mcpMsg: '',
+
+    async loadMcpServers() {
+      try {
+        var data = await OpenFangAPI.get('/api/mcp/servers');
+        var configured = (data && data.configured) || [];
+        var connected = (data && data.connected) || [];
+        var byName = {};
+        connected.forEach(function(c) { byName[c.name] = c; });
+        this.mcpServers = configured.map(function(s) {
+          var live = byName[s.name];
+          return {
+            name: s.name,
+            transport: s.transport || {},
+            connected: !!live,
+            tool_count: live ? (live.tools_count || 0) : 0
+          };
+        });
+      } catch (e) { this.mcpServers = []; }
+    },
+
+    async connectDograh() {
+      if (this.mcpBusy) return;
+      var url = (this.dographUrl || '').trim();
+      if (!url) { OpenFangToast.error('Enter the dograh MCP URL'); return; }
+      this.mcpBusy = true; this.mcpMsg = '';
+      try {
+        var res = await OpenFangAPI.post('/api/mcp/servers', {
+          name: 'dograh', transport: { type: 'http', url: url }
+        });
+        this.mcpMsg = res.message || 'Connected. Restart FreEco.ai to activate dograh voice tools.';
+        await this.loadMcpServers();
+      } catch (e) {
+        OpenFangToast.error('Could not connect dograh: ' + (e.message || 'error'));
+      }
+      this.mcpBusy = false;
+    },
+
+    removeMcpServer(name) {
+      var self = this;
+      OpenFangToast.confirm('Remove server', 'Disconnect MCP server "' + name + '"? Takes effect after a restart.', async function() {
+        try {
+          await OpenFangAPI.del('/api/mcp/servers/' + encodeURIComponent(name));
+          self.mcpMsg = 'Removed "' + name + '". Restart to apply.';
+          await self.loadMcpServers();
+        } catch (e) { OpenFangToast.error(e.message || 'Could not remove'); }
+      });
+    },
+
     // One-click model policy: everyday work on a free local Gemma, hard tasks
     // on the strongest cloud model whose key is configured.
     autoConfigBusy: false,

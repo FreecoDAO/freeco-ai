@@ -5532,6 +5532,176 @@ pub async fn hand_instance_browser(
 // MCP server endpoints
 // ---------------------------------------------------------------------------
 
+/// POST /api/mcp/servers — connect an MCP server (persist to config.toml).
+/// Body: `{ "name", "transport": { "type": "http"|"sse"|"stdio", "url"?, "command"?, "args"? }, "headers"?, "env"?, "timeout_secs"? }`.
+/// Applies on restart (MCP connections are established at boot).
+pub async fn add_mcp_server(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let name = req.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    if name.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "name is required"})),
+        );
+    }
+    let t = req.get("transport").cloned().unwrap_or(serde_json::json!({}));
+    let ttype = t.get("type").and_then(|v| v.as_str()).unwrap_or("http");
+
+    // Build the [mcp_servers.transport] sub-table.
+    let mut transport = toml::map::Map::new();
+    match ttype {
+        "http" | "sse" => {
+            let url = t.get("url").and_then(|v| v.as_str()).unwrap_or("").trim();
+            if url.is_empty() {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": "url is required for http/sse transport"})),
+                );
+            }
+            transport.insert("type".into(), toml::Value::String(ttype.into()));
+            transport.insert("url".into(), toml::Value::String(url.into()));
+        }
+        "stdio" => {
+            let command = t.get("command").and_then(|v| v.as_str()).unwrap_or("").trim();
+            if command.is_empty() {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": "command is required for stdio transport"})),
+                );
+            }
+            transport.insert("type".into(), toml::Value::String("stdio".into()));
+            transport.insert("command".into(), toml::Value::String(command.into()));
+            if let Some(args) = t.get("args").and_then(|v| v.as_array()) {
+                let arr: Vec<toml::Value> = args
+                    .iter()
+                    .filter_map(|a| a.as_str())
+                    .map(|s| toml::Value::String(s.to_string()))
+                    .collect();
+                transport.insert("args".into(), toml::Value::Array(arr));
+            }
+        }
+        other => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": format!("unknown transport type: {other}")})),
+            );
+        }
+    }
+
+    let mut entry = toml::map::Map::new();
+    entry.insert("name".into(), toml::Value::String(name.to_string()));
+    entry.insert("transport".into(), toml::Value::Table(transport));
+    if let Some(secs) = req.get("timeout_secs").and_then(|v| v.as_u64()) {
+        entry.insert("timeout_secs".into(), toml::Value::Integer(secs as i64));
+    }
+    if let Some(hs) = req.get("headers").and_then(|v| v.as_array()) {
+        let arr: Vec<toml::Value> = hs
+            .iter()
+            .filter_map(|h| h.as_str())
+            .map(|s| toml::Value::String(s.to_string()))
+            .collect();
+        if !arr.is_empty() {
+            entry.insert("headers".into(), toml::Value::Array(arr));
+        }
+    }
+
+    let config_path = state.kernel.config.home_dir.join("config.toml");
+    match persist_mcp_server(&config_path, name, toml::Value::Table(entry)) {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "status": "ok",
+                "restart_required": true,
+                "message": format!("Connected '{name}'. Restart FreEco.ai to activate its tools.")
+            })),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("could not save: {e}")})),
+        ),
+    }
+}
+
+/// DELETE /api/mcp/servers/{name} — remove a configured MCP server.
+pub async fn remove_mcp_server(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(name): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let config_path = state.kernel.config.home_dir.join("config.toml");
+    match delete_mcp_server(&config_path, &name) {
+        Ok(true) => (
+            StatusCode::OK,
+            Json(serde_json::json!({"status": "ok", "restart_required": true})),
+        ),
+        Ok(false) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "no such server"})),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("could not delete: {e}")})),
+        ),
+    }
+}
+
+/// Append or replace a `[[mcp_servers]]` entry (matched by name) in config.toml.
+fn persist_mcp_server(
+    config_path: &std::path::Path,
+    name: &str,
+    entry: toml::Value,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let content = if config_path.exists() {
+        std::fs::read_to_string(config_path)?
+    } else {
+        String::new()
+    };
+    let mut doc: toml::Value = if content.trim().is_empty() {
+        toml::Value::Table(toml::map::Map::new())
+    } else {
+        toml::from_str(&content)?
+    };
+    let root = doc.as_table_mut().ok_or("config is not a TOML table")?;
+    let arr = root
+        .entry("mcp_servers")
+        .or_insert_with(|| toml::Value::Array(Vec::new()))
+        .as_array_mut()
+        .ok_or("mcp_servers is not an array")?;
+    arr.retain(|v| v.as_table().and_then(|t| t.get("name")).and_then(|n| n.as_str()) != Some(name));
+    arr.push(entry);
+
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let _ = std::fs::copy(config_path, config_path.with_extension("toml.bak"));
+    std::fs::write(config_path, toml::to_string_pretty(&doc)?)?;
+    Ok(())
+}
+
+fn delete_mcp_server(
+    config_path: &std::path::Path,
+    name: &str,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    if !config_path.exists() {
+        return Ok(false);
+    }
+    let content = std::fs::read_to_string(config_path)?;
+    let mut doc: toml::Value = toml::from_str(&content)?;
+    let root = doc.as_table_mut().ok_or("config is not a TOML table")?;
+    let Some(arr) = root.get_mut("mcp_servers").and_then(|v| v.as_array_mut()) else {
+        return Ok(false);
+    };
+    let before = arr.len();
+    arr.retain(|v| v.as_table().and_then(|t| t.get("name")).and_then(|n| n.as_str()) != Some(name));
+    let removed = arr.len() != before;
+    if removed {
+        let _ = std::fs::copy(config_path, config_path.with_extension("toml.bak"));
+        std::fs::write(config_path, toml::to_string_pretty(&doc)?)?;
+    }
+    Ok(removed)
+}
+
 /// GET /api/mcp/servers — List configured MCP servers and their tools.
 pub async fn list_mcp_servers(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     // Get configured servers from config

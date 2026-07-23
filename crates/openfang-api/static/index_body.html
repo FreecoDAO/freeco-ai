@@ -4079,6 +4079,41 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 
           <!-- Tools tab -->
           <div x-show="tab === 'tools'">
+            <!-- Voice AI + MCP tool servers -->
+            <div class="card mb-4" x-init="loadMcpServers()">
+              <div class="card-header">Voice AI &amp; tool servers (MCP)</div>
+              <p class="text-xs text-dim" style="margin:6px 0 12px">
+                Connect external tool servers over MCP. <strong>dograh</strong> gives Freeco and your agents
+                real-time voice (calls, TTS/STT, voice-campaign workflows) for sales, marketing and outreach —
+                run it locally with Docker, then connect it here. Tools activate after a restart.
+              </p>
+
+              <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
+                <div style="flex:1;min-width:220px">
+                  <label class="text-xs text-dim">dograh MCP URL</label>
+                  <input x-model="dographUrl" class="input" style="width:100%" placeholder="http://localhost:8000/mcp">
+                </div>
+                <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)"
+                        @click="connectDograh()" :disabled="mcpBusy">Connect dograh voice</button>
+                <a class="btn btn-ghost btn-sm" href="https://github.com/FreecoDAO/dograh" target="_blank" rel="noopener">How to run dograh</a>
+              </div>
+              <p x-show="mcpMsg" class="text-xs" style="color:var(--success);margin:0 0 10px" x-text="mcpMsg"></p>
+
+              <div x-show="mcpServers.length" class="text-xs text-dim mb-1">Connected servers</div>
+              <table class="data-table" x-show="mcpServers.length" style="width:100%">
+                <tbody>
+                  <template x-for="s in mcpServers" :key="s.name">
+                    <tr>
+                      <td><strong x-text="s.name"></strong></td>
+                      <td class="text-xs text-dim" x-text="(s.transport && (s.transport.url || s.transport.command)) || ''"></td>
+                      <td class="text-xs" :style="s.connected ? 'color:var(--success)' : 'color:var(--text-dim)'" x-text="s.connected ? (s.tool_count + ' tools') : 'connects on restart'"></td>
+                      <td style="text-align:right"><button class="btn btn-ghost btn-sm" style="color:var(--error)" @click="removeMcpServer(s.name)">Remove</button></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
             <div class="search-input mb-4">
               <span style="color:var(--text-muted)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
               <input placeholder="Search tools..." x-model="toolSearch">
