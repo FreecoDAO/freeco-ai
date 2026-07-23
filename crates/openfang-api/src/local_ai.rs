@@ -125,6 +125,31 @@ fn linux_mem_total_gb() -> Option<u64> {
     Some(kb / 1024 / 1024)
 }
 
+/// Total physical RAM in GiB on Windows, via PowerShell/CIM. Without this the
+/// model picker sees `None` RAM and falls back to the tiniest model — the cause
+/// of "Everyday: llama3.2:1b" on capable Windows machines.
+async fn windows_mem_total_gb() -> Option<u64> {
+    let out = command_output(
+        "powershell",
+        &[
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory",
+        ],
+    )
+    .await?;
+    let bytes = out.trim().parse::<u64>().ok()?;
+    Some(bytes / 1024 / 1024 / 1024)
+}
+
+/// Total physical RAM in GiB on macOS, via `sysctl hw.memsize` (bytes).
+async fn macos_mem_total_gb() -> Option<u64> {
+    let out = command_output("sysctl", &["-n", "hw.memsize"]).await?;
+    let bytes = out.trim().parse::<u64>().ok()?;
+    Some(bytes / 1024 / 1024 / 1024)
+}
+
 async fn command_output(command: &str, args: &[&str]) -> Option<String> {
     let output = tokio::process::Command::new(command)
         .args(args)
@@ -139,10 +164,11 @@ async fn command_output(command: &str, args: &[&str]) -> Option<String> {
 
 async fn detect_hardware() -> LocalHardware {
     let os = std::env::consts::OS.to_string();
-    let ram_gb = if os == "linux" {
-        linux_mem_total_gb()
-    } else {
-        None
+    let ram_gb = match os.as_str() {
+        "linux" => linux_mem_total_gb(),
+        "windows" => windows_mem_total_gb().await,
+        "macos" => macos_mem_total_gb().await,
+        _ => None,
     };
     let vram_gb = command_output(
         "nvidia-smi",
@@ -614,6 +640,13 @@ async fn download_with_resume(
     let max_attempts = 8u32;
     let mut last_err = String::from("unknown error");
 
+    // Start clean. A leftover partial/complete file from an earlier failed
+    // setup is the classic cause of HTTP 416 (Range Not Satisfiable): we ask to
+    // resume from a byte offset that is past the end of the resource. Within a
+    // single call we still resume across dropped connections; we just never
+    // inherit a stale file from a previous run.
+    let _ = tokio::fs::remove_file(dest).await;
+
     for attempt in 1..=max_attempts {
         let backoff = std::time::Duration::from_secs((attempt as u64).min(5));
 
@@ -628,7 +661,7 @@ async fn download_with_resume(
             req = req.header(reqwest::header::RANGE, format!("bytes={have}-"));
         }
 
-        let resp = match req.send().await.and_then(|r| r.error_for_status()) {
+        let resp = match req.send().await {
             Ok(r) => r,
             Err(e) => {
                 last_err = format!("connection error: {e}");
@@ -636,6 +669,32 @@ async fn download_with_resume(
                     status,
                     "downloading-installer",
                     format!("{label}: connection issue, retrying ({attempt}/{max_attempts})..."),
+                    -1,
+                )
+                .await;
+                tokio::time::sleep(backoff).await;
+                continue;
+            }
+        };
+
+        // 416 Range Not Satisfiable: the local partial file is >= the resource
+        // size (stale or already complete). Delete it and restart from byte 0
+        // instead of hammering the same out-of-range request until we run out
+        // of attempts.
+        if resp.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+            let _ = tokio::fs::remove_file(dest).await;
+            last_err = "stale partial file (HTTP 416) — restarting from scratch".into();
+            continue;
+        }
+
+        let resp = match resp.error_for_status() {
+            Ok(r) => r,
+            Err(e) => {
+                last_err = format!("HTTP error: {e}");
+                set_status(
+                    status,
+                    "downloading-installer",
+                    format!("{label}: server error, retrying ({attempt}/{max_attempts})..."),
                     -1,
                 )
                 .await;
