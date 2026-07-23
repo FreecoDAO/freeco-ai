@@ -5781,7 +5781,15 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
           <div class="freeco-sub">Ethical Executive AI Assistant</div>
         </div>
       </div>
-      <button class="freeco-x" @click="open = false" title="Close" aria-label="Close assistant">&times;</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="freeco-x" @click="voiceOut ? (speaking ? stopSpeaking() : toggleVoiceOut()) : toggleVoiceOut()"
+                :title="voiceOut ? (speaking ? 'Stop speaking' : 'Voice on — click to mute') : 'Voice off — click to let Freeco speak'"
+                :aria-label="voiceOut ? 'Mute Freeco voice' : 'Enable Freeco voice'" style="font-size:16px">
+          <span x-show="voiceOut">&#128266;</span>
+          <span x-show="!voiceOut" x-cloak>&#128263;</span>
+        </button>
+        <button class="freeco-x" @click="stopSpeaking(); open = false" title="Close" aria-label="Close assistant">&times;</button>
+      </div>
     </div>
 
     <div class="freeco-thread" id="freeco-thread">

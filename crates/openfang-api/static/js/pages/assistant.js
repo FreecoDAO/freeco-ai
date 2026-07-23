@@ -22,6 +22,10 @@ function freecoAssistant() {
     _rec: null,
     _chunks: [],
     _timer: null,
+    // spoken replies (browser text-to-speech, offline, in a warm male voice)
+    voiceOut: (function() { try { return localStorage.getItem('freeco-voice-out') !== 'off'; } catch (e) { return true; } })(),
+    speaking: false,
+    _voice: null,
 
     // Quick-setup topics — each routes to the relevant builder and seeds a
     // guiding prompt so Freeco can walk the user through it.
@@ -45,6 +49,13 @@ function freecoAssistant() {
       // Re-resolve the concierge agent whenever the shared agent list changes.
       this.$watch('$store.app.agents', function() { self._resolveAgent(); });
       this._resolveAgent();
+      // Browsers load TTS voices asynchronously — grab them now and again when
+      // the list becomes available, so the first spoken reply already has a
+      // good male voice picked.
+      if (window.speechSynthesis) {
+        self._voice = self._pickVoice();
+        window.speechSynthesis.onvoiceschanged = function() { self._voice = self._pickVoice(); };
+      }
       this.booted = true;
     },
 
@@ -113,7 +124,9 @@ function freecoAssistant() {
       try {
         var res = await OpenFangAPI.post('/api/agents/' + this.agent.id + '/message', { message: text });
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
-        this.messages.push({ id: ++mId, role: 'freeco', ts: Date.now(), html: this._md(res.response || '(no reply)') });
+        var reply = res.response || '(no reply)';
+        this.messages.push({ id: ++mId, role: 'freeco', ts: Date.now(), html: this._md(reply) });
+        if (this.voiceOut) this.speak(reply);
       } catch (e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         var msg = (e.message || 'request failed').toLowerCase();
@@ -197,6 +210,60 @@ function freecoAssistant() {
     voiceTime: function() {
       var m = Math.floor(this.recordingTime / 60), s = this.recordingTime % 60;
       return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    },
+
+    // ---- Spoken replies (offline browser TTS, warm male voice) ----
+    // Pick the most trustworthy-sounding English male voice the OS offers.
+    _pickVoice: function() {
+      if (!window.speechSynthesis) return null;
+      var voices = window.speechSynthesis.getVoices() || [];
+      if (!voices.length) return null;
+      var en = voices.filter(function(v) { return /^en(-|_|$)/i.test(v.lang || ''); });
+      var pool = en.length ? en : voices;
+      // Preference order: named male voices that are pleasant and clear.
+      var prefer = ['david', 'guy', 'daniel', 'james', 'george', 'ryan', 'brian', 'aaron', 'fred', 'male'];
+      for (var i = 0; i < prefer.length; i++) {
+        var hit = pool.find(function(v) { return (v.name || '').toLowerCase().indexOf(prefer[i]) !== -1; });
+        if (hit) return hit;
+      }
+      // Avoid obviously female-named voices if we can.
+      var female = /zira|female|susan|hazel|linda|catherine|samantha|victoria|karen|moira|tessa|fiona/i;
+      var notFemale = pool.find(function(v) { return !female.test(v.name || ''); });
+      return notFemale || pool[0];
+    },
+
+    speak: function(text) {
+      if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+      var clean = String(text || '')
+        .replace(/```[\s\S]*?```/g, ' code block ')  // don't read code aloud
+        .replace(/[*_`#>|]/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')      // links -> link text
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!clean) return;
+      try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+      if (!this._voice) this._voice = this._pickVoice();
+      var u = new SpeechSynthesisUtterance(clean.slice(0, 600));
+      if (this._voice) u.voice = this._voice;
+      u.rate = 1.0;
+      u.pitch = 0.92;   // slightly lower = warmer, more trustworthy
+      u.volume = 1.0;
+      var self = this;
+      u.onstart = function() { self.speaking = true; };
+      u.onend = function() { self.speaking = false; };
+      u.onerror = function() { self.speaking = false; };
+      window.speechSynthesis.speak(u);
+    },
+
+    stopSpeaking: function() {
+      try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+      this.speaking = false;
+    },
+
+    toggleVoiceOut: function() {
+      this.voiceOut = !this.voiceOut;
+      try { localStorage.setItem('freeco-voice-out', this.voiceOut ? 'on' : 'off'); } catch (e) { /* ignore */ }
+      if (!this.voiceOut) this.stopSpeaking();
     },
 
     onKey: function(e) {
