@@ -3540,3 +3540,38 @@ mark.search-highlight {
 @media (max-width: 480px) {
   .freeco-panel { width: calc(100vw - 24px); height: calc(100vh - 100px); }
 }
+
+/* ── Freeco mascot: logo-as-assistant (FAB, panel avatar, sidebar) ── */
+/* Light bubble so the green-on-white logo reads clearly, with a gentle
+   "alive" bob and a hover wiggle to give the mascot personality. */
+.freeco-fab {
+  background: var(--bg-primary) !important;
+  border: 1px solid var(--border) !important;
+  overflow: visible;
+}
+.freeco-fab-logo {
+  width: 34px; height: 34px; object-fit: contain;
+  animation: freecoBob 3.4s ease-in-out infinite;
+  transform-origin: 50% 80%;
+}
+.freeco-fab:hover .freeco-fab-logo { animation: freecoWiggle 0.6s ease-in-out infinite; }
+.freeco-fab-open { background: var(--accent) !important; color: var(--text-on-accent) !important; border-color: var(--accent) !important; }
+@keyframes freecoBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-2px) rotate(-3deg); }
+}
+@keyframes freecoWiggle {
+  0%, 100% { transform: rotate(-7deg) scale(1.04); }
+  50%      { transform: rotate(7deg) scale(1.04); }
+}
+.freeco-avatar-img { width: 22px; height: 22px; object-fit: contain; display: block; }
+.freeco-avatar { background: rgba(255,255,255,.9) !important; }
+
+/* Sidebar: logo summons Freeco; tagline names it. */
+.sidebar-logo-mascot { transition: transform .2s var(--ease-spring, ease); }
+.sidebar-logo-mascot:hover { transform: rotate(-8deg) scale(1.08); }
+.sidebar-tagline {
+  font-size: 10px; font-weight: 600; letter-spacing: .2px;
+  color: var(--accent-light, var(--text-dim)); line-height: 1.2; margin: 1px 0 2px;
+}
+.sidebar.collapsed .sidebar-tagline { display: none; }

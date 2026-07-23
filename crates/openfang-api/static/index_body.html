@@ -8,7 +8,7 @@
   @click="$store.app.toggleEmergencyFreeze()"
   :aria-label="$store.app.frozen ? 'Release emergency stop' : 'Engage emergency stop'"
   :title="$store.app.frozen ? 'Release emergency stop' : 'Pause all agents immediately'"
-  style="position:fixed;right:20px;bottom:20px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.25)"
+  style="position:fixed;left:20px;bottom:20px;z-index:9800;box-shadow:0 8px 24px rgba(0,0,0,.25)"
 >
   <span x-text="$store.app.freezeBusy ? 'Working…' : ($store.app.frozen ? 'Resume agents' : 'Emergency stop')"></span>
 </button>
@@ -57,9 +57,12 @@
     <div class="sidebar-header">
       <div class="sidebar-header-text">
         <div class="sidebar-logo">
-          <img src="/logo.png" alt="FreEco.ai" width="34" height="34">
+          <img src="/logo.png" alt="Ask Freeco" width="34" height="34" class="sidebar-logo-mascot"
+               @click="window.dispatchEvent(new CustomEvent('freeco-open'))"
+               title="Ask Freeco — your Ethical Executive AI Assistant" style="cursor:pointer">
           <div>
             <h1>FreEco.ai</h1>
+            <div class="sidebar-tagline">Ethical Executive AI Assistant</div>
             <div class="version" x-text="'v' + version"></div>
             <a x-show="$store.app.updateAvailable" x-cloak href="#settings"
                @click="navigate('settings')"
@@ -5767,15 +5770,15 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 </div>
 
 <!-- Freeco Assistant — global concierge widget, present on every page -->
-<div x-data="freecoAssistant" x-init="init()" @freeco-navigate.window="navigate($event.detail)" class="freeco-dock">
+<div x-data="freecoAssistant" x-init="init()" @freeco-navigate.window="navigate($event.detail)" @freeco-open.window="if(!open) toggle()" class="freeco-dock">
   <!-- Panel -->
   <div class="freeco-panel" x-show="open" x-cloak x-transition.origin.bottom.right>
     <div class="freeco-panel-header">
       <div class="freeco-brand">
-        <span class="freeco-avatar">✦</span>
+        <span class="freeco-avatar"><img src="/logo.png" alt="Freeco" class="freeco-avatar-img"></span>
         <div>
           <div class="freeco-title">Freeco</div>
-          <div class="freeco-sub">Your AI concierge</div>
+          <div class="freeco-sub">Ethical Executive AI Assistant</div>
         </div>
       </div>
       <button class="freeco-x" @click="open = false" title="Close" aria-label="Close assistant">&times;</button>
@@ -5817,8 +5820,8 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
   </div>
 
   <!-- Floating launcher button -->
-  <button class="freeco-fab" @click="toggle()" :class="{ 'freeco-fab-open': open }" :title="open ? 'Close Freeco' : 'Ask Freeco'" aria-label="Ask Freeco assistant">
-    <svg x-show="!open" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 15 9l7 .5-5.3 4.6L18.2 21 12 17l-6.2 4 1.5-6.9L2 9.5 9 9z"/></svg>
+  <button class="freeco-fab" @click="toggle()" :class="{ 'freeco-fab-open': open }" :title="open ? 'Close Freeco' : 'Ask Freeco — your Ethical Executive AI Assistant'" aria-label="Ask Freeco assistant">
+    <img x-show="!open" src="/logo.png" alt="Freeco" class="freeco-fab-logo">
     <svg x-show="open" x-cloak width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
   </button>
 </div>

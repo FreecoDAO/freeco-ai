@@ -79,7 +79,7 @@ function freecoAssistant() {
       var hi = name ? ('Hi ' + name + ' — ') : 'Hi — ';
       this.messages.push({
         id: ++mId, role: 'freeco', ts: Date.now(),
-        html: '<p>' + hi + "I'm <strong>Freeco</strong>, your AI concierge. Tell me what you want to build — a company, a nonprofit, a workflow — and I'll help you set up the agents, tools and channels to run it. Pick a shortcut below or just type/talk.</p>"
+        html: '<p>' + hi + "I'm <strong>Freeco</strong>, your Ethical Executive AI Assistant &amp; Concierge. Tell me what you want to build — a company, a nonprofit, a workflow, or just shop and chat — and I'll help you set up the agents, tools and channels to run it. Pick a shortcut below or just type/talk.</p>"
       });
     },
 
@@ -116,7 +116,17 @@ function freecoAssistant() {
         this.messages.push({ id: ++mId, role: 'freeco', ts: Date.now(), html: this._md(res.response || '(no reply)') });
       } catch (e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
-        this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: 'Error: ' + this._escape(e.message || 'request failed') });
+        var msg = (e.message || 'request failed').toLowerCase();
+        var friendly;
+        // The most common cause on a fresh install: the default model points at
+        // a local Ollama model that is not installed yet, or no cloud key is set.
+        if (msg.indexOf('server error') !== -1 || msg.indexOf('connection') !== -1 ||
+            msg.indexOf('model') !== -1 || msg.indexOf('11434') !== -1 || msg.indexOf('ollama') !== -1) {
+          friendly = 'I couldn’t reach a language model. Set one up first: open <a href="#" onclick="window.dispatchEvent(new CustomEvent(\'freeco-navigate\',{detail:\'settings\'}));return false;">Settings → Providers</a> and either <strong>Set up free local AI</strong> (downloads a local Gemma) or add a cloud API key. Then try again.';
+        } else {
+          friendly = 'Something went wrong: ' + this._escape(e.message || 'request failed');
+        }
+        this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: friendly });
       }
       this.sending = false;
       this._scroll();
