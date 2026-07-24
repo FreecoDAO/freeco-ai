@@ -46,6 +46,63 @@ function settingsPage() {
     loading: true,
     loadError: '',
 
+    // -- One-click services (dograh voice, CRM, accounting) --
+    services: [],
+    servicesLoaded: false,
+    dockerReady: false,
+    svc: { phase: 'idle', detail: '', percent: -1, service: '', running: false },
+    svcPoll: null,
+
+    async loadServices() {
+      try {
+        var data = await OpenFangAPI.get('/api/services');
+        this.services = data.services || [];
+        this.dockerReady = !!data.docker_ready;
+        this.servicesLoaded = true;
+      } catch(e) {
+        this.servicesLoaded = true;
+        OpenFangToast.error('Could not load services: ' + (e.message || 'error'));
+      }
+      // If an install is already running (e.g. after a page reload), resume polling.
+      try {
+        var st = await OpenFangAPI.get('/api/services/status');
+        this.svc = st;
+        if (st.running) this.pollServices();
+      } catch(e) { /* silent */ }
+    },
+
+    async installService(id) {
+      if (this.svc.running) { OpenFangToast.info('Another install is already running.'); return; }
+      try {
+        await OpenFangAPI.post('/api/services/' + encodeURIComponent(id) + '/install', {});
+        this.svc = { phase: 'checking', detail: 'Starting…', percent: -1, service: id, running: true };
+        OpenFangToast.success('Install started — this downloads a few GB, keep the app open.');
+        this.pollServices();
+      } catch(e) {
+        OpenFangToast.error('Install failed to start: ' + (e.message || 'error'));
+      }
+    },
+
+    pollServices() {
+      var self = this;
+      if (this.svcPoll) clearInterval(this.svcPoll);
+      this.svcPoll = setInterval(async function() {
+        try { self.svc = await OpenFangAPI.get('/api/services/status'); } catch(e) { return; }
+        if (!self.svc.running) {
+          clearInterval(self.svcPoll);
+          self.svcPoll = null;
+          if (self.svc.phase === 'done') {
+            OpenFangToast.success(self.svc.detail || 'Service is ready.');
+          } else if (self.svc.phase === 'error') {
+            OpenFangToast.error(self.svc.detail || 'Service install failed.');
+          } else if (self.svc.phase === 'needs-docker') {
+            OpenFangToast.warn ? OpenFangToast.warn(self.svc.detail) : OpenFangToast.error(self.svc.detail);
+          }
+          await self.loadServices(); // refresh running/connected badges
+        }
+      }, 2500);
+    },
+
     // -- Local AI (Ollama) setup --
     localAi: { phase: 'idle', detail: '', percent: -1, running: false, ollama_detected: false },
     localAiRecommendation: null,

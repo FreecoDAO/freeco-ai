@@ -3666,6 +3666,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'tools' }" @click="tab = 'tools'">Tools</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'security' }" @click="tab = 'security'; if (!securityData && !secLoading) loadSecurity()">Security</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'people' }" @click="tab = 'people'; loadUsers()">People</div>
+            <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'services' }" @click="tab = 'services'; loadServices()">Services</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'network' }" @click="tab = 'network'; if (!peers.length && !peersLoading) { loadPeers(); startPeerPolling(); }">Network</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'budget' }" @click="tab = 'budget'">Budget</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'info' }" @click="tab = 'info'">System</div>
@@ -3735,6 +3736,68 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                 <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)" @click="addUser()" :disabled="usersBusy">Add account</button>
               </div>
               <p x-show="usersMsg" class="text-xs" style="color:var(--success);margin-top:8px" x-text="usersMsg"></p>
+            </div>
+          </div>
+
+          <!-- Services tab — one-click install of the services a company needs -->
+          <div x-show="tab === 'services'">
+            <div class="card mb-4">
+              <div class="card-header">Services your company can run</div>
+              <p style="font-size:13px;color:var(--text-dim);margin:6px 0 12px">
+                Freeco installs and runs these for you — no setup expertise needed. Each one runs
+                on your own machine with Docker, and connects itself to your agents where possible.
+              </p>
+
+              <!-- Docker prerequisite -->
+              <div x-show="servicesLoaded && !dockerReady" class="card" style="border-color:var(--warning,#f59e0b);margin-bottom:14px">
+                <div style="font-size:13px">
+                  <strong>Docker isn't running yet.</strong>
+                  These services run in Docker. Install
+                  <a href="https://docker.com/products/docker-desktop" target="_blank" rel="noopener">Docker Desktop</a>
+                  (one installer), start it, then press Install — everything else is automatic.
+                </div>
+              </div>
+
+              <div x-show="!servicesLoaded" class="text-xs text-dim">Checking what's available…</div>
+
+              <!-- Service cards -->
+              <template x-for="s in services" :key="s.id">
+                <div class="card" style="margin-bottom:12px">
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                    <div style="flex:1;min-width:220px">
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <strong x-text="s.name"></strong>
+                        <span class="badge" x-show="s.running" style="background:var(--success-subtle);color:var(--success)">running</span>
+                        <span class="badge" x-show="s.connected" style="background:var(--accent-subtle);color:var(--accent)">connected to agents</span>
+                      </div>
+                      <div class="text-xs text-dim" style="margin-top:4px" x-text="s.purpose"></div>
+                      <div class="text-xs text-dim" style="margin-top:4px">
+                        About <span x-text="s.approx_download_gb"></span> GB to download ·
+                        <span x-text="s.auto_connects ? 'connects automatically' : 'needs one manual step'"></span>
+                      </div>
+                      <div class="text-xs" x-show="s.manual_step" style="margin-top:4px;color:var(--text-secondary)" x-text="s.manual_step"></div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+                      <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)"
+                              @click="installService(s.id)"
+                              :disabled="svc.running || !dockerReady">
+                        <span x-show="!s.running">Install</span>
+                        <span x-show="s.running">Reinstall</span>
+                      </button>
+                      <a class="btn btn-ghost btn-sm" x-show="s.running" :href="s.health_url" target="_blank" rel="noopener">Open</a>
+                    </div>
+                  </div>
+
+                  <!-- Live progress for the service being installed -->
+                  <div x-show="svc.service === s.id && svc.phase !== 'idle'" style="margin-top:10px">
+                    <div class="text-xs" :style="svc.phase === 'error' ? 'color:var(--error)' : (svc.phase === 'needs-docker' ? 'color:var(--warning,#f59e0b)' : 'color:var(--text-dim)')" x-text="svc.detail"></div>
+                    <div x-show="svc.running" class="progress" style="margin-top:6px;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+                      <div style="height:100%;background:var(--accent);transition:width .3s"
+                           :style="'width:' + (svc.percent >= 0 ? svc.percent : 30) + '%'"></div>
+                    </div>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
 
