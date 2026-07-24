@@ -594,8 +594,9 @@ async fn run_setup(
             }
             Err(e) => {
                 return Err(format!(
-                    "Model download kept failing after {MAX_PULL_ATTEMPTS} attempts: {e}. \
-                     Finished parts are kept — press Set up again to resume from where it stopped."
+                    "Model download kept failing after {MAX_PULL_ATTEMPTS} attempts: {}. \
+                     Finished parts are kept — press Set up again to resume from where it stopped.",
+                    explain_network_error(&e)
                 ))
             }
         }
@@ -696,6 +697,37 @@ async fn verify_windows_signature(path: &std::path::Path) -> Result<(), String> 
 #[allow(dead_code)]
 async fn verify_windows_signature(_path: &std::path::Path) -> Result<(), String> {
     Ok(())
+}
+
+/// Turn a raw network failure into an actionable message.
+///
+/// Real case that cost hours: on a phone hotspot, Windows preferred IPv6, the
+/// model CDN resolved to an IPv6-only address, and every download died with
+/// "no such host" — while a perfectly good IPv4 route sat unused. "Check your
+/// internet connection" is useless there; the user needs the actual fix.
+fn explain_network_error(err: &str) -> String {
+    let e = err.to_lowercase();
+    let looks_like_dns = e.contains("no such host")
+        || e.contains("dns")
+        || e.contains("failed to lookup")
+        || e.contains("name or service not known");
+    if looks_like_dns {
+        return format!(
+            "{err}\n\nThis usually means your network cannot reach the model server. \
+             The most common cause is a mobile hotspot or router where IPv6 is \
+             advertised but not actually routable. Fix on Windows (as Administrator):\n\
+             \x20   Disable-NetAdapterBinding -Name \"Wi-Fi\" -ComponentID ms_tcpip6\n\
+             then press Set up again. Alternatively switch to another network."
+        );
+    }
+    if e.contains("timed out") || e.contains("timeout") {
+        return format!(
+            "{err}\n\nThe connection is very slow or stalling. Model files are several \
+             GB — on a slow link consider a smaller model, or use a USB bundle that \
+             already carries the model (see docs/usb-plug-and-play.md)."
+        );
+    }
+    err.to_string()
 }
 
 /// Download `url` to `dest`, surviving flaky connections: it resumes with an
@@ -876,8 +908,8 @@ async fn download_with_resume(
     }
 
     Err(format!(
-        "could not download {label} after {max_attempts} attempts ({last_err}). \
-         Check your internet connection and press Set up again."
+        "could not download {label} after {max_attempts} attempts: {}",
+        explain_network_error(&last_err)
     ))
 }
 
