@@ -210,17 +210,42 @@ function settingsPage() {
       this.autoConfigBusy = false;
     },
 
+    showModelPicker: false,
+
+    // Load hardware + recommendation once when the card opens, so the one-click
+    // path can show exactly which model it will install.
+    async initLocalAi() {
+      await this.refreshLocalAi();
+      if (!this.localAiRecommendation) {
+        try {
+          this.localAiRecommendation = await OpenFangAPI.get('/api/local-ai/recommendation?purpose=general');
+        } catch(e) { /* card still works without it */ }
+      }
+    },
+
     async loadLocalAiRecommendation(purpose) {
       try {
         this.localAiRecommendation = await OpenFangAPI.get('/api/local-ai/recommendation?purpose=' + (purpose || 'general'));
       } catch(e) { OpenFangToast.error('Could not inspect local AI hardware: ' + e.message); }
     },
 
-    async startLocalAiSetup() {
+    // Path 1 — one click: install Ollama + pull the recommended Gemma 4 + wire it.
+    async oneClickLocalAi() {
+      if (!this.localAiRecommendation) { await this.initLocalAi(); }
+      var model = this.localAiRecommendation && this.localAiRecommendation.recommended_model;
+      await this.startLocalAiSetup(model);
+    },
+
+    // Path 2 — pick a specific model from the compare list.
+    async setupModel(id) {
+      this.showModelPicker = false;
+      await this.startLocalAiSetup(id);
+    },
+
+    async startLocalAiSetup(model) {
       try {
-        var model = this.localAiRecommendation && this.localAiRecommendation.recommended_model;
         await OpenFangAPI.post('/api/local-ai/setup', model ? { model: model } : {});
-        OpenFangToast.success('Local AI setup started — this downloads a few GB, keep the app open.');
+        OpenFangToast.success('Setting up ' + (model || 'local AI') + ' — downloads a few GB, keep the app open.');
         this.pollLocalAi();
       } catch(e) {
         OpenFangToast.error('Local AI setup: ' + e.message);
@@ -236,10 +261,14 @@ function settingsPage() {
           clearInterval(self.localAiPoll);
           self.localAiPoll = null;
           if (self.localAi.phase === 'done') {
-            OpenFangToast.success('Local AI is ready! Reloading configuration...');
+            // Point everyday work at the freshly installed model (writes default_model).
+            try { await self.autoConfigureModels(); } catch(e) { /* non-fatal */ }
             try { await OpenFangAPI.post('/api/config/reload', {}); } catch(e) { /* restart applies it */ }
+            OpenFangToast.success('Local AI is ready — restart FreEco.ai if agents still show the old model.');
           } else if (self.localAi.phase === 'error') {
             OpenFangToast.error('Local AI setup failed: ' + self.localAi.detail);
+          } else if (self.localAi.phase === 'needs-manual-install') {
+            OpenFangToast.info(self.localAi.detail || 'Follow the on-screen step to finish installing Ollama.');
           }
         }
       }, 2500);
