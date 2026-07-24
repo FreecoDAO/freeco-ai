@@ -5541,14 +5541,21 @@ pub async fn add_mcp_server(
     State(state): State<Arc<AppState>>,
     Json(req): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    let name = req.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let name = req
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if name.is_empty() {
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({"error": "name is required"})),
         );
     }
-    let t = req.get("transport").cloned().unwrap_or(serde_json::json!({}));
+    let t = req
+        .get("transport")
+        .cloned()
+        .unwrap_or(serde_json::json!({}));
     let ttype = t.get("type").and_then(|v| v.as_str()).unwrap_or("http");
 
     // Build the [mcp_servers.transport] sub-table.
@@ -5566,7 +5573,11 @@ pub async fn add_mcp_server(
             transport.insert("url".into(), toml::Value::String(url.into()));
         }
         "stdio" => {
-            let command = t.get("command").and_then(|v| v.as_str()).unwrap_or("").trim();
+            let command = t
+                .get("command")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim();
             if command.is_empty() {
                 return (
                     StatusCode::BAD_REQUEST,
@@ -5686,7 +5697,12 @@ fn persist_mcp_server(
         .or_insert_with(|| toml::Value::Array(Vec::new()))
         .as_array_mut()
         .ok_or("mcp_servers is not an array")?;
-    arr.retain(|v| v.as_table().and_then(|t| t.get("name")).and_then(|n| n.as_str()) != Some(name));
+    arr.retain(|v| {
+        v.as_table()
+            .and_then(|t| t.get("name"))
+            .and_then(|n| n.as_str())
+            != Some(name)
+    });
     arr.push(entry);
 
     if let Some(parent) = config_path.parent() {
@@ -5711,7 +5727,12 @@ fn delete_mcp_server(
         return Ok(false);
     };
     let before = arr.len();
-    arr.retain(|v| v.as_table().and_then(|t| t.get("name")).and_then(|n| n.as_str()) != Some(name));
+    arr.retain(|v| {
+        v.as_table()
+            .and_then(|t| t.get("name"))
+            .and_then(|n| n.as_str())
+            != Some(name)
+    });
     let removed = arr.len() != before;
     if removed {
         let _ = std::fs::copy(config_path, config_path.with_extension("toml.bak"));

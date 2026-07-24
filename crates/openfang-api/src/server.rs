@@ -590,7 +590,10 @@ pub async fn build_router(
             axum::routing::post(crate::local_ai::models_autoconfig),
         )
         // One-click service provisioning (Freeco installs + runs + connects)
-        .route("/api/services", axum::routing::get(crate::services::list_services))
+        .route(
+            "/api/services",
+            axum::routing::get(crate::services::list_services),
+        )
         .route(
             "/api/services/status",
             axum::routing::get(crate::services::service_status),

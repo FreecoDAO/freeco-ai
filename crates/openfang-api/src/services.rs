@@ -104,7 +104,8 @@ pub const SERVICE_CATALOG: &[ServiceProfile] = &[
     ServiceProfile {
         id: "crm",
         name: "Twenty — CRM",
-        purpose: "Where donors, grant givers, VCs and partners live: people, companies, notes, pipeline.",
+        purpose:
+            "Where donors, grant givers, VCs and partners live: people, companies, notes, pipeline.",
         repo: None,
         compose: Some(TWENTY_COMPOSE),
         health_url: "http://localhost:3000",
@@ -176,9 +177,13 @@ async fn run(cmd: &str, args: &[&str], cwd: Option<&std::path::Path>) -> Result<
 
 /// Is Docker installed AND the daemon running?
 pub async fn docker_ready() -> bool {
-    run("docker", &["version", "--format", "{{.Server.Version}}"], None)
-        .await
-        .is_ok()
+    run(
+        "docker",
+        &["version", "--format", "{{.Server.Version}}"],
+        None,
+    )
+    .await
+    .is_ok()
 }
 
 async fn health_ok(url: &str) -> bool {
@@ -310,7 +315,13 @@ async fn provision(
             .map_err(|e| format!("write compose: {e}"))?;
     } else if let Some(repo) = profile.repo {
         if dir.join(".git").exists() {
-            set_status(status, "fetching", format!("Updating {}...", profile.name), -1).await;
+            set_status(
+                status,
+                "fetching",
+                format!("Updating {}...", profile.name),
+                -1,
+            )
+            .await;
             let _ = run("git", &["pull", "--ff-only"], Some(&dir)).await;
         } else {
             set_status(
@@ -336,7 +347,10 @@ async fn provision(
     set_status(
         status,
         "starting",
-        format!("Starting {} with Docker (first run pulls images)...", profile.name),
+        format!(
+            "Starting {} with Docker (first run pulls images)...",
+            profile.name
+        ),
         -1,
     )
     .await;

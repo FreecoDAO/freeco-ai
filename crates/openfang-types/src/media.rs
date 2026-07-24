@@ -729,7 +729,9 @@ mod mime_parameter_tests {
         let a = MediaAttachment {
             media_type: MediaType::Audio,
             mime_type: "audio/webm;codecs=opus".to_string(),
-            source: MediaSource::FilePath { path: "/tmp/voice.webm".into() },
+            source: MediaSource::FilePath {
+                path: "/tmp/voice.webm".into(),
+            },
             size_bytes: 2048,
         };
         assert!(a.validate().is_ok(), "browser webm/opus must validate");
@@ -748,7 +750,9 @@ mod mime_parameter_tests {
         let a = MediaAttachment {
             media_type: MediaType::Audio,
             mime_type: "audio/aiff;codecs=x".to_string(),
-            source: MediaSource::FilePath { path: "/tmp/x.aiff".into() },
+            source: MediaSource::FilePath {
+                path: "/tmp/x.aiff".into(),
+            },
             size_bytes: 10,
         };
         assert!(a.validate().is_err(), "unknown audio type must be rejected");
