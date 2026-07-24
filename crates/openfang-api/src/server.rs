@@ -412,7 +412,10 @@ pub async fn build_router(
             "/api/security/approve/{content_hash}",
             axum::routing::post(routes::approve_security_content),
         )
-        .route("/api/backups", axum::routing::post(routes::create_backup))
+        .route(
+            "/api/backups",
+            axum::routing::get(routes::list_backups).post(routes::create_backup),
+        )
         .route(
             "/api/backups/restore",
             axum::routing::post(routes::restore_backup),

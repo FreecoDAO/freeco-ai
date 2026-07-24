@@ -5799,7 +5799,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
     <template x-if="page === 'runtime'">
       <div x-data="runtimePage">
         <div class="page-header"><h2>Runtime</h2></div>
-        <div class="page-body" x-init="loadData()">
+        <div class="page-body" x-init="loadData(); loadBackups()">
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading runtime info...</span></div>
           <div x-show="!loading">
             <div class="grid grid-cols-4 gap-4 mb-6">
@@ -5883,6 +5883,36 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               <button class="btn btn-ghost btn-sm" @click="loadData()">Refresh</button>
               <button class="btn btn-primary btn-sm" @click="createBackup()">Encrypted backup</button>
               <span class="text-xs text-dim" x-text="backupStatus"></span>
+            </div>
+
+            <!-- Backups & restore -->
+            <div class="card" style="margin-top:16px">
+              <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+                <span>Backups &amp; restore</span>
+                <button class="btn btn-ghost btn-sm" @click="loadBackups()">Refresh list</button>
+              </div>
+              <p class="text-xs text-dim" style="margin:6px 0 10px">
+                Encrypted recovery archives (<code>.ofbak</code>) in your backups folder.
+                <strong>Verify</strong> checks an archive without changing anything; <strong>Restore</strong> replaces current data and needs a restart.
+              </p>
+              <table class="data-table" x-show="backups.length" style="width:100%">
+                <thead><tr><th>Archive</th><th>Size</th><th>Created</th><th></th></tr></thead>
+                <tbody>
+                  <template x-for="b in backups" :key="b.name">
+                    <tr>
+                      <td style="font-family:monospace;font-size:12px" x-text="b.name"></td>
+                      <td class="text-xs text-dim"><span x-text="b.sizeMb"></span> MB</td>
+                      <td class="text-xs text-dim" x-text="b.when"></td>
+                      <td style="text-align:right;white-space:nowrap">
+                        <button class="btn btn-ghost btn-sm" @click="verifyRestore(b.name)" :disabled="restoreBusy">Verify</button>
+                        <button class="btn btn-ghost btn-sm" style="color:var(--accent)" @click="restoreBackup(b.name)" :disabled="restoreBusy">Restore</button>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <p x-show="!backups.length" class="text-xs text-dim">No backups yet — create one above.</p>
+              <p x-show="restoreResult" class="text-xs" :style="restoreResult && restoreResult.ok ? 'color:var(--success)' : 'color:var(--error)'" style="margin-top:8px" x-text="restoreResult ? restoreResult.detail : ''"></p>
             </div>
           </div>
         </div>

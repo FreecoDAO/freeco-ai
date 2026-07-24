@@ -1210,6 +1210,40 @@ pub async fn approve_security_content(
     )
 }
 
+/// GET /api/backups — list existing encrypted recovery archives so the
+/// dashboard can offer a restore. (Create-only left no way to see or restore.)
+pub async fn list_backups(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let dir = state.kernel.config.home_dir.join("backups");
+    let mut items = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for e in entries.flatten() {
+            let path = e.path();
+            if path.extension().and_then(|x| x.to_str()) != Some("ofbak") {
+                continue;
+            }
+            let meta = e.metadata().ok();
+            let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+            let modified = meta
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            items.push(serde_json::json!({
+                "name": e.file_name().to_string_lossy().to_string(),
+                "size": size,
+                "modified": modified,
+            }));
+        }
+    }
+    items.sort_by(|a, b| {
+        b["modified"]
+            .as_u64()
+            .unwrap_or(0)
+            .cmp(&a["modified"].as_u64().unwrap_or(0))
+    });
+    Json(serde_json::json!({ "backups": items }))
+}
+
 /// POST /api/backups — Create an authenticated encrypted recovery archive.
 pub async fn create_backup(
     State(state): State<Arc<AppState>>,
