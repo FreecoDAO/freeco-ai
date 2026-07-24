@@ -208,7 +208,9 @@
       </div>
       <div class="sidebar-label text-xs text-dim" style="padding:0 16px 4px;letter-spacing:0.5px">Ctrl+K agents | Ctrl+N new</div>
     </div>
-    <div class="sidebar-toggle" @click="toggleSidebar()" x-text="sidebarCollapsed ? '\u276F' : '\u276E'"></div>
+    <!-- The collapse control lives in the sidebar header (see .sidebar-collapse-btn).
+         The old bottom chevron sat exactly where the fixed Emergency-stop button
+         floats, so it was permanently covered and unclickable. -->
   </nav>
 
   <div class="sidebar-overlay" x-cloak @click="mobileMenuOpen = false"></div>

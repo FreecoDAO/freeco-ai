@@ -68,6 +68,18 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         download_gb: 5.6,
     },
     LocalModelProfile {
+        // MEASURED 7.2 GB. The lightest Gemma 4 that exists: the only real
+        // gemma4 tags are e2b, e4b and 12b (1b/2b/4b/9b/27b all 404), so there
+        // is no "small" Gemma 4 — even the smallest carries a large weight file.
+        id: "gemma4:e2b",
+        display_name: "Gemma 4 E2B",
+        purpose: "lightest Gemma 4 — good general assistant for 16 GB machines",
+        min_ram_gb: 12,
+        min_vram_gb: 0,
+        min_disk_gb: 10,
+        download_gb: 7.2,
+    },
+    LocalModelProfile {
         // MEASURED: the actual Ollama download is ~9.6 GB (not the ~3 GB this
         // catalog used to claim), and a model needs roughly its file size in
         // RAM plus context. Recommending it to an 8 GB machine made setup
@@ -245,8 +257,10 @@ fn recommended_model(hardware: &LocalHardware, purpose: &str) -> &'static str {
         "gemma4:12b"
     } else if ram >= 24 || vram >= 12 {
         "gemma4:e4b"
+    } else if ram >= 12 {
+        // Lightest Gemma 4 that exists (7.2 GB); comfortable on a 16 GB machine.
+        "gemma4:e2b"
     } else if ram >= 6 {
-        // The sweet spot for ordinary 8–16 GB laptops: small download, runs fast.
         "gemma3n:e2b"
     } else {
         "llama3.2:1b"

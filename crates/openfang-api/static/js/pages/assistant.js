@@ -71,10 +71,34 @@ function freecoAssistant() {
       this.agent = pick || agents[0];
     },
 
+    // Freeco should work the moment you open it. If the workspace has no
+    // agents, create the bundled concierge automatically instead of telling the
+    // user to go build one — nobody should have to assemble their assistant
+    // before they can ask it anything.
+    _ensureConcierge: async function() {
+      if (this.agent || this._creatingAgent) return;
+      this._creatingAgent = true;
+      try {
+        var res = await OpenFangAPI.post('/api/agents', { template: 'freeco-concierge' });
+        if (res && (res.agent_id || res.name)) {
+          try { await Alpine.store('app').refreshAgents(); } catch (e) { /* optional */ }
+          this._resolveAgent();
+          if (!this.agent && res.name) {
+            this.agent = { id: res.agent_id, name: res.name };
+            this.noAgents = false;
+          }
+        }
+      } catch (e) {
+        // Leave noAgents true; send() will show the manual path.
+      }
+      this._creatingAgent = false;
+    },
+
     toggle: function() {
       this.open = !this.open;
       if (this.open) {
         this._resolveAgent();
+        if (!this.agent) this._ensureConcierge();
         if (!this.messages.length) this._greet();
         var self = this;
         this.$nextTick(function() {
@@ -150,6 +174,49 @@ function freecoAssistant() {
     // ---- Voice (hold-to-talk) ----
     startVoice: async function() {
       if (this.recording) return;
+
+      // Preferred path: the browser's own speech recognition. It needs no API
+      // key, no server and no Whisper install, so voice input works out of the
+      // box. Only if it is unavailable do we fall back to record-and-upload,
+      // which requires a speech-to-text service to be configured.
+      var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SR) {
+        var self = this;
+        try {
+          var recog = new SR();
+          recog.lang = navigator.language || 'en-US';
+          recog.interimResults = false;
+          recog.maxAlternatives = 1;
+          recog.continuous = false;
+          recog.onresult = function(ev) {
+            var said = '';
+            for (var i = 0; i < ev.results.length; i++) said += ev.results[i][0].transcript;
+            said = said.trim();
+            if (said) { self.input = said; self.send(); }
+          };
+          recog.onerror = function(ev) {
+            self.recording = false;
+            var why = (ev && ev.error) || 'unknown';
+            if (why === 'not-allowed' || why === 'service-not-allowed') {
+              if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Microphone access denied');
+            } else if (why !== 'aborted' && why !== 'no-speech') {
+              self.messages.push({ id: ++mId, role: 'system', ts: Date.now(),
+                html: 'Voice input failed (' + self._escape(why) + '). You can type instead.' });
+              self._scroll();
+            }
+          };
+          recog.onend = function() { self.recording = false; if (self._timer) { clearInterval(self._timer); self._timer = null; } };
+          this._recog = recog;
+          recog.start();
+          this.recording = true;
+          this.recordingTime = 0;
+          this._timer = setInterval(function() { self.recordingTime++; }, 1000);
+          return;
+        } catch (e) {
+          this._recog = null; // fall through to the upload path
+        }
+      }
+
       if (!navigator.mediaDevices || !window.MediaRecorder) {
         if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Voice not supported in this browser');
         return;
@@ -172,7 +239,16 @@ function freecoAssistant() {
       }
     },
     stopVoice: function() {
-      if (!this.recording || !this._rec) return;
+      if (!this.recording) return;
+      // Browser speech recognition path
+      if (this._recog) {
+        try { this._recog.stop(); } catch (e) { /* ignore */ }
+        this._recog = null;
+        this.recording = false;
+        if (this._timer) { clearInterval(this._timer); this._timer = null; }
+        return;
+      }
+      if (!this._rec) return;
       this._rec.stop();
       this.recording = false;
       if (this._timer) { clearInterval(this._timer); this._timer = null; }
