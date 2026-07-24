@@ -53,6 +53,7 @@ pub async fn build_router(
         provider_probe_cache: openfang_runtime::provider_health::ProbeCache::new(),
         budget_config: Arc::new(tokio::sync::RwLock::new(kernel.config.budget.clone())),
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
+        services: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
         security: Arc::new(crate::security::SecurityService::default()),
@@ -587,6 +588,16 @@ pub async fn build_router(
         .route(
             "/api/models/autoconfig",
             axum::routing::post(crate::local_ai::models_autoconfig),
+        )
+        // One-click service provisioning (Freeco installs + runs + connects)
+        .route("/api/services", axum::routing::get(crate::services::list_services))
+        .route(
+            "/api/services/status",
+            axum::routing::get(crate::services::service_status),
+        )
+        .route(
+            "/api/services/{id}/install",
+            axum::routing::post(crate::services::install_service),
         )
         .route(
             "/api/system/freeze",

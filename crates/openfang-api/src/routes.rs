@@ -46,6 +46,8 @@ pub struct AppState {
     pub budget_config: Arc<tokio::sync::RwLock<openfang_types::config::BudgetConfig>>,
     /// One-click local AI setup progress (Ollama install + model pull).
     pub local_ai: crate::local_ai::SharedLocalAiStatus,
+    /// Progress of a running one-click service install (dograh, CRM, …).
+    pub services: crate::services::SharedServiceStatus,
     /// Global emergency freeze. When true, every agent message is refused
     /// before any LLM call or tool runs — the master kill switch.
     pub frozen: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -5644,6 +5646,22 @@ pub async fn remove_mcp_server(
             Json(serde_json::json!({"error": format!("could not delete: {e}")})),
         ),
     }
+}
+
+/// Register (or replace) an HTTP-transport MCP server by name. Used by the
+/// service installer so a freshly-provisioned service connects itself.
+pub(crate) fn register_mcp_http_server(
+    config_path: &std::path::Path,
+    name: &str,
+    url: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut transport = toml::map::Map::new();
+    transport.insert("type".into(), toml::Value::String("http".into()));
+    transport.insert("url".into(), toml::Value::String(url.to_string()));
+    let mut entry = toml::map::Map::new();
+    entry.insert("name".into(), toml::Value::String(name.to_string()));
+    entry.insert("transport".into(), toml::Value::Table(transport));
+    persist_mcp_server(config_path, name, toml::Value::Table(entry))
 }
 
 /// Append or replace a `[[mcp_servers]]` entry (matched by name) in config.toml.
