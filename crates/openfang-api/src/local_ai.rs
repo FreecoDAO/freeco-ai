@@ -455,6 +455,60 @@ pub async fn local_ai_setup(
     )
 }
 
+/// Ollama is installed but not serving? Start it and wait briefly for the API.
+/// Returns true once `ollama serve` answers. This avoids the worst failure mode
+/// of local-AI setup: re-downloading a ~1 GB installer for software the user
+/// already has.
+async fn start_installed_ollama(status: &SharedLocalAiStatus) -> bool {
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+    if let Some(local) = dirs::data_local_dir() {
+        candidates.push(local.join("Programs").join("Ollama").join("ollama.exe"));
+        candidates.push(local.join("Programs").join("Ollama").join("ollama app.exe"));
+    }
+    for p in [
+        "/usr/local/bin/ollama",
+        "/usr/bin/ollama",
+        "/opt/homebrew/bin/ollama",
+        "/Applications/Ollama.app/Contents/MacOS/Ollama",
+    ] {
+        candidates.push(std::path::PathBuf::from(p));
+    }
+
+    let exe = candidates.into_iter().find(|p| p.exists());
+    let Some(exe) = exe else {
+        return false;
+    };
+
+    set_status(
+        status,
+        "starting",
+        "Ollama is already installed — starting it...".into(),
+        -1,
+    )
+    .await;
+
+    // `ollama serve` for the CLI binary; the desktop "app" launcher takes no args.
+    let is_app = exe
+        .file_name()
+        .map(|n| n.to_string_lossy().contains("app"))
+        .unwrap_or(false);
+    let mut cmd = tokio::process::Command::new(&exe);
+    if !is_app {
+        cmd.arg("serve");
+    }
+    if cmd.spawn().is_err() {
+        return false;
+    }
+
+    for _ in 0..20 {
+        if ollama_running().await {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+    false
+}
+
 async fn run_setup(
     status: &SharedLocalAiStatus,
     model: &str,
@@ -462,7 +516,14 @@ async fn run_setup(
 ) -> Result<(), String> {
     // 1. Detect
     if !ollama_running().await {
-        if cfg!(target_os = "windows") {
+        // Ollama is very often already INSTALLED but simply not running (the
+        // user closed it, or the silent installer didn't launch it). Starting
+        // it takes a second; re-downloading a ~1 GB installer takes minutes and
+        // is what made setup look like it "did nothing". Always try to start
+        // what's on disk before downloading anything.
+        if start_installed_ollama(status).await {
+            // running now — fall through to the model pull
+        } else if cfg!(target_os = "windows") {
             install_ollama_windows(status).await?;
         } else {
             set_status(
