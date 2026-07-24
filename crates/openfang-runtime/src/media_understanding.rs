@@ -102,8 +102,18 @@ impl MediaEngine {
 
         // Derive a proper filename with extension from mime_type
         // (Whisper APIs require an extension to detect format)
-        let ext = match attachment.mime_type.as_str() {
-            "audio/wav" => "wav",
+        // Strip MIME parameters: browsers send `audio/webm;codecs=opus`, and an
+        // exact match would fall through to "wav", sending a WebM recording
+        // under a .wav filename — which transcription APIs reject.
+        let mime_essence = attachment
+            .mime_type
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
+        let ext = match mime_essence.as_str() {
+            "audio/wav" | "audio/x-wav" => "wav",
             "audio/mpeg" | "audio/mp3" => "mp3",
             "audio/ogg" => "ogg",
             "audio/webm" => "webm",
