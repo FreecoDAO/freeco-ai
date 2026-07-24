@@ -24,8 +24,10 @@ use tokio::io::AsyncWriteExt;
 
 const OLLAMA_BASE: &str = "http://127.0.0.1:11434";
 const OLLAMA_WINDOWS_INSTALLER: &str = "https://ollama.com/download/OllamaSetup.exe";
-/// Default starter model — small enough for ordinary laptops.
-const DEFAULT_MODEL: &str = "gemma4:e4b";
+/// Default starter model — genuinely small enough for ordinary laptops.
+/// (Gemma 4 E4B is a ~10 GB download and needs ~24 GB RAM; it is NOT a safe
+/// default and was making setup download for hours on 8–16 GB machines.)
+const DEFAULT_MODEL: &str = "gemma3n:e2b";
 
 /// Hardware requirements for a locally downloadable Ollama model. This is
 /// deliberately catalog data rather than selection logic so the dashboard and
@@ -38,6 +40,9 @@ pub struct LocalModelProfile {
     pub min_ram_gb: u64,
     pub min_vram_gb: u64,
     pub min_disk_gb: u64,
+    /// MEASURED download size in GB. Shown up-front so nobody starts a
+    /// multi-hour download blind — on a 500 KB/s line, 5 GB is ~3 hours.
+    pub download_gb: f32,
 }
 
 const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
@@ -48,25 +53,32 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 4,
         min_vram_gb: 0,
         min_disk_gb: 3,
+        download_gb: 1.3,
     },
     LocalModelProfile {
         // Gemma has no sub-4B in the 4-series; the Gemma 3 "Nano" 2B is the
         // smallest verified-existing Gemma for weak machines (gemma4:1b/2b
         // do NOT exist on Ollama's registry — they 404).
         id: "gemma3n:e2b",
-        display_name: "Gemma 3 Nano 2B",
-        purpose: "lightweight assistant for weaker laptops",
-        min_ram_gb: 6,
+        display_name: "Gemma 3 Nano E2B",
+        purpose: "balanced assistant for 8-16 GB laptops (~5.6 GB download)",
+        min_ram_gb: 10,
         min_vram_gb: 0,
-        min_disk_gb: 4,
+        min_disk_gb: 8,
+        download_gb: 5.6,
     },
     LocalModelProfile {
+        // MEASURED: the actual Ollama download is ~9.6 GB (not the ~3 GB this
+        // catalog used to claim), and a model needs roughly its file size in
+        // RAM plus context. Recommending it to an 8 GB machine made setup
+        // download for hours and then thrash. Sized honestly now.
         id: "gemma4:e4b",
-        display_name: "Gemma 4 4B",
-        purpose: "recommended general assistant for ordinary laptops",
-        min_ram_gb: 8,
+        display_name: "Gemma 4 E4B",
+        purpose: "high-quality general assistant (large download ~10 GB)",
+        min_ram_gb: 24,
         min_vram_gb: 0,
-        min_disk_gb: 6,
+        min_disk_gb: 14,
+        download_gb: 9.6,
     },
     LocalModelProfile {
         id: "qwen2.5-coder:3b",
@@ -75,6 +87,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 8,
         min_vram_gb: 0,
         min_disk_gb: 5,
+        download_gb: 1.9,
     },
     LocalModelProfile {
         id: "qwen2.5-coder:7b",
@@ -83,6 +96,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 16,
         min_vram_gb: 8,
         min_disk_gb: 10,
+        download_gb: 4.7,
     },
     LocalModelProfile {
         id: "mistral:7b",
@@ -91,6 +105,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 16,
         min_vram_gb: 8,
         min_disk_gb: 10,
+        download_gb: 4.1,
     },
     LocalModelProfile {
         id: "gemma4:12b",
@@ -99,6 +114,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 24,
         min_vram_gb: 12,
         min_disk_gb: 16,
+        download_gb: 8.1,
     },
 ];
 
@@ -223,11 +239,14 @@ fn recommended_model(hardware: &LocalHardware, purpose: &str) -> &'static str {
             "llama3.2:1b"
         };
     }
-    if ram >= 24 || vram >= 12 {
+    // Sized against MEASURED download/RAM cost, not optimism. A model needs
+    // roughly its file size in RAM plus context, so leave headroom for the OS.
+    if ram >= 48 || vram >= 24 {
         "gemma4:12b"
-    } else if ram >= 8 {
-        DEFAULT_MODEL
+    } else if ram >= 24 || vram >= 12 {
+        "gemma4:e4b"
     } else if ram >= 6 {
+        // The sweet spot for ordinary 8–16 GB laptops: small download, runs fast.
         "gemma3n:e2b"
     } else {
         "llama3.2:1b"
