@@ -208,14 +208,29 @@ pub const ALLOWED_AUDIO_TYPES: &[&str] = &[
 /// Allowed video MIME types.
 pub const ALLOWED_VIDEO_TYPES: &[&str] = &["video/mp4", "video/quicktime", "video/webm"];
 
+/// The bare `type/subtype`, with any MIME parameters stripped and lowercased.
+///
+/// Browsers legitimately tag recordings as `audio/webm;codecs=opus` — the
+/// parameter is part of the spec and must not change which type it *is*.
+/// Comparing the raw string against the allowlist rejected every microphone
+/// recording Chrome/Edge produce, which broke voice input entirely.
+fn mime_essence(mime: &str) -> String {
+    mime.split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase()
+}
+
 impl MediaAttachment {
     /// Validate the attachment against security constraints.
     pub fn validate(&self) -> Result<(), String> {
-        // Check MIME type allowlist
+        // Check MIME type allowlist (parameters such as `;codecs=opus` ignored)
+        let essence = mime_essence(&self.mime_type);
         let allowed = match self.media_type {
-            MediaType::Image => ALLOWED_IMAGE_TYPES.contains(&self.mime_type.as_str()),
-            MediaType::Audio => ALLOWED_AUDIO_TYPES.contains(&self.mime_type.as_str()),
-            MediaType::Video => ALLOWED_VIDEO_TYPES.contains(&self.mime_type.as_str()),
+            MediaType::Image => ALLOWED_IMAGE_TYPES.contains(&essence.as_str()),
+            MediaType::Audio => ALLOWED_AUDIO_TYPES.contains(&essence.as_str()),
+            MediaType::Video => ALLOWED_VIDEO_TYPES.contains(&essence.as_str()),
         };
         if !allowed {
             return Err(format!(
@@ -700,5 +715,46 @@ mod tests {
         let parsed: MediaConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.max_concurrency, 2);
         assert!(parsed.image_description);
+    }
+}
+
+#[cfg(test)]
+mod mime_parameter_tests {
+    use super::*;
+
+    /// Browsers record as `audio/webm;codecs=opus`. Exact-string matching
+    /// rejected every microphone recording, breaking voice input entirely.
+    #[test]
+    fn browser_recording_mime_with_codecs_is_accepted() {
+        let a = MediaAttachment {
+            media_type: MediaType::Audio,
+            mime_type: "audio/webm;codecs=opus".to_string(),
+            source: MediaSource::FilePath {
+                path: "/tmp/voice.webm".into(),
+            },
+            size_bytes: 2048,
+        };
+        assert!(a.validate().is_ok(), "browser webm/opus must validate");
+    }
+
+    #[test]
+    fn mime_parameters_and_case_are_ignored() {
+        assert_eq!(mime_essence("audio/webm;codecs=opus"), "audio/webm");
+        assert_eq!(mime_essence("AUDIO/WEBM"), "audio/webm");
+        assert_eq!(mime_essence("audio/ogg; codecs=vorbis"), "audio/ogg");
+    }
+
+    /// The allowlist must still reject genuinely unsupported types.
+    #[test]
+    fn unsupported_audio_type_still_rejected() {
+        let a = MediaAttachment {
+            media_type: MediaType::Audio,
+            mime_type: "audio/aiff;codecs=x".to_string(),
+            source: MediaSource::FilePath {
+                path: "/tmp/x.aiff".into(),
+            },
+            size_bytes: 10,
+        };
+        assert!(a.validate().is_err(), "unknown audio type must be rejected");
     }
 }

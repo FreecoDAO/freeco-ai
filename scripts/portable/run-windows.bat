@@ -9,6 +9,23 @@ set "ROOT=%~dp0"
 set "OPENFANG_HOME=%ROOT%data"
 if "%OPENFANG_LISTEN%"=="" set "OPENFANG_LISTEN=127.0.0.1:4200"
 
+REM ── Bundled local AI (fully offline) ────────────────────────────────────
+REM If this drive carries Ollama + a model, use them from the drive: nothing
+REM is downloaded and nothing is installed on the host machine. The model
+REM lives in .\models, so the private AI travels with the USB stick.
+set "OLLAMA_MODELS=%ROOT%models"
+set "OLLAMA_EXE=%ROOT%ollama\windows\ollama.exe"
+if exist "%OLLAMA_EXE%" (
+    REM Only start it if nothing is already serving on 11434.
+    >nul 2>&1 curl -s -m 2 http://127.0.0.1:11434/api/version
+    if errorlevel 1 (
+        echo   Starting bundled private AI from this drive...
+        start "" /b "%OLLAMA_EXE%" serve
+    ) else (
+        echo   Using the Ollama already running on this machine.
+    )
+)
+
 if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
     set "ARCH=aarch64"
 ) else (

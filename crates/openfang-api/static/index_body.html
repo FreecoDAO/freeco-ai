@@ -8,7 +8,7 @@
   @click="$store.app.toggleEmergencyFreeze()"
   :aria-label="$store.app.frozen ? 'Release emergency stop' : 'Engage emergency stop'"
   :title="$store.app.frozen ? 'Release emergency stop' : 'Pause all agents immediately'"
-  style="position:fixed;right:20px;bottom:20px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.25)"
+  style="position:fixed;left:20px;bottom:20px;z-index:9800;box-shadow:0 8px 24px rgba(0,0,0,.25)"
 >
   <span x-text="$store.app.freezeBusy ? 'Working…' : ($store.app.frozen ? 'Resume agents' : 'Emergency stop')"></span>
 </button>
@@ -57,9 +57,12 @@
     <div class="sidebar-header">
       <div class="sidebar-header-text">
         <div class="sidebar-logo">
-          <img src="/logo.png" alt="FreEco.ai" width="34" height="34">
+          <img src="/logo.png" alt="Ask Freeco" width="34" height="34" class="sidebar-logo-mascot"
+               @click="window.dispatchEvent(new CustomEvent('freeco-open'))"
+               title="Ask Freeco — your Ethical Executive AI Assistant" style="cursor:pointer">
           <div>
             <h1>FreEco.ai</h1>
+            <div class="sidebar-tagline">Ethical Executive AI Assistant</div>
             <div class="version" x-text="'v' + version"></div>
             <a x-show="$store.app.updateAvailable" x-cloak href="#settings"
                @click="navigate('settings')"
@@ -68,6 +71,8 @@
           </div>
         </div>
       </div>
+      <button class="sidebar-collapse-btn" @click="toggleSidebar()" :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'" aria-label="Collapse sidebar"
+              x-text="sidebarCollapsed ? '»' : '«'"></button>
       <div class="theme-switcher">
         <button class="theme-opt" :class="{ active: themeMode === 'light' }" @click="setTheme('light')" title="Light">&#9788;</button>
         <button class="theme-opt" :class="{ active: themeMode === 'system' }" @click="setTheme('system')" title="System">&#9675;</button>
@@ -128,7 +133,7 @@
         <div x-show="!collapsed" x-cloak x-transition>
             <a class="nav-item" :class="{ active: page === 'workflows' }" @click="navigate('workflows')" :aria-current="page === 'workflows' ? 'page' : false">
               <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 3v12M18 9a9 9 0 0 1-9 9"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/></svg></span>
-              <span class="nav-label">Workflows</span>
+              <span class="nav-label">Charts &amp; Workflows</span>
             </a>
             <a class="nav-item" :class="{ active: page === 'scheduler' }" @click="navigate('scheduler')" :aria-current="page === 'scheduler' ? 'page' : false">
               <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
@@ -203,7 +208,9 @@
       </div>
       <div class="sidebar-label text-xs text-dim" style="padding:0 16px 4px;letter-spacing:0.5px">Ctrl+K agents | Ctrl+N new</div>
     </div>
-    <div class="sidebar-toggle" @click="toggleSidebar()" x-text="sidebarCollapsed ? '\u276F' : '\u276E'"></div>
+    <!-- The collapse control lives in the sidebar header (see .sidebar-collapse-btn).
+         The old bottom chevron sat exactly where the fixed Emergency-stop button
+         floats, so it was permanently covered and unclickable. -->
   </nav>
 
   <div class="sidebar-overlay" x-cloak @click="mobileMenuOpen = false"></div>
@@ -1401,12 +1408,12 @@
 
     <!-- Page: Workflows -->
     <template x-if="page === 'workflows'">
-      <div x-data="{ wfTab: 'list' }">
+      <div x-data="{ wfTab: 'builder' }">
         <div class="page-header">
-          <h2>Workflows</h2>
+          <h2>Charts &amp; Workflows</h2>
           <div class="flex gap-2">
-            <button class="btn btn-ghost btn-sm" :class="{ active: wfTab === 'list' }" @click="wfTab = 'list'">List</button>
-            <button class="btn btn-ghost btn-sm" :class="{ active: wfTab === 'builder' }" @click="wfTab = 'builder'">Visual Builder</button>
+            <button class="btn btn-ghost btn-sm" :class="{ active: wfTab === 'builder' }" @click="wfTab = 'builder'">Company chart &amp; team</button>
+            <button class="btn btn-ghost btn-sm" :class="{ active: wfTab === 'list' }" @click="wfTab = 'list'">Saved workflows</button>
           </div>
         </div>
 
@@ -1555,13 +1562,19 @@
             <div class="wf-palette">
               <div class="wf-palette-title">Company templates</div>
               <div class="text-xs text-dim mb-2">Lay out a whole org, then assign an agent to each role.</div>
-              <div class="flex flex-col gap-1 mb-3">
+              <div class="flex flex-col gap-1 mb-2">
                 <template x-for="ct in companyTemplates" :key="ct.id">
                   <button class="btn btn-ghost btn-sm btn-block" style="text-align:left" @click="loadCompanyTemplate(ct.id)" :title="ct.description">
                     <span x-text="ct.name"></span>
                   </button>
                 </template>
               </div>
+              <button class="btn btn-sm btn-block mb-3" style="background:var(--accent);color:var(--text-on-accent)"
+                      @click="spawnTeam()" :disabled="spawningTeam"
+                      title="Create a real agent for every role on the canvas and wire it in">
+                <span x-show="!spawningTeam">Hire the whole team</span>
+                <span x-show="spawningTeam">Hiring&hellip;</span>
+              </button>
               <hr style="border-color:var(--border);margin:12px 0">
               <div class="wf-palette-title">Node Palette</div>
               <div class="text-xs text-dim mb-3">Drag nodes onto the canvas</div>
@@ -3653,6 +3666,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'tools' }" @click="tab = 'tools'">Tools</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'security' }" @click="tab = 'security'; if (!securityData && !secLoading) loadSecurity()">Security</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'people' }" @click="tab = 'people'; loadUsers()">People</div>
+            <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'services' }" @click="tab = 'services'; loadServices()">Services</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'network' }" @click="tab = 'network'; if (!peers.length && !peersLoading) { loadPeers(); startPeerPolling(); }">Network</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'budget' }" @click="tab = 'budget'">Budget</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'info' }" @click="tab = 'info'">System</div>
@@ -3722,6 +3736,68 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                 <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)" @click="addUser()" :disabled="usersBusy">Add account</button>
               </div>
               <p x-show="usersMsg" class="text-xs" style="color:var(--success);margin-top:8px" x-text="usersMsg"></p>
+            </div>
+          </div>
+
+          <!-- Services tab — one-click install of the services a company needs -->
+          <div x-show="tab === 'services'">
+            <div class="card mb-4">
+              <div class="card-header">Services your company can run</div>
+              <p style="font-size:13px;color:var(--text-dim);margin:6px 0 12px">
+                Freeco installs and runs these for you — no setup expertise needed. Each one runs
+                on your own machine with Docker, and connects itself to your agents where possible.
+              </p>
+
+              <!-- Docker prerequisite -->
+              <div x-show="servicesLoaded && !dockerReady" class="card" style="border-color:var(--warning,#f59e0b);margin-bottom:14px">
+                <div style="font-size:13px">
+                  <strong>Docker isn't running yet.</strong>
+                  These services run in Docker. Install
+                  <a href="https://docker.com/products/docker-desktop" target="_blank" rel="noopener">Docker Desktop</a>
+                  (one installer), start it, then press Install — everything else is automatic.
+                </div>
+              </div>
+
+              <div x-show="!servicesLoaded" class="text-xs text-dim">Checking what's available…</div>
+
+              <!-- Service cards -->
+              <template x-for="s in services" :key="s.id">
+                <div class="card" style="margin-bottom:12px">
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                    <div style="flex:1;min-width:220px">
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <strong x-text="s.name"></strong>
+                        <span class="badge" x-show="s.running" style="background:var(--success-subtle);color:var(--success)">running</span>
+                        <span class="badge" x-show="s.connected" style="background:var(--accent-subtle);color:var(--accent)">connected to agents</span>
+                      </div>
+                      <div class="text-xs text-dim" style="margin-top:4px" x-text="s.purpose"></div>
+                      <div class="text-xs text-dim" style="margin-top:4px">
+                        About <span x-text="s.approx_download_gb"></span> GB to download ·
+                        <span x-text="s.auto_connects ? 'connects automatically' : 'needs one manual step'"></span>
+                      </div>
+                      <div class="text-xs" x-show="s.manual_step" style="margin-top:4px;color:var(--text-secondary)" x-text="s.manual_step"></div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+                      <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)"
+                              @click="installService(s.id)"
+                              :disabled="svc.running || !dockerReady">
+                        <span x-show="!s.running">Install</span>
+                        <span x-show="s.running">Reinstall</span>
+                      </button>
+                      <a class="btn btn-ghost btn-sm" x-show="s.running" :href="s.health_url" target="_blank" rel="noopener">Open</a>
+                    </div>
+                  </div>
+
+                  <!-- Live progress for the service being installed -->
+                  <div x-show="svc.service === s.id && svc.phase !== 'idle'" style="margin-top:10px">
+                    <div class="text-xs" :style="svc.phase === 'error' ? 'color:var(--error)' : (svc.phase === 'needs-docker' ? 'color:var(--warning,#f59e0b)' : 'color:var(--text-dim)')" x-text="svc.detail"></div>
+                    <div x-show="svc.running" class="progress" style="margin-top:6px;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+                      <div style="height:100%;background:var(--accent);transition:width .3s"
+                           :style="'width:' + (svc.percent >= 0 ? svc.percent : 30) + '%'"></div>
+                    </div>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
 
@@ -4076,6 +4152,56 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 
           <!-- Tools tab -->
           <div x-show="tab === 'tools'">
+            <!-- Voice AI + MCP tool servers -->
+            <div class="card mb-4" x-init="loadMcpServers()">
+              <div class="card-header">Voice AI &amp; tool servers (MCP)</div>
+              <p class="text-xs text-dim" style="margin:6px 0 12px">
+                Connect external tool servers over MCP. <strong>dograh</strong> gives Freeco and your agents
+                real-time voice (calls, TTS/STT, voice-campaign workflows) for sales, marketing and outreach —
+                run it locally with Docker, then connect it here. Tools activate after a restart.
+              </p>
+
+              <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
+                <div style="flex:1;min-width:220px">
+                  <label class="text-xs text-dim">dograh MCP URL</label>
+                  <input x-model="dographUrl" class="input" style="width:100%" placeholder="http://localhost:8000/mcp">
+                </div>
+                <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)"
+                        @click="connectDograh()" :disabled="mcpBusy">Connect dograh voice</button>
+                <a class="btn btn-ghost btn-sm" href="https://github.com/FreecoDAO/dograh" target="_blank" rel="noopener">How to run dograh</a>
+              </div>
+              <p x-show="mcpMsg" class="text-xs" style="color:var(--success);margin:0 0 10px" x-text="mcpMsg"></p>
+
+              <!-- Generic connector: shopping (kroger-mcp), CRM/accounting wrappers, graphify, etc. -->
+              <details style="margin:0 0 12px">
+                <summary class="text-xs" style="cursor:pointer;color:var(--accent-light)">Add another tool server (shopping, CRM, accounting, retrieval…)</summary>
+                <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px">
+                  <div style="min-width:120px"><label class="text-xs text-dim">Name</label>
+                    <input x-model="newMcp.name" class="input" style="width:100%" placeholder="e.g. shopping"></div>
+                  <div style="min-width:110px"><label class="text-xs text-dim">Type</label>
+                    <select x-model="newMcp.type" class="input" style="width:100%"><option value="stdio">stdio (command)</option><option value="http">http (url)</option></select></div>
+                  <div style="flex:1;min-width:200px"><label class="text-xs text-dim" x-text="newMcp.type === 'http' ? 'URL' : 'Command + args (space-separated)'"></label>
+                    <input x-model="newMcp.value" class="input" style="width:100%" :placeholder="newMcp.type === 'http' ? 'http://localhost:8080/mcp' : 'uvx kroger-mcp'"></div>
+                  <button class="btn btn-ghost btn-sm" @click="addCustomMcp()" :disabled="mcpBusy">Connect</button>
+                </div>
+                <p class="text-xs text-dim" style="margin-top:6px">Examples: <strong>uvx kroger-mcp</strong> (organic/vegan shopping), or a <strong>twenty</strong> CRM / <strong>akaunting</strong> / <strong>graphify</strong> MCP wrapper URL.</p>
+              </details>
+
+              <div x-show="mcpServers.length" class="text-xs text-dim mb-1">Connected servers</div>
+              <table class="data-table" x-show="mcpServers.length" style="width:100%">
+                <tbody>
+                  <template x-for="s in mcpServers" :key="s.name">
+                    <tr>
+                      <td><strong x-text="s.name"></strong></td>
+                      <td class="text-xs text-dim" x-text="(s.transport && (s.transport.url || s.transport.command)) || ''"></td>
+                      <td class="text-xs" :style="s.connected ? 'color:var(--success)' : 'color:var(--text-dim)'" x-text="s.connected ? (s.tool_count + ' tools') : 'connects on restart'"></td>
+                      <td style="text-align:right"><button class="btn btn-ghost btn-sm" style="color:var(--error)" @click="removeMcpServer(s.name)">Remove</button></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
             <div class="search-input mb-4">
               <span style="color:var(--text-muted)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
               <input placeholder="Search tools..." x-model="toolSearch">
@@ -5767,18 +5893,26 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 </div>
 
 <!-- Freeco Assistant — global concierge widget, present on every page -->
-<div x-data="freecoAssistant" x-init="init()" @freeco-navigate.window="navigate($event.detail)" class="freeco-dock">
+<div x-data="freecoAssistant" x-init="init()" @freeco-navigate.window="navigate($event.detail)" @freeco-open.window="if(!open) toggle()" class="freeco-dock">
   <!-- Panel -->
   <div class="freeco-panel" x-show="open" x-cloak x-transition.origin.bottom.right>
     <div class="freeco-panel-header">
       <div class="freeco-brand">
-        <span class="freeco-avatar">✦</span>
+        <span class="freeco-avatar"><img src="/logo.png" alt="Freeco" class="freeco-avatar-img"></span>
         <div>
           <div class="freeco-title">Freeco</div>
-          <div class="freeco-sub">Your AI concierge</div>
+          <div class="freeco-sub">Ethical Executive AI Assistant</div>
         </div>
       </div>
-      <button class="freeco-x" @click="open = false" title="Close" aria-label="Close assistant">&times;</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="freeco-x" @click="voiceOut ? (speaking ? stopSpeaking() : toggleVoiceOut()) : toggleVoiceOut()"
+                :title="voiceOut ? (speaking ? 'Stop speaking' : 'Voice on — click to mute') : 'Voice off — click to let Freeco speak'"
+                :aria-label="voiceOut ? 'Mute Freeco voice' : 'Enable Freeco voice'" style="font-size:16px">
+          <span x-show="voiceOut">&#128266;</span>
+          <span x-show="!voiceOut" x-cloak>&#128263;</span>
+        </button>
+        <button class="freeco-x" @click="stopSpeaking(); open = false" title="Close" aria-label="Close assistant">&times;</button>
+      </div>
     </div>
 
     <div class="freeco-thread" id="freeco-thread">
@@ -5817,8 +5951,8 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
   </div>
 
   <!-- Floating launcher button -->
-  <button class="freeco-fab" @click="toggle()" :class="{ 'freeco-fab-open': open }" :title="open ? 'Close Freeco' : 'Ask Freeco'" aria-label="Ask Freeco assistant">
-    <svg x-show="!open" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 15 9l7 .5-5.3 4.6L18.2 21 12 17l-6.2 4 1.5-6.9L2 9.5 9 9z"/></svg>
+  <button class="freeco-fab" @click="toggle()" :class="{ 'freeco-fab-open': open }" :title="open ? 'Close Freeco' : 'Ask Freeco — your Ethical Executive AI Assistant'" aria-label="Ask Freeco assistant">
+    <img x-show="!open" src="/logo.png" alt="Freeco" class="freeco-fab-logo">
     <svg x-show="open" x-cloak width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
   </button>
 </div>

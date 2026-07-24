@@ -46,6 +46,63 @@ function settingsPage() {
     loading: true,
     loadError: '',
 
+    // -- One-click services (dograh voice, CRM, accounting) --
+    services: [],
+    servicesLoaded: false,
+    dockerReady: false,
+    svc: { phase: 'idle', detail: '', percent: -1, service: '', running: false },
+    svcPoll: null,
+
+    async loadServices() {
+      try {
+        var data = await OpenFangAPI.get('/api/services');
+        this.services = data.services || [];
+        this.dockerReady = !!data.docker_ready;
+        this.servicesLoaded = true;
+      } catch(e) {
+        this.servicesLoaded = true;
+        OpenFangToast.error('Could not load services: ' + (e.message || 'error'));
+      }
+      // If an install is already running (e.g. after a page reload), resume polling.
+      try {
+        var st = await OpenFangAPI.get('/api/services/status');
+        this.svc = st;
+        if (st.running) this.pollServices();
+      } catch(e) { /* silent */ }
+    },
+
+    async installService(id) {
+      if (this.svc.running) { OpenFangToast.info('Another install is already running.'); return; }
+      try {
+        await OpenFangAPI.post('/api/services/' + encodeURIComponent(id) + '/install', {});
+        this.svc = { phase: 'checking', detail: 'Starting…', percent: -1, service: id, running: true };
+        OpenFangToast.success('Install started — this downloads a few GB, keep the app open.');
+        this.pollServices();
+      } catch(e) {
+        OpenFangToast.error('Install failed to start: ' + (e.message || 'error'));
+      }
+    },
+
+    pollServices() {
+      var self = this;
+      if (this.svcPoll) clearInterval(this.svcPoll);
+      this.svcPoll = setInterval(async function() {
+        try { self.svc = await OpenFangAPI.get('/api/services/status'); } catch(e) { return; }
+        if (!self.svc.running) {
+          clearInterval(self.svcPoll);
+          self.svcPoll = null;
+          if (self.svc.phase === 'done') {
+            OpenFangToast.success(self.svc.detail || 'Service is ready.');
+          } else if (self.svc.phase === 'error') {
+            OpenFangToast.error(self.svc.detail || 'Service install failed.');
+          } else if (self.svc.phase === 'needs-docker') {
+            OpenFangToast.warn ? OpenFangToast.warn(self.svc.detail) : OpenFangToast.error(self.svc.detail);
+          }
+          await self.loadServices(); // refresh running/connected badges
+        }
+      }, 2500);
+    },
+
     // -- Local AI (Ollama) setup --
     localAi: { phase: 'idle', detail: '', percent: -1, running: false, ollama_detected: false },
     localAiRecommendation: null,
@@ -53,6 +110,86 @@ function settingsPage() {
 
     async refreshLocalAi() {
       try { this.localAi = await OpenFangAPI.get('/api/local-ai/status'); } catch(e) { /* silent */ }
+    },
+
+    // -- MCP / voice AI (dograh) connectors --
+    mcpServers: [],
+    dographUrl: 'http://localhost:8000/mcp',
+    mcpBusy: false,
+    mcpMsg: '',
+
+    async loadMcpServers() {
+      try {
+        var data = await OpenFangAPI.get('/api/mcp/servers');
+        var configured = (data && data.configured) || [];
+        var connected = (data && data.connected) || [];
+        var byName = {};
+        connected.forEach(function(c) { byName[c.name] = c; });
+        this.mcpServers = configured.map(function(s) {
+          var live = byName[s.name];
+          return {
+            name: s.name,
+            transport: s.transport || {},
+            connected: !!live,
+            tool_count: live ? (live.tools_count || 0) : 0
+          };
+        });
+      } catch (e) { this.mcpServers = []; }
+    },
+
+    newMcp: { name: '', type: 'stdio', value: '' },
+
+    async addCustomMcp() {
+      if (this.mcpBusy) return;
+      var m = this.newMcp;
+      var name = (m.name || '').trim();
+      var value = (m.value || '').trim();
+      if (!name || !value) { OpenFangToast.error('Enter a name and a URL/command'); return; }
+      var transport;
+      if (m.type === 'http') {
+        transport = { type: 'http', url: value };
+      } else {
+        var parts = value.split(/\s+/);
+        transport = { type: 'stdio', command: parts[0], args: parts.slice(1) };
+      }
+      this.mcpBusy = true; this.mcpMsg = '';
+      try {
+        var res = await OpenFangAPI.post('/api/mcp/servers', { name: name, transport: transport });
+        this.mcpMsg = res.message || ('Connected "' + name + '". Restart to activate.');
+        this.newMcp = { name: '', type: 'stdio', value: '' };
+        await this.loadMcpServers();
+      } catch (e) {
+        OpenFangToast.error('Could not connect: ' + (e.message || 'error'));
+      }
+      this.mcpBusy = false;
+    },
+
+    async connectDograh() {
+      if (this.mcpBusy) return;
+      var url = (this.dographUrl || '').trim();
+      if (!url) { OpenFangToast.error('Enter the dograh MCP URL'); return; }
+      this.mcpBusy = true; this.mcpMsg = '';
+      try {
+        var res = await OpenFangAPI.post('/api/mcp/servers', {
+          name: 'dograh', transport: { type: 'http', url: url }
+        });
+        this.mcpMsg = res.message || 'Connected. Restart FreEco.ai to activate dograh voice tools.';
+        await this.loadMcpServers();
+      } catch (e) {
+        OpenFangToast.error('Could not connect dograh: ' + (e.message || 'error'));
+      }
+      this.mcpBusy = false;
+    },
+
+    removeMcpServer(name) {
+      var self = this;
+      OpenFangToast.confirm('Remove server', 'Disconnect MCP server "' + name + '"? Takes effect after a restart.', async function() {
+        try {
+          await OpenFangAPI.del('/api/mcp/servers/' + encodeURIComponent(name));
+          self.mcpMsg = 'Removed "' + name + '". Restart to apply.';
+          await self.loadMcpServers();
+        } catch (e) { OpenFangToast.error(e.message || 'Could not remove'); }
+      });
     },
 
     // One-click model policy: everyday work on a free local Gemma, hard tasks

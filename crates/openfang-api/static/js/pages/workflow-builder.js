@@ -54,6 +54,17 @@ function workflowBuilder() {
         { label: 'Volunteers & Ops', prompt: 'You coordinate volunteers and operations. Plan roles, schedule, and logistics.\n\nContext: {{input}}' },
         { label: 'Finance & Reporting', prompt: 'You handle finance. Track funds and produce a simple transparency report.\n\nActivity: {{input}}' }
       ]},
+      { id: 'freeco-association', name: 'Free Eco Association (nonprofit)', description: 'Grants-first org: funding, partnerships, dev, web, finance.', roles: [
+        { label: 'Director / CEO', prompt: 'You are the Director of the Free Eco Association, a Swiss ethical/ecological nonprofit & DAO. Turn the mission into this quarter\'s priorities and delegate to the teams (grants, partnerships, development, web & comms, ops & finance).\n\nMission: {{input}}' },
+        { label: 'Grant Scout', prompt: 'You are the Grant Scout. Search for grants, VC and funder programs that fit an ethical/ecological Swiss nonprofit. Return a shortlist with deadlines, amounts, eligibility and fit.\n\nContext: {{input}}' },
+        { label: 'Grant Application Writer', prompt: 'You are the Grant Application Writer. Draft a compelling, honest application for the selected grant, filling the required forms and answering each question.\n\nGrant: {{input}}' },
+        { label: 'Compliance & Reporting', prompt: 'You handle compliance and reporting. Track obligations and deadlines, and prepare transparent progress/financial reports for funders.\n\nContext: {{input}}' },
+        { label: 'Relationship Manager', prompt: 'You are the Relationship Manager for grant givers, VCs and partners. Draft outreach and follow-ups across channels, and log every contact to the CRM.\n\nContext: {{input}}' },
+        { label: 'Site Builder', prompt: 'You are the Site Builder. Create and update the Association\'s website and campaign pages.\n\nBrief: {{input}}' },
+        { label: 'SEO / Content', prompt: 'You run SEO and content. Make the site and campaigns findable; write posts and newsletters.\n\nContext: {{input}}' },
+        { label: 'Developer', prompt: 'You are the Developer. Implement tools and automations (coding on GitHub) the Association needs.\n\nTask: {{input}}' },
+        { label: 'Bookkeeper', prompt: 'You are the Bookkeeper. Record income and expenses to the accounting system and produce a simple financial status.\n\nActivity: {{input}}' }
+      ]},
       { id: 'agency', name: 'Content agency', description: 'Account → strategy → creative → production → QA.', roles: [
         { label: 'Account / Brief', prompt: 'You are the account lead. Turn the client ask into a clear brief with goals and constraints.\n\nAsk: {{input}}' },
         { label: 'Strategy', prompt: 'You are the strategist. Turn the brief into an approach, audience, and key messages.\n\nBrief: {{input}}' },
@@ -62,6 +73,73 @@ function workflowBuilder() {
         { label: 'QA & Delivery', prompt: 'You are QA. Check against the brief, fix issues, and prepare final delivery.\n\nDeliverables: {{input}}' }
       ]}
     ],
+
+    // One-click "hire the whole team": create a real agent for every role step
+    // on the canvas and wire it into that step, so a company template goes from
+    // a drawing to a runnable org without assigning each agent by hand.
+    spawningTeam: false,
+
+    async spawnTeam() {
+      if (this.spawningTeam) return;
+      var roleNodes = this.nodes.filter(function(n) { return n.type === 'agent'; });
+      if (!roleNodes.length) {
+        OpenFangToast.error('Load a company template (or add agent steps) first.');
+        return;
+      }
+      var todo = roleNodes.filter(function(n) { return !n.config.agent_name; });
+      if (!todo.length) {
+        OpenFangToast.info('Every role already has an agent assigned.');
+        return;
+      }
+
+      this.spawningTeam = true;
+      var created = 0;
+      var failures = [];
+
+      for (var i = 0; i < todo.length; i++) {
+        var node = todo[i];
+        var roleName = (node.label || ('Role ' + (i + 1))).trim();
+        var prompt = node.config.prompt || ('You are the ' + roleName + ' for this organization.');
+        var toml = [
+          'name = "' + tomlBasicEscape(roleName) + '"',
+          'description = "' + tomlBasicEscape(roleName + ' — created from a FreEco.ai company template') + '"',
+          'module = "builtin:chat"',
+          'profile = "full"',
+          '',
+          '[model]',
+          'provider = "default"',
+          'model = "default"',
+          'system_prompt = """\n' + tomlMultilineEscape(prompt) + '\n"""'
+        ].join('\n');
+
+        try {
+          var res = await OpenFangAPI.post('/api/agents', { manifest_toml: toml });
+          node.config.agent_name = (res && res.name) || roleName;
+          created++;
+          this.scheduleRender();
+        } catch (e) {
+          failures.push(roleName + ': ' + (e.message || 'failed'));
+        }
+      }
+
+      // Refresh the agent dropdown + global list so the new hires appear.
+      try {
+        var list = await OpenFangAPI.get('/api/agents');
+        this.agents = Array.isArray(list) ? list : [];
+      } catch (e) { /* dropdown will refresh on next load */ }
+      try { Alpine.store('app').refreshAgents(); } catch (e) { /* optional */ }
+
+      this.spawningTeam = false;
+      this.scheduleRender();
+
+      if (created && !failures.length) {
+        OpenFangToast.success('Hired ' + created + ' agent(s) and wired them into the workflow. Save it to keep the org.');
+      } else if (created) {
+        OpenFangToast.warn('Hired ' + created + ', but ' + failures.length + ' failed: ' + failures[0]);
+      } else {
+        OpenFangToast.error('Could not create the team: ' + (failures[0] || 'unknown error'));
+      }
+    },
 
     // Lay a company template onto the canvas as start → role steps → end.
     loadCompanyTemplate: function(id) {

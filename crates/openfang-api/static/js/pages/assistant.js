@@ -22,6 +22,10 @@ function freecoAssistant() {
     _rec: null,
     _chunks: [],
     _timer: null,
+    // spoken replies (browser text-to-speech, offline, in a warm male voice)
+    voiceOut: (function() { try { return localStorage.getItem('freeco-voice-out') !== 'off'; } catch (e) { return true; } })(),
+    speaking: false,
+    _voice: null,
 
     // Quick-setup topics — each routes to the relevant builder and seeds a
     // guiding prompt so Freeco can walk the user through it.
@@ -45,6 +49,13 @@ function freecoAssistant() {
       // Re-resolve the concierge agent whenever the shared agent list changes.
       this.$watch('$store.app.agents', function() { self._resolveAgent(); });
       this._resolveAgent();
+      // Browsers load TTS voices asynchronously — grab them now and again when
+      // the list becomes available, so the first spoken reply already has a
+      // good male voice picked.
+      if (window.speechSynthesis) {
+        self._voice = self._pickVoice();
+        window.speechSynthesis.onvoiceschanged = function() { self._voice = self._pickVoice(); };
+      }
       this.booted = true;
     },
 
@@ -60,10 +71,34 @@ function freecoAssistant() {
       this.agent = pick || agents[0];
     },
 
+    // Freeco should work the moment you open it. If the workspace has no
+    // agents, create the bundled concierge automatically instead of telling the
+    // user to go build one — nobody should have to assemble their assistant
+    // before they can ask it anything.
+    _ensureConcierge: async function() {
+      if (this.agent || this._creatingAgent) return;
+      this._creatingAgent = true;
+      try {
+        var res = await OpenFangAPI.post('/api/agents', { template: 'freeco-concierge' });
+        if (res && (res.agent_id || res.name)) {
+          try { await Alpine.store('app').refreshAgents(); } catch (e) { /* optional */ }
+          this._resolveAgent();
+          if (!this.agent && res.name) {
+            this.agent = { id: res.agent_id, name: res.name };
+            this.noAgents = false;
+          }
+        }
+      } catch (e) {
+        // Leave noAgents true; send() will show the manual path.
+      }
+      this._creatingAgent = false;
+    },
+
     toggle: function() {
       this.open = !this.open;
       if (this.open) {
         this._resolveAgent();
+        if (!this.agent) this._ensureConcierge();
         if (!this.messages.length) this._greet();
         var self = this;
         this.$nextTick(function() {
@@ -79,7 +114,7 @@ function freecoAssistant() {
       var hi = name ? ('Hi ' + name + ' — ') : 'Hi — ';
       this.messages.push({
         id: ++mId, role: 'freeco', ts: Date.now(),
-        html: '<p>' + hi + "I'm <strong>Freeco</strong>, your AI concierge. Tell me what you want to build — a company, a nonprofit, a workflow — and I'll help you set up the agents, tools and channels to run it. Pick a shortcut below or just type/talk.</p>"
+        html: '<p>' + hi + "I'm <strong>Freeco</strong>, your Ethical Executive AI Assistant &amp; Concierge. Tell me what you want to build — a company, a nonprofit, a workflow, or just shop and chat — and I'll help you set up the agents, tools and channels to run it. Pick a shortcut below or just type/talk.</p>"
       });
     },
 
@@ -113,10 +148,22 @@ function freecoAssistant() {
       try {
         var res = await OpenFangAPI.post('/api/agents/' + this.agent.id + '/message', { message: text });
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
-        this.messages.push({ id: ++mId, role: 'freeco', ts: Date.now(), html: this._md(res.response || '(no reply)') });
+        var reply = res.response || '(no reply)';
+        this.messages.push({ id: ++mId, role: 'freeco', ts: Date.now(), html: this._md(reply) });
+        if (this.voiceOut) this.speak(reply);
       } catch (e) {
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
-        this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: 'Error: ' + this._escape(e.message || 'request failed') });
+        var msg = (e.message || 'request failed').toLowerCase();
+        var friendly;
+        // The most common cause on a fresh install: the default model points at
+        // a local Ollama model that is not installed yet, or no cloud key is set.
+        if (msg.indexOf('server error') !== -1 || msg.indexOf('connection') !== -1 ||
+            msg.indexOf('model') !== -1 || msg.indexOf('11434') !== -1 || msg.indexOf('ollama') !== -1) {
+          friendly = 'I couldn’t reach a language model. Set one up first: open <a href="#" onclick="window.dispatchEvent(new CustomEvent(\'freeco-navigate\',{detail:\'settings\'}));return false;">Settings → Providers</a> and either <strong>Set up free local AI</strong> (downloads a local Gemma) or add a cloud API key. Then try again.';
+        } else {
+          friendly = 'Something went wrong: ' + this._escape(e.message || 'request failed');
+        }
+        this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: friendly });
       }
       this.sending = false;
       this._scroll();
@@ -127,6 +174,49 @@ function freecoAssistant() {
     // ---- Voice (hold-to-talk) ----
     startVoice: async function() {
       if (this.recording) return;
+
+      // Preferred path: the browser's own speech recognition. It needs no API
+      // key, no server and no Whisper install, so voice input works out of the
+      // box. Only if it is unavailable do we fall back to record-and-upload,
+      // which requires a speech-to-text service to be configured.
+      var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SR) {
+        var self = this;
+        try {
+          var recog = new SR();
+          recog.lang = navigator.language || 'en-US';
+          recog.interimResults = false;
+          recog.maxAlternatives = 1;
+          recog.continuous = false;
+          recog.onresult = function(ev) {
+            var said = '';
+            for (var i = 0; i < ev.results.length; i++) said += ev.results[i][0].transcript;
+            said = said.trim();
+            if (said) { self.input = said; self.send(); }
+          };
+          recog.onerror = function(ev) {
+            self.recording = false;
+            var why = (ev && ev.error) || 'unknown';
+            if (why === 'not-allowed' || why === 'service-not-allowed') {
+              if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Microphone access denied');
+            } else if (why !== 'aborted' && why !== 'no-speech') {
+              self.messages.push({ id: ++mId, role: 'system', ts: Date.now(),
+                html: 'Voice input failed (' + self._escape(why) + '). You can type instead.' });
+              self._scroll();
+            }
+          };
+          recog.onend = function() { self.recording = false; if (self._timer) { clearInterval(self._timer); self._timer = null; } };
+          this._recog = recog;
+          recog.start();
+          this.recording = true;
+          this.recordingTime = 0;
+          this._timer = setInterval(function() { self.recordingTime++; }, 1000);
+          return;
+        } catch (e) {
+          this._recog = null; // fall through to the upload path
+        }
+      }
+
       if (!navigator.mediaDevices || !window.MediaRecorder) {
         if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Voice not supported in this browser');
         return;
@@ -149,7 +239,16 @@ function freecoAssistant() {
       }
     },
     stopVoice: function() {
-      if (!this.recording || !this._rec) return;
+      if (!this.recording) return;
+      // Browser speech recognition path
+      if (this._recog) {
+        try { this._recog.stop(); } catch (e) { /* ignore */ }
+        this._recog = null;
+        this.recording = false;
+        if (this._timer) { clearInterval(this._timer); this._timer = null; }
+        return;
+      }
+      if (!this._rec) return;
       this._rec.stop();
       this.recording = false;
       if (this._timer) { clearInterval(this._timer); this._timer = null; }
@@ -187,6 +286,60 @@ function freecoAssistant() {
     voiceTime: function() {
       var m = Math.floor(this.recordingTime / 60), s = this.recordingTime % 60;
       return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    },
+
+    // ---- Spoken replies (offline browser TTS, warm male voice) ----
+    // Pick the most trustworthy-sounding English male voice the OS offers.
+    _pickVoice: function() {
+      if (!window.speechSynthesis) return null;
+      var voices = window.speechSynthesis.getVoices() || [];
+      if (!voices.length) return null;
+      var en = voices.filter(function(v) { return /^en(-|_|$)/i.test(v.lang || ''); });
+      var pool = en.length ? en : voices;
+      // Preference order: named male voices that are pleasant and clear.
+      var prefer = ['david', 'guy', 'daniel', 'james', 'george', 'ryan', 'brian', 'aaron', 'fred', 'male'];
+      for (var i = 0; i < prefer.length; i++) {
+        var hit = pool.find(function(v) { return (v.name || '').toLowerCase().indexOf(prefer[i]) !== -1; });
+        if (hit) return hit;
+      }
+      // Avoid obviously female-named voices if we can.
+      var female = /zira|female|susan|hazel|linda|catherine|samantha|victoria|karen|moira|tessa|fiona/i;
+      var notFemale = pool.find(function(v) { return !female.test(v.name || ''); });
+      return notFemale || pool[0];
+    },
+
+    speak: function(text) {
+      if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+      var clean = String(text || '')
+        .replace(/```[\s\S]*?```/g, ' code block ')  // don't read code aloud
+        .replace(/[*_`#>|]/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')      // links -> link text
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!clean) return;
+      try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+      if (!this._voice) this._voice = this._pickVoice();
+      var u = new SpeechSynthesisUtterance(clean.slice(0, 600));
+      if (this._voice) u.voice = this._voice;
+      u.rate = 1.0;
+      u.pitch = 0.92;   // slightly lower = warmer, more trustworthy
+      u.volume = 1.0;
+      var self = this;
+      u.onstart = function() { self.speaking = true; };
+      u.onend = function() { self.speaking = false; };
+      u.onerror = function() { self.speaking = false; };
+      window.speechSynthesis.speak(u);
+    },
+
+    stopSpeaking: function() {
+      try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+      this.speaking = false;
+    },
+
+    toggleVoiceOut: function() {
+      this.voiceOut = !this.voiceOut;
+      try { localStorage.setItem('freeco-voice-out', this.voiceOut ? 'on' : 'off'); } catch (e) { /* ignore */ }
+      if (!this.voiceOut) this.stopSpeaking();
     },
 
     onKey: function(e) {

@@ -42,6 +42,7 @@ pub mod rate_limiter;
 pub mod routes;
 pub mod security;
 pub mod server;
+pub mod services;
 pub mod session_auth;
 pub mod stream_chunker;
 pub mod stream_dedup;

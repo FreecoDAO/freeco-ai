@@ -24,8 +24,10 @@ use tokio::io::AsyncWriteExt;
 
 const OLLAMA_BASE: &str = "http://127.0.0.1:11434";
 const OLLAMA_WINDOWS_INSTALLER: &str = "https://ollama.com/download/OllamaSetup.exe";
-/// Default starter model — small enough for ordinary laptops.
-const DEFAULT_MODEL: &str = "gemma4:e4b";
+/// Default starter model — genuinely small enough for ordinary laptops.
+/// (Gemma 4 E4B is a ~10 GB download and needs ~24 GB RAM; it is NOT a safe
+/// default and was making setup download for hours on 8–16 GB machines.)
+const DEFAULT_MODEL: &str = "gemma3n:e2b";
 
 /// Hardware requirements for a locally downloadable Ollama model. This is
 /// deliberately catalog data rather than selection logic so the dashboard and
@@ -38,6 +40,9 @@ pub struct LocalModelProfile {
     pub min_ram_gb: u64,
     pub min_vram_gb: u64,
     pub min_disk_gb: u64,
+    /// MEASURED download size in GB. Shown up-front so nobody starts a
+    /// multi-hour download blind — on a 500 KB/s line, 5 GB is ~3 hours.
+    pub download_gb: f32,
 }
 
 const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
@@ -48,25 +53,44 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 4,
         min_vram_gb: 0,
         min_disk_gb: 3,
+        download_gb: 1.3,
     },
     LocalModelProfile {
         // Gemma has no sub-4B in the 4-series; the Gemma 3 "Nano" 2B is the
         // smallest verified-existing Gemma for weak machines (gemma4:1b/2b
         // do NOT exist on Ollama's registry — they 404).
         id: "gemma3n:e2b",
-        display_name: "Gemma 3 Nano 2B",
-        purpose: "lightweight assistant for weaker laptops",
-        min_ram_gb: 6,
+        display_name: "Gemma 3 Nano E2B",
+        purpose: "balanced assistant for 8-16 GB laptops (~5.6 GB download)",
+        min_ram_gb: 10,
         min_vram_gb: 0,
-        min_disk_gb: 4,
+        min_disk_gb: 8,
+        download_gb: 5.6,
     },
     LocalModelProfile {
-        id: "gemma4:e4b",
-        display_name: "Gemma 4 4B",
-        purpose: "recommended general assistant for ordinary laptops",
-        min_ram_gb: 8,
+        // MEASURED 7.2 GB. The lightest Gemma 4 that exists: the only real
+        // gemma4 tags are e2b, e4b and 12b (1b/2b/4b/9b/27b all 404), so there
+        // is no "small" Gemma 4 — even the smallest carries a large weight file.
+        id: "gemma4:e2b",
+        display_name: "Gemma 4 E2B",
+        purpose: "lightest Gemma 4 — good general assistant for 16 GB machines",
+        min_ram_gb: 12,
         min_vram_gb: 0,
-        min_disk_gb: 6,
+        min_disk_gb: 10,
+        download_gb: 7.2,
+    },
+    LocalModelProfile {
+        // MEASURED: the actual Ollama download is ~9.6 GB (not the ~3 GB this
+        // catalog used to claim), and a model needs roughly its file size in
+        // RAM plus context. Recommending it to an 8 GB machine made setup
+        // download for hours and then thrash. Sized honestly now.
+        id: "gemma4:e4b",
+        display_name: "Gemma 4 E4B",
+        purpose: "high-quality general assistant (large download ~10 GB)",
+        min_ram_gb: 24,
+        min_vram_gb: 0,
+        min_disk_gb: 14,
+        download_gb: 9.6,
     },
     LocalModelProfile {
         id: "qwen2.5-coder:3b",
@@ -75,6 +99,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 8,
         min_vram_gb: 0,
         min_disk_gb: 5,
+        download_gb: 1.9,
     },
     LocalModelProfile {
         id: "qwen2.5-coder:7b",
@@ -83,6 +108,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 16,
         min_vram_gb: 8,
         min_disk_gb: 10,
+        download_gb: 4.7,
     },
     LocalModelProfile {
         id: "mistral:7b",
@@ -91,6 +117,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 16,
         min_vram_gb: 8,
         min_disk_gb: 10,
+        download_gb: 4.1,
     },
     LocalModelProfile {
         id: "gemma4:12b",
@@ -99,6 +126,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         min_ram_gb: 24,
         min_vram_gb: 12,
         min_disk_gb: 16,
+        download_gb: 8.1,
     },
 ];
 
@@ -125,6 +153,31 @@ fn linux_mem_total_gb() -> Option<u64> {
     Some(kb / 1024 / 1024)
 }
 
+/// Total physical RAM in GiB on Windows, via PowerShell/CIM. Without this the
+/// model picker sees `None` RAM and falls back to the tiniest model — the cause
+/// of "Everyday: llama3.2:1b" on capable Windows machines.
+async fn windows_mem_total_gb() -> Option<u64> {
+    let out = command_output(
+        "powershell",
+        &[
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory",
+        ],
+    )
+    .await?;
+    let bytes = out.trim().parse::<u64>().ok()?;
+    Some(bytes / 1024 / 1024 / 1024)
+}
+
+/// Total physical RAM in GiB on macOS, via `sysctl hw.memsize` (bytes).
+async fn macos_mem_total_gb() -> Option<u64> {
+    let out = command_output("sysctl", &["-n", "hw.memsize"]).await?;
+    let bytes = out.trim().parse::<u64>().ok()?;
+    Some(bytes / 1024 / 1024 / 1024)
+}
+
 async fn command_output(command: &str, args: &[&str]) -> Option<String> {
     let output = tokio::process::Command::new(command)
         .args(args)
@@ -139,10 +192,11 @@ async fn command_output(command: &str, args: &[&str]) -> Option<String> {
 
 async fn detect_hardware() -> LocalHardware {
     let os = std::env::consts::OS.to_string();
-    let ram_gb = if os == "linux" {
-        linux_mem_total_gb()
-    } else {
-        None
+    let ram_gb = match os.as_str() {
+        "linux" => linux_mem_total_gb(),
+        "windows" => windows_mem_total_gb().await,
+        "macos" => macos_mem_total_gb().await,
+        _ => None,
     };
     let vram_gb = command_output(
         "nvidia-smi",
@@ -197,10 +251,15 @@ fn recommended_model(hardware: &LocalHardware, purpose: &str) -> &'static str {
             "llama3.2:1b"
         };
     }
-    if ram >= 24 || vram >= 12 {
+    // Sized against MEASURED download/RAM cost, not optimism. A model needs
+    // roughly its file size in RAM plus context, so leave headroom for the OS.
+    if ram >= 48 || vram >= 24 {
         "gemma4:12b"
-    } else if ram >= 8 {
-        DEFAULT_MODEL
+    } else if ram >= 24 || vram >= 12 {
+        "gemma4:e4b"
+    } else if ram >= 12 {
+        // Lightest Gemma 4 that exists (7.2 GB); comfortable on a 16 GB machine.
+        "gemma4:e2b"
     } else if ram >= 6 {
         "gemma3n:e2b"
     } else {
@@ -429,6 +488,60 @@ pub async fn local_ai_setup(
     )
 }
 
+/// Ollama is installed but not serving? Start it and wait briefly for the API.
+/// Returns true once `ollama serve` answers. This avoids the worst failure mode
+/// of local-AI setup: re-downloading a ~1 GB installer for software the user
+/// already has.
+async fn start_installed_ollama(status: &SharedLocalAiStatus) -> bool {
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+    if let Some(local) = dirs::data_local_dir() {
+        candidates.push(local.join("Programs").join("Ollama").join("ollama.exe"));
+        candidates.push(local.join("Programs").join("Ollama").join("ollama app.exe"));
+    }
+    for p in [
+        "/usr/local/bin/ollama",
+        "/usr/bin/ollama",
+        "/opt/homebrew/bin/ollama",
+        "/Applications/Ollama.app/Contents/MacOS/Ollama",
+    ] {
+        candidates.push(std::path::PathBuf::from(p));
+    }
+
+    let exe = candidates.into_iter().find(|p| p.exists());
+    let Some(exe) = exe else {
+        return false;
+    };
+
+    set_status(
+        status,
+        "starting",
+        "Ollama is already installed — starting it...".into(),
+        -1,
+    )
+    .await;
+
+    // `ollama serve` for the CLI binary; the desktop "app" launcher takes no args.
+    let is_app = exe
+        .file_name()
+        .map(|n| n.to_string_lossy().contains("app"))
+        .unwrap_or(false);
+    let mut cmd = tokio::process::Command::new(&exe);
+    if !is_app {
+        cmd.arg("serve");
+    }
+    if cmd.spawn().is_err() {
+        return false;
+    }
+
+    for _ in 0..20 {
+        if ollama_running().await {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+    false
+}
+
 async fn run_setup(
     status: &SharedLocalAiStatus,
     model: &str,
@@ -436,7 +549,14 @@ async fn run_setup(
 ) -> Result<(), String> {
     // 1. Detect
     if !ollama_running().await {
-        if cfg!(target_os = "windows") {
+        // Ollama is very often already INSTALLED but simply not running (the
+        // user closed it, or the silent installer didn't launch it). Starting
+        // it takes a second; re-downloading a ~1 GB installer takes minutes and
+        // is what made setup look like it "did nothing". Always try to start
+        // what's on disk before downloading anything.
+        if start_installed_ollama(status).await {
+            // running now — fall through to the model pull
+        } else if cfg!(target_os = "windows") {
             install_ollama_windows(status).await?;
         } else {
             set_status(
@@ -488,8 +608,9 @@ async fn run_setup(
             }
             Err(e) => {
                 return Err(format!(
-                    "Model download kept failing after {MAX_PULL_ATTEMPTS} attempts: {e}. \
-                     Finished parts are kept — press Set up again to resume from where it stopped."
+                    "Model download kept failing after {MAX_PULL_ATTEMPTS} attempts: {}. \
+                     Finished parts are kept — press Set up again to resume from where it stopped.",
+                    explain_network_error(&e)
                 ))
             }
         }
@@ -592,6 +713,37 @@ async fn verify_windows_signature(_path: &std::path::Path) -> Result<(), String>
     Ok(())
 }
 
+/// Turn a raw network failure into an actionable message.
+///
+/// Real case that cost hours: on a phone hotspot, Windows preferred IPv6, the
+/// model CDN resolved to an IPv6-only address, and every download died with
+/// "no such host" — while a perfectly good IPv4 route sat unused. "Check your
+/// internet connection" is useless there; the user needs the actual fix.
+fn explain_network_error(err: &str) -> String {
+    let e = err.to_lowercase();
+    let looks_like_dns = e.contains("no such host")
+        || e.contains("dns")
+        || e.contains("failed to lookup")
+        || e.contains("name or service not known");
+    if looks_like_dns {
+        return format!(
+            "{err}\n\nThis usually means your network cannot reach the model server. \
+             The most common cause is a mobile hotspot or router where IPv6 is \
+             advertised but not actually routable. Fix on Windows (as Administrator):\n\
+             \x20   Disable-NetAdapterBinding -Name \"Wi-Fi\" -ComponentID ms_tcpip6\n\
+             then press Set up again. Alternatively switch to another network."
+        );
+    }
+    if e.contains("timed out") || e.contains("timeout") {
+        return format!(
+            "{err}\n\nThe connection is very slow or stalling. Model files are several \
+             GB — on a slow link consider a smaller model, or use a USB bundle that \
+             already carries the model (see docs/usb-plug-and-play.md)."
+        );
+    }
+    err.to_string()
+}
+
 /// Download `url` to `dest`, surviving flaky connections: it resumes with an
 /// HTTP Range request after a dropped stream instead of starting over, and it
 /// verifies the file on disk matches the server's Content-Length before
@@ -614,6 +766,13 @@ async fn download_with_resume(
     let max_attempts = 8u32;
     let mut last_err = String::from("unknown error");
 
+    // Start clean. A leftover partial/complete file from an earlier failed
+    // setup is the classic cause of HTTP 416 (Range Not Satisfiable): we ask to
+    // resume from a byte offset that is past the end of the resource. Within a
+    // single call we still resume across dropped connections; we just never
+    // inherit a stale file from a previous run.
+    let _ = tokio::fs::remove_file(dest).await;
+
     for attempt in 1..=max_attempts {
         let backoff = std::time::Duration::from_secs((attempt as u64).min(5));
 
@@ -628,7 +787,7 @@ async fn download_with_resume(
             req = req.header(reqwest::header::RANGE, format!("bytes={have}-"));
         }
 
-        let resp = match req.send().await.and_then(|r| r.error_for_status()) {
+        let resp = match req.send().await {
             Ok(r) => r,
             Err(e) => {
                 last_err = format!("connection error: {e}");
@@ -636,6 +795,32 @@ async fn download_with_resume(
                     status,
                     "downloading-installer",
                     format!("{label}: connection issue, retrying ({attempt}/{max_attempts})..."),
+                    -1,
+                )
+                .await;
+                tokio::time::sleep(backoff).await;
+                continue;
+            }
+        };
+
+        // 416 Range Not Satisfiable: the local partial file is >= the resource
+        // size (stale or already complete). Delete it and restart from byte 0
+        // instead of hammering the same out-of-range request until we run out
+        // of attempts.
+        if resp.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+            let _ = tokio::fs::remove_file(dest).await;
+            last_err = "stale partial file (HTTP 416) — restarting from scratch".into();
+            continue;
+        }
+
+        let resp = match resp.error_for_status() {
+            Ok(r) => r,
+            Err(e) => {
+                last_err = format!("HTTP error: {e}");
+                set_status(
+                    status,
+                    "downloading-installer",
+                    format!("{label}: server error, retrying ({attempt}/{max_attempts})..."),
                     -1,
                 )
                 .await;
@@ -737,8 +922,8 @@ async fn download_with_resume(
     }
 
     Err(format!(
-        "could not download {label} after {max_attempts} attempts ({last_err}). \
-         Check your internet connection and press Set up again."
+        "could not download {label} after {max_attempts} attempts: {}",
+        explain_network_error(&last_err)
     ))
 }
 
@@ -934,9 +1119,21 @@ mod tests {
             ram_gb: Some(32),
             ..low.clone()
         };
+        let workstation = LocalHardware {
+            ram_gb: Some(48),
+            ..low.clone()
+        };
+        let small = LocalHardware {
+            ram_gb: Some(8),
+            ..low.clone()
+        };
+        // The ladder is sized against MEASURED model cost, so each rung stays
+        // comfortably within RAM rather than recommending an oversized model.
         assert_eq!(recommended_model(&low, "general"), "llama3.2:1b");
-        assert_eq!(recommended_model(&ordinary, "general"), "gemma4:e4b");
-        assert_eq!(recommended_model(&powerful, "general"), "gemma4:12b");
+        assert_eq!(recommended_model(&small, "general"), "gemma3n:e2b");
+        assert_eq!(recommended_model(&ordinary, "general"), "gemma4:e2b");
+        assert_eq!(recommended_model(&powerful, "general"), "gemma4:e4b");
+        assert_eq!(recommended_model(&workstation, "general"), "gemma4:12b");
     }
 
     #[test]
