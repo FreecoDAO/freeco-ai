@@ -27,7 +27,7 @@ const OLLAMA_WINDOWS_INSTALLER: &str = "https://ollama.com/download/OllamaSetup.
 /// Default starter model — genuinely small enough for ordinary laptops.
 /// (Gemma 4 E4B is a ~10 GB download and needs ~24 GB RAM; it is NOT a safe
 /// default and was making setup download for hours on 8–16 GB machines.)
-const DEFAULT_MODEL: &str = "gemma3n:e2b";
+const DEFAULT_MODEL: &str = "gemma4:e2b";
 
 /// Hardware requirements for a locally downloadable Ollama model. This is
 /// deliberately catalog data rather than selection logic so the dashboard and
@@ -303,6 +303,38 @@ async fn ollama_running() -> bool {
     )
 }
 
+/// Model names currently installed in the local Ollama (from `/api/tags`).
+/// Returns an empty list if Ollama isn't reachable.
+async fn installed_ollama_models() -> Vec<String> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("{OLLAMA_BASE}/api/tags"))
+        .timeout(std::time::Duration::from_secs(4))
+        .send()
+        .await;
+    let Ok(resp) = resp else { return Vec::new() };
+    let Ok(json) = resp.json::<serde_json::Value>().await else {
+        return Vec::new();
+    };
+    json.get("models")
+        .and_then(|m| m.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| m.get("name").and_then(|n| n.as_str()).map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// True if `model` is present in Ollama's installed list, tolerating the
+/// implicit `:latest` tag (a pulled `gemma4:e2b` may report as `gemma4:e2b` or
+/// `gemma4:e2b:latest`).
+fn model_is_installed(model: &str, installed: &[String]) -> bool {
+    let norm = |s: &str| s.trim_end_matches(":latest").to_string();
+    let target = norm(model);
+    installed.iter().any(|m| norm(m) == target)
+}
+
 /// GET /api/local-ai/status
 pub async fn local_ai_status(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let s = state.local_ai.read().await.clone();
@@ -373,8 +405,31 @@ fn detect_complex_model() -> Option<(&'static str, &'static str, &'static str)> 
 pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let home = state.kernel.config.home_dir.clone();
     let hardware = detect_hardware().await;
-    let local_model = recommended_model(&hardware, "general");
+    let recommended = recommended_model(&hardware, "general");
     let ollama_ready = ollama_running().await;
+
+    // Point the default at a model that is ACTUALLY installed, so agents never
+    // get pointed at a model that was never pulled ("no model connected").
+    // Prefer the recommended model; if it isn't installed but something else is,
+    // use the most capable installed catalogue model; otherwise fall back to the
+    // recommendation (which the user can then install).
+    let installed = if ollama_ready {
+        installed_ollama_models().await
+    } else {
+        Vec::new()
+    };
+    let local_model: &str = if !ollama_ready || model_is_installed(recommended, &installed) {
+        recommended
+    } else {
+        // LOCAL_MODEL_CATALOG is ordered smallest → largest; pick the largest
+        // installed one for best capability, else keep the recommendation.
+        LOCAL_MODEL_CATALOG
+            .iter()
+            .rev()
+            .map(|p| p.id)
+            .find(|id| model_is_installed(id, &installed))
+            .unwrap_or(recommended)
+    };
 
     if let Err(e) = write_default_model(&home, local_model) {
         return (
