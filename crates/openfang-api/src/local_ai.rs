@@ -1119,9 +1119,21 @@ mod tests {
             ram_gb: Some(32),
             ..low.clone()
         };
+        let workstation = LocalHardware {
+            ram_gb: Some(48),
+            ..low.clone()
+        };
+        let small = LocalHardware {
+            ram_gb: Some(8),
+            ..low.clone()
+        };
+        // The ladder is sized against MEASURED model cost, so each rung stays
+        // comfortably within RAM rather than recommending an oversized model.
         assert_eq!(recommended_model(&low, "general"), "llama3.2:1b");
-        assert_eq!(recommended_model(&ordinary, "general"), "gemma4:e4b");
-        assert_eq!(recommended_model(&powerful, "general"), "gemma4:12b");
+        assert_eq!(recommended_model(&small, "general"), "gemma3n:e2b");
+        assert_eq!(recommended_model(&ordinary, "general"), "gemma4:e2b");
+        assert_eq!(recommended_model(&powerful, "general"), "gemma4:e4b");
+        assert_eq!(recommended_model(&workstation, "general"), "gemma4:12b");
     }
 
     #[test]
