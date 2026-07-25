@@ -13550,11 +13550,15 @@ pub async fn auth_disable(
     // Also drop the first-run marker so the setup prompt doesn't immediately
     // reappear after the restart.
     let _ = std::fs::write(
-        state.kernel.config.home_dir.join(".dashboard_setup_dismissed"),
+        state
+            .kernel
+            .config
+            .home_dir
+            .join(".dashboard_setup_dismissed"),
         b"1",
     );
     match toml::to_string_pretty(&table) {
-        Ok(s) if std::fs::write(&config_path, s).is_ok() => {
+        Ok(s) if std::fs::write(&config_path, &s).is_ok() => {
             state.kernel.audit_log.record(
                 "system",
                 openfang_runtime::audit::AuditAction::ConfigChange,

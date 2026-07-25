@@ -1371,7 +1371,10 @@ async fn provision_llama(
     set_status(
         status,
         "starting",
-        format!("Starting {} on 127.0.0.1:{LLAMA_PORT}...", model.display_name),
+        format!(
+            "Starting {} on 127.0.0.1:{LLAMA_PORT}...",
+            model.display_name
+        ),
         -1,
     )
     .await;
