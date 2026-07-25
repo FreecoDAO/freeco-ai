@@ -805,7 +805,7 @@ fn explain_network_error(err: &str) -> String {
 /// returning. This is what makes local-AI setup work "on any connection" —
 /// a truncated file would otherwise fail signature verification with a blank
 /// status downstream.
-async fn download_with_resume(
+pub(crate) async fn download_with_resume(
     status: &SharedLocalAiStatus,
     url: &str,
     dest: &std::path::Path,
@@ -1123,9 +1123,303 @@ fn write_default_model(home: &std::path::Path, model: &str) -> Result<(), String
     std::fs::write(&path, rendered).map_err(|e| format!("write config.toml: {e}"))
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// llama.cpp local runtime (Ollama-free)
+//
+// Runs a GGUF model via llama.cpp's `llama-server` — an OpenAI-compatible
+// API on localhost. Models are fetched from HuggingFace, which supports
+// HTTP Range resume (unlike Ollama's registry, which ignores Range and
+// re-downloads from zero on a slow link). Gemma 4 QAT is the default family.
+// ─────────────────────────────────────────────────────────────────────
+
+const LLAMA_PORT: u16 = 8080;
+
+/// A GGUF model FreEco can download and run with llama.cpp. Filenames and
+/// sizes are verified against the HuggingFace repos.
+#[derive(Debug, Clone, Serialize)]
+pub struct GgufModel {
+    pub id: &'static str,
+    pub display_name: &'static str,
+    pub purpose: &'static str,
+    pub url: &'static str,
+    pub file_name: &'static str,
+    pub download_gb: f32,
+    pub min_ram_gb: u64,
+}
+
+pub const LLAMA_GGUF_CATALOG: &[GgufModel] = &[
+    GgufModel {
+        id: "gemma-4-e2b-qat-q4",
+        display_name: "Gemma 4 E2B — QAT Q4 (recommended)",
+        purpose: "Everyday assistant; best quality-for-size on ordinary laptops.",
+        url: "https://huggingface.co/unsloth/gemma-4-E2B-it-qat-GGUF/resolve/main/gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf",
+        file_name: "gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf",
+        download_gb: 2.5,
+        min_ram_gb: 8,
+    },
+    GgufModel {
+        id: "gemma-4-e2b-qat-q2",
+        display_name: "Gemma 4 E2B — QAT Q2 (smallest)",
+        purpose: "Lowest RAM / fastest download; slightly lower quality.",
+        url: "https://huggingface.co/unsloth/gemma-4-E2B-it-qat-GGUF/resolve/main/gemma-4-E2B-it-qat-UD-Q2_K_XL.gguf",
+        file_name: "gemma-4-E2B-it-qat-UD-Q2_K_XL.gguf",
+        download_gb: 2.0,
+        min_ram_gb: 6,
+    },
+    GgufModel {
+        id: "gemma-4-e4b-qat-q2",
+        display_name: "Gemma 4 E4B — QAT Q2 (bigger brain)",
+        purpose: "More capable; needs more RAM.",
+        url: "https://huggingface.co/unsloth/gemma-4-E4B-it-qat-GGUF/resolve/main/gemma-4-E4B-it-qat-UD-Q2_K_XL.gguf",
+        file_name: "gemma-4-E4B-it-qat-UD-Q2_K_XL.gguf",
+        download_gb: 3.0,
+        min_ram_gb: 12,
+    },
+];
+
+fn gguf_catalog_entry(id: &str) -> Option<&'static GgufModel> {
+    LLAMA_GGUF_CATALOG.iter().find(|m| m.id == id)
+}
+
+/// Where downloaded GGUF models live (on the same disk as config — the USB
+/// when FreEco runs from one). Overridable later for the "install to USB vs
+/// folder" choice.
+fn models_dir(home: &std::path::Path) -> std::path::PathBuf {
+    home.join("models")
+}
+
+/// Locate the `llama-server` binary: bundled under `~/.openfang/llamacpp/`,
+/// else on PATH. Returns None if not found (caller reports how to get it).
+fn find_llama_server(home: &std::path::Path) -> Option<std::path::PathBuf> {
+    let exe = if cfg!(windows) {
+        "llama-server.exe"
+    } else {
+        "llama-server"
+    };
+    let bundled = home.join("llamacpp").join(exe);
+    if bundled.exists() {
+        return Some(bundled);
+    }
+    // Fall back to PATH.
+    which_on_path(exe)
+}
+
+fn which_on_path(exe: &str) -> Option<std::path::PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&path) {
+        let cand = dir.join(exe);
+        if cand.exists() {
+            return Some(cand);
+        }
+    }
+    None
+}
+
+/// Spawn `llama-server` serving `gguf` on 127.0.0.1:LLAMA_PORT. The child is
+/// detached (survives this request); a std Child dropped is NOT killed.
+fn start_llama_server(server: &std::path::Path, gguf: &std::path::Path) -> Result<(), String> {
+    use std::process::{Command, Stdio};
+    let log = gguf
+        .parent()
+        .map(|p| p.join("llama-server.log"))
+        .and_then(|p| std::fs::File::create(p).ok());
+    let (out, err) = match log {
+        Some(f) => (
+            Stdio::from(f.try_clone().map_err(|e| e.to_string())?),
+            Stdio::from(f),
+        ),
+        None => (Stdio::null(), Stdio::null()),
+    };
+    Command::new(server)
+        .arg("-m")
+        .arg(gguf)
+        .arg("--host")
+        .arg("127.0.0.1")
+        .arg("--port")
+        .arg(LLAMA_PORT.to_string())
+        .arg("-c")
+        .arg("4096")
+        .stdout(out)
+        .stderr(err)
+        .spawn()
+        .map(|_child| ()) // detached — do not wait, do not kill on drop
+        .map_err(|e| format!("could not start llama-server: {e}"))
+}
+
+/// Point `[default_model]` at the local llama-server (OpenAI-compatible).
+fn write_default_model_llama(home: &std::path::Path, model_id: &str) -> Result<(), String> {
+    let path = home.join("config.toml");
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut table: toml::Table = existing.parse().unwrap_or_default();
+    let mut dm = toml::Table::new();
+    dm.insert("provider".into(), toml::Value::String("openai".into()));
+    dm.insert("model".into(), toml::Value::String(model_id.into()));
+    dm.insert("api_key_env".into(), toml::Value::String(String::new()));
+    dm.insert(
+        "base_url".into(),
+        toml::Value::String(format!("http://127.0.0.1:{LLAMA_PORT}/v1")),
+    );
+    table.insert("default_model".into(), toml::Value::Table(dm));
+    let rendered = toml::to_string_pretty(&table).map_err(|e| format!("render config: {e}"))?;
+    std::fs::write(&path, rendered).map_err(|e| format!("write config.toml: {e}"))
+}
+
+/// GET /api/local-ai/llama/catalog — Gemma 4 GGUF options + hardware + which
+/// are already downloaded + whether the llama-server binary is present.
+pub async fn llama_catalog(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let home = &state.kernel.config.home_dir;
+    let dir = models_dir(home);
+    let hardware = detect_hardware().await;
+    let server_present = find_llama_server(home).is_some();
+    let items: Vec<serde_json::Value> = LLAMA_GGUF_CATALOG
+        .iter()
+        .map(|m| {
+            let downloaded = dir.join(m.file_name).exists();
+            serde_json::json!({
+                "id": m.id,
+                "display_name": m.display_name,
+                "purpose": m.purpose,
+                "download_gb": m.download_gb,
+                "min_ram_gb": m.min_ram_gb,
+                "downloaded": downloaded,
+                "runnable": hardware.ram_gb.unwrap_or(0) >= m.min_ram_gb,
+            })
+        })
+        .collect();
+    Json(serde_json::json!({
+        "engine": "llama.cpp",
+        "server_present": server_present,
+        "hardware": hardware,
+        "models": items,
+    }))
+}
+
+/// POST /api/local-ai/llama/setup { "model_id": "..." } — download the GGUF
+/// (resumable), start llama-server, and point default_model at it. Progress
+/// is reported through the shared local-AI status (GET /api/local-ai/status).
+pub async fn llama_setup(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let id = req
+        .get("model_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("gemma-4-e2b-qat-q4")
+        .to_string();
+    let Some(model) = gguf_catalog_entry(&id) else {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": format!("unknown model '{id}'")})),
+        );
+    };
+
+    {
+        let mut s = state.local_ai.write().await;
+        if s.running {
+            return (
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({"error": "a local-AI setup is already running"})),
+            );
+        }
+        s.running = true;
+        s.phase = "checking".into();
+        s.detail = format!("Preparing {}...", model.display_name);
+        s.percent = -1;
+        s.model = model.file_name.to_string();
+    }
+
+    let status = state.local_ai.clone();
+    let home = state.kernel.config.home_dir.clone();
+    tokio::spawn(async move {
+        let result = provision_llama(&status, model, &home).await;
+        let mut s = status.write().await;
+        s.running = false;
+        if let Err(e) = result {
+            s.phase = "error".into();
+            s.detail = e;
+            s.percent = -1;
+        }
+    });
+
+    (
+        StatusCode::ACCEPTED,
+        Json(serde_json::json!({"status": "started", "model": model.id})),
+    )
+}
+
+async fn provision_llama(
+    status: &SharedLocalAiStatus,
+    model: &'static GgufModel,
+    home: &std::path::Path,
+) -> Result<(), String> {
+    // 1. Need the runtime binary.
+    let Some(server) = find_llama_server(home) else {
+        return Err(format!(
+            "llama-server is not installed. Put it in {} (from \
+             https://github.com/ggml-org/llama.cpp/releases) and try again.",
+            home.join("llamacpp").display()
+        ));
+    };
+
+    // 2. Download the GGUF with resume (HuggingFace supports Range).
+    let dir = models_dir(home);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("models dir: {e}"))?;
+    let gguf = dir.join(model.file_name);
+    download_with_resume(status, model.url, &gguf, model.display_name).await?;
+
+    // 3. Start the server.
+    set_status(
+        status,
+        "starting",
+        format!("Starting {} on 127.0.0.1:{LLAMA_PORT}...", model.display_name),
+        -1,
+    )
+    .await;
+    start_llama_server(&server, &gguf)?;
+
+    // 4. Wait for it to answer, then wire it as the default model.
+    let client = reqwest::Client::new();
+    let health = format!("http://127.0.0.1:{LLAMA_PORT}/health");
+    let mut up = false;
+    for _ in 0..60 {
+        if client.get(&health).send().await.is_ok() {
+            up = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    }
+    if !up {
+        return Err("llama-server started but did not become healthy within 2 minutes".into());
+    }
+    write_default_model_llama(home, model.id)?;
+    set_status(
+        status,
+        "done",
+        format!(
+            "{} is running locally and set as your model. No Ollama, no cloud.",
+            model.display_name
+        ),
+        100,
+    )
+    .await;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gguf_catalog_is_gemma4_only() {
+        assert!(!LLAMA_GGUF_CATALOG.is_empty());
+        for m in LLAMA_GGUF_CATALOG {
+            assert!(m.id.starts_with("gemma-4"), "only Gemma 4 in the catalog");
+            assert!(m.url.contains("huggingface.co"), "resumable HF source");
+            assert!(m.url.ends_with(".gguf"));
+        }
+        assert!(gguf_catalog_entry("gemma-4-e2b-qat-q4").is_some());
+        assert!(gguf_catalog_entry("nope").is_none());
+    }
 
     #[test]
     fn default_model_written_to_config() {
