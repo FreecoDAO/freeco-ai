@@ -103,6 +103,66 @@ function settingsPage() {
       }, 2500);
     },
 
+    // -- Integrations (extension/plugin subsystem) --
+    installedIntegrations: [],
+    availableIntegrations: [],
+    integrationsLoaded: false,
+    intBusy: false,
+
+    async loadIntegrations() {
+      try {
+        var results = await Promise.all([
+          OpenFangAPI.get('/api/integrations'),
+          OpenFangAPI.get('/api/integrations/available')
+        ]);
+        this.installedIntegrations = (results[0] && results[0].installed) || [];
+        this.availableIntegrations = (results[1] && results[1].integrations) || [];
+        this.integrationsLoaded = true;
+      } catch (e) {
+        this.integrationsLoaded = true;
+        OpenFangToast.error('Could not load integrations: ' + (e.message || 'error'));
+      }
+    },
+
+    async addIntegration(id) {
+      this.intBusy = true;
+      try {
+        var r = await OpenFangAPI.post('/api/integrations/add', { id: id });
+        OpenFangToast.success((r && r.message) || 'Integration installed.');
+        await this.loadIntegrations();
+      } catch (e) {
+        OpenFangToast.error('Install failed: ' + (e.message || 'error'));
+      }
+      this.intBusy = false;
+    },
+
+    removeIntegration(id) {
+      var self = this;
+      OpenFangToast.confirm('Remove integration', 'Remove "' + id + '"? Its tools will no longer be available to agents.', async function() {
+        self.intBusy = true;
+        try {
+          await OpenFangAPI.del('/api/integrations/' + encodeURIComponent(id));
+          OpenFangToast.success('Removed.');
+          await self.loadIntegrations();
+        } catch (e) {
+          OpenFangToast.error('Remove failed: ' + (e.message || 'error'));
+        }
+        self.intBusy = false;
+      });
+    },
+
+    async reconnectIntegration(id) {
+      this.intBusy = true;
+      try {
+        await OpenFangAPI.post('/api/integrations/' + encodeURIComponent(id) + '/reconnect', {});
+        OpenFangToast.success('Reconnected.');
+        await this.loadIntegrations();
+      } catch (e) {
+        OpenFangToast.error('Reconnect failed: ' + (e.message || 'error'));
+      }
+      this.intBusy = false;
+    },
+
     // -- Local AI (Ollama) setup --
     localAi: { phase: 'idle', detail: '', percent: -1, running: false, ollama_detected: false },
     localAiRecommendation: null,
