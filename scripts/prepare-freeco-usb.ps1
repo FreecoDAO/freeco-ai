@@ -110,9 +110,24 @@ if ($answer -ne 'ERASE') { Fail "Cancelled (you typed '$answer')." }
 
 # ---------------------------------------------------------------- apply ----
 Note "Clearing disk $DiskNumber ..."
-Clear-Disk -Number $DiskNumber -RemoveData -RemoveOEM -Confirm:$false
-Initialize-Disk -Number $DiskNumber -PartitionStyle GPT -Confirm:$false
-Ok "Disk cleared and initialised as GPT."
+# -ErrorAction SilentlyContinue: an already-empty disk makes Clear-Disk complain,
+# which is harmless and must not abort a re-run.
+Clear-Disk -Number $DiskNumber -RemoveData -RemoveOEM -Confirm:$false -ErrorAction SilentlyContinue
+
+# Clear-Disk removes partitions but KEEPS the partition style, so a stick that
+# was MBR stays MBR and Initialize-Disk then fails with "already initialized".
+# Re-query and pick the right cmdlet for the actual state (idempotent, so the
+# script can safely be re-run after a partial failure).
+$d = Get-Disk -Number $DiskNumber
+if ($d.PartitionStyle -eq 'RAW') {
+    Initialize-Disk -Number $DiskNumber -PartitionStyle GPT -Confirm:$false
+    Ok "Disk cleared and initialised as GPT."
+} elseif ($d.PartitionStyle -ne 'GPT') {
+    Set-Disk -Number $DiskNumber -PartitionStyle GPT
+    Ok "Disk cleared and converted from $($d.PartitionStyle) to GPT."
+} else {
+    Ok "Disk cleared; already GPT."
+}
 
 Note "Creating ESP (FAT32, $espMB MB) ..."
 $espType = '{c12a7328-f81f-11d2-ba4b-00a0c93ec93b}'
