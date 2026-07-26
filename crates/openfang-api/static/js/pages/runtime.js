@@ -16,6 +16,9 @@ document.addEventListener('alpine:init', function() {
       providers: [],
       company: { teams: [], workflows: [], approvals: { security_pending: 0 } },
       backupStatus: '',
+      backups: [],
+      restoreBusy: false,
+      restoreResult: null,
 
       async loadData() {
         this.loading = true;
@@ -63,12 +66,58 @@ document.addEventListener('alpine:init', function() {
         this.backupStatus = 'Creating encrypted backup...';
         try {
           var result = await OpenFangAPI.post('/api/backups', { retention: 7 });
-          this.backupStatus = 'Backup created: ' + result.files + ' files';
+          this.backupStatus = 'Backup created: ' + (result.files || '') + ' files';
           OpenFangToast.success(this.backupStatus);
+          await this.loadBackups();
         } catch (e) {
           this.backupStatus = 'Backup failed';
           OpenFangToast.error('Encrypted backup failed');
         }
+      },
+
+      async loadBackups() {
+        try {
+          var data = await OpenFangAPI.get('/api/backups');
+          this.backups = (data.backups || []).map(function(b) {
+            return {
+              name: b.name,
+              sizeMb: (b.size / 1048576).toFixed(1),
+              when: b.modified ? new Date(b.modified * 1000).toLocaleString() : ''
+            };
+          });
+        } catch (e) { this.backups = []; }
+      },
+
+      // Verify a backup first (dry run) — never destructive.
+      async verifyRestore(name) {
+        this.restoreBusy = true;
+        this.restoreResult = null;
+        try {
+          var r = await OpenFangAPI.post('/api/backups/restore', { archive_name: name, dry_run: true });
+          this.restoreResult = { name: name, ok: true, detail: 'Verified: ' + (r.files || 0) + ' files, archive is intact and decryptable.' };
+        } catch (e) {
+          this.restoreResult = { name: name, ok: false, detail: 'Verify failed: ' + (e.message || 'archive unreadable') };
+        }
+        this.restoreBusy = false;
+      },
+
+      restoreBackup(name) {
+        var self = this;
+        OpenFangToast.confirm(
+          'Restore backup',
+          'Restore "' + name + '"? This overwrites current data with the archive contents. A restart is needed afterwards. Verify first if unsure.',
+          async function() {
+            self.restoreBusy = true;
+            try {
+              await OpenFangAPI.post('/api/backups/restore', { archive_name: name, dry_run: false });
+              OpenFangToast.success('Restore complete — restart FreEco.ai to load the restored data.');
+              self.restoreResult = { name: name, ok: true, detail: 'Restored. Restart to apply.' };
+            } catch (e) {
+              OpenFangToast.error('Restore failed: ' + (e.message || 'error'));
+            }
+            self.restoreBusy = false;
+          }
+        );
       }
     };
   });
