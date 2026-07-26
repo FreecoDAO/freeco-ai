@@ -588,6 +588,15 @@ pub async fn build_router(
             "/api/local-ai/setup",
             axum::routing::post(crate::local_ai::local_ai_setup),
         )
+        // Ollama-free local runtime: llama.cpp + Gemma 4 GGUF (resumable from HF)
+        .route(
+            "/api/local-ai/llama/catalog",
+            axum::routing::get(crate::local_ai::llama_catalog),
+        )
+        .route(
+            "/api/local-ai/llama/setup",
+            axum::routing::post(crate::local_ai::llama_setup),
+        )
         .route(
             "/api/models/autoconfig",
             axum::routing::post(crate::local_ai::models_autoconfig),
@@ -869,6 +878,10 @@ pub async fn build_router(
         .route(
             "/api/auth/dismiss-setup",
             axum::routing::post(routes::auth_dismiss_setup),
+        )
+        .route(
+            "/api/auth/disable",
+            axum::routing::post(routes::auth_disable),
         )
         // User management (RBAC accounts) — owner-gated inside the handlers.
         .route(

@@ -141,6 +141,7 @@ document.addEventListener('alpine:init', function() {
     showOnboarding: false,
     showAuthPrompt: false,
     showPasswordSetup: false,
+    _setupSkipped: false,  // once true this session, the setup prompt never re-shows
     authMode: 'apikey',
     sessionUser: null,
     sessionRole: null,  // RBAC role of the logged-in dashboard user (owner|admin|user|kid|viewer)
@@ -269,7 +270,7 @@ document.addEventListener('alpine:init', function() {
         // Server-persisted dismissal wins (survives the desktop's random-port
         // relaunch, which wipes origin-scoped localStorage). localStorage is
         // kept only as a same-session fast path.
-        if (!authInfo.password_configured && !authInfo.setup_dismissed && !localStorage.getItem('openfang-password-setup-skipped')) {
+        if (!this._setupSkipped && !authInfo.password_configured && !authInfo.setup_dismissed && !localStorage.getItem('openfang-password-setup-skipped')) {
           this.showPasswordSetup = true;
         }
         if (authInfo.mode === 'none') {
@@ -349,10 +350,27 @@ document.addEventListener('alpine:init', function() {
     },
 
     skipPasswordSetup() {
+      // In-memory guard first: even if the endpoint and localStorage both fail,
+      // the prompt cannot re-appear this session.
+      this._setupSkipped = true;
       this.showPasswordSetup = false;
-      localStorage.setItem('openfang-password-setup-skipped', 'true');
+      try { localStorage.setItem('openfang-password-setup-skipped', 'true'); } catch(e) { /* private mode */ }
       // Persist server-side so the prompt stays dismissed across restarts.
       OpenFangAPI.post('/api/auth/dismiss-setup', {}).catch(function() {});
+    },
+
+    // Escape hatch on the login screen: turn dashboard auth off (loopback only)
+    // for a user who set a password and now wants to use FreEco.ai without one,
+    // or who forgot it. Requires a restart to fully apply.
+    async disableAuth() {
+      try {
+        await OpenFangAPI.post('/api/auth/disable', {});
+        this.showAuthPrompt = false;
+        this._setupSkipped = true;
+        OpenFangToast.success('Password turned off. Restart FreEco.ai to finish.');
+      } catch(e) {
+        OpenFangToast.error(e.message || 'Could not turn off the password');
+      }
     },
 
     async sessionLogout() {

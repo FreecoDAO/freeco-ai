@@ -13554,6 +13554,63 @@ pub async fn auth_set_password(
     )
 }
 
+/// POST /api/auth/disable — turn dashboard auth OFF again (loopback only).
+///
+/// Escape hatch: setting a password enables auth, which replaces the skippable
+/// first-run prompt with a non-skippable login. A user on this machine who
+/// doesn't want a password (or forgot it) can disable auth from the login
+/// screen. Loopback-only, so only someone at the physical machine can do it.
+pub async fn auth_disable(
+    State(state): State<Arc<AppState>>,
+    axum::extract::ConnectInfo(peer): axum::extract::ConnectInfo<std::net::SocketAddr>,
+) -> impl IntoResponse {
+    if !peer.ip().is_loopback() {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({"error": "Only available from this device"})),
+        );
+    }
+    let config_path = state.kernel.config.home_dir.join("config.toml");
+    let mut table: toml::value::Table = std::fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|c| toml::from_str(&c).ok())
+        .unwrap_or_default();
+    let auth_table = table
+        .entry("auth".to_string())
+        .or_insert_with(|| toml::Value::Table(toml::value::Table::new()));
+    if let Some(auth) = auth_table.as_table_mut() {
+        auth.insert("enabled".to_string(), toml::Value::Boolean(false));
+    }
+    // Also drop the first-run marker so the setup prompt doesn't immediately
+    // reappear after the restart.
+    let _ = std::fs::write(
+        state
+            .kernel
+            .config
+            .home_dir
+            .join(".dashboard_setup_dismissed"),
+        b"1",
+    );
+    match toml::to_string_pretty(&table) {
+        Ok(s) if std::fs::write(&config_path, &s).is_ok() => {
+            state.kernel.audit_log.record(
+                "system",
+                openfang_runtime::audit::AuditAction::ConfigChange,
+                "dashboard auth disabled from login screen",
+                "completed",
+            );
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({"status": "ok", "restart_required": true})),
+            )
+        }
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Could not save configuration"})),
+        ),
+    }
+}
+
 /// GET /api/auth/check — Check current authentication state.
 /// Path to the marker file recording that first-run dashboard setup was
 /// dismissed or completed. Persisted server-side so the decision survives the
