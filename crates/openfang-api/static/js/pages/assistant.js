@@ -55,7 +55,7 @@ function freecoAssistant() {
       { id: 'channel',  label: 'Connect email / site / channel', page: 'channels', icon: 'M4 4h16v16H4zM22 6l-10 7L2 6',
         seed: 'Help me connect a channel — email, a website, or a domain — so my agents can act in the real world.' },
       { id: 'localai',  label: 'Set up free local AI', page: 'settings', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20',
-        seed: 'Set up free local AI (Ollama + Gemma) so I can run privately with no cloud cost.' }
+        seed: 'Set up free local AI (Gemma 4, running on this device) so I can work privately with no cloud cost.' }
     ],
 
     init: function() {
@@ -186,7 +186,7 @@ function freecoAssistant() {
         // a local Ollama model that is not installed yet, or no cloud key is set.
         if (msg.indexOf('server error') !== -1 || msg.indexOf('connection') !== -1 ||
             msg.indexOf('model') !== -1 || msg.indexOf('11434') !== -1 || msg.indexOf('ollama') !== -1) {
-          friendly = 'I couldn’t reach a language model. Set one up first: open <a href="#" onclick="window.dispatchEvent(new CustomEvent(\'freeco-navigate\',{detail:\'settings\'}));return false;">Settings → Providers</a> and either <strong>Set up free local AI</strong> (downloads a local Gemma) or add a cloud API key. Then try again.';
+          friendly = 'I couldn’t reach a language model. Two common causes: if you just changed the model, <strong>restart FreEco.ai</strong> — it reads the config at startup. Otherwise open <a href="#" onclick="window.dispatchEvent(new CustomEvent(\'freeco-navigate\',{detail:\'settings\'}));return false;">Settings → Providers</a> and either <strong>Set up free local AI</strong> (downloads Gemma 4 and runs it on this device) or add a cloud API key.';
         } else {
           friendly = 'Something went wrong: ' + this._escape(e.message || 'request failed');
         }

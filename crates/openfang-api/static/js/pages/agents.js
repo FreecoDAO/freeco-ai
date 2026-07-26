@@ -110,6 +110,20 @@ function agentsPage() {
       await this.loadTemplates();
       // Load personality presets with i18n
       this.loadPersonalityPresets();
+      await this.adoptConfiguredDefaultModel();
+    },
+
+    // New agents used to be hardcoded to groq/llama-3.3-70b-versatile, so a
+    // user with no Groq key got an agent that displayed a model but could
+    // never answer. Start from whatever model is actually configured.
+    async adoptConfiguredDefaultModel() {
+      try {
+        var status = await OpenFangAPI.get('/api/status');
+        if (status && status.default_model) {
+          this.spawnForm.model = status.default_model;
+          if (status.default_provider) this.spawnForm.provider = status.default_provider;
+        }
+      } catch (e) { /* keep the built-in default if status is unavailable */ }
     },
 
     // ── Profile Descriptions (loaded dynamically with i18n) ──

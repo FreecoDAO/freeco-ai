@@ -338,23 +338,65 @@ function settingsPage() {
       } catch(e) { OpenFangToast.error('Could not inspect local AI hardware: ' + e.message); }
     },
 
-    // Path 1 — one click: install Ollama + pull the recommended Gemma 4 + wire it.
-    async oneClickLocalAi() {
-      if (!this.localAiRecommendation) { await this.initLocalAi(); }
-      var model = this.localAiRecommendation && this.localAiRecommendation.recommended_model;
-      await this.startLocalAiSetup(model);
+    // Gemma 4 GGUF catalog served by llama.cpp (no Ollama).
+    llamaCatalog: null,
+
+    // Point every existing agent at the model now configured as the default.
+    // Agents store their own model, so without this they keep whatever they
+    // were created with - which is why "I couldn't reach a language model"
+    // survives a successful local-AI install.
+    async switchAllAgentsToLocal() {
+      var status = null;
+      try { status = await OpenFangAPI.get('/api/status'); } catch (e) { return 0; }
+      var target = status && status.default_model;
+      if (!target) return 0;
+      var agents = [];
+      try { agents = await OpenFangAPI.get('/api/agents'); } catch (e) { return 0; }
+      var switched = 0;
+      for (var i = 0; i < agents.length; i++) {
+        if (agents[i].model_name === target) continue;
+        try {
+          await OpenFangAPI.put('/api/agents/' + agents[i].id + '/model', { model: target });
+          switched++;
+        } catch (e) { /* keep going; report the total */ }
+      }
+      if (switched) {
+        OpenFangToast.success(switched + ' agent(s) now use ' + target + '.');
+        try { await Alpine.store('app').refreshAgents(); } catch (e) { /* optional */ }
+      }
+      return switched;
     },
 
-    // Path 2 — pick a specific model from the compare list.
+    async loadLlamaCatalog() {
+      try {
+        this.llamaCatalog = await OpenFangAPI.get('/api/local-ai/llama/catalog');
+      } catch (e) { this.llamaCatalog = null; }
+      return this.llamaCatalog;
+    },
+
+    // Path 1 - one click: download the RAM-sized Gemma 4, run it with
+    // llama.cpp, and make it the model every agent uses.
+    async oneClickLocalAi() {
+      var cat = this.llamaCatalog || await this.loadLlamaCatalog();
+      var pick = null;
+      if (cat && cat.models) {
+        // Best model this machine can actually run (largest that fits).
+        var runnable = cat.models.filter(function (m) { return m.runnable; });
+        pick = (runnable.length ? runnable : cat.models)[0];
+      }
+      await this.startLocalAiSetup(pick ? pick.id : 'gemma-4-e2b-qat-q4');
+    },
+
+    // Path 2 - pick a specific model from the compare list.
     async setupModel(id) {
       this.showModelPicker = false;
       await this.startLocalAiSetup(id);
     },
 
-    async startLocalAiSetup(model) {
+    async startLocalAiSetup(modelId) {
       try {
-        await OpenFangAPI.post('/api/local-ai/setup', model ? { model: model } : {});
-        OpenFangToast.success('Setting up ' + (model || 'local AI') + ' — downloads a few GB, keep the app open.');
+        await OpenFangAPI.post('/api/local-ai/llama/setup', { model_id: modelId });
+        OpenFangToast.success('Setting up ' + (modelId || 'local AI') + ' - this downloads a few GB and resumes if interrupted. Keep the app open.');
         this.pollLocalAi();
       } catch(e) {
         OpenFangToast.error('Local AI setup: ' + e.message);
@@ -370,8 +412,11 @@ function settingsPage() {
           clearInterval(self.localAiPoll);
           self.localAiPoll = null;
           if (self.localAi.phase === 'done') {
-            // Point everyday work at the freshly installed model (writes default_model).
-            try { await self.autoConfigureModels(); } catch(e) { /* non-fatal */ }
+            // Existing agents keep their OWN model, so setting default_model
+            // alone leaves them pointing at whatever they were created with
+            // (often a model that was never installed). Switch them over too,
+            // otherwise "set up local AI" appears to do nothing.
+            try { await self.switchAllAgentsToLocal(); } catch(e) { /* non-fatal */ }
             try { await OpenFangAPI.post('/api/config/reload', {}); } catch(e) { /* restart applies it */ }
             OpenFangToast.success('Local AI is ready — restart FreEco.ai if agents still show the old model.');
           } else if (self.localAi.phase === 'error') {
