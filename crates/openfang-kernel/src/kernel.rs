@@ -3397,7 +3397,26 @@ impl OpenFangKernel {
                 .get(agent_id)
                 .map(|e| e.manifest.model.base_url.is_some())
                 .unwrap_or(false);
-            if has_custom_url {
+            // A custom base_url is only worth preserving if it still belongs to
+            // the provider the new model actually needs. A stale URL left over
+            // from a previous provider silently sends every request to the wrong
+            // endpoint — e.g. an agent switched to a cloud model kept pointing at
+            // a local Ollama port and failed with a connection error while the
+            // dashboard cheerfully displayed the new model name.
+            let detected = catalog_entry
+                .as_ref()
+                .map(|entry| entry.provider.clone())
+                .or_else(|| infer_provider_from_model(model));
+            let current_provider = self
+                .registry
+                .get(agent_id)
+                .map(|e| e.manifest.model.provider.clone());
+            let url_belongs_to_new_provider = match (&detected, &current_provider) {
+                (Some(new_p), Some(cur_p)) => new_p == cur_p,
+                _ => true, // can't tell — leave the user's endpoint alone
+            };
+
+            if has_custom_url && url_belongs_to_new_provider {
                 // Keep the current provider — don't let auto-detection override
                 // a deliberately configured custom endpoint.
                 None
