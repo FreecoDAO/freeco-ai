@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-07-26
+
+### Added
+
+- **Local AI without Ollama.** New llama.cpp runtime: FreEco downloads a **Gemma 4** GGUF straight from HuggingFace (which honours HTTP Range, so downloads genuinely resume) and serves it through `llama-server` as an OpenAI-compatible API on `127.0.0.1:8080`. `GET /api/local-ai/llama/catalog` lists the Gemma 4 variants with hardware fit; `POST /api/local-ai/llama/setup` downloads, starts and wires it as the default model. Ollama is no longer used or required: its blob CDN ignores Range, so an interrupted pull restarted from zero and never completed on a slow link.
+- **Freeco Assistant window controls.** Drag the header to move it, drag the corner to resize, toggle full screen. A speech bar gives **pause / resume / stop** while Freeco is speaking. A **+ menu** attaches a file, a whole folder, or a photo from the camera; attachments ride along with the next message as removable chips.
+- **Backups you can actually restore.** `GET /api/backups` lists archives, and the Runtime page gains a Backups card with **Verify** (dry-run, non-destructive) and **Restore**. Backup-with-no-restore was a trap.
+- **Integrations tab** (Settings) for the extension subsystem: list installed and available, install, remove, reconnect.
+- **Devices tab** (Settings) for mobile pairing: generate a pairing code, list paired devices, unpair.
+- **USB preparation script** (`scripts/prepare-freeco-usb.ps1`) that partitions a stick into ESP + exFAT + free space for Kubuntu, so one Gemma 4 file serves both Windows and a booted Linux. exFAT because FAT32 caps a file at 4 GB.
+- **Single-flight model fetcher** (`scripts/fetch-model.sh`): pid-locked so two downloaders can never fight over one file, true byte-resume, and a final size check.
+
+### Fixed
+
+- **dograh voice connector pointed at a dead endpoint.** dograh mounts MCP at `/api/v1/mcp`, not `/mcp`, so auto-connect registered something that looked connected but was not.
+- **CRM and voice could not coexist.** dograh publishes host port 3000 and Twenty CRM bound the same port, so whichever installed second failed. CRM moved to 3200.
+- **Repo-based services started without config.** Services cloned from git now get a real `.env` generated from `.env.example`, with change-me secrets replaced and an existing file never overwritten.
+
 ## [0.8.1] - 2026-07-24
 
 ### Added
