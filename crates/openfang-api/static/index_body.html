@@ -3669,6 +3669,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'security' }" @click="tab = 'security'; if (!securityData && !secLoading) loadSecurity()">Security</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'people' }" @click="tab = 'people'; loadUsers()">People</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'services' }" @click="tab = 'services'; loadServices()">Services</div>
+            <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'devices' }" @click="tab = 'devices'; loadDevices()">Devices</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'network' }" @click="tab = 'network'; if (!peers.length && !peersLoading) { loadPeers(); startPeerPolling(); }">Network</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'budget' }" @click="tab = 'budget'">Budget</div>
             <div class="tab tab-secondary" role="tab" :class="{ active: tab === 'info' }" @click="tab = 'info'">System</div>
@@ -3738,6 +3739,50 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                 <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)" @click="addUser()" :disabled="usersBusy">Add account</button>
               </div>
               <p x-show="usersMsg" class="text-xs" style="color:var(--success);margin-top:8px" x-text="usersMsg"></p>
+            </div>
+          </div>
+
+          <!-- Devices tab — pair phones/tablets to this workspace -->
+          <div x-show="tab === 'devices'">
+            <div class="card mb-4">
+              <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+                <span>Paired devices</span>
+                <button class="btn btn-ghost btn-sm" @click="loadDevices()">Refresh</button>
+              </div>
+              <p class="text-xs text-dim" style="margin:6px 0 12px">
+                Pair a phone or tablet to reach your agents on the go. Scan the code from the FreEco.ai mobile app.
+              </p>
+
+              <div x-show="devicesError" class="text-xs" style="color:var(--text-dim);margin-bottom:10px" x-text="devicesError"></div>
+
+              <table class="data-table" x-show="devices.length" style="width:100%;margin-bottom:14px">
+                <thead><tr><th>Device</th><th>Platform</th><th>Paired</th><th>Last seen</th><th></th></tr></thead>
+                <tbody>
+                  <template x-for="d in devices" :key="d.device_id">
+                    <tr>
+                      <td x-text="d.display_name || d.device_id"></td>
+                      <td class="text-xs text-dim" x-text="d.platform || '-'"></td>
+                      <td class="text-xs text-dim" x-text="d.paired_at ? new Date(d.paired_at).toLocaleDateString() : ''"></td>
+                      <td class="text-xs text-dim" x-text="d.last_seen ? new Date(d.last_seen).toLocaleString() : ''"></td>
+                      <td style="text-align:right"><button class="btn btn-ghost btn-sm" style="color:var(--error)" @click="unpairDevice(d.device_id)">Unpair</button></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <p x-show="!devices.length && !devicesError" class="text-xs text-dim" style="margin-bottom:12px">No devices paired yet.</p>
+
+              <!-- Pair a new device -->
+              <div style="border-top:1px solid var(--border-subtle);padding-top:14px">
+                <button class="btn btn-sm" style="background:var(--accent);color:var(--text-on-accent)" @click="requestPairing()" :disabled="pairingBusy">Pair a new device</button>
+                <div x-show="pairing.token" x-cloak style="margin-top:12px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+                  <img x-show="pairing.qr_img" :src="pairing.qr_img" alt="Pairing QR" style="width:160px;height:160px;border:1px solid var(--border);border-radius:8px;background:#fff">
+                  <div class="text-xs">
+                    <div class="text-dim">Enter this code in the mobile app:</div>
+                    <div style="font-family:monospace;font-size:18px;letter-spacing:2px;margin:4px 0" x-text="pairing.token"></div>
+                    <div class="text-dim" x-show="pairing.expires_at">Expires <span x-text="new Date(pairing.expires_at).toLocaleTimeString()"></span></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
