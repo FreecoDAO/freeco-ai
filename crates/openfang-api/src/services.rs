@@ -40,7 +40,9 @@ pub struct ServiceProfile {
     pub manual_step: Option<&'static str>,
 }
 
-/// Minimal, self-contained compose for Twenty CRM.
+/// Minimal, self-contained compose for Twenty CRM, on host port 3200 — NOT
+/// 3000. dograh's `ui` service publishes 3000, so a user who installs voice and
+/// CRM would hit a port collision and the second install would fail to bind.
 const TWENTY_COMPOSE: &str = r#"services:
   twenty-db:
     image: postgres:16
@@ -53,9 +55,9 @@ const TWENTY_COMPOSE: &str = r#"services:
     depends_on: [twenty-db]
     environment:
       PG_DATABASE_URL: postgres://postgres:freeco@twenty-db:5432/default
-      SERVER_URL: http://localhost:3000
+      SERVER_URL: http://localhost:3200
       APP_SECRET: freeco-local-dev-secret-change-me
-    ports: ["3000:3000"]
+    ports: ["3200:3000"]
     volumes: [twenty-data:/app/packages/twenty-server/.local-storage]
 volumes:
   twenty-db-data:
@@ -97,7 +99,10 @@ pub const SERVICE_CATALOG: &[ServiceProfile] = &[
         compose: None,
         health_url: "http://localhost:8000",
         // dograh is MCP-native, so it connects with no extra wrapper or key.
-        mcp_url: Some("http://localhost:8000/mcp"),
+        // It mounts the MCP server under its API prefix
+        // (`app.mount(f"{API_PREFIX}/mcp", mcp_app)`) → /api/v1/mcp. Pointing at
+        // a bare /mcp registers an endpoint that *looks* connected but is dead.
+        mcp_url: Some("http://localhost:8000/api/v1/mcp"),
         approx_download_gb: 3.5,
         manual_step: None,
     },
@@ -108,11 +113,11 @@ pub const SERVICE_CATALOG: &[ServiceProfile] = &[
             "Where donors, grant givers, VCs and partners live: people, companies, notes, pipeline.",
         repo: None,
         compose: Some(TWENTY_COMPOSE),
-        health_url: "http://localhost:3000",
+        health_url: "http://localhost:3200",
         mcp_url: None,
         approx_download_gb: 2.0,
         manual_step: Some(
-            "Open http://localhost:3000, create your workspace, then Settings → API & Webhooks → \
+            "Open http://localhost:3200, create your workspace, then Settings → API & Webhooks → \
              create an API key. Paste it when connecting the CRM tools.",
         ),
     },
@@ -173,6 +178,63 @@ async fn run(cmd: &str, args: &[&str], cwd: Option<&std::path::Path>) -> Result<
         ));
     }
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+/// Create a usable `.env` for a cloned service from its `.env.example`,
+/// replacing obvious change-me placeholders with generated secrets. Never
+/// overwrites an existing `.env` (the user may have tuned it).
+///
+/// Checks the repo root and `api/` (dograh keeps its example in `api/`).
+fn ensure_env_file(dir: &std::path::Path) -> Result<(), String> {
+    let env_path = dir.join(".env");
+    if env_path.exists() {
+        return Ok(());
+    }
+    let example = [
+        dir.join(".env.example"),
+        dir.join("api").join(".env.example"),
+    ]
+    .into_iter()
+    .find(|p| p.exists());
+    let Some(example) = example else {
+        return Ok(()); // nothing to template from — compose may still have defaults
+    };
+    let content =
+        std::fs::read_to_string(&example).map_err(|e| format!("read .env.example: {e}"))?;
+
+    // A random-but-deterministic-per-install secret. Not cryptographic-grade
+    // key material, but far better than shipping "change-me" into a running
+    // service that a user may later expose.
+    let secret = format!(
+        "freeco-{:x}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    );
+
+    let patched: String = content
+        .lines()
+        .map(|line| {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with('#') || !line.contains('=') {
+                return line.to_string();
+            }
+            let lower = line.to_ascii_lowercase();
+            let looks_secret = lower.contains("secret") || lower.contains("password");
+            let placeholder = lower.contains("change-me") || lower.contains("changeme");
+            if looks_secret && placeholder {
+                if let Some((key, _)) = line.split_once('=') {
+                    return format!("{key}=\"{secret}\"");
+                }
+            }
+            line.to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    std::fs::write(&env_path, patched).map_err(|e| format!("write .env: {e}"))?;
+    Ok(())
 }
 
 /// Is Docker installed AND the daemon running?
@@ -343,6 +405,13 @@ async fn provision(
         }
     }
 
+    // 2b. Repo-based services ship a `.env.example` and refuse to start (or come
+    // up degraded) without a real `.env`. Materialise one with generated secrets
+    // so "one click" genuinely works instead of failing inside Docker.
+    if profile.repo.is_some() {
+        ensure_env_file(&dir)?;
+    }
+
     // 3. Start it.
     set_status(
         status,
@@ -423,4 +492,78 @@ async fn provision(
     };
     set_status(status, "done", done_msg, 100).await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// dograh mounts MCP under its API prefix (`/api/v1/mcp`). Pointing at
+    /// `/mcp` registers an endpoint that looks connected but is dead.
+    #[test]
+    fn dograh_mcp_url_uses_api_prefix() {
+        let dograh = service_profile("dograh").expect("dograh in catalog");
+        let url = dograh.mcp_url.expect("dograh is MCP-native");
+        assert!(url.ends_with("/api/v1/mcp"), "got {url}");
+    }
+
+    /// dograh publishes host port 3000 for its UI, so the CRM must not also
+    /// bind 3000 or the second install fails.
+    #[test]
+    fn crm_does_not_collide_with_dograh_ui_port() {
+        let crm = service_profile("crm").expect("crm in catalog");
+        assert!(
+            !crm.health_url.contains(":3000"),
+            "CRM must avoid port 3000"
+        );
+        let compose = crm.compose.expect("crm ships a compose file");
+        assert!(
+            !compose.contains("\"3000:3000\""),
+            "CRM must not publish 3000"
+        );
+    }
+
+    /// Every catalog entry must be materialisable: either a repo to clone or
+    /// an embedded compose file.
+    #[test]
+    fn every_service_is_materialisable() {
+        for s in SERVICE_CATALOG {
+            assert!(
+                s.repo.is_some() || s.compose.is_some(),
+                "{} has no repo and no compose",
+                s.id
+            );
+            assert!(s.health_url.starts_with("http"), "{} bad health_url", s.id);
+        }
+    }
+
+    /// `.env` generation replaces change-me secrets and never clobbers a
+    /// user-tuned file.
+    #[test]
+    fn env_file_is_generated_and_preserved() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join(".env.example"),
+            "# comment\nAPP_SECRET=\"change-me-please\"\nLOG_LEVEL=\"DEBUG\"\n",
+        )
+        .unwrap();
+
+        ensure_env_file(dir.path()).unwrap();
+        let written = std::fs::read_to_string(dir.path().join(".env")).unwrap();
+        assert!(
+            !written.contains("change-me"),
+            "placeholder must be replaced"
+        );
+        assert!(
+            written.contains("LOG_LEVEL=\"DEBUG\""),
+            "non-secrets preserved"
+        );
+        assert!(written.contains("# comment"), "comments preserved");
+
+        // Second run must not overwrite.
+        std::fs::write(dir.path().join(".env"), "USER_TUNED=1\n").unwrap();
+        ensure_env_file(dir.path()).unwrap();
+        let again = std::fs::read_to_string(dir.path().join(".env")).unwrap();
+        assert_eq!(again, "USER_TUNED=1\n");
+    }
 }
