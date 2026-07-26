@@ -25,7 +25,19 @@ function freecoAssistant() {
     // spoken replies (browser text-to-speech, offline, in a warm male voice)
     voiceOut: (function() { try { return localStorage.getItem('freeco-voice-out') !== 'off'; } catch (e) { return true; } })(),
     speaking: false,
+    paused: false,
     _voice: null,
+    // window state — resizable, movable, full-screen
+    fullscreen: false,
+    moved: false,          // true once the user drags it (switches to free positioning)
+    pos: { x: 0, y: 0 },   // top-left when moved
+    size: { w: 380, h: 560 },
+    _drag: null,
+    _resize: null,
+    // attachments queued for the next message
+    showAttach: false,
+    attachments: [],       // { name, kind } uploaded and ready to send
+    attaching: false,
 
     // Quick-setup topics — each routes to the relevant builder and seeds a
     // guiding prompt so Freeco can walk the user through it.
@@ -132,21 +144,31 @@ function freecoAssistant() {
 
     send: async function() {
       var text = (this.input || '').trim();
-      if (!text || this.sending) return;
+      var atts = this.attachments.slice();
+      if ((!text && !atts.length) || this.sending) return;
       if (!this.agent) { this._resolveAgent(); }
       if (!this.agent) {
         this.messages.push({ id: ++mId, role: 'system', ts: Date.now(),
           html: 'You don’t have any agents yet. <a href="#" onclick="window.dispatchEvent(new CustomEvent(\'freeco-navigate\',{detail:\'agents\'}));return false;">Create your Freeco concierge agent</a> to get started.' });
         this.input = ''; this._scroll(); return;
       }
-      this.messages.push({ id: ++mId, role: 'user', ts: Date.now(), html: this._escape(text) });
+      var bubble = this._escape(text);
+      if (atts.length) {
+        bubble += '<div class="freeco-att-row">' + atts.map(function(a) {
+          return '<span class="freeco-att">📎 ' + a.name.replace(/</g, '&lt;') + '</span>';
+        }).join('') + '</div>';
+      }
+      this.messages.push({ id: ++mId, role: 'user', ts: Date.now(), html: bubble });
       this.input = '';
+      this.attachments = [];
       this.sending = true;
       var thinking = { id: ++mId, role: 'freeco', ts: Date.now(), html: '<span class="freeco-typing">• • •</span>', thinking: true };
       this.messages.push(thinking);
       this._scroll();
       try {
-        var res = await OpenFangAPI.post('/api/agents/' + this.agent.id + '/message', { message: text });
+        var payload = { message: text || '(see attached)' };
+        if (atts.length) payload.attachments = atts.map(function(a) { return a.name; });
+        var res = await OpenFangAPI.post('/api/agents/' + this.agent.id + '/message', payload);
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         var reply = res.response || '(no reply)';
         this.messages.push({ id: ++mId, role: 'freeco', ts: Date.now(), html: this._md(reply) });
@@ -340,6 +362,96 @@ function freecoAssistant() {
       this.voiceOut = !this.voiceOut;
       try { localStorage.setItem('freeco-voice-out', this.voiceOut ? 'on' : 'off'); } catch (e) { /* ignore */ }
       if (!this.voiceOut) this.stopSpeaking();
+    },
+
+    // Pause / resume the current spoken reply (go/pause/stop controls).
+    pauseSpeaking: function() {
+      try { window.speechSynthesis.pause(); this.paused = true; } catch (e) { /* ignore */ }
+    },
+    resumeSpeaking: function() {
+      try { window.speechSynthesis.resume(); this.paused = false; } catch (e) { /* ignore */ }
+    },
+
+    // ---- Window: full-screen, move, resize ----
+    toggleFullscreen: function() {
+      this.fullscreen = !this.fullscreen;
+      var self = this; this.$nextTick(function() { self._scroll(); });
+    },
+    // Computed inline style for the panel based on window state.
+    panelStyle: function() {
+      if (this.fullscreen) {
+        return 'position:fixed;inset:12px;width:auto;height:auto;max-height:none;border-radius:14px;z-index:9600';
+      }
+      if (this.moved) {
+        return 'position:fixed;left:' + this.pos.x + 'px;top:' + this.pos.y + 'px;right:auto;bottom:auto;' +
+               'width:' + this.size.w + 'px;height:' + this.size.h + 'px;max-height:none;z-index:9600';
+      }
+      // default: docked bottom-right, user-set size
+      return 'width:' + this.size.w + 'px;height:' + this.size.h + 'px';
+    },
+    startDrag: function(e) {
+      if (this.fullscreen) return;
+      // Switch to free positioning anchored at the current on-screen spot.
+      var panel = e.currentTarget.closest('.freeco-panel');
+      var r = panel.getBoundingClientRect();
+      this.moved = true; this.pos = { x: r.left, y: r.top };
+      var startX = e.clientX, startY = e.clientY, ox = this.pos.x, oy = this.pos.y, self = this;
+      this._drag = function(ev) {
+        self.pos = {
+          x: Math.max(0, Math.min(window.innerWidth - 120, ox + ev.clientX - startX)),
+          y: Math.max(0, Math.min(window.innerHeight - 40, oy + ev.clientY - startY))
+        };
+      };
+      var up = function() { window.removeEventListener('mousemove', self._drag); window.removeEventListener('mouseup', up); };
+      window.addEventListener('mousemove', this._drag);
+      window.addEventListener('mouseup', up);
+      e.preventDefault();
+    },
+    startResize: function(e) {
+      if (this.fullscreen) return;
+      var startX = e.clientX, startY = e.clientY, ow = this.size.w, oh = this.size.h, self = this;
+      var move = function(ev) {
+        self.size = {
+          w: Math.max(300, Math.min(window.innerWidth - 20, ow + ev.clientX - startX)),
+          h: Math.max(320, Math.min(window.innerHeight - 20, oh + ev.clientY - startY))
+        };
+      };
+      var up = function() { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+      e.preventDefault();
+    },
+
+    // ---- Attach: file, folder, photo ----
+    pickFile: function() { this.showAttach = false; var el = document.getElementById('freeco-file'); if (el) el.click(); },
+    pickFolder: function() { this.showAttach = false; var el = document.getElementById('freeco-folder'); if (el) el.click(); },
+    takePhoto: function() { this.showAttach = false; var el = document.getElementById('freeco-photo'); if (el) el.click(); },
+
+    handleFiles: async function(fileList) {
+      var files = Array.prototype.slice.call(fileList || []);
+      if (!files.length) return;
+      if (!this.agent) { this._resolveAgent(); if (!this.agent) await this._ensureConcierge(); }
+      if (!this.agent) { OpenFangToast.error('Set up an agent first, then attach files.'); return; }
+      this.attaching = true;
+      for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        // Guard against a whole huge folder — cap per file at 25 MB.
+        if (f.size > 25 * 1048576) {
+          this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: this._escape(f.name + ' is too large (over 25 MB), skipped.') });
+          continue;
+        }
+        try {
+          var up = await OpenFangAPI.upload(this.agent.id, f);
+          this.attachments.push({ name: up.filename || f.name, kind: (f.type || '').split('/')[0] || 'file' });
+        } catch (e) {
+          this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: 'Could not attach ' + this._escape(f.name) + ': ' + this._escape(e.message || 'error') });
+        }
+      }
+      this.attaching = false;
+      this._scroll();
+    },
+    removeAttachment: function(name) {
+      this.attachments = this.attachments.filter(function(a) { return a.name !== name; });
     },
 
     onKey: function(e) {

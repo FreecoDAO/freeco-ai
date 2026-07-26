@@ -5895,8 +5895,8 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 <!-- Freeco Assistant — global concierge widget, present on every page -->
 <div x-data="freecoAssistant" x-init="init()" @freeco-navigate.window="navigate($event.detail)" @freeco-open.window="if(!open) toggle()" class="freeco-dock">
   <!-- Panel -->
-  <div class="freeco-panel" x-show="open" x-cloak x-transition.origin.bottom.right>
-    <div class="freeco-panel-header">
+  <div class="freeco-panel" :class="{ 'freeco-fullscreen': fullscreen }" x-show="open" x-cloak :style="panelStyle()" x-transition.origin.bottom.right>
+    <div class="freeco-panel-header" @mousedown="startDrag($event)" style="cursor:move" title="Drag to move">
       <div class="freeco-brand">
         <span class="freeco-avatar"><img src="/logo.png" alt="Freeco" class="freeco-avatar-img"></span>
         <div>
@@ -5904,15 +5904,28 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
           <div class="freeco-sub">Ethical Executive AI Assistant</div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px">
+      <div style="display:flex;align-items:center;gap:4px" @mousedown.stop>
         <button class="freeco-x" @click="voiceOut ? (speaking ? stopSpeaking() : toggleVoiceOut()) : toggleVoiceOut()"
                 :title="voiceOut ? (speaking ? 'Stop speaking' : 'Voice on — click to mute') : 'Voice off — click to let Freeco speak'"
                 :aria-label="voiceOut ? 'Mute Freeco voice' : 'Enable Freeco voice'" style="font-size:16px">
           <span x-show="voiceOut">&#128266;</span>
           <span x-show="!voiceOut" x-cloak>&#128263;</span>
         </button>
+        <button class="freeco-x" @click="toggleFullscreen()" :title="fullscreen ? 'Exit full screen' : 'Full screen'" aria-label="Toggle full screen">
+          <svg x-show="!fullscreen" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg>
+          <svg x-show="fullscreen" x-cloak width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3m13-5h-3a2 2 0 0 0-2 2v3"/></svg>
+        </button>
         <button class="freeco-x" @click="stopSpeaking(); open = false" title="Close" aria-label="Close assistant">&times;</button>
       </div>
+    </div>
+
+    <!-- Speech controls — appear while Freeco is speaking -->
+    <div class="freeco-speech-bar" x-show="speaking || paused" x-cloak>
+      <span class="freeco-speaking-dot" x-show="speaking && !paused"></span>
+      <span x-text="paused ? 'Paused' : 'Speaking…'"></span>
+      <button class="freeco-speech-btn" x-show="!paused" @click="pauseSpeaking()" title="Pause">❚❚</button>
+      <button class="freeco-speech-btn" x-show="paused" @click="resumeSpeaking()" title="Resume">▶</button>
+      <button class="freeco-speech-btn" @click="stopSpeaking()" title="Stop">■</button>
     </div>
 
     <div class="freeco-thread" id="freeco-thread">
@@ -5937,17 +5950,46 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
       </template>
     </div>
 
+    <!-- Queued attachments -->
+    <div class="freeco-att-chips" x-show="attachments.length || attaching" x-cloak>
+      <span x-show="attaching" class="text-xs text-dim">attaching…</span>
+      <template x-for="a in attachments" :key="a.name">
+        <span class="freeco-att-chip">📎 <span x-text="a.name"></span>
+          <button @click="removeAttachment(a.name)" title="Remove">&times;</button>
+        </span>
+      </template>
+    </div>
+
     <div class="freeco-input-row">
+      <!-- Attach ( + ) menu: file, folder, photo -->
+      <div style="position:relative">
+        <button class="freeco-mic" @click="showAttach = !showAttach" title="Attach" aria-label="Attach a file, folder, or photo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="freeco-attach-menu" x-show="showAttach" x-cloak @click.outside="showAttach = false">
+          <button @click="pickFile()"><span>📄</span> Attach file</button>
+          <button @click="pickFolder()"><span>📁</span> Attach folder</button>
+          <button @click="takePhoto()"><span>📷</span> Take / choose photo</button>
+        </div>
+      </div>
       <textarea id="freeco-input" class="freeco-input" rows="1" x-model="input" @keydown="onKey($event)"
         :placeholder="recording ? ('Listening… ' + voiceTime()) : 'Ask Freeco to set something up…'"></textarea>
       <button class="freeco-mic" :class="{ 'freeco-mic-on': recording }" @mousedown="startVoice()" @mouseup="stopVoice()" @mouseleave="if(recording) stopVoice()" title="Hold to talk" aria-label="Hold to talk">
         <svg x-show="!recording" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
         <span x-show="recording" class="freeco-rec-dot"></span>
       </button>
-      <button class="freeco-send" @click="send()" :disabled="sending || !input.trim()" title="Send" aria-label="Send">
+      <button class="freeco-send" @click="send()" :disabled="sending || (!input.trim() && !attachments.length)" title="Send" aria-label="Send">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
       </button>
     </div>
+
+    <!-- Resize handle (bottom-right) -->
+    <div class="freeco-resize" @mousedown="startResize($event)" x-show="!fullscreen" title="Drag to resize"></div>
+
+    <!-- Hidden file inputs for the attach menu -->
+    <input id="freeco-file" type="file" multiple style="display:none" @change="handleFiles($event.target.files); $event.target.value=''">
+    <input id="freeco-folder" type="file" webkitdirectory directory multiple style="display:none" @change="handleFiles($event.target.files); $event.target.value=''">
+    <input id="freeco-photo" type="file" accept="image/*" capture="environment" style="display:none" @change="handleFiles($event.target.files); $event.target.value=''">
   </div>
 
   <!-- Floating launcher button -->
