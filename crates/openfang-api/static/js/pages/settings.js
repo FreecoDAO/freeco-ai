@@ -163,6 +163,55 @@ function settingsPage() {
       this.intBusy = false;
     },
 
+    // -- Devices (mobile pairing) --
+    devices: [],
+    devicesError: '',
+    pairing: { token: '', qr_uri: '', qr_img: '', expires_at: '' },
+    pairingBusy: false,
+
+    async loadDevices() {
+      this.devicesError = '';
+      try {
+        var data = await OpenFangAPI.get('/api/pairing/devices');
+        this.devices = (data && data.devices) || [];
+      } catch (e) {
+        this.devices = [];
+        this.devicesError = (e.message && e.message.indexOf('not enabled') >= 0)
+          ? 'Device pairing is not enabled on this server.'
+          : ('Could not load devices: ' + (e.message || 'error'));
+      }
+    },
+
+    async requestPairing() {
+      if (this.pairingBusy) return;
+      this.pairingBusy = true;
+      try {
+        var res = await OpenFangAPI.post('/api/pairing/request', {});
+        this.pairing = {
+          token: res.token || '',
+          qr_uri: res.qr_uri || '',
+          // Only treat qr_uri as an image if the server already returned a data image.
+          qr_img: (res.qr_uri && res.qr_uri.indexOf('data:image') === 0) ? res.qr_uri : '',
+          expires_at: res.expires_at || ''
+        };
+      } catch (e) {
+        OpenFangToast.error((e.message && e.message.indexOf('not enabled') >= 0)
+          ? 'Device pairing is not enabled on this server.'
+          : ('Could not start pairing: ' + (e.message || 'error')));
+      }
+      this.pairingBusy = false;
+    },
+
+    unpairDevice(id) {
+      var self = this;
+      OpenFangToast.confirm('Unpair device', 'Remove this device? It will lose access to your agents.', async function() {
+        try {
+          await OpenFangAPI.del('/api/pairing/devices/' + encodeURIComponent(id));
+          await self.loadDevices();
+        } catch (e) { OpenFangToast.error(e.message || 'Could not unpair'); }
+      });
+    },
+
     // -- Local AI (Ollama) setup --
     localAi: { phase: 'idle', detail: '', percent: -1, running: false, ollama_detected: false },
     localAiRecommendation: null,
