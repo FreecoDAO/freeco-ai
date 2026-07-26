@@ -111,8 +111,10 @@ pub(crate) fn is_local_base_url(base_url: Option<&str>) -> bool {
         .next()
         .unwrap_or("")
         .to_ascii_lowercase();
-    matches!(host.as_str(), "localhost" | "127.0.0.1" | "0.0.0.0" | "::1" | "[::1]")
-        || host.starts_with("192.168.")
+    matches!(
+        host.as_str(),
+        "localhost" | "127.0.0.1" | "0.0.0.0" | "::1" | "[::1]"
+    ) || host.starts_with("192.168.")
         || host.starts_with("10.")
         || host == "host.docker.internal"
 }
@@ -558,7 +560,9 @@ pub fn create_driver(config: &DriverConfig) -> Result<Arc<dyn LlmDriver>, LlmErr
         // good local setup fail to initialise and silently fall back to a
         // cloud provider, which is how "I set up local AI" ended up talking
         // to a paid API instead.
-        if defaults.key_required && api_key.is_empty() && !is_local_base_url(config.base_url.as_deref())
+        if defaults.key_required
+            && api_key.is_empty()
+            && !is_local_base_url(config.base_url.as_deref())
         {
             return Err(LlmError::MissingApiKey(format!(
                 "Set {} environment variable for provider '{}'",
