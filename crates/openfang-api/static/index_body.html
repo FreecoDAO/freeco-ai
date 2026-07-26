@@ -3647,7 +3647,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
     <template x-if="page === 'settings'">
       <div x-data="settingsPage">
         <div class="page-header"><h2>Settings</h2></div>
-        <div class="page-body" x-init="loadSettings()">
+        <div class="page-body" x-init="loadSettings(); if (window.__freecoSettingsTab) { tab = window.__freecoSettingsTab; window.__freecoSettingsTab = null; if (tab === 'services') loadServices(); if (tab === 'integrations') loadIntegrations(); if (tab === 'people') loadUsers(); }">
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading settings...</span></div>
           <div x-show="!loading && loadError" class="error-state">
             <span class="error-icon">!</span>

@@ -50,6 +50,8 @@ function freecoAssistant() {
         seed: 'Help me design a workflow that connects my agents and runs a repeatable task end to end.' },
       { id: 'tools',    label: 'Connect a tool / MCP', page: 'skills', icon: 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z',
         seed: 'What tools and MCP servers do I need for this, and how do I install and connect them?' },
+      { id: 'services', label: 'Connect a CRM, voice, or accounting app', page: 'settings', settingsTab: 'services', icon: 'M20 7h-9M14 17H5M17 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM7 13a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+        seed: 'Help me set up the services my company needs — a CRM for contacts/donors, real-time voice calling, or accounting. Which should I install first (local via Docker, recommended, or web), and walk me through it. If a CRM is best, propose Twenty for local and offer to install and connect it.' },
       { id: 'channel',  label: 'Connect email / site / channel', page: 'channels', icon: 'M4 4h16v16H4zM22 6l-10 7L2 6',
         seed: 'Help me connect a channel — email, a website, or a domain — so my agents can act in the real world.' },
       { id: 'localai',  label: 'Set up free local AI', page: 'settings', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20',
@@ -132,6 +134,9 @@ function freecoAssistant() {
 
     // Quick-setup: jump to the relevant builder and hand Freeco a guiding prompt.
     quick: function(topic) {
+      // Some destinations are a Settings sub-tab (e.g. Services). Stash the tab
+      // so the Settings page opens straight to it.
+      if (topic.settingsTab) { try { window.__freecoSettingsTab = topic.settingsTab; } catch (e) { /* ignore */ } }
       window.dispatchEvent(new CustomEvent('freeco-navigate', { detail: topic.page }));
       this.input = topic.seed;
       if (this.agent) { this.send(); }
