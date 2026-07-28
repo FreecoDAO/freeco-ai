@@ -448,6 +448,32 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
         }
     }
 
+    // Give every agent the other tier as a fallback. Without this the fallback
+    // chain is empty on every agent, so the moment the primary model is
+    // unreachable (local server not running, provider outage, context overflow)
+    // the request fails outright and the user is told no language model could
+    // be reached — while a perfectly good second model sits configured and
+    // unused. This is what makes model routing actually resilient.
+    let mut routed = 0usize;
+    if let Some((env, provider, model)) = complex {
+        let chain = vec![openfang_types::agent::FallbackModel {
+            provider: provider.to_string(),
+            model: model.to_string(),
+            api_key_env: Some(env.to_string()),
+            base_url: None,
+        }];
+        for entry in state.kernel.registry.list() {
+            if state
+                .kernel
+                .registry
+                .update_fallback_models(entry.id, chain.clone())
+                .is_ok()
+            {
+                routed += 1;
+            }
+        }
+    }
+
     (
         StatusCode::OK,
         Json(serde_json::json!({
@@ -456,6 +482,7 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
             "complex_model": complex.map(|(env, provider, model)| serde_json::json!({
                 "provider": provider, "model": model, "api_key_env": env
             })),
+            "agents_routed": routed,
             "ollama_ready": ollama_ready,
             "restart_required": true,
             "message": if ollama_ready {

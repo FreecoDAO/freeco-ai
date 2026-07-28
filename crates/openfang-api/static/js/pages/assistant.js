@@ -38,6 +38,12 @@ function freecoAssistant() {
     showAttach: false,
     attachments: [],       // { name, kind } uploaded and ready to send
     attaching: false,
+    // live progress — what Freeco is doing right now, so a misheard request can
+    // be caught and stopped instead of running to completion in silence
+    steps: [],             // { text, kind: 'phase'|'tool'|'note' }
+    showSteps: true,
+    _wsAgentId: null,
+    awaitingConfirm: false,  // voice transcript is in the box, waiting for review
 
     // Quick-setup topics — each routes to the relevant builder and seeds a
     // guiding prompt so Freeco can walk the user through it.
@@ -55,7 +61,7 @@ function freecoAssistant() {
       { id: 'channel',  label: 'Connect email / site / channel', page: 'channels', icon: 'M4 4h16v16H4zM22 6l-10 7L2 6',
         seed: 'Help me connect a channel — email, a website, or a domain — so my agents can act in the real world.' },
       { id: 'localai',  label: 'Set up free local AI', page: 'settings', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20',
-        seed: 'Set up free local AI (Ollama + Gemma) so I can run privately with no cloud cost.' }
+        seed: 'Set up free local AI (Gemma 4, running on this device) so I can work privately with no cloud cost.' }
     ],
 
     init: function() {
@@ -167,9 +173,17 @@ function freecoAssistant() {
       this.input = '';
       this.attachments = [];
       this.sending = true;
+      this.awaitingConfirm = false;
+      this.steps = [];
       var thinking = { id: ++mId, role: 'freeco', ts: Date.now(), html: '<span class="freeco-typing">• • •</span>', thinking: true };
       this.messages.push(thinking);
       this._scroll();
+
+      // Prefer the WebSocket: it streams text as it is generated and reports
+      // every tool the agent runs, so the user can watch the work and stop it.
+      // The blocking POST below stays as a fallback for when WS is unavailable.
+      if (this._openStream(text, atts)) return;
+
       try {
         var payload = { message: text || '(see attached)' };
         if (atts.length) payload.attachments = atts.map(function(a) { return a.name; });
@@ -186,7 +200,7 @@ function freecoAssistant() {
         // a local Ollama model that is not installed yet, or no cloud key is set.
         if (msg.indexOf('server error') !== -1 || msg.indexOf('connection') !== -1 ||
             msg.indexOf('model') !== -1 || msg.indexOf('11434') !== -1 || msg.indexOf('ollama') !== -1) {
-          friendly = 'I couldn’t reach a language model. Set one up first: open <a href="#" onclick="window.dispatchEvent(new CustomEvent(\'freeco-navigate\',{detail:\'settings\'}));return false;">Settings → Providers</a> and either <strong>Set up free local AI</strong> (downloads a local Gemma) or add a cloud API key. Then try again.';
+          friendly = 'I couldn’t reach a language model. Two common causes: if you just changed the model, <strong>restart FreEco.ai</strong> — it reads the config at startup. Otherwise open <a href="#" onclick="window.dispatchEvent(new CustomEvent(\'freeco-navigate\',{detail:\'settings\'}));return false;">Settings → Providers</a> and either <strong>Set up free local AI</strong> (downloads Gemma 4 and runs it on this device) or add a cloud API key.';
         } else {
           friendly = 'Something went wrong: ' + this._escape(e.message || 'request failed');
         }
@@ -196,6 +210,114 @@ function freecoAssistant() {
       this._scroll();
       var self = this;
       this.$nextTick(function() { var el = document.getElementById('freeco-input'); if (el) el.focus(); });
+    },
+
+    // ---- Live streaming: watch the work, and stop it ----
+    // Opens (or reuses) the agent WebSocket and sends the message over it.
+    // Returns true when streaming took over, false to use the blocking POST.
+    _openStream: function(text, atts) {
+      if (!this.agent || !OpenFangAPI.wsConnect) return false;
+      var self = this;
+      var payload = { type: 'message', content: text || '(see attached)' };
+      if (atts && atts.length) payload.attachments = atts.map(function(a) { return a.name; });
+
+      var send = function() {
+        try { return OpenFangAPI.wsSend(payload); } catch (e) { return false; }
+      };
+
+      // Already connected to this agent — just send.
+      if (this._wsAgentId === this.agent.id && OpenFangAPI.isWsConnected && OpenFangAPI.isWsConnected()) {
+        return send();
+      }
+
+      try {
+        OpenFangAPI.wsConnect(this.agent.id, {
+          onMessage: function(ev) { self._onStreamEvent(ev); },
+          onOpen: function() { send(); },
+          onClose: function() { self._wsAgentId = null; }
+        });
+        this._wsAgentId = this.agent.id;
+        return true;
+      } catch (e) {
+        this._wsAgentId = null;
+        return false;
+      }
+    },
+
+    _step: function(text, kind) {
+      this.steps.push({ text: text, kind: kind || 'note' });
+      if (this.steps.length > 40) this.steps.shift();
+      this.$nextTick(function() {
+        var el = document.getElementById('freeco-steps');
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
+
+    _onStreamEvent: function(ev) {
+      var self = this;
+      var t = ev && ev.type;
+      if (t === 'phase') {
+        if (ev.phase && ev.phase !== 'done') this._step(ev.phase + (ev.detail ? ': ' + ev.detail : ''), 'phase');
+        return;
+      }
+      if (t === 'tool_start') { this._step('running ' + (ev.tool || 'tool'), 'tool'); return; }
+      if (t === 'tool_end' || t === 'tool_result') {
+        if (ev.tool) this._step('finished ' + ev.tool + (ev.is_error ? ' (failed)' : ''), 'tool');
+        return;
+      }
+      if (t === 'text_delta') {
+        // Stream into the pending bubble so words appear as they are produced.
+        var last = this.messages[this.messages.length - 1];
+        if (!last || !last.streaming) {
+          this.messages = this.messages.filter(function(m) { return !m.thinking; });
+          last = { id: ++mId, role: 'freeco', ts: Date.now(), html: '', streaming: true, raw: '' };
+          this.messages.push(last);
+        }
+        last.raw = (last.raw || '') + (ev.text || ev.delta || '');
+        last.html = this._md(last.raw);
+        this._scroll();
+        return;
+      }
+      if (t === 'response' || t === 'message' || t === 'silent_complete') {
+        this.messages = this.messages.filter(function(m) { return !m.thinking; });
+        var full = ev.content || ev.response || '';
+        var last2 = this.messages[this.messages.length - 1];
+        if (last2 && last2.streaming) {
+          last2.streaming = false;
+          if (full) { last2.raw = full; last2.html = this._md(full); }
+          full = last2.raw || full;
+        } else if (full) {
+          this.messages.push({ id: ++mId, role: 'freeco', ts: Date.now(), html: this._md(full) });
+        }
+        this.sending = false;
+        this.steps = [];
+        if (this.voiceOut && full) this.speak(full);
+        this._scroll();
+        return;
+      }
+      if (t === 'error') {
+        this.messages = this.messages.filter(function(m) { return !m.thinking; });
+        this.messages.push({ id: ++mId, role: 'system', ts: Date.now(),
+          html: 'Something went wrong: ' + self._escape(ev.message || ev.error || 'unknown') });
+        this.sending = false;
+        this.steps = [];
+        this._scroll();
+      }
+    },
+
+    // Stop a run in progress — the whole point of showing the steps.
+    stopRun: async function() {
+      if (!this.agent) return;
+      try {
+        await OpenFangAPI.post('/api/agents/' + this.agent.id + '/stop', {});
+        this.messages = this.messages.filter(function(m) { return !m.thinking; });
+        this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: 'Stopped.' });
+      } catch (e) {
+        OpenFangToast.error('Could not stop: ' + (e.message || 'error'));
+      }
+      this.sending = false;
+      this.steps = [];
+      this._scroll();
     },
 
     // ---- Voice (hold-to-talk) ----
@@ -219,7 +341,18 @@ function freecoAssistant() {
             var said = '';
             for (var i = 0; i < ev.results.length; i++) said += ev.results[i][0].transcript;
             said = said.trim();
-            if (said) { self.input = said; self.send(); }
+            // Put the transcript in the box for review instead of firing it off.
+            // Speech recognition mishears words ("YAK" for something else), and
+            // auto-sending meant a whole task ran on a misheard instruction
+            // before the user could see, let alone correct, what was understood.
+            if (said) {
+              self.input = said;
+              self.awaitingConfirm = true;
+              self.$nextTick(function() {
+                var el = document.getElementById('freeco-input');
+                if (el) { el.focus(); el.select && el.select(); }
+              });
+            }
           };
           recog.onerror = function(ev) {
             self.recording = false;
@@ -315,21 +448,60 @@ function freecoAssistant() {
       return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
     },
 
-    // ---- Spoken replies (offline browser TTS, warm male voice) ----
-    // Pick the most trustworthy-sounding English male voice the OS offers.
+    // ---- Spoken replies (offline browser TTS) ----
+    showVoiceMenu: false,
+    voiceList: [],
+    voiceName: (function() { try { return localStorage.getItem('freeco-voice-name') || ''; } catch (e) { return ''; } })(),
+
+    // Every voice the OS offers, English first, so the user can actually choose
+    // instead of being stuck with whatever we guessed.
+    refreshVoiceList: function() {
+      if (!window.speechSynthesis) { this.voiceList = []; return; }
+      var all = window.speechSynthesis.getVoices() || [];
+      var en = all.filter(function(v) { return /^en(-|_|$)/i.test(v.lang || ''); });
+      var rest = all.filter(function(v) { return !/^en(-|_|$)/i.test(v.lang || ''); });
+      this.voiceList = en.concat(rest).map(function(v) {
+        return { name: v.name, lang: v.lang };
+      });
+    },
+
+    // Speak a short sample so the user can hear a voice before choosing it.
+    previewVoice: function(name) {
+      if (!window.speechSynthesis) return;
+      try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+      var v = (window.speechSynthesis.getVoices() || []).find(function(x) { return x.name === name; });
+      var u = new SpeechSynthesisUtterance("Hi, I'm Freeco. This is how I sound.");
+      if (v) u.voice = v;
+      u.rate = 1.0; u.pitch = 0.95;
+      window.speechSynthesis.speak(u);
+    },
+
+    chooseVoice: function(name) {
+      this.voiceName = name;
+      try { localStorage.setItem('freeco-voice-name', name); } catch (e) { /* ignore */ }
+      this._voice = (window.speechSynthesis.getVoices() || []).find(function(x) { return x.name === name; }) || null;
+      this.showVoiceMenu = false;
+      this.previewVoice(name);
+    },
+
+    // Honour an explicit choice; otherwise fall back to a sensible default.
     _pickVoice: function() {
       if (!window.speechSynthesis) return null;
       var voices = window.speechSynthesis.getVoices() || [];
       if (!voices.length) return null;
+      var want = this.voiceName;
+      if (want) {
+        var chosen = voices.find(function(v) { return v.name === want; });
+        if (chosen) return chosen;
+      }
       var en = voices.filter(function(v) { return /^en(-|_|$)/i.test(v.lang || ''); });
       var pool = en.length ? en : voices;
-      // Preference order: named male voices that are pleasant and clear.
-      var prefer = ['david', 'guy', 'daniel', 'james', 'george', 'ryan', 'brian', 'aaron', 'fred', 'male'];
+      // Preference order: clear, warm voices. "onyx"-style names first.
+      var prefer = ['onyx', 'david', 'guy', 'daniel', 'james', 'george', 'ryan', 'brian', 'aaron', 'fred', 'male'];
       for (var i = 0; i < prefer.length; i++) {
         var hit = pool.find(function(v) { return (v.name || '').toLowerCase().indexOf(prefer[i]) !== -1; });
         if (hit) return hit;
       }
-      // Avoid obviously female-named voices if we can.
       var female = /zira|female|susan|hazel|linda|catherine|samantha|victoria|karen|moira|tessa|fiona/i;
       var notFemale = pool.find(function(v) { return !female.test(v.name || ''); });
       return notFemale || pool[0];

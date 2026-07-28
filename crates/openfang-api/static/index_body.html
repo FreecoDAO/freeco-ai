@@ -5998,12 +5998,45 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
           <span x-show="voiceOut">&#128266;</span>
           <span x-show="!voiceOut" x-cloak>&#128263;</span>
         </button>
+        <button class="freeco-x" @click="showVoiceMenu = !showVoiceMenu; if (showVoiceMenu) refreshVoiceList()" title="Choose Freeco's voice" aria-label="Choose voice" style="font-size:13px">&#9835;</button>
         <button class="freeco-x" @click="toggleFullscreen()" :title="fullscreen ? 'Exit full screen' : 'Full screen'" aria-label="Toggle full screen">
           <svg x-show="!fullscreen" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg>
           <svg x-show="fullscreen" x-cloak width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3m13-5h-3a2 2 0 0 0-2 2v3"/></svg>
         </button>
         <button class="freeco-x" @click="stopSpeaking(); open = false" title="Close" aria-label="Close assistant">&times;</button>
       </div>
+    </div>
+
+    <!-- Voice picker: hear a sample before choosing -->
+    <div class="freeco-voice-menu" x-show="showVoiceMenu" x-cloak @click.outside="showVoiceMenu = false">
+      <div class="freeco-voice-head">Freeco's voice <span x-text="voiceName ? '— ' + voiceName : ''"></span></div>
+      <div class="freeco-voice-list">
+        <template x-for="v in voiceList" :key="v.name">
+          <div class="freeco-voice-row" :class="{ 'freeco-voice-on': v.name === voiceName }">
+            <span class="freeco-voice-name" x-text="v.name"></span>
+            <span class="freeco-voice-lang" x-text="v.lang"></span>
+            <button @click.stop="previewVoice(v.name)" title="Hear a sample">&#9654;</button>
+            <button @click.stop="chooseVoice(v.name)" title="Use this voice">Use</button>
+          </div>
+        </template>
+        <div x-show="!voiceList.length" class="text-xs text-dim" style="padding:8px">
+          No voices found. Your browser or OS provides these; try Chrome or Edge.
+        </div>
+      </div>
+    </div>
+
+    <!-- Live progress: what Freeco is doing right now, and a way to stop it -->
+    <div class="freeco-steps-bar" x-show="sending" x-cloak>
+      <button class="freeco-steps-toggle" @click="showSteps = !showSteps">
+        <span x-text="showSteps ? '▾' : '▸'"></span>
+        <span x-text="steps.length ? steps[steps.length-1].text : 'working…'"></span>
+      </button>
+      <button class="freeco-stop" @click="stopRun()" title="Stop this task">Stop</button>
+    </div>
+    <div class="freeco-steps" id="freeco-steps" x-show="sending && showSteps && steps.length" x-cloak>
+      <template x-for="(s, i) in steps" :key="i">
+        <div class="freeco-step" :class="'freeco-step-' + s.kind" x-text="s.text"></div>
+      </template>
     </div>
 
     <!-- Speech controls — appear while Freeco is speaking -->
@@ -6037,6 +6070,11 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
       </template>
     </div>
 
+    <!-- Voice transcript waiting for review — catches mishearings before they run -->
+    <div class="freeco-review" x-show="awaitingConfirm" x-cloak>
+      Heard you — check the text below, edit if wrong, then press Enter.
+    </div>
+
     <!-- Queued attachments -->
     <div class="freeco-att-chips" x-show="attachments.length || attaching" x-cloak>
       <span x-show="attaching" class="text-xs text-dim">attaching…</span>
@@ -6059,7 +6097,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
           <button @click="takePhoto()"><span>📷</span> Take / choose photo</button>
         </div>
       </div>
-      <textarea id="freeco-input" class="freeco-input" rows="1" x-model="input" @keydown="onKey($event)"
+      <textarea id="freeco-input" class="freeco-input" :class="{ 'freeco-input-review': awaitingConfirm }" rows="1" x-model="input" @keydown="onKey($event)"
         :placeholder="recording ? ('Listening… ' + voiceTime()) : 'Ask Freeco to set something up…'"></textarea>
       <button class="freeco-mic" :class="{ 'freeco-mic-on': recording }" @mousedown="startVoice()" @mouseup="stopVoice()" @mouseleave="if(recording) stopVoice()" title="Hold to talk" aria-label="Hold to talk">
         <svg x-show="!recording" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>

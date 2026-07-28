@@ -94,6 +94,31 @@ pub fn local_provider_url_from_env(provider: &str) -> Option<String> {
 }
 
 /// Get defaults for known providers.
+/// Does this base URL point at an inference server on this machine?
+///
+/// Local servers (llama.cpp `llama-server`, LM Studio, vLLM, Ollama) accept any
+/// bearer token, so they must not be blocked by a missing API key.
+pub(crate) fn is_local_base_url(base_url: Option<&str>) -> bool {
+    let Some(url) = base_url else { return false };
+    let host = url
+        .split("://")
+        .nth(1)
+        .unwrap_or(url)
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .split(':')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    matches!(
+        host.as_str(),
+        "localhost" | "127.0.0.1" | "0.0.0.0" | "::1" | "[::1]"
+    ) || host.starts_with("192.168.")
+        || host.starts_with("10.")
+        || host == "host.docker.internal"
+}
+
 fn provider_defaults(provider: &str) -> Option<ProviderDefaults> {
     match provider {
         "groq" => Some(ProviderDefaults {
@@ -529,7 +554,16 @@ pub fn create_driver(config: &DriverConfig) -> Result<Arc<dyn LlmDriver>, LlmErr
             .or_else(|| std::env::var(defaults.api_key_env).ok())
             .unwrap_or_default();
 
-        if defaults.key_required && api_key.is_empty() {
+        // A base_url pointing at this machine is a local inference server
+        // (llama.cpp's llama-server, LM Studio, vLLM, ...). Those accept any
+        // token, so demanding an API key here is wrong: it made a perfectly
+        // good local setup fail to initialise and silently fall back to a
+        // cloud provider, which is how "I set up local AI" ended up talking
+        // to a paid API instead.
+        if defaults.key_required
+            && api_key.is_empty()
+            && !is_local_base_url(config.base_url.as_deref())
+        {
             return Err(LlmError::MissingApiKey(format!(
                 "Set {} environment variable for provider '{}'",
                 defaults.api_key_env, provider

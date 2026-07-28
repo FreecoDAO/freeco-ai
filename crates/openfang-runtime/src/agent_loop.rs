@@ -1246,14 +1246,28 @@ async fn call_with_retry(
                     cooldown.record_failure(provider, classified.is_billing);
                 }
 
-                // --- ModelNotFound fallback chain (issue #845) ---
-                // If the primary model was not found and fallback models are
-                // configured, try each fallback before giving up.
-                if classified.category == llm_errors::LlmErrorCategory::ModelNotFound
-                    && !fallback_models.is_empty()
-                {
+                // --- Fallback chain ---
+                // Originally only ModelNotFound fell back (issue #845), which
+                // meant a model that was configured but *unreachable* — a local
+                // server that is not running, a provider outage, a prompt that
+                // overflows this model's context — failed hard and the user saw
+                // "I couldn't reach a language model" even though other working
+                // models were configured. Any error that another model could
+                // plausibly succeed at now triggers the chain. Auth and Billing
+                // are excluded on purpose: those are the user's key/credit
+                // problems and silently spending on a different provider would
+                // be worse than failing loudly.
+                let should_fall_back = matches!(
+                    classified.category,
+                    llm_errors::LlmErrorCategory::ModelNotFound
+                        | llm_errors::LlmErrorCategory::Timeout
+                        | llm_errors::LlmErrorCategory::Overloaded
+                        | llm_errors::LlmErrorCategory::ContextOverflow
+                );
+                if should_fall_back && !fallback_models.is_empty() {
                     warn!(
-                        "Primary model not found, trying {} fallback model(s)",
+                        "Primary model failed ({:?}), trying {} fallback model(s)",
+                        classified.category,
                         fallback_models.len()
                     );
                     for (fb_idx, fb) in fallback_models.iter().enumerate() {
