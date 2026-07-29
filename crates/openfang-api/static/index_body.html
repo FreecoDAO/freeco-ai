@@ -6015,6 +6015,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
         <template x-for="v in voiceList" :key="v.name">
           <div class="freeco-voice-row" :class="{ 'freeco-voice-on': v.name === voiceName }">
             <span class="freeco-voice-name" x-text="v.name"></span>
+            <span class="freeco-voice-nat" x-show="v.natural" title="Neural voice — sounds human">natural</span>
             <span class="freeco-voice-lang" x-text="v.lang"></span>
             <button @click.stop="previewVoice(v.name)" title="Hear a sample">&#9654;</button>
             <button @click.stop="chooseVoice(v.name)" title="Use this voice">Use</button>
@@ -6022,6 +6023,12 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
         </template>
         <div x-show="!voiceList.length" class="text-xs text-dim" style="padding:8px">
           No voices found. Your browser or OS provides these; try Chrome or Edge.
+        </div>
+        <div x-show="voiceList.length && !hasNatural" class="freeco-voice-tip">
+          These are the classic robotic voices. Windows has far more human-sounding
+          <strong>Natural</strong> voices — install them in
+          <em>Settings → Accessibility → Narrator → Add natural voices</em>
+          (or <em>Time&nbsp;&amp;&nbsp;language → Speech</em>), then reopen this menu.
         </div>
       </div>
     </div>

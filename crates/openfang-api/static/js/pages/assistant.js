@@ -406,24 +406,31 @@ function freecoAssistant() {
         try {
           var recog = new SR();
           recog.lang = navigator.language || 'en-US';
-          recog.interimResults = false;
+          // continuous: keep listening across natural pauses. With it off the
+          // recogniser stops at the first silence, which chopped requests
+          // mid-sentence. interimResults lets the text appear while speaking so
+          // a mishearing is visible immediately rather than after the fact.
+          recog.interimResults = true;
           recog.maxAlternatives = 1;
-          recog.continuous = false;
+          recog.continuous = true;
           recog.onresult = function(ev) {
-            var said = '';
-            for (var i = 0; i < ev.results.length; i++) said += ev.results[i][0].transcript;
-            said = said.trim();
-            // Put the transcript in the box for review instead of firing it off.
-            // Speech recognition mishears words ("YAK" for something else), and
-            // auto-sending meant a whole task ran on a misheard instruction
-            // before the user could see, let alone correct, what was understood.
+            // With continuous + interim results, only results marked final are
+            // settled text; the rest is the in-progress guess. Keep the settled
+            // part and append the live guess so the box tracks speech in real
+            // time without losing anything already recognised.
+            var settled = '', live = '';
+            for (var i = 0; i < ev.results.length; i++) {
+              var r = ev.results[i];
+              if (r.isFinal) settled += r[0].transcript;
+              else live += r[0].transcript;
+            }
+            var said = (settled + live).trim();
+            // Shown for review, never auto-sent. Speech recognition mishears
+            // words ("YAK"), and auto-sending meant a whole task ran on a
+            // misheard instruction before the user could see it.
             if (said) {
               self.input = said;
               self.awaitingConfirm = true;
-              self.$nextTick(function() {
-                var el = document.getElementById('freeco-input');
-                if (el) { el.focus(); el.select && el.select(); }
-              });
             }
           };
           recog.onerror = function(ev) {
@@ -547,12 +554,17 @@ function freecoAssistant() {
     refreshVoiceList: function() {
       if (!window.speechSynthesis) { this.voiceList = []; return; }
       var all = window.speechSynthesis.getVoices() || [];
-      var en = all.filter(function(v) { return /^en(-|_|$)/i.test(v.lang || ''); });
-      var rest = all.filter(function(v) { return !/^en(-|_|$)/i.test(v.lang || ''); });
-      this.voiceList = en.concat(rest).map(function(v) {
-        return { name: v.name, lang: v.lang };
-      });
+      var isNat = function(v) { return /natural|neural|online|premium|enhanced|siri/i.test(v.name || ''); };
+      var isEn = function(v) { return /^en(-|_|$)/i.test(v.lang || ''); };
+      // Natural/neural voices first: the classic SAPI ones (David, Zira, Mark)
+      // are the robotic-sounding ones, and users rarely know better voices
+      // exist and simply need enabling in the OS.
+      var rank = function(v) { return (isNat(v) ? 0 : 2) + (isEn(v) ? 0 : 1); };
+      this.voiceList = all.slice().sort(function(a, b) { return rank(a) - rank(b); })
+        .map(function(v) { return { name: v.name, lang: v.lang, natural: isNat(v) }; });
+      this.hasNatural = this.voiceList.some(function(v) { return v.natural; });
     },
+    hasNatural: false,
 
     // Speak a short sample so the user can hear a voice before choosing it.
     previewVoice: function(name) {
@@ -607,16 +619,29 @@ function freecoAssistant() {
       if (!clean) return;
       try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
       if (!this._voice) this._voice = this._pickVoice();
-      var u = new SpeechSynthesisUtterance(clean.slice(0, 600));
-      if (this._voice) u.voice = this._voice;
-      u.rate = 1.0;
-      u.pitch = 0.92;   // slightly lower = warmer, more trustworthy
-      u.volume = 1.0;
       var self = this;
-      u.onstart = function() { self.speaking = true; };
-      u.onend = function() { self.speaking = false; };
-      u.onerror = function() { self.speaking = false; };
-      window.speechSynthesis.speak(u);
+
+      // Speak the WHOLE reply. Two things used to cut it off:
+      //  - it was hard-truncated to 600 characters here;
+      //  - Chrome silently stops a single utterance after roughly 15 seconds.
+      // Splitting on sentence boundaries and queueing the pieces fixes both,
+      // and gives natural pauses between sentences.
+      var chunks = clean.match(/[^.!?]{1,180}([.!?]+|$)\s*/g) || [clean];
+      this._queueLen = chunks.length;
+      chunks.forEach(function(part, idx) {
+        var u = new SpeechSynthesisUtterance(part.trim());
+        if (self._voice) u.voice = self._voice;
+        u.rate = 1.0;
+        u.pitch = 0.95;
+        u.volume = 1.0;
+        if (idx === 0) u.onstart = function() { self.speaking = true; self.paused = false; };
+        if (idx === chunks.length - 1) {
+          u.onend = function() { self.speaking = false; self.paused = false; };
+        }
+        u.onerror = function() { self.speaking = false; self.paused = false; };
+        window.speechSynthesis.speak(u);
+      });
+      return;
     },
 
     stopSpeaking: function() {
