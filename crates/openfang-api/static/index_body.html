@@ -1,16 +1,17 @@
 <body x-data="app" :data-theme="theme">
 
-<!-- Available on every page: pauses all agent dispatch until explicitly released. -->
+<!-- Available on every page: pauses all agent dispatch until explicitly released.
+     Octagonal like a road STOP sign, same footprint as the Freeco button, so it
+     reads instantly and never covers the chat input. -->
 <button
-  class="btn btn-sm"
-  :class="$store.app.frozen ? 'btn-primary' : 'btn-danger'"
+  class="freeco-estop"
+  :class="{ 'freeco-estop-on': $store.app.frozen }"
   :disabled="$store.app.freezeBusy"
   @click="$store.app.toggleEmergencyFreeze()"
   :aria-label="$store.app.frozen ? 'Release emergency stop' : 'Engage emergency stop'"
-  :title="$store.app.frozen ? 'Release emergency stop' : 'Pause all agents immediately'"
-  style="position:fixed;left:20px;bottom:20px;z-index:9800;box-shadow:0 8px 24px rgba(0,0,0,.25)"
+  :title="$store.app.frozen ? 'Agents paused — click to resume' : 'Pause all agents immediately'"
 >
-  <span x-text="$store.app.freezeBusy ? 'Working…' : ($store.app.frozen ? 'Resume agents' : 'Emergency stop')"></span>
+  <span x-text="$store.app.frozen ? 'GO' : 'STOP'"></span>
 </button>
 
 <!-- Auth Prompt (API Key or Username/Password) -->
@@ -6070,6 +6071,23 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
       </template>
     </div>
 
+    <!-- Permission requests answered right here, not on another page -->
+    <template x-for="a in approvals" :key="a.id || a.request_id">
+      <div class="freeco-approval">
+        <div class="freeco-approval-txt">
+          <strong>Permission needed</strong>
+          <div x-text="a.summary || a.action || a.description || 'An agent wants to do something that needs your approval.'"></div>
+          <div class="freeco-approval-meta" x-show="a.agent_name || a.tool" x-text="(a.agent_name || '') + (a.tool ? ' · ' + a.tool : '')"></div>
+        </div>
+        <div class="freeco-approval-btns">
+          <button class="fa-once" @click="answerApproval(a.id || a.request_id, 'once')">Allow once</button>
+          <button class="fa-always" @click="answerApproval(a.id || a.request_id, 'always')">Allow always</button>
+          <button class="fa-deny" @click="answerApproval(a.id || a.request_id, 'deny')">Deny</button>
+          <button class="fa-pause" @click="answerApproval(a.id || a.request_id, 'pause')">Pause</button>
+        </div>
+      </div>
+    </template>
+
     <!-- Voice transcript waiting for review — catches mishearings before they run -->
     <div class="freeco-review" x-show="awaitingConfirm" x-cloak>
       Heard you — check the text below, edit if wrong, then press Enter.
@@ -6103,13 +6121,14 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
         <svg x-show="!recording" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
         <span x-show="recording" class="freeco-rec-dot"></span>
       </button>
-      <button class="freeco-send" @click="send()" :disabled="sending || (!input.trim() && !attachments.length)" title="Send" aria-label="Send">
+      <button class="freeco-send" @click="send()" :disabled="!input.trim() && !attachments.length" :title="sending ? 'Queue this message' : 'Send'" aria-label="Send">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
       </button>
     </div>
 
-    <!-- Resize handle (bottom-right) -->
+    <!-- Resize handles: bottom-right corner and the left edge -->
     <div class="freeco-resize" @mousedown="startResize($event)" x-show="!fullscreen" title="Drag to resize"></div>
+    <div class="freeco-resize-left" @mousedown="startResizeLeft($event)" x-show="!fullscreen" title="Drag to widen"></div>
 
     <!-- Hidden file inputs for the attach menu -->
     <input id="freeco-file" type="file" multiple style="display:none" @change="handleFiles($event.target.files); $event.target.value=''">

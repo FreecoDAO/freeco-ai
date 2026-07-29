@@ -44,6 +44,8 @@ function freecoAssistant() {
     showSteps: true,
     _wsAgentId: null,
     awaitingConfirm: false,  // voice transcript is in the box, waiting for review
+    queued: [],              // messages typed while a reply was still streaming
+    approvals: [],           // permission requests, answered inline in this chat
 
     // Quick-setup topics — each routes to the relevant builder and seeds a
     // guiding prompt so Freeco can walk the user through it.
@@ -69,6 +71,9 @@ function freecoAssistant() {
       // Re-resolve the concierge agent whenever the shared agent list changes.
       this.$watch('$store.app.agents', function() { self._resolveAgent(); });
       this._resolveAgent();
+      // Surface permission requests in this chat, where the user already is.
+      this.loadApprovals();
+      setInterval(function() { self.loadApprovals(); }, 5000);
       // Browsers load TTS voices asynchronously — grab them now and again when
       // the list becomes available, so the first spoken reply already has a
       // good male voice picked.
@@ -156,7 +161,22 @@ function freecoAssistant() {
     send: async function() {
       var text = (this.input || '').trim();
       var atts = this.attachments.slice();
-      if ((!text && !atts.length) || this.sending) return;
+      if (!text && !atts.length) return;
+      // A reply in flight must never block the user. Queue the message and send
+      // it as soon as the current run finishes — being unable to correct or add
+      // to a request while the agent works is how a misunderstood task runs to
+      // completion unchallenged.
+      if (this.sending) {
+        this.queued.push({ text: text, atts: atts });
+        this.messages.push({
+          id: ++mId, role: 'system', ts: Date.now(),
+          html: 'Queued: ' + this._escape(text) + ' <span class="text-dim">(sends when the current task finishes — or press Stop)</span>'
+        });
+        this.input = '';
+        this.attachments = [];
+        this._scroll();
+        return;
+      }
       if (!this.agent) { this._resolveAgent(); }
       if (!this.agent) {
         this.messages.push({ id: ++mId, role: 'system', ts: Date.now(),
@@ -293,6 +313,7 @@ function freecoAssistant() {
         this.steps = [];
         if (this.voiceOut && full) this.speak(full);
         this._scroll();
+        this._drainQueue();
         return;
       }
       if (t === 'error') {
@@ -302,6 +323,57 @@ function freecoAssistant() {
         this.sending = false;
         this.steps = [];
         this._scroll();
+      }
+    },
+
+    // Send the next message the user typed while the agent was busy.
+    _drainQueue: function() {
+      if (!this.queued.length || this.sending) return;
+      var next = this.queued.shift();
+      var self = this;
+      this.input = next.text;
+      this.attachments = next.atts || [];
+      this.$nextTick(function() { self.send(); });
+    },
+
+    // ---- Permission requests, answered right here ----
+    // Approvals used to live on a separate page, so a task would sit blocked
+    // while the user waited in the chat with no idea anything was needed.
+    async loadApprovals() {
+      try {
+        var data = await OpenFangAPI.get('/api/approvals');
+        var list = Array.isArray(data) ? data : (data.approvals || data.pending || []);
+        this.approvals = list.filter(function(a) {
+          var s = (a.status || a.state || 'pending').toLowerCase();
+          return s === 'pending' || s === 'waiting';
+        });
+      } catch (e) { /* leave whatever we had */ }
+    },
+
+    // decision: 'once' | 'always' | 'deny' | 'pause'
+    async answerApproval(id, decision) {
+      // "Pause" is a local hold: leave the request pending and freeze agents so
+      // the user can think without the task racing ahead or being denied.
+      if (decision === 'pause') {
+        try { await Alpine.store('app').toggleEmergencyFreeze(); } catch (e) { /* optional */ }
+        this.messages.push({ id: ++mId, role: 'system', ts: Date.now(),
+          html: 'Paused. The request is still waiting — answer it when you are ready.' });
+        this._scroll();
+        return;
+      }
+      var path = decision === 'deny' ? '/reject' : '/approve';
+      try {
+        // 'always' additionally remembers the choice, when the server supports it.
+        await OpenFangAPI.post('/api/approvals/' + encodeURIComponent(id) + path,
+          decision === 'always' ? { remember: true, scope: 'always' } : {});
+        this.approvals = this.approvals.filter(function(a) { return (a.id || a.request_id) !== id; });
+        var label = decision === 'always' ? 'Allow always' : (decision === 'deny' ? 'Deny' : 'Allow once');
+        this.messages.push({ id: ++mId, role: 'system', ts: Date.now(),
+          html: 'You chose <strong>' + label + '</strong>.' });
+        this._scroll();
+        try { Alpine.store('app').refreshApprovals(); } catch (e) { /* optional */ }
+      } catch (e) {
+        OpenFangToast.error('Could not record that: ' + (e.message || 'error'));
       }
     },
 
@@ -584,6 +656,23 @@ function freecoAssistant() {
       window.addEventListener('mouseup', up);
       e.preventDefault();
     },
+    // Widen from the left edge: the panel is anchored bottom-right, so growing
+    // leftwards means increasing width without moving the right edge.
+    startResizeLeft: function(e) {
+      if (this.fullscreen) return;
+      var startX = e.clientX, ow = this.size.w, self = this;
+      var ox = this.moved ? this.pos.x : null;
+      var move = function(ev) {
+        var dx = startX - ev.clientX;
+        self.size = { w: Math.max(300, Math.min(window.innerWidth - 20, ow + dx)), h: self.size.h };
+        if (ox !== null) self.pos = { x: Math.max(0, ox - dx), y: self.pos.y };
+      };
+      var up = function() { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+      e.preventDefault();
+    },
+
     startResize: function(e) {
       if (this.fullscreen) return;
       var startX = e.clientX, startY = e.clientY, ow = this.size.w, oh = this.size.h, self = this;
