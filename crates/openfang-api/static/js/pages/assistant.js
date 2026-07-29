@@ -554,14 +554,31 @@ function freecoAssistant() {
     refreshVoiceList: function() {
       if (!window.speechSynthesis) { this.voiceList = []; return; }
       var all = window.speechSynthesis.getVoices() || [];
-      var isNat = function(v) { return /natural|neural|online|premium|enhanced|siri/i.test(v.name || ''); };
+      // PRIVACY: a voice named "... Online (Natural)" is synthesised on
+      // Microsoft's servers, which means the text Freeco speaks is sent to
+      // them. `localService` is the spec's authoritative flag for on-device
+      // synthesis; the name check is a belt-and-braces fallback for engines
+      // that report it wrongly. Cloud voices are never promoted and are
+      // labelled, so choosing one is a deliberate, informed act.
+      var isCloud = function(v) {
+        return v.localService === false || /\bonline\b/i.test(v.name || '');
+      };
+      var isNat = function(v) { return /natural|neural|premium|enhanced|siri/i.test(v.name || ''); };
       var isEn = function(v) { return /^en(-|_|$)/i.test(v.lang || ''); };
-      // Natural/neural voices first: the classic SAPI ones (David, Zira, Mark)
-      // are the robotic-sounding ones, and users rarely know better voices
-      // exist and simply need enabling in the OS.
-      var rank = function(v) { return (isNat(v) ? 0 : 2) + (isEn(v) ? 0 : 1); };
+      // Order: local natural first, then other local, then anything cloud.
+      var rank = function(v) {
+        return (isCloud(v) ? 8 : 0) + (isNat(v) ? 0 : 2) + (isEn(v) ? 0 : 1);
+      };
       this.voiceList = all.slice().sort(function(a, b) { return rank(a) - rank(b); })
-        .map(function(v) { return { name: v.name, lang: v.lang, natural: isNat(v) }; });
+        .map(function(v) {
+          return {
+            name: v.name,
+            lang: v.lang,
+            cloud: isCloud(v),
+            natural: isNat(v) && !isCloud(v)
+          };
+        });
+      // Only LOCAL natural voices count as "you already have good voices".
       this.hasNatural = this.voiceList.some(function(v) { return v.natural; });
     },
     hasNatural: false,

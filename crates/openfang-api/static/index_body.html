@@ -6015,7 +6015,8 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
         <template x-for="v in voiceList" :key="v.name">
           <div class="freeco-voice-row" :class="{ 'freeco-voice-on': v.name === voiceName }">
             <span class="freeco-voice-name" x-text="v.name"></span>
-            <span class="freeco-voice-nat" x-show="v.natural" title="Neural voice — sounds human">natural</span>
+            <span class="freeco-voice-nat" x-show="v.natural" title="Neural voice that runs on this device — nothing is sent anywhere">on device</span>
+            <span class="freeco-voice-cloud" x-show="v.cloud" title="Synthesised on Microsoft's servers — the text Freeco speaks is sent to them">sends text to Microsoft</span>
             <span class="freeco-voice-lang" x-text="v.lang"></span>
             <button @click.stop="previewVoice(v.name)" title="Hear a sample">&#9654;</button>
             <button @click.stop="chooseVoice(v.name)" title="Use this voice">Use</button>
@@ -6026,9 +6027,14 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
         </div>
         <div x-show="voiceList.length && !hasNatural" class="freeco-voice-tip">
           These are the classic robotic voices. Windows has far more human-sounding
-          <strong>Natural</strong> voices — install them in
-          <em>Settings → Accessibility → Narrator → Add natural voices</em>
-          (or <em>Time&nbsp;&amp;&nbsp;language → Speech</em>), then reopen this menu.
+          <strong>natural</strong> voices that run <strong>entirely on this device</strong> —
+          install them in <em>Settings → Accessibility → Narrator → Add natural voices</em>,
+          then reopen this menu. Nothing you say or hear leaves your machine with those.
+        </div>
+        <div class="freeco-voice-tip" style="border-top:1px solid var(--border-subtle)">
+          Voices marked <strong>sends text to Microsoft</strong> are synthesised on their
+          servers, so Freeco's replies are transmitted to be spoken. Voices marked
+          <strong>on device</strong> never send anything.
         </div>
       </div>
     </div>
