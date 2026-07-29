@@ -88,9 +88,16 @@ impl MediaEngine {
                 }
             })
             .ok_or(
-                "Voice needs a speech-to-text service. Add a GROQ_API_KEY or OPENAI_API_KEY, \
-                 or point [media].audio_base_url at an OpenAI-compatible transcription endpoint \
-                 (a local Whisper server, or a compatible provider).",
+                // Lead with the free option. Chromium-based browsers (and the
+                // FreEco.ai desktop app) transcribe in the browser with no key
+                // and no service at all; only browsers without SpeechRecognition
+                // (Firefox) ever reach this code path, and telling those users to
+                // edit a TOML file first is the wrong first answer.
+                "No speech-to-text available. Easiest fix: use the FreEco.ai desktop app, \
+                 Chrome or Edge, where voice is transcribed in the browser for free with no key. \
+                 To use voice in any browser, add a GROQ_API_KEY (free tier) or OPENAI_API_KEY \
+                 in Settings, or point [media].audio_base_url at an OpenAI-compatible \
+                 transcription endpoint such as a local Whisper server.",
             )?;
 
         let _permit = self.semaphore.acquire().await.map_err(|e| e.to_string())?;

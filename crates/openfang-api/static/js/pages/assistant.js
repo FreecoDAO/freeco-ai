@@ -449,6 +449,23 @@ function freecoAssistant() {
         }
       }
 
+      // No SpeechRecognition here (Firefox does not implement it). Recording and
+      // uploading still works, but only if a speech-to-text service is
+      // configured — so say that once, up front, in terms the user can act on,
+      // instead of letting them record and then hit a config-file error.
+      if (!this._warnedNoSR) {
+        this._warnedNoSR = true;
+        this.messages.push({
+          id: ++mId, role: 'system', ts: Date.now(),
+          html: 'This browser has no built-in speech recognition (Firefox does not support it). ' +
+                'For <strong>free</strong> voice with no key, use the <strong>FreEco.ai desktop app</strong>, Chrome, or Edge. ' +
+                'To use voice in <em>any</em> browser, add a Groq API key (free tier) in ' +
+                '<a href="#" onclick="window.dispatchEvent(new CustomEvent(\'freeco-navigate\',{detail:\'settings\'}));return false;">Settings → Providers</a>. ' +
+                'Recording anyway — it will work if a speech-to-text service is already set up.'
+        });
+        this._scroll();
+      }
+
       if (!navigator.mediaDevices || !window.MediaRecorder) {
         if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Voice not supported in this browser');
         return;
