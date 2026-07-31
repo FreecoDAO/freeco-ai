@@ -3735,3 +3735,14 @@ mark.search-highlight {
   color: var(--warning, #c98b3f); background: rgba(201,139,63,.12);
   border-radius: 8px; padding: 1px 5px; white-space: nowrap;
 }
+
+/* Blocked (cloud) voices: visibly unavailable, not merely annotated. */
+.freeco-voice-blocked { opacity: .55; }
+.freeco-voice-blocked .freeco-voice-name { text-decoration: line-through; }
+.freeco-voice-blocked button { cursor: not-allowed; border-color: var(--border-subtle); color: var(--text-dim); }
+.freeco-unlock {
+  margin-top: 8px; width: 100%; padding: 5px 8px; cursor: pointer;
+  background: none; border: 1px dashed var(--error); color: var(--error);
+  border-radius: 6px; font-size: 10.5px; font-weight: 600;
+}
+.freeco-unlock:hover { background: var(--error-subtle); }

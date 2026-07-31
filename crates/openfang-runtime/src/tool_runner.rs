@@ -3320,10 +3320,15 @@ async fn tool_docker_exec(
     let workspace = workspace_root.ok_or("Docker exec requires a workspace directory")?;
     let agent_id = caller_agent_id.unwrap_or("default");
 
-    // Check Docker availability
+    // Check Docker availability. Failing here is the correct outcome: the
+    // sandbox is the safety boundary, so when it is unavailable the tool
+    // refuses rather than quietly running the code on the user's own machine.
     if !crate::docker_sandbox::is_docker_available().await {
         return Err(
-            "Docker is not available on this system. Install Docker to use docker_exec.".into(),
+            "Docker is not running, so there is no sandbox to execute in. \
+                    Nothing was run on the host. Start Docker Desktop (or install it from \
+                    https://docker.com/products/docker-desktop) and try again."
+                .into(),
         );
     }
 

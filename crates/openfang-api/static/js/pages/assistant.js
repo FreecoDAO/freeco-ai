@@ -594,10 +594,31 @@ function freecoAssistant() {
       window.speechSynthesis.speak(u);
     },
 
+    // Cloud voices are OFF unless the user deliberately unlocks them: selecting
+    // one means every word Freeco says is transmitted to a third party. A label
+    // is not enough — the safe thing must be the default, and the unsafe thing
+    // must take a conscious act.
+    allowCloudVoices: false,
+
+    unlockCloudVoices: function() {
+      var ok = window.confirm(
+        'Cloud voices send everything Freeco says to a third-party server to be spoken.\n\n' +
+        'That includes anything private in its replies: names, finances, health, business plans.\n\n' +
+        'Local voices never transmit anything. Enable cloud voices anyway?'
+      );
+      if (ok) this.allowCloudVoices = true;
+    },
+
     chooseVoice: function(name) {
+      var v = (window.speechSynthesis.getVoices() || []).find(function(x) { return x.name === name; });
+      var entry = this.voiceList.find(function(x) { return x.name === name; });
+      if (entry && entry.cloud && !this.allowCloudVoices) {
+        this.unlockCloudVoices();
+        if (!this.allowCloudVoices) return; // declined: keep the local voice
+      }
       this.voiceName = name;
       try { localStorage.setItem('freeco-voice-name', name); } catch (e) { /* ignore */ }
-      this._voice = (window.speechSynthesis.getVoices() || []).find(function(x) { return x.name === name; }) || null;
+      this._voice = v || null;
       this.showVoiceMenu = false;
       this.previewVoice(name);
     },
@@ -607,13 +628,20 @@ function freecoAssistant() {
       if (!window.speechSynthesis) return null;
       var voices = window.speechSynthesis.getVoices() || [];
       if (!voices.length) return null;
+      // Never auto-select a voice that ships text off the machine. Only an
+      // explicit, confirmed choice can do that.
+      var allowCloud = this.allowCloudVoices;
+      var safe = voices.filter(function(v) {
+        return allowCloud || (v.localService !== false && !/\bonline\b/i.test(v.name || ''));
+      });
+      if (!safe.length) safe = voices; // nothing local available at all
       var want = this.voiceName;
       if (want) {
-        var chosen = voices.find(function(v) { return v.name === want; });
+        var chosen = safe.find(function(v) { return v.name === want; });
         if (chosen) return chosen;
       }
-      var en = voices.filter(function(v) { return /^en(-|_|$)/i.test(v.lang || ''); });
-      var pool = en.length ? en : voices;
+      var en = safe.filter(function(v) { return /^en(-|_|$)/i.test(v.lang || ''); });
+      var pool = en.length ? en : safe;
       // Preference order: clear, warm voices. "onyx"-style names first.
       var prefer = ['onyx', 'david', 'guy', 'daniel', 'james', 'george', 'ryan', 'brian', 'aaron', 'fred', 'male'];
       for (var i = 0; i < prefer.length; i++) {

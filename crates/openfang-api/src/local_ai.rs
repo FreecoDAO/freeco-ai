@@ -431,11 +431,19 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
             .unwrap_or(recommended)
     };
 
-    if let Err(e) = write_default_model(&home, local_model) {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e})),
-        );
+    // Only point everyday work at the local model if it is ACTUALLY installed.
+    // Writing a local default that does not exist replaces a working cloud
+    // configuration with a dead endpoint: the user runs "auto-configure", and
+    // their assistant immediately stops answering. Local-first must never mean
+    // "break what works in the hope that local shows up later".
+    let local_ready = ollama_ready && model_is_installed(local_model, &installed);
+    if local_ready {
+        if let Err(e) = write_default_model(&home, local_model) {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e})),
+            );
+        }
     }
 
     let complex = detect_complex_model();
@@ -469,6 +477,13 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
                 .update_fallback_models(entry.id, chain.clone())
                 .is_ok()
             {
+                // update_fallback_models only mutates the in-memory registry, so
+                // without this the chain silently disappears on restart - exactly
+                // when a fallback matters most. Persist the updated entry the way
+                // set_agent_model does.
+                if let Some(updated) = state.kernel.registry.get(entry.id) {
+                    let _ = state.kernel.memory.save_agent(&updated);
+                }
                 routed += 1;
             }
         }
@@ -478,17 +493,28 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
         StatusCode::OK,
         Json(serde_json::json!({
             "status": "ok",
-            "default_model": { "provider": "ollama", "model": local_model, "local": true },
+            // Report what was actually written, not what we hoped to write.
+            "default_model": if local_ready {
+                serde_json::json!({ "provider": "ollama", "model": local_model, "local": true })
+            } else {
+                serde_json::json!(null)
+            },
             "complex_model": complex.map(|(env, provider, model)| serde_json::json!({
                 "provider": provider, "model": model, "api_key_env": env
             })),
             "agents_routed": routed,
+            "local_ready": local_ready,
             "ollama_ready": ollama_ready,
             "restart_required": true,
-            "message": if ollama_ready {
-                "Everyday work now runs on your local Gemma (free and private). Restart FreEco.ai to apply."
+            "message": if local_ready {
+                "Everyday work now runs on your local model (free and private). Restart FreEco.ai to apply."
+            } else if complex.is_some() {
+                "Your existing cloud model was kept as the default because no local model is installed yet — \
+                 setting a local default now would have left you with nothing that answers. \
+                 Install one in Settings > Providers, then run this again."
             } else {
-                "Saved. Local AI is not installed yet — run Settings > Providers > Set up local AI, then restart."
+                "No local model is installed and no cloud key is configured, so nothing was changed. \
+                 Add a cloud API key or install a local model in Settings > Providers."
             }
         })),
     )

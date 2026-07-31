@@ -659,10 +659,18 @@ fn default_docker_max_age() -> u64 {
 impl Default for DockerSandboxConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
+            // On by default. Agents that execute code should do it inside an
+            // isolated Linux container, not on the user's machine, and a
+            // safety feature nobody switches on protects nobody. When Docker
+            // is absent the tool reports that clearly instead of falling back
+            // to unsandboxed execution, so enabling it by default cannot make
+            // anything less safe than it was.
+            enabled: true,
             image: "python:3.12-slim".to_string(),
             container_prefix: "openfang-sandbox".to_string(),
             workdir: "/workspace".to_string(),
+            // No network unless deliberately widened: a sandbox that can reach
+            // the internet can also exfiltrate whatever it was given.
             network: "none".to_string(),
             memory_limit: "512m".to_string(),
             cpu_limit: 1.0,
