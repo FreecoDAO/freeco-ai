@@ -588,6 +588,17 @@ pub async fn build_router(
             "/api/local-ai/setup",
             axum::routing::post(crate::local_ai::local_ai_setup),
         )
+        // Sandbox visibility: a security boundary nobody can see is one
+        // nobody can trust, so its real state is queryable and the one-time
+        // image download is an explicit action rather than a silent pull.
+        .route(
+            "/api/sandbox/status",
+            axum::routing::get(crate::sandbox_status::sandbox_status),
+        )
+        .route(
+            "/api/sandbox/pull",
+            axum::routing::post(crate::sandbox_status::sandbox_pull),
+        )
         // Ollama-free local runtime: llama.cpp + Gemma 4 GGUF (resumable from HF)
         .route(
             "/api/local-ai/llama/catalog",

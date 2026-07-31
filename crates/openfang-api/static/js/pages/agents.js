@@ -82,6 +82,7 @@ function agentsPage() {
     configSaving: false,
     // -- Tool filters --
     toolFilters: { tool_allowlist: [], tool_blocklist: [] },
+    availableTools: [],      // real tool names for the filter picker
     toolFiltersLoading: false,
     newAllowTool: '',
     newBlockTool: '',
@@ -767,11 +768,30 @@ function agentsPage() {
       if (!this.detailAgent) return;
       this.toolFiltersLoading = true;
       try {
+        this.loadAvailableTools();
         this.toolFilters = await OpenFangAPI.get('/api/agents/' + this.detailAgent.id + '/tools');
       } catch(e) {
         this.toolFilters = { tool_allowlist: [], tool_blocklist: [] };
       }
       this.toolFiltersLoading = false;
+    },
+
+    // The real tool names, so filters are picked rather than typed from
+    // memory. A mistyped name silently matches nothing, which looks exactly
+    // like the filter feature being broken - and there was previously no way
+    // to discover what tools existed at all.
+    async loadAvailableTools() {
+      if (this.availableTools && this.availableTools.length) return this.availableTools;
+      try {
+        var data = await OpenFangAPI.get('/api/tools');
+        var list = Array.isArray(data) ? data : (data.tools || []);
+        this.availableTools = list.map(function (t) {
+          return typeof t === 'string' ? t : (t.name || t.id || '');
+        }).filter(Boolean).sort();
+      } catch (e) {
+        this.availableTools = [];
+      }
+      return this.availableTools;
     },
 
     addAllowTool() {

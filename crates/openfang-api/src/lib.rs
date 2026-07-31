@@ -40,6 +40,7 @@ pub mod middleware;
 pub mod openai_compat;
 pub mod rate_limiter;
 pub mod routes;
+pub mod sandbox_status;
 pub mod security;
 pub mod server;
 pub mod services;

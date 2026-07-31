@@ -24,6 +24,91 @@ pub struct Session {
     pub label: Option<String>,
 }
 
+/// Longest auto-generated label. Long enough to be recognisable in a list,
+/// short enough not to wrap in a sidebar.
+const MAX_LABEL_CHARS: usize = 48;
+
+/// Pull the plain text out of a message, whatever shape it is stored in.
+fn message_text(message: &Message) -> String {
+    match &message.content {
+        MessageContent::Text(text) => text.clone(),
+        MessageContent::Blocks(blocks) => blocks
+            .iter()
+            .filter_map(|block| match block {
+                ContentBlock::Text { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(" "),
+    }
+}
+
+/// Build a human-readable name for a conversation from its first user message.
+///
+/// Deliberately deterministic rather than model-generated: naming a session
+/// must not cost a token, wait on a network call, or fail when the model is
+/// unreachable. A conversation that cannot be named because the LLM is down is
+/// exactly the situation where the user most needs to find it again.
+///
+/// Returns None when there is nothing meaningful to name it after, so the
+/// caller leaves the label unset rather than storing something like "hi".
+pub fn derive_session_label(messages: &[Message]) -> Option<String> {
+    let first = messages.iter().find(|m| m.role == Role::User)?;
+    let text = message_text(first);
+
+    // Collapse all whitespace: pasted logs and multi-line prompts otherwise
+    // produce labels full of newlines and runs of spaces.
+    let cleaned = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let cleaned = cleaned
+        .trim_start_matches(['/', '#', '>', '-', '*', ' '])
+        .trim();
+    if cleaned.chars().count() < 3 {
+        return None;
+    }
+
+    // Prefer cutting at the end of the first sentence when that already reads
+    // as a title; otherwise fall back to a word-boundary truncation.
+    let sentence_end = cleaned
+        .char_indices()
+        .find(|(_, c)| matches!(c, '.' | '?' | '!' | '\n'))
+        .map(|(i, _)| i)
+        .filter(|i| (3..=MAX_LABEL_CHARS).contains(i));
+    let candidate: String = match sentence_end {
+        Some(end) => cleaned[..end].to_string(),
+        None if cleaned.chars().count() <= MAX_LABEL_CHARS => cleaned.to_string(),
+        None => {
+            // Cut on a word boundary so labels never end mid-word.
+            let mut out = String::new();
+            for word in cleaned.split(' ') {
+                if out.chars().count() + word.chars().count() + 1 > MAX_LABEL_CHARS {
+                    break;
+                }
+                if !out.is_empty() {
+                    out.push(' ');
+                }
+                out.push_str(word);
+            }
+            if out.is_empty() {
+                cleaned.chars().take(MAX_LABEL_CHARS).collect()
+            } else {
+                out
+            }
+        }
+    };
+
+    let trimmed = candidate.trim_end_matches([',', ';', ':', ' ']).trim();
+    if trimmed.chars().count() < 3 {
+        return None;
+    }
+    // Capitalise the first letter so a list of sessions reads like titles.
+    let mut chars = trimmed.chars();
+    let label = match chars.next() {
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+        None => return None,
+    };
+    Some(label)
+}
+
 /// Session store backed by SQLite.
 #[derive(Clone)]
 pub struct SessionStore {
@@ -83,6 +168,16 @@ impl SessionStore {
         let messages_blob = rmp_serde::to_vec_named(&session.messages)
             .map_err(|e| OpenFangError::Serialization(e.to_string()))?;
         let now = Utc::now().to_rfc3339();
+
+        // Name the conversation from its first user message the first time it
+        // is saved with content. Every write path goes through here, so this
+        // covers chat, agents and the API without any caller having to
+        // remember. A label the user has already set is never overwritten --
+        // auto-naming is a starting point, not a policy.
+        let label = match session.label.as_deref() {
+            Some(existing) if !existing.trim().is_empty() => Some(existing.to_string()),
+            _ => derive_session_label(&session.messages),
+        };
         conn.execute(
             "INSERT INTO sessions (id, agent_id, messages, context_window_tokens, label, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)
@@ -92,7 +187,7 @@ impl SessionStore {
                 session.agent_id.0.to_string(),
                 messages_blob,
                 session.context_window_tokens as i64,
-                session.label.as_deref(),
+                label.as_deref(),
                 now,
             ],
         )
@@ -629,6 +724,85 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
         SessionStore::new(Arc::new(Mutex::new(conn)))
+    }
+
+    fn user_msg(text: &str) -> Message {
+        Message {
+            role: Role::User,
+            content: MessageContent::Text(text.to_string()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn labels_a_session_from_its_first_user_message() {
+        let label = derive_session_label(&[user_msg("fix the login redirect loop")]);
+        assert_eq!(label.as_deref(), Some("Fix the login redirect loop"));
+    }
+
+    /// Long prompts must be cut on a word boundary. A label ending mid-word
+    /// looks broken in a sidebar.
+    #[test]
+    fn long_messages_are_cut_on_a_word_boundary() {
+        let long = "please investigate why the deployment pipeline keeps \
+                    failing on the staging environment every single night";
+        let label = derive_session_label(&[user_msg(long)]).unwrap();
+        assert!(label.chars().count() <= MAX_LABEL_CHARS);
+        assert!(!label.ends_with('-'));
+        // Whatever the cut point, it must not land inside a word.
+        assert!(long.to_lowercase().contains(&label.to_lowercase()));
+    }
+
+    /// Pasted logs and multi-line prompts must not produce labels full of
+    /// newlines and runs of spaces.
+    #[test]
+    fn whitespace_is_collapsed() {
+        let label =
+            derive_session_label(&[user_msg("  build   the\n\nrelease  pipeline  ")]).unwrap();
+        assert_eq!(label, "Build the release pipeline");
+    }
+
+    /// Nothing meaningful to name it after means no label, rather than a
+    /// useless one like "hi".
+    #[test]
+    fn trivial_messages_get_no_label() {
+        assert!(derive_session_label(&[user_msg("hi")]).is_none());
+        assert!(derive_session_label(&[]).is_none());
+    }
+
+    /// Auto-naming is a starting point, not a policy: a name the user chose
+    /// must survive every subsequent save.
+    #[test]
+    fn user_set_label_is_never_overwritten() {
+        let store = setup();
+        let mut session = store.create_session(AgentId::new()).unwrap();
+        session.label = Some("My own name".to_string());
+        session
+            .messages
+            .push(user_msg("something else entirely here"));
+        store.save_session(&session).unwrap();
+
+        let loaded = store.get_session(session.id).unwrap().unwrap();
+        assert_eq!(loaded.label.as_deref(), Some("My own name"));
+    }
+
+    /// The whole point: saving a session with content names it, with no
+    /// caller having to ask.
+    #[test]
+    fn saving_a_session_names_it_automatically() {
+        let store = setup();
+        let mut session = store.create_session(AgentId::new()).unwrap();
+        assert!(session.label.is_none());
+        session
+            .messages
+            .push(user_msg("set up the nightly backup job"));
+        store.save_session(&session).unwrap();
+
+        let loaded = store.get_session(session.id).unwrap().unwrap();
+        assert_eq!(
+            loaded.label.as_deref(),
+            Some("Set up the nightly backup job")
+        );
     }
 
     #[test]

@@ -367,6 +367,45 @@ function settingsPage() {
       return switched;
     },
 
+    // -- Isolated Linux sandbox --
+    sandbox: { loaded: false, ready: false, enabled: false, docker_running: false,
+               image_present: false, next_step: '', protections: null, pulling: false },
+
+    async loadSandbox(force) {
+      if (this.sandbox.loaded && !force) return this.sandbox;
+      try {
+        var s = await OpenFangAPI.get('/api/sandbox/status');
+        s.loaded = true;
+        s.pulling = false;
+        this.sandbox = s;
+      } catch (e) {
+        // Report the failure rather than leaving the panel looking healthy.
+        this.sandbox = { loaded: true, ready: false, enabled: false,
+                         docker_running: false, image_present: false,
+                         next_step: 'Could not read sandbox status: ' + e.message,
+                         protections: null, pulling: false };
+      }
+      return this.sandbox;
+    },
+
+    // Explicit, never automatic: docker run would pull this silently on first
+    // use, which on a metered connection is an unannounced download.
+    async pullSandboxImage() {
+      this.sandbox.pulling = true;
+      try {
+        var res = await OpenFangAPI.post('/api/sandbox/pull', {});
+        if (res && res.ok) {
+          OpenFangToast.success(res.message || 'Sandbox image downloaded.');
+        } else {
+          OpenFangToast.error((res && res.error) || 'Could not download the sandbox image.');
+        }
+      } catch (e) {
+        OpenFangToast.error('Sandbox image: ' + e.message);
+      }
+      this.sandbox.pulling = false;
+      await this.loadSandbox(true);
+    },
+
     async loadLlamaCatalog() {
       try {
         this.llamaCatalog = await OpenFangAPI.get('/api/local-ai/llama/catalog');

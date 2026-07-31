@@ -1138,7 +1138,7 @@
                         </template>
                       </div>
                       <div class="flex gap-1">
-                        <input class="form-input" style="font-size:12px;flex:1" x-model="newAllowTool" placeholder="tool name" @keydown.enter="addAllowTool()">
+                        <input class="form-input" style="font-size:12px;flex:1" x-model="newAllowTool" list="of-tool-names" placeholder="search tools..." @keydown.enter="addAllowTool()">
                         <button class="btn btn-ghost btn-sm" @click="addAllowTool()">Add</button>
                       </div>
                     </div>
@@ -1150,7 +1150,15 @@
                         </template>
                       </div>
                       <div class="flex gap-1">
-                        <input class="form-input" style="font-size:12px;flex:1" x-model="newBlockTool" placeholder="tool name" @keydown.enter="addBlockTool()">
+                        <input class="form-input" style="font-size:12px;flex:1" x-model="newBlockTool" list="of-tool-names" placeholder="search tools..." @keydown.enter="addBlockTool()">
+                        <!-- Real tool names from /api/tools. Typing a name blind was the
+                             whole problem: a typo silently filtered nothing, and there was
+                             no way to discover what tools even existed. -->
+                        <datalist id="of-tool-names">
+                          <template x-for="t in availableTools" :key="t">
+                            <option :value="t"></option>
+                          </template>
+                        </datalist>
                         <button class="btn btn-ghost btn-sm" @click="addBlockTool()">Add</button>
                       </div>
                     </div>
@@ -3851,6 +3859,59 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 
           <!-- Providers tab -->
           <div x-show="tab === 'providers'">
+            <!-- Sandbox status. The Docker sandbox is the boundary that keeps
+                 agent-written code off this machine, and it used to be entirely
+                 invisible: no way to tell whether it was on, whether Docker was
+                 running, or what limits applied. A security control nobody can
+                 see is one nobody can trust. -->
+            <div class="card mb-4" x-init="loadSandbox()">
+              <div class="card-header" style="display:flex;align-items:center;gap:8px">
+                Isolated Linux sandbox
+                <span class="badge" x-show="sandbox.ready"
+                      style="background:var(--success-subtle);color:var(--success)">Ready</span>
+                <span class="badge" x-show="sandbox.loaded && !sandbox.ready"
+                      style="background:var(--warning-subtle);color:var(--warning)">Not ready</span>
+                <button class="btn btn-ghost btn-sm" style="margin-left:auto" @click="loadSandbox(true)">Refresh</button>
+              </div>
+              <p style="font-size:13px;color:var(--text-dim);margin-top:6px">
+                Code written by agents runs inside a throwaway Linux container with no network,
+                not on your machine. If the sandbox is unavailable the tool refuses and runs
+                nothing locally, so this is never silently bypassed.
+              </p>
+
+              <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;margin:10px 0">
+                <span><span x-text="sandbox.enabled ? '✓' : '✗'"></span> Enabled</span>
+                <span><span x-text="sandbox.docker_running ? '✓' : '✗'"></span> Docker running</span>
+                <span><span x-text="sandbox.image_present ? '✓' : '✗'"></span> Image downloaded</span>
+              </div>
+
+              <!-- Say which of the three things is wrong, in the order it has to be fixed. -->
+              <div x-show="sandbox.next_step" style="font-size:12px;color:var(--warning);margin:8px 0"
+                   x-text="sandbox.next_step"></div>
+
+              <div x-show="sandbox.loaded && sandbox.enabled && sandbox.docker_running && !sandbox.image_present"
+                   style="margin:8px 0">
+                <button class="btn btn-sm" @click="pullSandboxImage()" :disabled="sandbox.pulling">
+                  <span x-show="!sandbox.pulling">Download sandbox image</span>
+                  <span x-show="sandbox.pulling">Downloading&hellip;</span>
+                </button>
+                <span class="text-xs text-dim" style="margin-left:8px">
+                  One-time, about 130&nbsp;MB. Never downloaded automatically.
+                </span>
+              </div>
+
+              <!-- The protections actually in force, rather than taken on faith. -->
+              <div x-show="sandbox.ready" style="font-size:12px;color:var(--text-dim);margin-top:8px">
+                <strong>In force:</strong>
+                network <span x-text="sandbox.protections && sandbox.protections.network"></span>,
+                memory <span x-text="sandbox.protections && sandbox.protections.memory_limit"></span>,
+                <span x-text="sandbox.protections && sandbox.protections.cpu_limit"></span> CPU,
+                <span x-text="sandbox.protections && sandbox.protections.pids_limit"></span> processes max,
+                all capabilities dropped, no privilege escalation<span
+                  x-show="sandbox.protections && sandbox.protections.read_only_root">, read-only root</span>.
+              </div>
+            </div>
+
             <!-- Free local AI -->
             <div class="card mb-4" x-init="initLocalAi()" style="border-color:var(--success)">
               <div class="card-header" style="display:flex;align-items:center;gap:8px">
