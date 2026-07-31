@@ -239,6 +239,174 @@ async fn detect_hardware() -> LocalHardware {
     }
 }
 
+/// Tokens/sec measured on an Intel UHD 620 with Vulkan offload — the weak end
+/// of the range this runs on. Vulkan is already ~8x faster than pure CPU here,
+/// so these are the *optimistic* numbers for a machine without a real GPU.
+const IGPU_PROMPT_TOKENS_PER_SEC: f64 = 2.5;
+/// A realistic agent turn: system prompt, tool schemas, and history. Chat with
+/// a two-line question is far cheaper, which is why a quick "say hello" test
+/// looks fine and real agent work then takes an hour.
+const TYPICAL_AGENT_PROMPT_TOKENS: f64 = 11_500.0;
+
+/// Whether local inference is actually worth enabling on this machine.
+///
+/// This exists because a local model that technically runs but takes an hour
+/// per answer is worse than no local model at all: the assistant looks
+/// configured and simply never replies. That failure is indistinguishable from
+/// a broken install, and it is the single most common way local AI "does not
+/// work". A GPU check up front is the honest fix.
+#[derive(Debug, Clone, Serialize)]
+pub struct LocalAiCapability {
+    /// True only when this machine can run a local model at usable speed.
+    pub suitable: bool,
+    /// True when a discrete GPU with usable VRAM was detected.
+    pub has_gpu: bool,
+    pub vram_gb: u64,
+    pub ram_gb: u64,
+    /// Estimated minutes for ONE agent turn. None when a GPU makes it fast.
+    pub est_minutes_per_agent_turn: Option<u64>,
+    /// Plain-language explanation, shown to the user verbatim.
+    pub reason: String,
+    /// What this machine would need. Shown even when unsuitable, so the answer
+    /// to "why not?" comes with "here is what would work" rather than a dead
+    /// end. Empty when the machine is already capable.
+    pub requirements: Vec<String>,
+    /// Local setup is never blocked outright - the user may have a reason to
+    /// accept the speed. This flags that proceeding needs explicit consent.
+    pub can_proceed_anyway: bool,
+}
+
+/// The hardware that actually makes local inference usable.
+///
+/// Stated concretely rather than as "a decent GPU", because the whole point is
+/// that the user can check these against a machine they own or are buying.
+fn local_ai_requirements() -> Vec<String> {
+    vec![
+        "GPU: NVIDIA or AMD with 6 GB VRAM minimum, 8-12 GB comfortable \
+         (e.g. RTX 3060/4060, RX 7600). The GPU is what decides speed - \
+         it matters far more than the CPU."
+            .to_string(),
+        "Apple Silicon alternative: M1 or newer with 16 GB or more unified \
+         memory works well, because the GPU shares system RAM."
+            .to_string(),
+        "RAM: 16 GB recommended, 8 GB the absolute floor alongside a GPU. \
+         Below that the machine swaps and everything slows down."
+            .to_string(),
+        "CPU: any modern 4-core or better. A faster CPU barely helps once a \
+         GPU is doing the work, so it is not worth spending on for this."
+            .to_string(),
+        "Disk: about 3-5 GB per model, on an SSD.".to_string(),
+        "Integrated graphics (Intel UHD/Iris, AMD Vega) do not qualify. They \
+         help against pure CPU but stay far short of usable for agent work."
+            .to_string(),
+    ]
+}
+
+/// Decide whether to offer local inference, and say honestly why not.
+///
+/// An integrated GPU does not count. It helps a great deal relative to the
+/// CPU, and it is still far short of usable for agent-sized prompts, so
+/// treating it as "has a GPU" would reintroduce exactly the failure this
+/// guards against.
+fn assess_local_ai(hardware: &LocalHardware) -> LocalAiCapability {
+    let vram_gb = hardware.vram_gb.unwrap_or(0);
+    let ram_gb = hardware.ram_gb.unwrap_or(0);
+
+    // Apple Silicon shares one pool of memory between CPU and GPU, so it has
+    // no separate VRAM figure and nvidia-smi does not exist there. Judging it
+    // by `vram_gb` would reject every Mac, including 32 GB M-series machines
+    // that run these models comfortably via Metal. Use unified memory instead.
+    let apple_silicon = hardware.os == "macos" && hardware.architecture == "aarch64";
+    if apple_silicon {
+        let suitable = ram_gb >= 16;
+        return LocalAiCapability {
+            suitable,
+            has_gpu: true,
+            vram_gb: ram_gb, // unified: the GPU can address system memory
+            ram_gb,
+            est_minutes_per_agent_turn: None,
+            reason: if suitable {
+                format!(
+                    "Apple Silicon with {ram_gb} GB unified memory. The GPU shares system \
+                     memory here, so local models run well - free and private."
+                )
+            } else {
+                format!(
+                    "Apple Silicon with {ram_gb} GB unified memory. That is below the 16 GB \
+                     that makes local models comfortable, so local AI stays off by default \
+                     and your current model remains the default."
+                )
+            },
+            requirements: if suitable {
+                Vec::new()
+            } else {
+                local_ai_requirements()
+            },
+            can_proceed_anyway: !suitable,
+        };
+    }
+
+    // 6 GB is the point where a quantised Gemma 4 fits in VRAM with room for
+    // context. Below that the model spills to system RAM and the GPU stops
+    // helping, which puts us back in the unusable range.
+    let has_gpu = vram_gb >= 6;
+
+    if !has_gpu {
+        let minutes =
+            (TYPICAL_AGENT_PROMPT_TOKENS / IGPU_PROMPT_TOKENS_PER_SEC / 60.0).round() as u64;
+        return LocalAiCapability {
+            suitable: false,
+            has_gpu: false,
+            vram_gb,
+            ram_gb,
+            est_minutes_per_agent_turn: Some(minutes),
+            reason: format!(
+                "No discrete GPU was found, so local AI is off by default here. It would \
+                 still run - a single agent turn would just take roughly {minutes} minutes \
+                 instead of seconds, so the assistant would look configured and rarely \
+                 answer in time. This is a hardware limit, not a setting: no model size or \
+                 tuning fixes it. Your current model stays the default. You can still set \
+                 up local AI if you want it - short chat messages are much faster than \
+                 full agent turns, and it runs entirely offline and private."
+            ),
+            requirements: local_ai_requirements(),
+            can_proceed_anyway: true,
+        };
+    }
+
+    if ram_gb > 0 && ram_gb < 8 {
+        return LocalAiCapability {
+            suitable: false,
+            has_gpu: true,
+            vram_gb,
+            ram_gb,
+            est_minutes_per_agent_turn: None,
+            reason: format!(
+                "A GPU with {vram_gb} GB VRAM was found, but only {ram_gb} GB of system RAM. \
+                 Loading a model would push this machine into swapping and slow everything \
+                 down, so local AI is off by default. 16 GB makes it comfortable, 8 GB is \
+                 the floor. You can still set it up if you want to try it."
+            ),
+            requirements: local_ai_requirements(),
+            can_proceed_anyway: true,
+        };
+    }
+
+    LocalAiCapability {
+        suitable: true,
+        has_gpu: true,
+        vram_gb,
+        ram_gb,
+        est_minutes_per_agent_turn: None,
+        reason: format!(
+            "A discrete GPU with {vram_gb} GB VRAM was found. This machine can run a local \
+             model at usable speed, free and private."
+        ),
+        requirements: Vec::new(),
+        can_proceed_anyway: false,
+    }
+}
+
 fn recommended_model(hardware: &LocalHardware, purpose: &str) -> &'static str {
     let ram = hardware.ram_gb.unwrap_or(0);
     let vram = hardware.vram_gb.unwrap_or(0);
@@ -436,14 +604,77 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
     // configuration with a dead endpoint: the user runs "auto-configure", and
     // their assistant immediately stops answering. Local-first must never mean
     // "break what works in the hope that local shows up later".
-    let local_ready = ollama_ready && model_is_installed(local_model, &installed);
-    if local_ready {
+    // llama.cpp first, Ollama only if it happens to be there already.
+    //
+    // Ollama was the original local path and it is why local AI kept failing:
+    // its registry ignores HTTP Range, so an interrupted pull of a multi-GB
+    // model restarts from zero instead of resuming, and a laptop on a normal
+    // connection never finishes. llama-server reads plain GGUF files from
+    // HuggingFace, which does honour Range, so a download survives being
+    // interrupted. It is also the only one of the two that offloads to the
+    // integrated GPU here, which is worth roughly 8x on this hardware.
+    //
+    // So: if a Gemma 4 GGUF is on disk and llama-server is present, point the
+    // default there. We never install Ollama to satisfy autoconfig; it is
+    // honoured only when the user already has it running.
+    let gguf_dir = models_dir(&home);
+    let llama_server = find_llama_server(&home);
+    let llama_model = LLAMA_GGUF_CATALOG
+        .iter()
+        .find(|m| gguf_dir.join(m.file_name).is_file());
+
+    let mut local_ready = false;
+    let mut local_backend = "none";
+    let mut local_label = String::new();
+
+    // Hardware gate comes first. On a machine without a real GPU a local model
+    // runs but takes about an hour per agent turn, so making it the default
+    // silently breaks the assistant. Keep the working cloud model instead and
+    // report why, rather than handing the user something that never answers.
+    let capability = assess_local_ai(&hardware);
+
+    if capability.suitable {
+        if let (Some(model), Some(server)) = (llama_model, llama_server.as_ref()) {
+            // Start it if it is not already answering, so "auto-configure" leaves
+            // behind something that actually responds rather than a config file
+            // pointing at a port with nothing on it.
+            if !llama_server_ready().await {
+                let _ = start_llama_server(server, &gguf_dir.join(model.file_name));
+                wait_for_llama_server(std::time::Duration::from_secs(30)).await;
+            }
+            if llama_server_ready().await {
+                if let Err(e) = write_default_model_llama(&home, model.id) {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({"error": e})),
+                    );
+                }
+                local_ready = true;
+                local_backend = "llama.cpp";
+                local_label = model.id.to_string();
+            }
+        }
+    }
+
+    // Only point everyday work at the local model if it is ACTUALLY installed.
+    // Writing a local default that does not exist replaces a working cloud
+    // configuration with a dead endpoint: the user runs "auto-configure", and
+    // their assistant immediately stops answering. Local-first must never mean
+    // "break what works in the hope that local shows up later".
+    if capability.suitable
+        && !local_ready
+        && ollama_ready
+        && model_is_installed(local_model, &installed)
+    {
         if let Err(e) = write_default_model(&home, local_model) {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": e})),
             );
         }
+        local_ready = true;
+        local_backend = "ollama";
+        local_label = local_model.to_string();
     }
 
     let complex = detect_complex_model();
@@ -495,7 +726,12 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
             "status": "ok",
             // Report what was actually written, not what we hoped to write.
             "default_model": if local_ready {
-                serde_json::json!({ "provider": "ollama", "model": local_model, "local": true })
+                serde_json::json!({
+                    "provider": if local_backend == "llama.cpp" { "openai" } else { "ollama" },
+                    "model": local_label,
+                    "backend": local_backend,
+                    "local": true
+                })
             } else {
                 serde_json::json!(null)
             },
@@ -505,6 +741,9 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
             "agents_routed": routed,
             "local_ready": local_ready,
             "ollama_ready": ollama_ready,
+            // Always reported, so the UI can explain why local AI is off
+            // rather than leaving the user to guess that it silently failed.
+            "local_ai_capability": capability,
             "restart_required": true,
             "message": if local_ready {
                 "Everyday work now runs on your local model (free and private). Restart FreEco.ai to apply."
@@ -1241,17 +1480,26 @@ fn models_dir(home: &std::path::Path) -> std::path::PathBuf {
     home.join("models")
 }
 
-/// Locate the `llama-server` binary: bundled under `~/.openfang/llamacpp/`,
-/// else on PATH. Returns None if not found (caller reports how to get it).
+/// Locate the `llama-server` binary.
+///
+/// `llama-vk` is checked before `llamacpp` on purpose: it holds the Vulkan
+/// build, which offloads to the integrated GPU and is roughly 8x faster than
+/// the CPU-only build on the hardware this targets. Preferring it is the
+/// difference between a local model that is usable and one that is not, so
+/// when both are installed the fast one wins.
+///
+/// Returns None if nothing is found (the caller reports how to get it).
 fn find_llama_server(home: &std::path::Path) -> Option<std::path::PathBuf> {
     let exe = if cfg!(windows) {
         "llama-server.exe"
     } else {
         "llama-server"
     };
-    let bundled = home.join("llamacpp").join(exe);
-    if bundled.exists() {
-        return Some(bundled);
+    for dir in ["llama-vk", "llamacpp"] {
+        let candidate = home.join(dir).join(exe);
+        if candidate.exists() {
+            return Some(candidate);
+        }
     }
     // Fall back to PATH.
     which_on_path(exe)
@@ -1299,6 +1547,36 @@ fn start_llama_server(server: &std::path::Path, gguf: &std::path::Path) -> Resul
         .map_err(|e| format!("could not start llama-server: {e}"))
 }
 
+/// True once llama-server answers on its OpenAI-compatible endpoint.
+async fn llama_server_ready() -> bool {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build();
+    let Ok(client) = client else { return false };
+    client
+        .get(format!("http://127.0.0.1:{LLAMA_PORT}/v1/models"))
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
+}
+
+/// Poll until llama-server answers or `budget` expires.
+///
+/// Loading a multi-gigabyte GGUF into memory takes many seconds on a spinning
+/// laptop, so a single probe right after spawn always reports failure and the
+/// caller would wrongly conclude the server never came up.
+async fn wait_for_llama_server(budget: std::time::Duration) -> bool {
+    let deadline = std::time::Instant::now() + budget;
+    while std::time::Instant::now() < deadline {
+        if llama_server_ready().await {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(750)).await;
+    }
+    false
+}
+
 /// Point `[default_model]` at the local llama-server (OpenAI-compatible).
 fn write_default_model_llama(home: &std::path::Path, model_id: &str) -> Result<(), String> {
     let path = home.join("config.toml");
@@ -1342,6 +1620,10 @@ pub async fn llama_catalog(State(state): State<Arc<AppState>>) -> impl IntoRespo
     Json(serde_json::json!({
         "engine": "llama.cpp",
         "server_present": server_present,
+        // The picker must warn BEFORE a multi-gigabyte download, not after.
+        // Downloading 2.5 GB onto a machine that cannot run the result at
+        // usable speed wastes the user's bandwidth and their time.
+        "capability": assess_local_ai(&hardware),
         "hardware": hardware,
         "models": items,
     }))
@@ -1503,6 +1785,93 @@ mod tests {
         assert!(!"bad name; rm -rf"
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || "._:-/".contains(c)));
+    }
+
+    fn hw(ram_gb: u64, vram_gb: Option<u64>) -> LocalHardware {
+        LocalHardware {
+            os: "windows".into(),
+            architecture: "x86_64".into(),
+            ram_gb: Some(ram_gb),
+            vram_gb,
+            free_disk_gb: Some(100),
+            ollama_detected: false,
+            docker_detected: false,
+        }
+    }
+
+    /// The user's actual machine: 8 GB RAM, Intel UHD 620. nvidia-smi finds
+    /// nothing, so vram is None. Measured ~5 tok/s -- about an hour per agent
+    /// turn. Local AI must stay OFF here; enabling it produces an assistant
+    /// that looks configured and never answers.
+    #[test]
+    fn igpu_machine_is_not_suitable_for_local_ai() {
+        let cap = assess_local_ai(&hw(8, None));
+        assert!(!cap.suitable);
+        assert!(!cap.has_gpu);
+        // The warning must carry a concrete number, not a vague "may be slow".
+        let minutes = cap.est_minutes_per_agent_turn.expect("must estimate");
+        assert!(
+            minutes >= 30,
+            "estimate should be honest, got {minutes} min"
+        );
+    }
+
+    /// Being told "no" without being told "what would work" is a dead end.
+    /// Every unsuitable verdict must carry concrete requirements and must
+    /// still leave local setup reachable.
+    #[test]
+    fn unsuitable_verdicts_explain_what_is_needed() {
+        for machine in [hw(8, None), hw(16, Some(2)), hw(4, Some(12))] {
+            let cap = assess_local_ai(&machine);
+            assert!(!cap.suitable);
+            assert!(cap.can_proceed_anyway, "local setup must stay available");
+            assert!(!cap.requirements.is_empty(), "must say what is needed");
+            let text = cap.requirements.join(" ");
+            assert!(text.contains("VRAM"), "must state GPU/VRAM needs");
+            assert!(text.contains("RAM"), "must state RAM needs");
+            assert!(text.contains("CPU"), "must state CPU needs");
+        }
+    }
+
+    /// Apple Silicon has no separate VRAM and no nvidia-smi, so judging it by
+    /// `vram_gb` would reject every Mac -- including 32 GB M-series machines
+    /// that run these models comfortably through Metal.
+    #[test]
+    fn apple_silicon_judged_on_unified_memory() {
+        let mut m2 = hw(32, None);
+        m2.os = "macos".into();
+        m2.architecture = "aarch64".into();
+        let cap = assess_local_ai(&m2);
+        assert!(cap.suitable, "32 GB Apple Silicon must not be rejected");
+        assert!(cap.has_gpu);
+
+        let mut small = hw(8, None);
+        small.os = "macos".into();
+        small.architecture = "aarch64".into();
+        assert!(!assess_local_ai(&small).suitable);
+    }
+
+    /// An integrated GPU reporting a little shared memory must not be mistaken
+    /// for a real one; below the VRAM floor the model spills to system RAM and
+    /// the GPU stops helping.
+    #[test]
+    fn small_vram_does_not_count_as_a_gpu() {
+        assert!(!assess_local_ai(&hw(16, Some(2))).suitable);
+        assert!(!assess_local_ai(&hw(16, Some(5))).suitable);
+    }
+
+    #[test]
+    fn discrete_gpu_is_suitable() {
+        let cap = assess_local_ai(&hw(16, Some(8)));
+        assert!(cap.suitable);
+        assert!(cap.has_gpu);
+        assert!(cap.est_minutes_per_agent_turn.is_none());
+    }
+
+    /// A GPU alone is not enough: too little system RAM means swapping.
+    #[test]
+    fn gpu_with_too_little_ram_is_not_suitable() {
+        assert!(!assess_local_ai(&hw(4, Some(12))).suitable);
     }
 
     #[test]

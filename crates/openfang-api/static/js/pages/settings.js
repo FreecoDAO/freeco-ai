@@ -393,7 +393,37 @@ function settingsPage() {
       await this.startLocalAiSetup(id);
     },
 
+    // Warn BEFORE the download, not after. On a machine without a discrete
+    // GPU a local model runs but takes about an hour per agent turn, so
+    // pulling several GB first and discovering that afterwards wastes both
+    // the user's bandwidth and their time. The check is honest about it
+    // being a hardware limit rather than something a setting can fix.
+    async confirmWeakHardware() {
+      var cat = this.llamaCatalog || await this.loadLlamaCatalog();
+      var cap = cat && cat.capability;
+      if (!cap || cap.suitable) return true;
+      var msg = cap.reason + '\n\n';
+      if (cap.est_minutes_per_agent_turn) {
+        msg += 'Estimated for THIS machine: about ' + cap.est_minutes_per_agent_turn +
+               ' minutes for a single agent turn.\n\n';
+      }
+      // Answer "why not?" with "here is what would work". Without this the
+      // warning is a dead end and the user has no way to judge what to buy
+      // or which of their machines to run it on.
+      if (cap.requirements && cap.requirements.length) {
+        msg += 'What local AI needs to run well:\n';
+        msg += cap.requirements.map(function (r) { return '  - ' + r; }).join('\n');
+        msg += '\n\n';
+      }
+      msg += 'Set it up anyway? (Cancel keeps your current model.)';
+      return window.confirm(msg);
+    },
+
     async startLocalAiSetup(modelId) {
+      if (!await this.confirmWeakHardware()) {
+        OpenFangToast.info('Local AI left off. Your current model stays the default.');
+        return;
+      }
       try {
         await OpenFangAPI.post('/api/local-ai/llama/setup', { model_id: modelId });
         OpenFangToast.success('Setting up ' + (modelId || 'local AI') + ' - this downloads a few GB and resumes if interrupted. Keep the app open.');
