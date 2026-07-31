@@ -549,7 +549,10 @@ mod tests {
     #[test]
     fn test_config_defaults() {
         let config = DockerSandboxConfig::default();
-        assert!(!config.enabled);
+        // On by default: code execution belongs in an isolated container, and
+        // a sandbox nobody switches on protects nobody. This is deliberate --
+        // if it ever flips back to false, that is a regression, not a tidy-up.
+        assert!(config.enabled);
         assert_eq!(config.image, "python:3.12-slim");
         assert_eq!(config.container_prefix, "openfang-sandbox");
         assert_eq!(config.workdir, "/workspace");
