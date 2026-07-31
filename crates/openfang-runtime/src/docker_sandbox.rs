@@ -90,6 +90,26 @@ pub async fn is_docker_available() -> bool {
     }
 }
 
+/// Check whether an image is already in the local Docker cache.
+///
+/// `docker run` silently pulls a missing image, which on a metered or slow
+/// connection means an unannounced multi-hundred-megabyte download. We check
+/// first so the user is told what it costs and decides when to pay it.
+pub async fn is_image_present(image: &str) -> bool {
+    match tokio::process::Command::new("docker")
+        .arg("image")
+        .arg("inspect")
+        .arg(image)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .await
+    {
+        Ok(status) => status.success(),
+        Err(_) => false,
+    }
+}
+
 /// Create and start a sandbox container for an agent.
 pub async fn create_sandbox(
     config: &DockerSandboxConfig,
@@ -97,6 +117,19 @@ pub async fn create_sandbox(
     workspace: &Path,
 ) -> Result<SandboxContainer, String> {
     validate_image_name(&config.image)?;
+
+    // Refuse rather than trigger a surprise download. Once the image is
+    // cached this check costs milliseconds and never fires again.
+    if !is_image_present(&config.image).await {
+        return Err(format!(
+            "Sandbox image '{}' is not downloaded yet, and nothing was run. \
+             Fetching it needs a one-time download (roughly 130 MB for the default \
+             python:3.12-slim), so it is not started behind your back. \
+             Run `docker pull {}` when you are ready, or set docker.image in \
+             ~/.openfang/config.toml to an image you already have.",
+            config.image, config.image
+        ));
+    }
     let container_name = sanitize_container_name(&format!(
         "{}-{}",
         config.container_prefix,
