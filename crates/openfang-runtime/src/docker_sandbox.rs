@@ -60,16 +60,28 @@ fn validate_image_name(image: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// SECURITY: Sanitize command — reject dangerous shell metacharacters.
-/// Delegates to the comprehensive subprocess_sandbox check.
+/// Validate a command destined for the sandbox container.
+///
+/// Deliberately does NOT filter shell metacharacters. That filter exists for
+/// `subprocess_sandbox`, which runs commands on the user's own machine, where
+/// limiting `&&`, `;` and `${}` genuinely reduces the blast radius of injected
+/// input.
+///
+/// Inside this sandbox the reasoning inverts. The container is the security
+/// boundary: no network, all capabilities dropped, no privilege escalation,
+/// read-only root, capped memory/CPU/PIDs, and destroyed afterwards. Running
+/// arbitrary shell in there is the entire point of having it.
+///
+/// The filter also bought nothing. Anyone who can set the command can put
+/// whatever they like in a *single* command; chaining is a convenience, not an
+/// escalation. So it stopped no attack while blocking ordinary work -- an
+/// agent could not run `which git && git --version`, a Python one-liner with a
+/// semicolon, or anything using `${VAR}`. A control that blocks legitimate use
+/// and prevents nothing is worse than no control: it pushes work back onto the
+/// host, which is exactly what the sandbox was built to avoid.
 fn validate_command(command: &str) -> Result<(), String> {
     if command.is_empty() {
         return Err("Command cannot be empty".into());
-    }
-    if let Some(reason) = crate::subprocess_sandbox::contains_shell_metacharacters(command) {
-        return Err(format!(
-            "Command blocked: contains {reason} — potential injection"
-        ));
     }
     Ok(())
 }
@@ -514,30 +526,24 @@ mod tests {
         assert!(validate_command("ls -la /workspace").is_ok());
     }
 
+    /// Ordinary shell must work inside the sandbox. These previously all
+    /// failed as "potential injection", which made the sandbox unusable for
+    /// real work: an agent could not chain two commands, write a Python
+    /// one-liner, or reference an environment variable. The container is the
+    /// boundary, and it is the container's job to contain them.
     #[test]
-    fn test_validate_command_pipe_blocked() {
-        // SECURITY: Pipes now blocked by comprehensive metacharacter check
-        assert!(validate_command("echo hello | grep h").is_err());
+    fn ordinary_shell_is_allowed_in_the_sandbox() {
+        assert!(validate_command("echo hello | grep h").is_ok());
+        assert!(validate_command("which git && git --version").is_ok());
+        assert!(validate_command("pip install pyyaml; python3 check.py").is_ok());
+        assert!(validate_command("echo ${HOME}").is_ok());
+        assert!(validate_command("echo `whoami`").is_ok());
+        assert!(validate_command("cat a.txt > b.txt").is_ok());
     }
 
     #[test]
     fn test_validate_command_empty() {
         assert!(validate_command("").is_err());
-    }
-
-    #[test]
-    fn test_validate_command_backticks() {
-        assert!(validate_command("echo `whoami`").is_err());
-    }
-
-    #[test]
-    fn test_validate_command_dollar_paren() {
-        assert!(validate_command("echo $(id)").is_err());
-    }
-
-    #[test]
-    fn test_validate_command_dollar_brace() {
-        assert!(validate_command("echo ${HOME}").is_err());
     }
 
     #[tokio::test]
