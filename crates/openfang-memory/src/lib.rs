@@ -12,6 +12,7 @@ pub mod consolidation;
 pub mod http_client;
 pub mod knowledge;
 pub mod migration;
+pub mod org;
 pub mod semantic;
 pub mod session;
 pub mod structured;
