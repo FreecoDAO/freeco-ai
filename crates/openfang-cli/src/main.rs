@@ -1452,16 +1452,30 @@ fn detect_best_provider() -> (&'static str, &'static str, &'static str) {
         return ("ollama", "OLLAMA_API_KEY", "llama3.2");
     }
     ui::hint("No LLM provider API keys found");
-    ui::hint("Groq offers a free tier: https://console.groq.com");
-    ui::hint("Or install Ollama for local models: https://ollama.com");
-    ("groq", "GROQ_API_KEY", "llama-3.3-70b-versatile")
+    // OpenRouter first: one key reaches most models from most vendors, so a
+    // new user is not locked to a single company before they know what they
+    // need. Groq is a fine free tier but pointing everyone at it by default
+    // made it the de-facto choice for people who never chose it.
+    ui::hint("OpenRouter reaches most models with one key: https://openrouter.ai/keys");
+    ui::hint("Or run a model locally with llama.cpp - no key, nothing leaves this machine");
+    (
+        "openrouter",
+        "OPENROUTER_API_KEY",
+        "anthropic/claude-sonnet-4",
+    )
 }
 
 /// Static list of supported providers: (id, env_var, default_model, display_name).
 fn provider_list() -> Vec<(&'static str, &'static str, &'static str, &'static str)> {
     vec![
-        ("groq", "GROQ_API_KEY", "llama-3.3-70b-versatile", "Groq"),
+        (
+            "openrouter",
+            "OPENROUTER_API_KEY",
+            "anthropic/claude-sonnet-4",
+            "OpenRouter",
+        ),
         ("gemini", "GEMINI_API_KEY", "gemini-2.5-flash", "Gemini"),
+        ("groq", "GROQ_API_KEY", "llama-3.3-70b-versatile", "Groq"),
         ("deepseek", "DEEPSEEK_API_KEY", "deepseek-chat", "DeepSeek"),
         (
             "anthropic",

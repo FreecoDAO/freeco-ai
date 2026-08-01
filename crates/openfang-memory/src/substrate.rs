@@ -217,6 +217,11 @@ impl MemorySubstrate {
         self.sessions.list_sessions()
     }
 
+    /// List agent conversations (the canonical store) with their names.
+    pub fn list_canonical_sessions(&self) -> OpenFangResult<Vec<serde_json::Value>> {
+        self.sessions.list_canonical_sessions()
+    }
+
     /// Delete a session by ID.
     pub fn delete_session(&self, session_id: SessionId) -> OpenFangResult<()> {
         self.sessions.delete_session(session_id)

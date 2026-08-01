@@ -20,9 +20,9 @@ struct ProviderInfo {
 
 const PROVIDERS: &[ProviderInfo] = &[
     ProviderInfo {
-        name: "groq",
-        env_var: "GROQ_API_KEY",
-        default_model: "llama-3.3-70b-versatile",
+        name: "openrouter",
+        env_var: "OPENROUTER_API_KEY",
+        default_model: "anthropic/claude-sonnet-4",
         needs_key: true,
     },
     ProviderInfo {
@@ -35,12 +35,6 @@ const PROVIDERS: &[ProviderInfo] = &[
         name: "openai",
         env_var: "OPENAI_API_KEY",
         default_model: "gpt-4o",
-        needs_key: true,
-    },
-    ProviderInfo {
-        name: "openrouter",
-        env_var: "OPENROUTER_API_KEY",
-        default_model: "google/gemini-2.5-flash",
         needs_key: true,
     },
     ProviderInfo {
@@ -162,6 +156,12 @@ const PROVIDERS: &[ProviderInfo] = &[
         env_var: "LMSTUDIO_API_KEY",
         default_model: "local-model",
         needs_key: false,
+    },
+    ProviderInfo {
+        name: "groq",
+        env_var: "GROQ_API_KEY",
+        default_model: "llama-3.3-70b-versatile",
+        needs_key: true,
     },
 ];
 

@@ -87,18 +87,20 @@ impl MediaEngine {
                     None
                 }
             })
-            .ok_or(
-                // Lead with the free option. Chromium-based browsers (and the
-                // FreEco.ai desktop app) transcribe in the browser with no key
-                // and no service at all; only browsers without SpeechRecognition
-                // (Firefox) ever reach this code path, and telling those users to
-                // edit a TOML file first is the wrong first answer.
-                "No speech-to-text available. Easiest fix: use the FreEco.ai desktop app, \
-                 Chrome or Edge, where voice is transcribed in the browser for free with no key. \
-                 To use voice in any browser, add a GROQ_API_KEY (free tier) or OPENAI_API_KEY \
-                 in Settings, or point [media].audio_base_url at an OpenAI-compatible \
-                 transcription endpoint such as a local Whisper server.",
-            )?;
+            .ok_or(STT_UNAVAILABLE)
+            .map_err(|base: &str| {
+                // If they already hold a compatible key, say so. Asking someone
+                // to sign up for another service when a key they already own
+                // would do the job wastes their time and their money.
+                match existing_compatible_key() {
+                    Some((env, label)) => format!(
+                        "{base}
+
+You already have a {label} key ({env}). It speaks the                          same API, so voice can reuse it: set [media].audio_base_url to that                          provider's endpoint and [media].audio_provider = \"openai\".                          No new signup is needed."
+                    ),
+                    None => base.to_string(),
+                }
+            })?;
 
         let _permit = self.semaphore.acquire().await.map_err(|e| e.to_string())?;
 
@@ -434,6 +436,47 @@ fn detect_audio_provider() -> Option<&'static str> {
         return Some("openai");
     }
     None
+}
+
+/// Shown when no transcription backend is available.
+///
+/// Deliberately private-first. Recorded speech is more sensitive than
+/// synthesised speech: it carries the user's own voice, whatever else was
+/// audible in the room, and often names, finances or health. Cloud output
+/// voices are blocked by default for exactly that reason, so leading with
+/// "upload your microphone to a cloud service" would contradict the
+/// product's own privacy stance. Only browsers without SpeechRecognition
+/// (Firefox) reach this path, so the options that keep audio on this machine
+/// come first and the cloud option is named as what it is.
+const STT_UNAVAILABLE: &str = "No speech-to-text available in this browser.
+
+     Private options, audio never leaves this machine:
+     1. Use the FreEco.ai desktop app, Chrome or Edge - they transcribe on-device,      free, with no key and no server.
+     2. Run a local Whisper server and point [media].audio_base_url at it. It works      in any browser, including Firefox, and is the best option if you dictate      anything confidential.
+
+     Cloud option, and the trade is worth knowing: a cloud transcription key uploads      every recording to that company, where it may be retained. Convenient, but it is      your voice leaving your machine.";
+
+/// Provider keys the user may already hold that speak the OpenAI wire format.
+///
+/// Checked so we can tell someone "you already have a key that would work"
+/// instead of asking them to sign up for another service. Deliberately only
+/// used to inform the message, never to route audio automatically: sending a
+/// recording to a company the user never chose for that purpose is not a
+/// decision this code gets to make silently.
+const COMPATIBLE_KEY_ENVS: &[(&str, &str)] = &[
+    ("ZHIPU_API_KEY", "Novita"),
+    ("NOVITA_API_KEY", "Novita"),
+    ("TOGETHER_API_KEY", "Together"),
+    ("DEEPINFRA_API_KEY", "DeepInfra"),
+    ("OPENROUTER_API_KEY", "OpenRouter"),
+];
+
+/// The first already-configured OpenAI-compatible key, if any.
+fn existing_compatible_key() -> Option<(&'static str, &'static str)> {
+    COMPATIBLE_KEY_ENVS
+        .iter()
+        .find(|(env, _)| std::env::var(env).is_ok_and(|v| !v.trim().is_empty()))
+        .map(|(env, label)| (*env, *label))
 }
 
 /// Get the default vision model for a provider.

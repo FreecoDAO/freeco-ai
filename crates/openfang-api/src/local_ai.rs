@@ -544,12 +544,16 @@ const COMPLEX_MODEL_LADDER: &[(&str, &str, &str)] = &[
     ("OPENAI_API_KEY", "openai", "gpt-4o"),
     ("GEMINI_API_KEY", "gemini", "gemini-2.5-pro"),
     ("NOVITA_API_KEY", "novita", "zai-org/glm-5.2"),
-    ("GROQ_API_KEY", "groq", "llama-3.3-70b-versatile"),
+    ("ZHIPU_API_KEY", "novita", "zai-org/glm-5.2"),
     (
         "OPENROUTER_API_KEY",
         "openrouter",
         "anthropic/claude-sonnet-4",
     ),
+    // Groq is last, not a default. Its strongest model is well below the
+    // others for the hard work this tier exists to handle, so reaching for it
+    // ahead of a key the user already holds would downgrade their results.
+    ("GROQ_API_KEY", "groq", "llama-3.3-70b-versatile"),
 ];
 
 /// Pick the strongest cloud model whose API key is actually configured.

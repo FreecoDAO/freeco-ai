@@ -41,6 +41,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     if current_version < 8 {
         migrate_v8(conn)?;
+        migrate_v9(conn)?;
     }
 
     set_schema_version(conn, SCHEMA_VERSION)?;
@@ -324,6 +325,23 @@ fn migrate_v8(conn: &Connection) -> Result<(), rusqlite::Error> {
         INSERT OR IGNORE INTO migrations (version, applied_at, description)
         VALUES (8, datetime('now'), 'Add audit_entries table for persistent Merkle audit trail');
         ",
+    )?;
+    Ok(())
+}
+
+/// Version 9: Add label column to canonical_sessions.
+///
+/// Agent conversations live in canonical_sessions, not in `sessions` -- the
+/// latter is only written during compaction. Labelling only `sessions` meant
+/// the auto-generated names never appeared for the conversations users
+/// actually have, which is the whole point of naming them.
+fn migrate_v9(conn: &Connection) -> Result<(), rusqlite::Error> {
+    if !column_exists(conn, "canonical_sessions", "label") {
+        conn.execute("ALTER TABLE canonical_sessions ADD COLUMN label TEXT", [])?;
+    }
+    conn.execute(
+        "INSERT OR IGNORE INTO migrations (version, applied_at, description) VALUES (9, datetime('now'), 'Add label column to canonical_sessions so agent conversations get names')",
+        [],
     )?;
     Ok(())
 }

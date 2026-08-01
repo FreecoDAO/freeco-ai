@@ -28,13 +28,16 @@ struct ProviderInfo {
 }
 
 const PROVIDERS: &[ProviderInfo] = &[
+    // First in this list is the default nearly everyone accepts, so it should
+    // be the one that keeps their options open rather than the one that ties
+    // them to a single vendor. One OpenRouter key reaches most models.
     ProviderInfo {
-        name: "groq",
-        display: "Groq",
-        env_var: "GROQ_API_KEY",
-        default_model: "llama-3.3-70b-versatile",
+        name: "openrouter",
+        display: "OpenRouter",
+        env_var: "OPENROUTER_API_KEY",
+        default_model: "anthropic/claude-sonnet-4",
         needs_key: true,
-        hint: "free tier",
+        hint: "most models, one key",
     },
     ProviderInfo {
         name: "gemini",
@@ -243,6 +246,14 @@ const PROVIDERS: &[ProviderInfo] = &[
         default_model: "local-model",
         needs_key: false,
         hint: "local",
+    },
+    ProviderInfo {
+        name: "groq",
+        display: "Groq",
+        env_var: "GROQ_API_KEY",
+        default_model: "llama-3.3-70b-versatile",
+        needs_key: true,
+        hint: "free tier",
     },
 ];
 

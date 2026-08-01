@@ -101,8 +101,8 @@ function wizardPage() {
         description: 'A professional, empathetic agent for handling customer inquiries and resolving issues.',
         icon: 'CS',
         category: 'Business',
-        provider: 'groq',
-        model: 'llama-3.3-70b-versatile',
+        provider: 'default',
+        model: 'default',
         profile: 'balanced',
         system_prompt: 'You are a professional customer support representative. Be empathetic, patient, and solution-oriented. Acknowledge concerns before offering solutions. Escalate complex issues appropriately.'
       },
@@ -112,8 +112,8 @@ function wizardPage() {
         description: 'A patient educational agent that explains concepts step-by-step and adapts to the learner\'s level.',
         icon: 'TU',
         category: 'General',
-        provider: 'groq',
-        model: 'llama-3.3-70b-versatile',
+        provider: 'default',
+        model: 'default',
         profile: 'balanced',
         system_prompt: 'You are a patient and encouraging tutor. Explain concepts step by step, starting from fundamentals. Use analogies and examples. Check understanding before moving on. Adapt to the learner\'s pace.'
       },
@@ -134,8 +134,8 @@ function wizardPage() {
         description: 'Summarizes meeting transcripts into structured notes with action items and key decisions.',
         icon: 'MN',
         category: 'Business',
-        provider: 'groq',
-        model: 'llama-3.3-70b-versatile',
+        provider: 'default',
+        model: 'default',
         profile: 'precise',
         system_prompt: 'You are a meeting summarizer. When given a meeting transcript or notes, produce a structured summary with: key decisions, action items (with owners), discussion highlights, and follow-up questions.'
       }
@@ -368,7 +368,7 @@ function wizardPage() {
     },
 
     get popularProviders() {
-      var popular = ['anthropic', 'openai', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
+      var popular = ['openrouter', 'anthropic', 'openai', 'gemini', 'deepseek', 'groq', 'claude-code'];
       return this.providers.filter(function(p) {
         return popular.indexOf(p.id) >= 0;
       }).sort(function(a, b) {
@@ -377,7 +377,7 @@ function wizardPage() {
     },
 
     get otherProviders() {
-      var popular = ['anthropic', 'openai', 'gemini', 'groq', 'deepseek', 'openrouter', 'claude-code'];
+      var popular = ['openrouter', 'anthropic', 'openai', 'gemini', 'deepseek', 'groq', 'claude-code'];
       return this.providers.filter(function(p) {
         return popular.indexOf(p.id) < 0;
       });

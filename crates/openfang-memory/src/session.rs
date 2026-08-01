@@ -452,6 +452,8 @@ pub struct CanonicalSession {
     pub compacted_summary: Option<String>,
     /// Last update time.
     pub updated_at: String,
+    /// Human-readable name, derived from the first user message.
+    pub label: Option<String>,
 }
 
 impl SessionStore {
@@ -463,7 +465,7 @@ impl SessionStore {
             .map_err(|e| OpenFangError::Internal(e.to_string()))?;
         let mut stmt = conn
             .prepare(
-                "SELECT messages, compaction_cursor, compacted_summary, updated_at \
+                "SELECT messages, compaction_cursor, compacted_summary, updated_at, label \
                  FROM canonical_sessions WHERE agent_id = ?1",
             )
             .map_err(|e| OpenFangError::Memory(e.to_string()))?;
@@ -473,11 +475,12 @@ impl SessionStore {
             let cursor: i64 = row.get(1)?;
             let summary: Option<String> = row.get(2)?;
             let updated_at: String = row.get(3)?;
-            Ok((messages_blob, cursor, summary, updated_at))
+            let label: Option<String> = row.get(4).unwrap_or(None);
+            Ok((messages_blob, cursor, summary, updated_at, label))
         });
 
         match result {
-            Ok((messages_blob, cursor, summary, updated_at)) => {
+            Ok((messages_blob, cursor, summary, updated_at, label)) => {
                 let messages: Vec<Message> = rmp_serde::from_slice(&messages_blob)
                     .map_err(|e| OpenFangError::Serialization(e.to_string()))?;
                 Ok(CanonicalSession {
@@ -486,6 +489,7 @@ impl SessionStore {
                     compaction_cursor: cursor as usize,
                     compacted_summary: summary,
                     updated_at,
+                    label,
                 })
             }
             Err(rusqlite::Error::QueryReturnedNoRows) => {
@@ -496,10 +500,51 @@ impl SessionStore {
                     compaction_cursor: 0,
                     compacted_summary: None,
                     updated_at: now,
+                    label: None,
                 })
             }
             Err(e) => Err(OpenFangError::Memory(e.to_string())),
         }
+    }
+
+    /// List every agent conversation with its name.
+    ///
+    /// `list_sessions` only reads the `sessions` table, which is written during
+    /// compaction and is therefore almost always empty. Agent conversations
+    /// live in `canonical_sessions`, so without this the UI shows an empty or
+    /// stale list no matter how much the user has actually talked to an agent.
+    pub fn list_canonical_sessions(&self) -> OpenFangResult<Vec<serde_json::Value>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT agent_id, messages, updated_at, label                  FROM canonical_sessions ORDER BY updated_at DESC",
+            )
+            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let agent_id: String = row.get(0)?;
+                let blob: Vec<u8> = row.get(1)?;
+                let updated_at: String = row.get(2)?;
+                let label: Option<String> = row.get(3).unwrap_or(None);
+                let count = rmp_serde::from_slice::<Vec<Message>>(&blob)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                Ok(serde_json::json!({
+                    "agent_id": agent_id,
+                    "message_count": count,
+                    "updated_at": updated_at,
+                    "label": label,
+                    "kind": "canonical",
+                }))
+            })
+            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| OpenFangError::Memory(e.to_string()))
     }
 
     /// Append new messages to the canonical session and compact if over threshold.
@@ -593,16 +638,24 @@ impl SessionStore {
             .map_err(|e| OpenFangError::Internal(e.to_string()))?;
         let messages_blob = rmp_serde::to_vec_named(&canonical.messages)
             .map_err(|e| OpenFangError::Serialization(e.to_string()))?;
+        // Name the conversation from its first user message. This is where
+        // agent conversations actually live, so labelling anywhere else leaves
+        // the list of them unnamed. A name the user set is never overwritten.
+        let label = match canonical.label.as_deref() {
+            Some(existing) if !existing.trim().is_empty() => Some(existing.to_string()),
+            _ => derive_session_label(&canonical.messages),
+        };
         conn.execute(
-            "INSERT INTO canonical_sessions (agent_id, messages, compaction_cursor, compacted_summary, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
-             ON CONFLICT(agent_id) DO UPDATE SET messages = ?2, compaction_cursor = ?3, compacted_summary = ?4, updated_at = ?5",
+            "INSERT INTO canonical_sessions (agent_id, messages, compaction_cursor, compacted_summary, updated_at, label)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(agent_id) DO UPDATE SET messages = ?2, compaction_cursor = ?3, compacted_summary = ?4, updated_at = ?5, label = ?6",
             rusqlite::params![
                 canonical.agent_id.0.to_string(),
                 messages_blob,
                 canonical.compaction_cursor as i64,
                 canonical.compacted_summary,
                 canonical.updated_at,
+                label.as_deref(),
             ],
         )
         .map_err(|e| OpenFangError::Memory(e.to_string()))?;

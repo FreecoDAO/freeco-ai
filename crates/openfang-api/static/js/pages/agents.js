@@ -32,8 +32,12 @@ function agentsPage() {
     loadError: '',
     spawnForm: {
       name: '',
-      provider: 'groq',
-      model: 'llama-3.3-70b-versatile',
+      // Never a hardcoded guess. This used to default to groq/llama-3.3-70b,
+      // so a user with no Groq key got an agent that displayed a model name
+      // and could never answer. 'default' means "whatever is actually
+      // configured", resolved from /api/status before the form is shown.
+      provider: 'default',
+      model: 'default',
       systemPrompt: 'You are a helpful assistant.',
       profile: 'full',
       caps: { memory_read: true, memory_write: true, network: false, shell: false, agent_spawn: false }

@@ -907,6 +907,61 @@ pub async fn restart_agent(
 }
 
 /// GET /api/status — Kernel status.
+/// Which provider to suggest, and whether to suggest one at all.
+///
+/// The rule is that a working setup is never second-guessed. If the user has
+/// configured a provider and holds its key, that provider is the answer and
+/// OpenRouter is offered only as an alternative. Pushing a signup at somebody
+/// who is already running on their own key is noise, and it is how a product
+/// ends up feeling like an advert for itself.
+///
+/// When nothing is configured, OpenRouter is the recommendation: one key
+/// reaches most models across vendors, so it does not lock a new user into a
+/// single provider before they know what they need.
+fn provider_recommendation(state: &Arc<AppState>) -> serde_json::Value {
+    const OPENROUTER: &str = "https://openrouter.ai/keys";
+
+    let configured = &state.kernel.config.default_model;
+    let key_env = configured.api_key_env.as_str();
+    // A local server needs no key, so an empty key_env is not "unconfigured".
+    let is_local = configured
+        .base_url
+        .as_deref()
+        .map(|u| u.contains("127.0.0.1") || u.contains("localhost"))
+        .unwrap_or(false);
+    let has_key = is_local
+        || (!key_env.is_empty() && std::env::var(key_env).is_ok_and(|v| !v.trim().is_empty()));
+
+    if has_key && !configured.provider.is_empty() {
+        serde_json::json!({
+            "has_working_provider": true,
+            "current": { "provider": configured.provider, "model": configured.model },
+            "message": format!(
+                "You are set up with {}. Nothing to change.",
+                configured.provider
+            ),
+            "alternative": {
+                "provider": "openrouter",
+                "url": OPENROUTER,
+                "why": "One key reaches most models from most vendors, if you ever want to \
+                        compare or switch without signing up again."
+            }
+        })
+    } else {
+        serde_json::json!({
+            "has_working_provider": false,
+            "current": null,
+            "recommended": {
+                "provider": "openrouter",
+                "url": OPENROUTER,
+                "why": "One key reaches most models across vendors, so you are not tied to \
+                        one company before you know what you need."
+            },
+            "message": "No provider key was found. OpenRouter is the simplest place to start."
+        })
+    }
+}
+
 pub async fn status(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let agents: Vec<serde_json::Value> = state
         .kernel
@@ -936,6 +991,13 @@ pub async fn status(State(state): State<Arc<AppState>>) -> impl IntoResponse {
         "agent_count": agent_count,
         "default_provider": state.kernel.config.default_model.provider,
         "default_model": state.kernel.config.default_model.model,
+        // What to suggest when someone needs a model. A provider the user has
+        // already configured always wins -- proposing a signup to somebody who
+        // is working happily on their own key is noise. Only when nothing is
+        // configured does this recommend a starting point, and OpenRouter is
+        // the honest one: a single key reaches most models, so it does not
+        // lock the user to one vendor before they know what they want.
+        "provider_recommendation": provider_recommendation(&state),
         "uptime_seconds": uptime,
         "api_listen": state.kernel.config.api_listen,
         "home_dir": state.kernel.config.home_dir.display().to_string(),
@@ -6429,10 +6491,15 @@ pub async fn update_agent_budget(
 
 /// GET /api/sessions — List all sessions with metadata.
 pub async fn list_sessions(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    match state.kernel.memory.list_sessions() {
-        Ok(sessions) => Json(serde_json::json!({"sessions": sessions})),
-        Err(_) => Json(serde_json::json!({"sessions": []})),
+    // Include agent conversations. The `sessions` table is only written during
+    // compaction, so listing it alone showed an empty or stale list however
+    // much the user had actually talked to their agents -- and none of the
+    // auto-generated names ever appeared.
+    let mut sessions = state.kernel.memory.list_sessions().unwrap_or_default();
+    if let Ok(canonical) = state.kernel.memory.list_canonical_sessions() {
+        sessions.extend(canonical);
     }
+    Json(serde_json::json!({"sessions": sessions}))
 }
 
 /// DELETE /api/sessions/:id — Delete a session.
