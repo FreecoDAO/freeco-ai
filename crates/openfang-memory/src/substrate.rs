@@ -6,6 +6,7 @@
 use crate::consolidation::ConsolidationEngine;
 use crate::knowledge::KnowledgeStore;
 use crate::migration::run_migrations;
+use crate::org::OrgStore;
 use crate::semantic::SemanticStore;
 use crate::session::{Session, SessionStore};
 use crate::structured::StructuredStore;
@@ -33,11 +34,18 @@ pub struct MemorySubstrate {
     semantic: SemanticStore,
     knowledge: KnowledgeStore,
     sessions: SessionStore,
+    org: OrgStore,
     consolidation: ConsolidationEngine,
     usage: UsageStore,
 }
 
 impl MemorySubstrate {
+    /// Companies, projects and teams. Exposed so the API can present the
+    /// structure conversations belong to; the substrate owns the connection.
+    pub fn org(&self) -> &OrgStore {
+        &self.org
+    }
+
     /// Open or create a memory substrate at the given database path.
     ///
     /// When `memory_config.backend == "http"` and `http_url`/`http_token_env` are set,
@@ -62,6 +70,7 @@ impl MemorySubstrate {
             semantic,
             knowledge: KnowledgeStore::new(Arc::clone(&shared)),
             sessions: SessionStore::new(Arc::clone(&shared)),
+            org: OrgStore::new(Arc::clone(&shared)),
             usage: UsageStore::new(Arc::clone(&shared)),
             consolidation: ConsolidationEngine::new(shared, decay_rate),
         })
@@ -116,6 +125,7 @@ impl MemorySubstrate {
             semantic: SemanticStore::new(Arc::clone(&shared)),
             knowledge: KnowledgeStore::new(Arc::clone(&shared)),
             sessions: SessionStore::new(Arc::clone(&shared)),
+            org: OrgStore::new(Arc::clone(&shared)),
             usage: UsageStore::new(Arc::clone(&shared)),
             consolidation: ConsolidationEngine::new(shared, decay_rate),
         })

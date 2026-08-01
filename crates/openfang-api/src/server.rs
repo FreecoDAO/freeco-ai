@@ -588,6 +588,43 @@ pub async fn build_router(
             "/api/local-ai/setup",
             axum::routing::post(crate::local_ai::local_ai_setup),
         )
+        // Companies, projects and teams. Without a surface the structure is
+        // invisible, and a conversation that belongs to a project the user
+        // cannot see is the same as one that belongs nowhere.
+        .route(
+            "/api/org/overview",
+            axum::routing::get(crate::org_routes::overview),
+        )
+        .route(
+            "/api/org/companies",
+            axum::routing::get(crate::org_routes::list_companies)
+                .post(crate::org_routes::create_company),
+        )
+        .route(
+            "/api/org/projects",
+            axum::routing::get(crate::org_routes::list_projects)
+                .post(crate::org_routes::create_project),
+        )
+        .route(
+            "/api/org/teams",
+            axum::routing::post(crate::org_routes::create_team),
+        )
+        .route(
+            "/api/org/projects/{id}/sessions",
+            axum::routing::get(crate::org_routes::project_sessions),
+        )
+        .route(
+            "/api/sessions/{id}/assign",
+            axum::routing::put(crate::org_routes::assign_session),
+        )
+        .route(
+            "/api/sessions/{id}/archive",
+            axum::routing::put(crate::org_routes::archive_session),
+        )
+        .route(
+            "/api/sessions/{id}/trash",
+            axum::routing::put(crate::org_routes::trash_session),
+        )
         // Sandbox visibility: a security boundary nobody can see is one
         // nobody can trust, so its real state is queryable and the one-time
         // image download is an explicit action rather than a silent pull.
