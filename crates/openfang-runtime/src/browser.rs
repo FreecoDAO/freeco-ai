@@ -736,7 +736,10 @@ fn find_chromium(config: &BrowserConfig) -> Result<PathBuf, String> {
 
     Err(
         "Chromium/Chrome not found. Install Chrome or set CHROME_PATH. \
-         Checked: Chrome, Chromium, Edge, Brave in standard locations."
+         Brave is the recommended choice - same engine, no Google telemetry. \
+         Checked: Brave, Chromium, Chrome and Edge in the usual per-machine and \
+         per-user locations. Firefox cannot be used here: browser automation \
+         speaks the Chrome DevTools Protocol, which Firefox does not implement."
             .to_string(),
     )
 }
@@ -751,17 +754,31 @@ fn chromium_candidates() -> Vec<String> {
         let program_files_x86 = std::env::var("ProgramFiles(x86)").unwrap_or_default();
         let local_app = std::env::var("LOCALAPPDATA").unwrap_or_default();
 
+        // Brave and ungoogled-chromium come first. All of these drive the
+        // same Chromium engine over the same DevTools protocol, so preferring
+        // the ones that do not phone home costs nothing in capability. In a
+        // product that blocks cloud voices and refuses to load fonts from a
+        // CDN, silently reaching for Chrome would be inconsistent.
         for pf in &[&program_files, &program_files_x86] {
             if pf.is_empty() {
                 continue;
             }
-            paths.push(format!("{pf}\\Google\\Chrome\\Application\\chrome.exe"));
-            paths.push(format!("{pf}\\Microsoft\\Edge\\Application\\msedge.exe"));
             paths.push(format!(
                 "{pf}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
             ));
+            paths.push(format!("{pf}\\Chromium\\Application\\chrome.exe"));
+            paths.push(format!("{pf}\\Google\\Chrome\\Application\\chrome.exe"));
+            paths.push(format!("{pf}\\Microsoft\\Edge\\Application\\msedge.exe"));
         }
+        // Per-user installs. Brave and Chromium install here by default on
+        // Windows and were previously only looked for under Program Files,
+        // so an ordinary Brave install was reported as "no browser found"
+        // and the user was told to install Chrome instead.
         if !local_app.is_empty() {
+            paths.push(format!(
+                "{local_app}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+            ));
+            paths.push(format!("{local_app}\\Chromium\\Application\\chrome.exe"));
             paths.push(format!(
                 "{local_app}\\Google\\Chrome\\Application\\chrome.exe"
             ));
