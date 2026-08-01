@@ -5,7 +5,9 @@
 use rusqlite::Connection;
 
 /// Current schema version.
-const SCHEMA_VERSION: u32 = 8;
+// Must be bumped whenever a migration is added, or the new migration
+// never runs on an existing database.
+const SCHEMA_VERSION: u32 = 10;
 
 /// Run all migrations to bring the database up to date.
 pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -41,7 +43,20 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     if current_version < 8 {
         migrate_v8(conn)?;
+    }
+
+    // v9 and v10 get their own gates. They were originally bundled under
+    // `< 8` while SCHEMA_VERSION stayed at 8, which meant any database that
+    // had already reached version 8 skipped them forever and silently. That
+    // is how `session_archive` came to be missing on live installs: the
+    // safety net meant to hold trimmed messages was never created, so
+    // compaction had nothing to fall back on. Both migrations guard their own
+    // work (IF NOT EXISTS / column_exists), so re-running them is harmless.
+    if current_version < 9 {
         migrate_v9(conn)?;
+    }
+
+    if current_version < 10 {
         migrate_v10(conn)?;
     }
 
@@ -379,6 +394,49 @@ fn migrate_v10(conn: &Connection) -> Result<(), rusqlite::Error> {
 
 #[cfg(test)]
 mod tests {
+
+    /// A database already at an older version must still receive every later
+    /// migration. This is the bug that left `session_archive` missing on live
+    /// installs: v9 and v10 were gated on `< 8` while SCHEMA_VERSION stayed
+    /// at 8, so any database that had reached 8 skipped them permanently and
+    /// without complaint. The archive that should have held trimmed messages
+    /// was therefore never created.
+    #[test]
+    fn every_migration_runs_on_an_existing_database() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+
+        // Simulate an install stuck at the old version, then upgrade again.
+        conn.pragma_update(None, "user_version", 8).unwrap();
+        run_migrations(&conn).unwrap();
+
+        for table in ["session_archive", "sessions", "canonical_sessions"] {
+            let found: i64 = conn
+                .query_row(
+                    "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?1",
+                    [table],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(found, 1, "{table} must exist after migrating from v8");
+        }
+
+        let version: u32 = conn
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, SCHEMA_VERSION, "version must reach the latest");
+    }
+
+    /// Running migrations twice must not fail. Without this, the fix above
+    /// would turn a silent skip into a startup crash.
+    #[test]
+    fn migrations_are_idempotent() {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+    }
+
     use super::*;
 
     #[test]

@@ -1030,9 +1030,24 @@ impl Default for ExecPolicy {
     fn default() -> Self {
         Self {
             mode: ExecSecurityMode::default(),
+            // Read-only inspection tools. An agent that cannot list a
+            // directory or search a file cannot investigate anything, and the
+            // original list left it unable to run `ls`, `grep` or `find` --
+            // so it burned turns discovering it was blocked instead of doing
+            // the work. None of these mutate state, so allowing them by
+            // default costs nothing.
+            //
+            // Deliberately NOT here: `git`, `gh`, and any interpreter
+            // (python, node, bash). Those either mutate remote state or run
+            // arbitrary code, and defaulting them on would mean every install
+            // lets agents push to repositories without being asked. Add them
+            // per-machine via `allowed_commands` if that is what you want, or
+            // run code in the Docker sandbox, which is built for exactly this.
             safe_bins: vec![
                 "sleep", "true", "false", "cat", "sort", "uniq", "cut", "tr", "head", "tail", "wc",
-                "date", "echo", "printf", "basename", "dirname", "pwd", "env",
+                "date", "echo", "printf", "basename", "dirname", "pwd", "env", "ls", "grep",
+                "find", "which", "stat", "du", "df", "file", "realpath", "readlink", "diff", "sed",
+                "awk",
             ]
             .into_iter()
             .map(String::from)

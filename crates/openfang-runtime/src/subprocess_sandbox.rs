@@ -368,8 +368,16 @@ pub fn validate_command_allowlist(command: &str, policy: &ExecPolicy) -> Result<
                     continue;
                 }
                 return Err(format!(
-                    "Command '{}' is not in the exec allowlist. Add it to exec_policy.allowed_commands or exec_policy.safe_bins.",
-                    base
+                    // Give the exact remedy, not a category. An agent told
+                    // only "not allowed" retries the same call, or abandons
+                    // work it could have done inside the sandbox instead.
+                    "Command '{base}' is not in the exec allowlist, so nothing ran. \
+                     Either run it in the Docker sandbox (isolated, no network, \
+                     nothing touches this machine), or add it to \
+                     ~/.openfang/config.toml under [exec_policy] in \
+                     allowed_commands. Note that git and gh can execute arbitrary \
+                     code through hooks and aliases, so allowing them on the host \
+                     is a real grant of trust."
                 ));
             }
 
