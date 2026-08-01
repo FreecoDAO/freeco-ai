@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreEco.ai — the open-source Agent Operating System</title>
+<meta name="description" content="Agents that keep working when you close the laptop. Self-hosted, open source, with CRM, accounting and real-time voice built in.">
+
+<!-- Everything is inline and self-hosted on purpose. A product that blocks
+     cloud voices for privacy should not leak a pageview to a font CDN on
+     every visit, and a static page with no external requests also loads fast
+     on a conference-room connection during a demo. -->
+<style>
+:root {
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --border: #e6e2db;
+  --text: #16150f;
+  --dim: #5f5c53;
+  --accent: #0b3d2e;
+  --accent-soft: #e8f0ec;
+  --warn: #8a5a00;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Playfair Display', Didot, 'Bodoni MT', Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12130f; --surface: #1a1b17; --border: #2e302a;
+    --text: #f2f0ea; --dim: #a5a196; --accent: #7fd1ae;
+    --accent-soft: #1d2a24; --warn: #e0b25c;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font-body); line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 .5em; }
+h1 { font-size: clamp(2.4rem, 6vw, 4rem); }
+h2 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); margin-top: 0; }
+h3 { font-size: 1.15rem; }
+p { margin: 0 0 1em; }
+a { color: var(--accent); }
+code, pre { font-family: 'Geist Mono', 'SF Mono', 'JetBrains Mono', Consolas, monospace; }
+
+header { padding: 88px 0 64px; border-bottom: 1px solid var(--border); }
+.tagline { font-size: 1.25rem; color: var(--dim); max-width: 40ch; margin-bottom: 2rem; }
+.eyebrow {
+  display: inline-block; font-size: .78rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--accent);
+  background: var(--accent-soft); padding: 5px 12px; border-radius: 100px;
+  margin-bottom: 1.5rem; font-weight: 600;
+}
+pre.install {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 18px; overflow-x: auto;
+  font-size: .86rem; margin: 0 0 1rem;
+}
+section { padding: 64px 0; border-bottom: 1px solid var(--border); }
+.lede { font-size: 1.1rem; color: var(--dim); max-width: 62ch; }
+
+.grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin-top: 36px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 22px;
+}
+.card h3 { margin-bottom: .35em; }
+.card p { font-size: .92rem; color: var(--dim); margin: 0; }
+
+/* Wide tables must scroll inside their own box; the page itself never
+   scrolls sideways. */
+.table-scroll { overflow-x: auto; margin-top: 32px; border: 1px solid var(--border); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 780px; font-size: .9rem; background: var(--surface); }
+th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+th { font-weight: 600; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 500; }
+.yes { color: var(--accent); font-weight: 600; }
+.no { color: var(--dim); opacity: .55; }
+.part { color: var(--warn); }
+.own { background: var(--accent-soft); }
+
+.limits { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn); border-radius: 10px; padding: 24px 26px; margin-top: 32px; }
+.limits ul { margin: 0; padding-left: 1.15em; }
+.limits li { margin-bottom: .6em; color: var(--dim); }
+.limits li strong { color: var(--text); }
+
+.ports { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 28px; }
+.port { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.port b { display: block; font-family: 'Geist Mono', monospace; color: var(--accent); font-size: 1.05rem; }
+.port span { font-size: .85rem; color: var(--dim); }
+
+.callout { background: var(--accent-soft); border-radius: 12px; padding: 22px 26px; margin-top: 28px; }
+.callout p:last-child { margin-bottom: 0; }
+footer { padding: 48px 0 72px; color: var(--dim); font-size: .88rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="eyebrow">Open source · Self-hosted</span>
+    <h1>Agents that keep working<br>when you close the laptop.</h1>
+    <p class="tagline">
+      FreEco.ai is an operating system for autonomous agents. Not a chat window —
+      a system that runs your CRM, your books, your calls and your projects on
+      schedules, with budgets and approval gates, on hardware you own.
+    </p>
+    <pre class="install">curl -fsSL https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.sh | sh
+openfang init &amp;&amp; openfang start</pre>
+    <p style="color:var(--dim);font-size:.9rem">
+      One binary. Dashboard at <code>localhost:4200</code>.
+    </p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>A back office, not a chatbot</h2>
+    <p class="lede">
+      Most agent tools stop when the tab closes. FreEco.ai ships the parts a
+      business actually runs on, wired together through MCP so agents can use
+      them directly rather than through screenshots and copy-paste.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <h3>CRM</h3>
+        <p>Twenty, self-hosted. Contacts, deals and pipeline that agents can read and update as MCP tools.</p>
+      </div>
+      <div class="card">
+        <h3>Accounting</h3>
+        <p>Akaunting, self-hosted. Invoices and ledger, so an agent can raise a bill rather than draft an email about one.</p>
+      </div>
+      <div class="card">
+        <h3>Real-time voice</h3>
+        <p>dograh, MCP-native. Live calls with barge-in and telephony for outreach and support.</p>
+      </div>
+      <div class="card">
+        <h3>Companies &amp; projects</h3>
+        <p>Org structure as a first-class concept: role hierarchy, teams, calendars, tasks, documents and knowledge.</p>
+      </div>
+      <div class="card">
+        <h3>Isolated Linux sandbox</h3>
+        <p>Agent code runs in a throwaway container with no network and every capability dropped — never on your machine.</p>
+      </div>
+      <div class="card">
+        <h3>Budgets &amp; approval gates</h3>
+        <p>Spend caps per agent, and allow-once / allow-always / deny answered inline in the chat.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How it compares</h2>
+    <p class="lede">
+      What each tool is designed for, not a verdict on how well it does it.
+      Every product below is good at its own job; those jobs differ from this one.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th><th class="own">FreEco.ai</th><th>Claude / ChatGPT</th>
+            <th>Manus</th><th>Copilot</th><th>VS Code</th><th>OSS frameworks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Runs while you are away</td><td class="own yes">Yes</td><td class="no">No</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">DIY</td></tr>
+          <tr><td>Self-hosted on your machine</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Editor only</td><td class="yes">Yes</td></tr>
+          <tr><td>Open source</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Mixed</td><td class="yes">Yes</td></tr>
+          <tr><td>Works offline</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Partly</td><td class="part">Partly</td></tr>
+          <tr><td>Multi-agent org chart</td><td class="own yes">Yes</td><td class="no">No</td><td class="part">Opaque</td><td class="no">No</td><td class="no">No</td><td class="part">DIY</td></tr>
+          <tr><td>Spend caps per agent</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Approval gates</td><td class="own yes">Yes</td><td class="part">Per tool</td><td class="part">Partly</td><td class="no">No</td><td class="no">No</td><td class="part">DIY</td></tr>
+          <tr><td>Isolated Linux sandbox</td><td class="own yes">Yes</td><td class="part">Vendor-side</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">DIY</td></tr>
+          <tr><td>CRM built in</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Accounting built in</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Real-time voice</td><td class="own yes">Yes</td><td class="part">Chat voice</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>MCP support</td><td class="own yes">Client + gateway</td><td class="yes">Client</td><td class="no">No</td><td class="part">Partly</td><td class="yes">Client</td><td class="part">Partly</td></tr>
+          <tr><td>Roles: kids / family / business</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Your data stays yours</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="limits">
+      <h3 style="margin-top:0">What FreEco.ai does not do</h3>
+      <p style="color:var(--dim);font-size:.92rem">A table that only flatters its author is worth nothing. The honest limits:</p>
+      <ul>
+        <li><strong>Frontier reasoning still comes from a frontier model.</strong> Local Gemma 4 is free and private, and it is not Opus. Hard tasks route to a cloud model through your own key.</li>
+        <li><strong>Local models need a real GPU.</strong> Without a discrete GPU one agent turn can take about an hour, so local inference is off by default on such machines and the reason is stated plainly in the interface.</li>
+        <li><strong>The business services are integrations, not rewrites.</strong> Twenty and Akaunting are excellent existing products, run as containers alongside.</li>
+        <li><strong>Self-hosting is work.</strong> A server, DNS and TLS are your responsibility in a way a SaaS signup is not.</li>
+        <li><strong>Younger than the incumbents,</strong> with the rough edges that implies.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Run the whole stack</h2>
+    <p class="lede">
+      FreEco.ai with CRM, accounting and voice, in one command. This is the demo
+      environment and the base for FreEco.ai as a hosted service.
+    </p>
+    <pre class="install">git clone https://github.com/FreecoDAO/freeco-ai
+cd freeco-ai/deploy/demo
+cp .env.example .env      # fill in the secrets
+docker compose up -d</pre>
+    <div class="ports">
+      <div class="port"><b>:4200</b><span>FreEco.ai dashboard</span></div>
+      <div class="port"><b>:3200</b><span>Twenty CRM</span></div>
+      <div class="port"><b>:8080</b><span>Akaunting</span></div>
+      <div class="port"><b>:8000</b><span>dograh voice</span></div>
+    </div>
+
+    <div class="callout">
+      <h3 style="margin-top:0">Hosting: shared plans will not run this</h3>
+      <p>
+        The <em>stack</em> needs a VPS or dedicated server with root — 8&nbsp;GB RAM
+        minimum, 16&nbsp;GB comfortable. Shared hosting has no Docker daemon, no root,
+        and kills long-running processes, and every part of this is a container.
+      </p>
+      <p>
+        <strong>This page is different.</strong> It is static HTML with no build step
+        and no external requests, so it runs anywhere — including shared hosting.
+        Upload it and point the domain at it; the app stack can live on a separate
+        server, since DNS is independent of hosting.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      FreEco.ai — open-source Agent Operating System ·
+      <a href="https://github.com/FreecoDAO/freeco-ai">GitHub</a>
+    </p>
+    <p style="font-size:.82rem">
+      Comparison reflects each product's design intent at the time of writing.
+      Corrections welcome as an issue on the repository.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
