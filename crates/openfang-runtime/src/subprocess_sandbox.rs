@@ -367,18 +367,42 @@ pub fn validate_command_allowlist(command: &str, policy: &ExecPolicy) -> Result<
                 if policy.allowed_commands.iter().any(|ac| ac == base) {
                     continue;
                 }
-                return Err(format!(
-                    // Give the exact remedy, not a category. An agent told
-                    // only "not allowed" retries the same call, or abandons
-                    // work it could have done inside the sandbox instead.
-                    "Command '{base}' is not in the exec allowlist, so nothing ran. \
-                     Either run it in the Docker sandbox (isolated, no network, \
-                     nothing touches this machine), or add it to \
-                     ~/.openfang/config.toml under [exec_policy] in \
-                     allowed_commands. Note that git and gh can execute arbitrary \
-                     code through hooks and aliases, so allowing them on the host \
-                     is a real grant of trust."
-                ));
+                // Name the remedy for the command actually blocked. An
+                // earlier version always mentioned git and gh, so when an
+                // interpreter was refused the caller read it as "python needs
+                // allowlisting" and kept retrying, instead of reaching for the
+                // sandbox that was sitting right there.
+                let interpreter = matches!(
+                    *base,
+                    "python"
+                        | "python3"
+                        | "node"
+                        | "bash"
+                        | "sh"
+                        | "powershell"
+                        | "pwsh"
+                        | "ruby"
+                        | "perl"
+                );
+                return Err(if interpreter {
+                    format!(
+                        "'{base}' is an interpreter and is not allowed on the host, so \
+                         nothing ran. Running arbitrary code outside the sandbox is exactly \
+                         what the sandbox exists to prevent: use docker_exec, which gives \
+                         you a throwaway Linux container with no network. If the script \
+                         genuinely must touch this machine, the user has to add '{base}' to \
+                         allowed_commands in ~/.openfang/config.toml themselves."
+                    )
+                } else {
+                    format!(
+                        "'{base}' is not in the exec allowlist, so nothing ran. Either run it \
+                         in the Docker sandbox via docker_exec (isolated, no network, nothing \
+                         touches this machine), or ask the user to add '{base}' to \
+                         allowed_commands in ~/.openfang/config.toml. Note that git and gh \
+                         can execute arbitrary code through hooks and aliases, so allowing \
+                         them on the host is a real grant of trust."
+                    )
+                });
             }
 
             // SECURITY (#794): If the outer command is a shell wrapper

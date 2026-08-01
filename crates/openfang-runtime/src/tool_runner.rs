@@ -219,9 +219,54 @@ pub async fn execute_tool(
                     is_error: true,
                 };
             }
+            // Credentials in the URL leak into logs, audit trails and error
+            // messages, and a caller that does it once tends to repeat it on
+            // every retry. Refuse and say where the secret should go instead.
+            if let Some(creds) = url
+                .split("://")
+                .nth(1)
+                .and_then(|rest| rest.split('/').next())
+                .filter(|authority| authority.contains('@'))
+            {
+                let host = creds.rsplit('@').next().unwrap_or("");
+                return ToolResult {
+                    tool_use_id: tool_use_id.to_string(),
+                    content: format!(
+                        "Refused: the URL carries credentials in it (userinfo before '@'). \
+                         They would be written to logs and audit records in clear text. \
+                         Send the secret as a header instead, for example \
+                         headers: {{\"Authorization\": \"Bearer <token>\"}}, and use \
+                         the plain URL https://{host}/..."
+                    ),
+                    is_error: true,
+                };
+            }
+
             let method = input["method"].as_str().unwrap_or("GET");
             let headers = input.get("headers").and_then(|v| v.as_object());
             let body = input["body"].as_str();
+
+            // A mutating request with no body is almost always a caller that
+            // forgot the parameter. Left to the remote server it comes back as
+            // something opaque like "Body should be a JSON object", which reads
+            // as a server problem rather than a missing argument -- so the
+            // caller retries the identical call instead of fixing it. Name the
+            // missing parameter here, where it can actually be acted on.
+            if matches!(
+                method.to_ascii_uppercase().as_str(),
+                "POST" | "PUT" | "PATCH"
+            ) && body.is_none()
+            {
+                return ToolResult {
+                    tool_use_id: tool_use_id.to_string(),
+                    content: format!(
+                        "{method} request had no `body`, so nothing was sent. Include the \
+                         payload as the `body` parameter (a string; JSON should already be \
+                         serialised). Retrying without it will fail the same way."
+                    ),
+                    is_error: true,
+                };
+            }
             if let Some(ctx) = web_ctx {
                 ctx.fetch
                     .fetch_with_options(url, method, headers, body)
