@@ -6061,6 +6061,18 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
           <span x-show="!voiceOut" x-cloak>&#128263;</span>
         </button>
         <button class="freeco-x" @click="showVoiceMenu = !showVoiceMenu; if (showVoiceMenu) refreshVoiceList()" title="Choose Freeco's voice" aria-label="Choose voice" style="font-size:13px">&#9835;</button>
+        <!-- Triggers for the history and model panels. Without these the
+             panels exist but are unreachable, which is the same as not
+             having built them. -->
+        <button class="freeco-x" @click="newChat()" title="New conversation" aria-label="New conversation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <button class="freeco-x" @click="toggleHistory()" title="Conversations" aria-label="Conversation history">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
+        </button>
+        <button class="freeco-x" @click="toggleModels()" title="Model" aria-label="Choose model">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+        </button>
         <button class="freeco-x" @click="toggleFullscreen()" :title="fullscreen ? 'Exit full screen' : 'Full screen'" aria-label="Toggle full screen">
           <svg x-show="!fullscreen" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg>
           <svg x-show="fullscreen" x-cloak width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3m13-5h-3a2 2 0 0 0-2 2v3"/></svg>
@@ -6191,6 +6203,16 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
       <template x-for="m in messages" :key="m.id">
         <div class="freeco-msg" :class="'freeco-msg-' + m.role">
           <div class="freeco-bubble" x-html="m.html"></div>
+          <!-- Hidden until hover so they never compete with the message, but
+               always in the same place when wanted. -->
+          <div class="freeco-msg-actions" x-show="!m.thinking">
+            <button class="freeco-msg-act" @click="copyMessage(m)"
+                    x-text="copiedId === m.id ? 'Copied' : 'Copy'"></button>
+            <button class="freeco-msg-act" x-show="m.role === 'user'" @click="editMessage(m)"
+                    :disabled="sending">Edit</button>
+            <button class="freeco-msg-act" x-show="m.role !== 'user'" @click="retryFrom(m)"
+                    :disabled="sending">Retry</button>
+          </div>
         </div>
       </template>
       <!-- First-run: no agents yet -->
