@@ -686,16 +686,31 @@ fn check_chromium_available() -> bool {
         let pf86 =
             std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| r"C:\Program Files (x86)".into());
         let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
+        // Brave first, and looked for under LOCALAPPDATA as well as Program
+        // Files -- it installs per-user by default on Windows, so checking
+        // only Program Files misses an ordinary install entirely. Every
+        // browser here drives the same Chromium engine over the same
+        // protocol, so preferring the ones that do not report back to Google
+        // costs nothing in capability.
         vec![
+            std::path::PathBuf::from(&pf)
+                .join(r"BraveSoftware\Brave-Browser\Application\brave.exe"),
+            std::path::PathBuf::from(&local)
+                .join(r"BraveSoftware\Brave-Browser\Application\brave.exe"),
+            std::path::PathBuf::from(&pf86)
+                .join(r"BraveSoftware\Brave-Browser\Application\brave.exe"),
+            std::path::PathBuf::from(&pf).join(r"Chromium\Application\chrome.exe"),
+            std::path::PathBuf::from(&local).join(r"Chromium\Application\chrome.exe"),
             std::path::PathBuf::from(&pf).join(r"Google\Chrome\Application\chrome.exe"),
             std::path::PathBuf::from(&pf86).join(r"Google\Chrome\Application\chrome.exe"),
             std::path::PathBuf::from(&local).join(r"Google\Chrome\Application\chrome.exe"),
-            std::path::PathBuf::from(&pf).join(r"Chromium\Application\chrome.exe"),
-            std::path::PathBuf::from(&local).join(r"Chromium\Application\chrome.exe"),
             std::path::PathBuf::from(&pf).join(r"Microsoft\Edge\Application\msedge.exe"),
         ]
     } else if cfg!(target_os = "macos") {
         vec![
+            std::path::PathBuf::from(
+                "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+            ),
             std::path::PathBuf::from(
                 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
             ),
@@ -705,6 +720,9 @@ fn check_chromium_available() -> bool {
         vec![
             std::path::PathBuf::from("/usr/bin/chromium"),
             std::path::PathBuf::from("/usr/bin/chromium-browser"),
+            std::path::PathBuf::from("/usr/bin/brave-browser"),
+            std::path::PathBuf::from("/usr/bin/brave"),
+            std::path::PathBuf::from("/snap/bin/brave"),
             std::path::PathBuf::from("/usr/bin/google-chrome"),
             std::path::PathBuf::from("/usr/bin/google-chrome-stable"),
             std::path::PathBuf::from("/snap/bin/chromium"),

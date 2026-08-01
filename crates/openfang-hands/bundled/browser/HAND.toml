@@ -31,19 +31,19 @@ estimated_time = "1-3 min"
 
 [[requires]]
 key = "chromium"
-label = "Chromium or Google Chrome must be installed"
+label = "A Chromium-based browser must be installed"
 requirement_type = "binary"
 check_value = "chromium"
 optional = true
-description = "A Chromium-based browser is recommended. Playwright can install its own bundled browser if none is found. Google Chrome, Chromium, or any Chromium derivative will also work. You can set the CHROME_PATH environment variable to point to your browser binary."
+description = "Brave is recommended: same Chromium engine, so everything works identically, without Google telemetry on every page the agent visits. Chromium, ungoogled-chromium, Chrome and Edge all work too. Firefox does not - browser automation speaks the Chrome DevTools Protocol, which Firefox has never implemented. If none is found, Playwright downloads its own bundled Chromium. Set CHROME_PATH to point at a browser in a non-standard location."
 
 [requires.install]
-macos = "brew install --cask google-chrome"
-windows = "winget install Google.Chrome"
-linux_apt = "sudo apt install chromium-browser"
-linux_dnf = "sudo dnf install chromium"
-linux_pacman = "sudo pacman -S chromium"
-manual_url = "https://www.google.com/chrome/"
+macos = "brew install --cask brave-browser"
+windows = "winget install Brave.Brave"
+linux_apt = "sudo apt install brave-browser"
+linux_dnf = "sudo dnf install brave-browser"
+linux_pacman = "sudo pacman -S brave-browser"
+manual_url = "https://brave.com/download/"
 estimated_time = "1-3 min"
 
 # ─── Configurable settings ───────────────────────────────────────────────────
