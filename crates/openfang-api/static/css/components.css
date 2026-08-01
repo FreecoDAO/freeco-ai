@@ -3785,3 +3785,10 @@ mark.search-highlight {
   font-size: 11px; color: var(--text-dim); border-radius: 4px;
 }
 .freeco-msg-act:hover { background: var(--surface2); color: var(--text); }
+
+.freeco-models {
+  position: absolute; top: 44px; right: 8px; width: 260px; max-height: 50vh;
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.28); z-index: 41;
+}

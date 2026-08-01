@@ -589,8 +589,10 @@ pub fn tool_hint(name: &str) -> &'static str {
         "audio_transcribe" => "transcribe audio to text",
         "tts_speak" => "convert text to speech",
 
-        // Docker
-        "docker_exec" => "run a command in a container",
+        // Docker. Spelling out the isolation matters: an agent that does not
+        // know it has a safe place to run code will either refuse work it
+        // could do, or reach for shell on the user's own machine instead.
+        "docker_exec" => "run a command inside an isolated Linux sandbox: no network, throwaway container, dropped capabilities. Use this for ANY code, script, install or test rather than running it on the user's machine",
         "docker_build" => "build a Docker image",
         "docker_run" => "start a Docker container",
 

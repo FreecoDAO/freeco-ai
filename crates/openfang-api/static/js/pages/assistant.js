@@ -158,6 +158,54 @@ function freecoAssistant() {
       }
     },
 
+    // ---- Model picker -------------------------------------------------
+    // Switching model mid-conversation matters because tasks are not uniform:
+    // a cheap fast model handles most turns, and only some need the expensive
+    // one. Without this the choice is buried in agent settings, so nobody
+    // makes it and every message costs whatever the default costs.
+
+    showModels: false,
+    models: [],
+    currentModel: '',
+
+    async loadModels() {
+      try {
+        var status = await OpenFangAPI.get('/api/status');
+        this.currentModel = status.default_model || '';
+        var data = await OpenFangAPI.get('/api/models/catalog').catch(function () { return null; });
+        var list = (data && (data.models || data.catalog)) || [];
+        this.models = list.map(function (m) {
+          return typeof m === 'string'
+            ? { id: m, provider: '', label: m }
+            : { id: m.id || m.model, provider: m.provider || '', label: m.display_name || m.id || m.model };
+        }).filter(function (m) { return m.id; });
+        // Always offer what is configured, even if no catalogue came back.
+        if (this.currentModel && !this.models.some(function (m) { return m.id === this.currentModel; }.bind(this))) {
+          this.models.unshift({ id: this.currentModel, provider: '', label: this.currentModel + ' (current)' });
+        }
+      } catch (e) { this.models = []; }
+      return this.models;
+    },
+
+    toggleModels: function () {
+      this.showModels = !this.showModels;
+      if (this.showModels && !this.models.length) this.loadModels();
+    },
+
+    async chooseModel(m) {
+      this.showModels = false;
+      if (!this.agent) this._resolveAgent();
+      if (!this.agent) { OpenFangToast.error('No agent to switch.'); return; }
+      try {
+        await OpenFangAPI.put('/api/agents/' + this.agent + '/model',
+          { provider: m.provider || undefined, model: m.id });
+        this.currentModel = m.id;
+        OpenFangToast.success('Now using ' + (m.label || m.id) + '.');
+      } catch (e) {
+        OpenFangToast.error('Could not switch model: ' + e.message);
+      }
+    },
+
     // ---- Conversation ergonomics -------------------------------------
     // Everything below exists because a chat you cannot copy from, correct,
     // retry or return to is a chat that loses your work. Preserving history

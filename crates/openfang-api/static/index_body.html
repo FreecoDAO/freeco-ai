@@ -6112,6 +6112,28 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
       </div>
     </div>
 
+    <!-- Model picker. Tasks are not uniform: most turns are fine on a cheap
+         fast model and only some need the expensive one. Buried in agent
+         settings, that choice never gets made and every message costs what
+         the default costs. -->
+    <div class="freeco-models" x-show="showModels" x-cloak @click.outside="showModels = false">
+      <div class="freeco-history-head">
+        <span style="font-size:12px;color:var(--text-dim)">Model for this agent</span>
+      </div>
+      <div class="freeco-history-list">
+        <template x-for="m in models" :key="m.id">
+          <button class="freeco-history-open" @click="chooseModel(m)"
+                  :style="m.id === currentModel ? 'font-weight:600' : ''">
+            <span x-text="m.label"></span>
+            <small class="text-dim" x-text="m.provider"></small>
+          </button>
+        </template>
+        <div x-show="!models.length" class="text-dim" style="padding:10px;font-size:12px">
+          No catalogue available - your configured model is still in use.
+        </div>
+      </div>
+    </div>
+
     <!-- Conversation history. Preserving chat history in the database is only
          half the job; without a way back to it, preserved and deleted look
          the same to the user. -->
