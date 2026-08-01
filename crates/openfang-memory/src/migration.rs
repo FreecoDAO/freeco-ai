@@ -42,6 +42,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     if current_version < 8 {
         migrate_v8(conn)?;
         migrate_v9(conn)?;
+        migrate_v10(conn)?;
     }
 
     set_schema_version(conn, SCHEMA_VERSION)?;
@@ -342,6 +343,36 @@ fn migrate_v9(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute(
         "INSERT OR IGNORE INTO migrations (version, applied_at, description) VALUES (9, datetime('now'), 'Add label column to canonical_sessions so agent conversations get names')",
         [],
+    )?;
+    Ok(())
+}
+
+/// Version 10: Archive compacted messages instead of destroying them.
+///
+/// Compaction used to `split_off` older messages and keep only a lossy
+/// summary -- each message cut to 200 characters, the whole summary then
+/// clipped to its last 4000. The originals were gone for good, so a user
+/// watching their older chats disappear was seeing exactly what was
+/// happening. Managing the model's context window is necessary; deleting the
+/// user's conversation is not the same thing and must never be a side effect
+/// of it. Trimmed messages now land here first and can be read back in full.
+fn migrate_v10(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        "
+        CREATE TABLE IF NOT EXISTS session_archive (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_id TEXT NOT NULL,
+            seq INTEGER NOT NULL,
+            message BLOB NOT NULL,
+            archived_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_session_archive_agent
+            ON session_archive(agent_id, seq);
+
+        INSERT OR IGNORE INTO migrations (version, applied_at, description)
+        VALUES (10, datetime('now'), 'Archive compacted messages so chat history is never destroyed');
+        ",
     )?;
     Ok(())
 }

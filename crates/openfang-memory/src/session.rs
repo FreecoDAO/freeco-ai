@@ -602,10 +602,18 @@ impl SessionStore {
                     full_summary = full_summary[safe_start..].to_string();
                 }
                 canonical.compacted_summary = Some(full_summary);
+
+                // The full history is KEPT. Older messages used to be deleted
+                // here with `split_off`, leaving only a lossy summary -- every
+                // message cut to 200 characters, the summary then clipped to
+                // its last 4000 -- so a user watching older chats disappear
+                // was seeing exactly that. The deletion was never necessary:
+                // `canonical_context` already takes only the trailing window
+                // when building the prompt, so the model never saw the older
+                // messages either way. Keeping the model's context small and
+                // throwing away the user's conversation are different things,
+                // and the second must never be a side effect of the first.
                 canonical.compaction_cursor = to_compact;
-                // Trim messages: keep only the recent window
-                canonical.messages = canonical.messages.split_off(to_compact);
-                canonical.compaction_cursor = 0; // reset cursor since we trimmed
             }
         }
 
@@ -975,9 +983,26 @@ mod tests {
             .collect();
         let canonical = store.append_canonical(agent_id, &msgs, Some(100)).unwrap();
 
-        // After compaction: should keep DEFAULT_CANONICAL_WINDOW (50) messages
-        assert!(canonical.messages.len() <= 60); // some tolerance
+        // Every message is kept. This test used to assert the opposite -- that
+        // compaction had thrown 60+ of them away -- which is precisely the
+        // data loss users reported as "my older chats disappear". Compaction
+        // builds a summary for the prompt; it does not delete the record.
+        assert_eq!(canonical.messages.len(), 120);
         assert!(canonical.compacted_summary.is_some());
+
+        // The model still receives only a bounded window, so keeping the full
+        // history costs nothing in context.
+        let (summary, recent) = store.canonical_context(agent_id, Some(50)).unwrap();
+        assert_eq!(recent.len(), 50);
+        assert!(summary.is_some());
+
+        // And the oldest message is still retrievable in full, not as a
+        // 200-character fragment of a summary.
+        let text = canonical.messages[0].content.text_content();
+        assert!(
+            text.contains("Message number 0"),
+            "oldest message must survive"
+        );
     }
 
     #[test]
