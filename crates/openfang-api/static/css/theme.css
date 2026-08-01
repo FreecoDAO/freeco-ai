@@ -85,13 +85,14 @@
      system font, so a set still renders correctly on a machine that has none
      of the named faces installed and nothing is fetched from a CDN. */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  /* Editorial is the default: high-contrast serif headings over a clean sans
-     body. It reads as deliberately typeset rather than left at the framework
-     default, which is the whole difference between a dashboard and a product.
-     Override with data-type on <html>; the sets are defined at the end. */
-  --font-display: 'Playfair Display', 'Didot', 'Bodoni MT', Georgia, serif;
-  --font-display-weight: 700;
-  --font-display-spacing: -0.02em;
+  /* Headings use the body face. A serif display font was tried and reverted:
+     it only reached some headings, which made the page look inconsistent
+     rather than designed, and it read worse at UI sizes than Inter does.
+     The alternative sets below stay available via data-type on <html>, but
+     none is applied unless deliberately chosen. */
+  --font-display: var(--font-sans);
+  --font-display-weight: 600;
+  --font-display-spacing: -0.01em;
   --font-mono: 'Geist Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
 
   /* Motion — spring curves for premium feel */

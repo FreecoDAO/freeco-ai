@@ -9435,17 +9435,12 @@ fn write_secret_env(path: &std::path::Path, key: &str, value: &str) -> Result<()
                 .arg(path)
                 .args(["/inheritance:r", "/grant:r", &format!("{user}:F")])
                 .output()
-                .map_err(|e| {
-                    std::io::Error::new(std::io::ErrorKind::Other, format!("icacls failed: {e}"))
-                })?;
+                .map_err(|e| std::io::Error::other(format!("icacls failed: {e}")))?;
             if !out.status.success() {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!(
-                        "icacls failed: {}",
-                        String::from_utf8_lossy(&out.stderr).trim()
-                    ),
-                ));
+                return Err(std::io::Error::other(format!(
+                    "icacls failed: {}",
+                    String::from_utf8_lossy(&out.stderr).trim()
+                )));
             }
         }
     }

@@ -7,7 +7,7 @@ use rusqlite::Connection;
 /// Current schema version.
 // Must be bumped whenever a migration is added, or the new migration
 // never runs on an existing database.
-const SCHEMA_VERSION: u32 = 10;
+const SCHEMA_VERSION: u32 = 11;
 
 /// Run all migrations to bring the database up to date.
 pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -58,6 +58,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     if current_version < 10 {
         migrate_v10(conn)?;
+    }
+
+    if current_version < 11 {
+        migrate_v11(conn)?;
     }
 
     set_schema_version(conn, SCHEMA_VERSION)?;
@@ -388,6 +392,117 @@ fn migrate_v10(conn: &Connection) -> Result<(), rusqlite::Error> {
         INSERT OR IGNORE INTO migrations (version, applied_at, description)
         VALUES (10, datetime('now'), 'Archive compacted messages so chat history is never destroyed');
         ",
+    )?;
+    Ok(())
+}
+
+/// Organisational structure: companies own projects, projects have teams, and
+/// conversations belong to one of them.
+///
+/// Without this a conversation is an orphan. Close the window and its context
+/// is gone, the next chat starts from nothing, and there is no way to ask
+/// "what has happened on this project?" -- which is the question a business
+/// actually needs answered. Attaching sessions to a project is what turns a
+/// pile of chats into an organisation's memory.
+///
+/// `archived` and `trashed` are separate on purpose. Archiving is "done, keep
+/// it"; trashing is "wrong, hide it". Collapsing them into one flag means the
+/// only way to clear finished work off a list is to make it look deleted.
+fn migrate_v11(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        "
+        CREATE TABLE IF NOT EXISTS companies (
+            id          TEXT PRIMARY KEY,
+            name        TEXT NOT NULL,
+            description TEXT,
+            archived    INTEGER NOT NULL DEFAULT 0,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS projects (
+            id          TEXT PRIMARY KEY,
+            company_id  TEXT,
+            name        TEXT NOT NULL,
+            description TEXT,
+            status      TEXT NOT NULL DEFAULT 'active',
+            archived    INTEGER NOT NULL DEFAULT 0,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS teams (
+            id          TEXT PRIMARY KEY,
+            project_id  TEXT,
+            name        TEXT NOT NULL,
+            description TEXT,
+            archived    INTEGER NOT NULL DEFAULT 0,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+        );
+
+        -- Which agents belong to which team. An agent can serve several teams,
+        -- which is why this is a join table rather than a column on agents.
+        CREATE TABLE IF NOT EXISTS team_members (
+            team_id    TEXT NOT NULL,
+            agent_id   TEXT NOT NULL,
+            role       TEXT,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (team_id, agent_id),
+            FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_projects_company ON projects(company_id);
+        CREATE INDEX IF NOT EXISTS idx_teams_project    ON teams(project_id);
+        CREATE INDEX IF NOT EXISTS idx_team_members     ON team_members(agent_id);
+        ",
+    )?;
+
+    // Sessions gain their place in the structure. Added one at a time and
+    // guarded, so a partially-migrated database can be re-run safely.
+    for (table, column, ddl) in [
+        (
+            "sessions",
+            "project_id",
+            "ALTER TABLE sessions ADD COLUMN project_id TEXT",
+        ),
+        (
+            "sessions",
+            "team_id",
+            "ALTER TABLE sessions ADD COLUMN team_id TEXT",
+        ),
+        (
+            "sessions",
+            "kind",
+            "ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat'",
+        ),
+        (
+            "sessions",
+            "archived",
+            "ALTER TABLE sessions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0",
+        ),
+        (
+            "sessions",
+            "trashed",
+            "ALTER TABLE sessions ADD COLUMN trashed INTEGER NOT NULL DEFAULT 0",
+        ),
+    ] {
+        if !column_exists(conn, table, column) {
+            conn.execute(ddl, [])?;
+        }
+    }
+
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id);
+         CREATE INDEX IF NOT EXISTS idx_sessions_team    ON sessions(team_id);",
+    )?;
+
+    conn.execute(
+        "INSERT OR IGNORE INTO migrations (version, applied_at, description) \
+         VALUES (11, datetime('now'), 'Companies, projects, teams; sessions scoped and archivable')",
+        [],
     )?;
     Ok(())
 }

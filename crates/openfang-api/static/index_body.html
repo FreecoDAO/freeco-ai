@@ -111,6 +111,9 @@
               <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
               <span class="nav-label">Chat</span>
             </a>
+            <a class="nav-item" :class="{ active: page === 'projects' }" @click="navigate('projects')" :aria-current="page === 'projects' ? 'page' : false">
+              <span class="nav-icon">&#128193;</span><span class="nav-label">Projects</span>
+            </a>
             <a class="nav-item" :class="{ active: page === 'sessions' }" @click="navigate('sessions')" :aria-current="page === 'sessions' ? 'page' : false">
               <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m12 2-10 5 10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></span>
               <span class="nav-label">Sessions</span>
@@ -586,6 +589,95 @@
           </div>
 
           </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Page: Projects. Companies own projects; conversations belong to a
+         project. Without this screen the structure is invisible, and a chat
+         filed under a project nobody can see is filed nowhere. -->
+    <template x-if="page === 'projects'">
+      <div x-data="projectsPage" x-init="init()" class="page-body">
+        <div class="page-header">
+          <h1 class="page-title">Projects</h1>
+          <p class="page-subtitle">
+            Companies own projects. Every conversation belongs to one, so a team's
+            history stays together and can be found again.
+          </p>
+        </div>
+
+        <div x-show="loadError" class="alert alert-error" x-text="loadError"></div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px">
+          <input class="form-input" style="flex:1;min-width:220px" x-model="newProject"
+                 placeholder="New project name..." @keydown.enter="createProject()">
+          <button class="btn" @click="createProject()" :disabled="creating || !newProject.trim()">Create project</button>
+          <input class="form-input" style="flex:1;min-width:200px" x-model="newCompany"
+                 placeholder="New company name..." @keydown.enter="createCompany()">
+          <button class="btn btn-ghost" @click="createCompany()" :disabled="!newCompany.trim()">Add company</button>
+          <label class="text-xs text-dim" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" x-model="showArchived" @change="load()"> Show archived
+          </label>
+        </div>
+
+        <div x-show="loading" class="text-dim">Loading...</div>
+
+        <div x-show="!loading && !projects.length && !loadError" class="text-dim"
+             style="padding:24px;text-align:center">
+          No projects yet. Create one above, or start a conversation and file it here.
+        </div>
+
+        <div class="grid" style="display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+          <template x-for="p in projects" :key="p.id">
+            <div class="card" style="cursor:pointer" @click="select(p)"
+                 :style="selected && selected.id === p.id ? 'border-color:var(--accent)' : ''">
+              <div class="card-header" style="display:flex;align-items:center;gap:8px">
+                <span x-text="p.name"></span>
+                <span class="badge" x-show="p.archived"
+                      style="background:var(--surface2);color:var(--text-dim)">Archived</span>
+              </div>
+              <p class="text-xs text-dim" style="margin:4px 0 0">
+                <span x-show="companyName(p.company_id)" x-text="companyName(p.company_id) + ' \u00b7 '"></span>
+                <span x-text="countFor(p.id)"></span> conversation<span x-show="countFor(p.id) !== 1">s</span>
+              </p>
+            </div>
+          </template>
+        </div>
+
+        <!-- A project's own history: what this whole structure is for. -->
+        <div x-show="selected" style="margin-top:26px">
+          <h2 style="font-size:1.1rem;margin-bottom:10px">
+            <span x-text="selected && selected.name"></span> &mdash; conversations
+          </h2>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input class="form-input" style="flex:1;max-width:280px;font-size:12px" x-model="newTeam"
+                   placeholder="Add a team to this project..." @keydown.enter="createTeam()">
+            <button class="btn btn-ghost btn-sm" @click="createTeam()" :disabled="!newTeam.trim()">Add team</button>
+          </div>
+          <div x-show="sessionsLoading" class="text-dim">Loading conversations...</div>
+          <div x-show="!sessionsLoading && !sessions.length" class="text-dim" style="font-size:13px">
+            Nothing filed here yet.
+          </div>
+          <table class="table" x-show="sessions.length" style="width:100%">
+            <tbody>
+              <template x-for="s in sessions" :key="s.id">
+                <tr>
+                  <td>
+                    <span x-text="s.label || 'Untitled conversation'"></span>
+                    <span class="badge" x-show="s.archived"
+                          style="background:var(--surface2);color:var(--text-dim);margin-left:6px">Done</span>
+                  </td>
+                  <td class="text-xs text-dim" x-text="when(s.updated_at)"></td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <button class="btn btn-ghost btn-sm" @click="setArchived(s, !s.archived)"
+                            x-text="s.archived ? 'Reopen' : 'Archive'"></button>
+                    <button class="btn btn-ghost btn-sm" @click="trash(s)"
+                            title="Hidden, not deleted \u2014 restorable">Trash</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
         </div>
       </div>
     </template>
