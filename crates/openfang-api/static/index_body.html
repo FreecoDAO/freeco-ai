@@ -6042,7 +6042,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 </div>
 
 <!-- Freeco Assistant — global concierge widget, present on every page -->
-<div x-data="freecoAssistant" x-init="init()" @freeco-navigate.window="navigate($event.detail)" @freeco-open.window="if(!open) toggle()" class="freeco-dock">
+<div x-data="freecoAssistant" x-init="init(); restoreGeometry()" @resize.window="restoreGeometry()" @freeco-navigate.window="navigate($event.detail)" @freeco-open.window="if(!open) toggle()" class="freeco-dock">
   <!-- Panel -->
   <div class="freeco-panel" :class="{ 'freeco-fullscreen': fullscreen }" x-show="open" x-cloak :style="panelStyle()" x-transition.origin.bottom.right>
     <div class="freeco-panel-header" @mousedown="startDrag($event)" style="cursor:move" title="Drag to move">

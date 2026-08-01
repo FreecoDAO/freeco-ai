@@ -29,9 +29,28 @@ function freecoAssistant() {
     _voice: null,
     // window state — resizable, movable, full-screen
     fullscreen: false,
-    moved: false,          // true once the user drags it (switches to free positioning)
-    pos: { x: 0, y: 0 },   // top-left when moved
-    size: { w: 380, h: 560 },
+    // Restored alongside pos: without this the panel remembers coordinates but
+    // snaps back to the docked corner, which looks like the position was lost.
+    moved: (function () {
+      try { return localStorage.getItem('freeco-widget-moved') === '1'; } catch (e) { return false; }
+    })(),
+    // Position and size survive reloads. A widget that forgets where you put
+    // it has to be dragged back every single session, which is why people stop
+    // moving it at all and just tolerate it sitting in the wrong place.
+    pos: (function () {
+      try {
+        var v = JSON.parse(localStorage.getItem('freeco-widget-pos') || 'null');
+        if (v && typeof v.x === 'number' && typeof v.y === 'number') return v;
+      } catch (e) { /* private mode, or someone edited it by hand */ }
+      return { x: 0, y: 0 };
+    })(),
+    size: (function () {
+      try {
+        var v = JSON.parse(localStorage.getItem('freeco-widget-size') || 'null');
+        if (v && v.w >= 300 && v.h >= 320) return v;
+      } catch (e) { /* fall through to the default */ }
+      return { w: 380, h: 560 };
+    })(),
     _drag: null,
     _resize: null,
     // attachments queued for the next message
@@ -235,6 +254,12 @@ function freecoAssistant() {
         });
       } catch (e) { this.sessions = []; }
       return this.sessions;
+    },
+
+    // Called when the panel opens. A geometry saved on an external monitor
+    // can be entirely off-screen on the laptop, so it is clamped before use.
+    restoreGeometry: function () {
+      this._clampToViewport();
     },
 
     toggleHistory: function () {
@@ -920,6 +945,31 @@ function freecoAssistant() {
       var self = this; this.$nextTick(function() { self._scroll(); });
     },
     // Computed inline style for the panel based on window state.
+    // Written on mouse-up rather than on every mouse-move: dragging fires
+    // hundreds of events and localStorage is synchronous, so saving during the
+    // drag makes the panel stutter.
+    _saveGeometry: function () {
+      try {
+        localStorage.setItem('freeco-widget-pos', JSON.stringify(this.pos));
+        localStorage.setItem('freeco-widget-size', JSON.stringify(this.size));
+        localStorage.setItem('freeco-widget-moved', this.moved ? '1' : '0');
+      } catch (e) { /* nothing to do if storage is unavailable */ }
+    },
+
+    // A position saved on a large monitor can land completely off-screen on a
+    // laptop. Clamp on restore so the widget is always reachable.
+    _clampToViewport: function () {
+      if (!this.moved) return;
+      this.pos = {
+        x: Math.max(0, Math.min(window.innerWidth - 120, this.pos.x)),
+        y: Math.max(0, Math.min(window.innerHeight - 40, this.pos.y))
+      };
+      this.size = {
+        w: Math.min(this.size.w, Math.max(300, window.innerWidth - 20)),
+        h: Math.min(this.size.h, Math.max(320, window.innerHeight - 20))
+      };
+    },
+
     panelStyle: function() {
       if (this.fullscreen) {
         return 'position:fixed;inset:12px;width:auto;height:auto;max-height:none;border-radius:14px;z-index:9600';
@@ -944,7 +994,11 @@ function freecoAssistant() {
           y: Math.max(0, Math.min(window.innerHeight - 40, oy + ev.clientY - startY))
         };
       };
-      var up = function() { window.removeEventListener('mousemove', self._drag); window.removeEventListener('mouseup', up); };
+      var up = function() {
+        window.removeEventListener('mousemove', self._drag);
+        window.removeEventListener('mouseup', up);
+        self._saveGeometry();
+      };
       window.addEventListener('mousemove', this._drag);
       window.addEventListener('mouseup', up);
       e.preventDefault();
@@ -960,7 +1014,11 @@ function freecoAssistant() {
         self.size = { w: Math.max(300, Math.min(window.innerWidth - 20, ow + dx)), h: self.size.h };
         if (ox !== null) self.pos = { x: Math.max(0, ox - dx), y: self.pos.y };
       };
-      var up = function() { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+      var up = function() {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        self._saveGeometry();
+      };
       window.addEventListener('mousemove', move);
       window.addEventListener('mouseup', up);
       e.preventDefault();
@@ -975,7 +1033,11 @@ function freecoAssistant() {
           h: Math.max(320, Math.min(window.innerHeight - 20, oh + ev.clientY - startY))
         };
       };
-      var up = function() { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+      var up = function() {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        self._saveGeometry();
+      };
       window.addEventListener('mousemove', move);
       window.addEventListener('mouseup', up);
       e.preventDefault();
