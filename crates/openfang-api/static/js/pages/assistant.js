@@ -177,6 +177,25 @@ function freecoAssistant() {
       }
     },
 
+    // Told once per session, not per utterance. A warning that fires on every
+    // sentence gets dismissed reflexively and stops being a warning.
+    _cloudDictationWarned: false,
+    sttOnDevice: null,
+
+    _warnCloudDictation: function () {
+      if (this._cloudDictationWarned) return;
+      this._cloudDictationWarned = true;
+      this.messages.push({
+        id: ++mId, role: 'system', ts: Date.now(),
+        html: 'Dictation is running <strong>through your browser vendor\u2019s servers</strong>, ' +
+              'not on this device \u2014 on-device speech recognition is unavailable here. ' +
+              'Your recorded voice leaves this machine and its retention is not documented. ' +
+              'For anything confidential, type it, or run a local Whisper server and set ' +
+              '<code>[media].audio_base_url</code> to it.'
+      });
+      this._scroll();
+    },
+
     // ---- Model picker -------------------------------------------------
     // Switching model mid-conversation matters because tasks are not uniform:
     // a cheap fast model handles most turns, and only some need the expensive
@@ -644,6 +663,36 @@ function freecoAssistant() {
           recog.interimResults = true;
           recog.maxAlternatives = 1;
           recog.continuous = true;
+
+          // Ask for on-device recognition explicitly.
+          //
+          // The Web Speech API is server-side BY DEFAULT: Chrome streams the
+          // microphone to Google and sends back a transcript, and Google
+          // documents neither how long that audio is retained nor whether the
+          // logging can be turned off. Chrome 139 added an opt-in local mode,
+          // but a page that does not ask for it gets the server every time.
+          //
+          // So this is not a nicety. In a product that blocks cloud voices on
+          // privacy grounds, dictating into the assistant must not quietly be
+          // the one feature that ships your voice to a third party.
+          try {
+            recog.processLocally = true;
+          } catch (e) { /* older browsers ignore the property entirely */ }
+          self.sttOnDevice = null;
+          if (SR.availableOnDevice) {
+            Promise.resolve(SR.availableOnDevice(recog.lang))
+              .then(function (state) {
+                // 'available' is the only answer that means audio stays here.
+                self.sttOnDevice = (state === 'available' || state === true);
+                if (!self.sttOnDevice) self._warnCloudDictation();
+              })
+              .catch(function () { self.sttOnDevice = false; self._warnCloudDictation(); });
+          } else {
+            // No availableOnDevice means a browser predating local mode, so
+            // recognition is server-side however the flag above was set.
+            self.sttOnDevice = false;
+            self._warnCloudDictation();
+          }
           recog.onresult = function(ev) {
             // With continuous + interim results, only results marked final are
             // settled text; the rest is the in-progress guess. Keep the settled

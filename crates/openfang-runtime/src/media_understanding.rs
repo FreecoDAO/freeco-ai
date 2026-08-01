@@ -451,7 +451,7 @@ fn detect_audio_provider() -> Option<&'static str> {
 const STT_UNAVAILABLE: &str = "No speech-to-text available in this browser.
 
      Private options, audio never leaves this machine:
-     1. Use the FreEco.ai desktop app, Chrome or Edge - they transcribe on-device,      free, with no key and no server.
+     1. Chrome 139+ or Edge, which CAN transcribe on-device - but only when the      page asks for it. FreEco.ai asks, and says so in the chat if the browser      refuses and falls back to its vendor's servers. The Web Speech API is      server-side by DEFAULT, so treat a browser without on-device support as      sending your voice to its vendor.
      2. Run a local Whisper server and point [media].audio_base_url at it. It works      in any browser, including Firefox, and is the best option if you dictate      anything confidential.
 
      Cloud option, and the trade is worth knowing: a cloud transcription key uploads      every recording to that company, where it may be retained. Convenient, but it is      your voice leaving your machine.";
