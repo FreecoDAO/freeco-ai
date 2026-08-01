@@ -1,0 +1,27 @@
+[package]
+name = "openfang-datagateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "AI Data Protective Gateway — PII detection, data masking, and policy enforcement for AI traffic"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+sha2 = { workspace = true }
+aes-gcm = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
+regex-lite = { workspace = true }
+zeroize = { workspace = true }
+rand = { workspace = true }
+rand_core = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+serde_json = { workspace = true }
