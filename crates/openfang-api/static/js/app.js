@@ -3,7 +3,11 @@
    never flashes the default face and then re-renders in the chosen one. */
 (function () {
   try {
+    // Clear any previously stored set. The serif experiment was reverted, and
+    // a browser that had already saved 'editorial' would otherwise keep
+    // applying it after the default changed back.
     var t = localStorage.getItem('freeco-type');
+    if (t === 'editorial') { localStorage.removeItem('freeco-type'); t = null; }
     if (t) document.documentElement.setAttribute('data-type', t);
   } catch (e) { /* private mode: fall back to the default set */ }
 })();
