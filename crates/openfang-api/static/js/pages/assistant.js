@@ -158,6 +158,162 @@ function freecoAssistant() {
       }
     },
 
+    // ---- Conversation ergonomics -------------------------------------
+    // Everything below exists because a chat you cannot copy from, correct,
+    // retry or return to is a chat that loses your work. Preserving history
+    // in the database was only half the job; this is the half that makes it
+    // reachable.
+
+    showHistory: false,
+    sessions: [],
+    sessionSearch: '',
+    copiedId: null,
+
+    get filteredSessions() {
+      var q = (this.sessionSearch || '').toLowerCase().trim();
+      if (!q) return this.sessions;
+      return this.sessions.filter(function (s) {
+        return ((s.label || '') + ' ' + (s.id || '')).toLowerCase().indexOf(q) !== -1;
+      });
+    },
+
+    async loadSessions() {
+      try {
+        var data = await OpenFangAPI.get('/api/sessions');
+        var list = Array.isArray(data) ? data : (data.sessions || []);
+        // Newest first: the conversation you want is nearly always recent.
+        this.sessions = list.sort(function (a, b) {
+          return String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
+        });
+      } catch (e) { this.sessions = []; }
+      return this.sessions;
+    },
+
+    toggleHistory: function () {
+      this.showHistory = !this.showHistory;
+      if (this.showHistory) this.loadSessions();
+    },
+
+    // Start fresh without destroying anything. The previous conversation stays
+    // in history rather than being overwritten.
+    newChat: function () {
+      this.messages = [];
+      this.steps = [];
+      this.queued = [];
+      this.input = '';
+      this.attachments = [];
+      this.sessionId = null;
+      this.showHistory = false;
+      this._scroll();
+    },
+
+    async openSession(id) {
+      this.showHistory = false;
+      try {
+        var data = await OpenFangAPI.get('/api/sessions/' + encodeURIComponent(id));
+        var msgs = (data && (data.messages || data.session && data.session.messages)) || [];
+        this.messages = msgs.map(function (m) {
+          var text = typeof m.content === 'string' ? m.content
+                   : (m.content && m.content.text) || '';
+          return {
+            id: ++mId,
+            role: m.role === 'user' ? 'user' : 'freeco',
+            ts: Date.parse(m.timestamp || '') || Date.now(),
+            html: this._md ? this._md(text) : this._escape(text),
+            raw: text
+          };
+        }.bind(this));
+        this.sessionId = id;
+        this._scroll();
+      } catch (e) {
+        OpenFangToast.error('Could not open that conversation: ' + e.message);
+      }
+    },
+
+    // Rename a conversation. Auto-generated names are a starting point, and
+    // the user's own name for something is always better than a guess.
+    async renameSession(id, current) {
+      var name = window.prompt('Name this conversation', current || '');
+      if (name === null) return;
+      try {
+        await OpenFangAPI.put('/api/sessions/' + encodeURIComponent(id) + '/label',
+                              { label: name.trim() || null });
+        await this.loadSessions();
+      } catch (e) { OpenFangToast.error('Rename failed: ' + e.message); }
+    },
+
+    _plain: function (m) {
+      if (m.raw) return m.raw;
+      var d = document.createElement('div');
+      d.innerHTML = m.html || '';
+      return d.textContent || '';
+    },
+
+    copyMessage: function (m) {
+      var text = this._plain(m);
+      var done = function () {
+        this.copiedId = m.id;
+        setTimeout(function () { this.copiedId = null; }.bind(this), 1500);
+      }.bind(this);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {});
+      } else {
+        // Older browsers and non-secure origins have no clipboard API.
+        var ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    },
+
+    copyConversation: function () {
+      var out = this.messages.filter(function (m) { return !m.thinking; })
+        .map(function (m) {
+          return (m.role === 'user' ? 'You: ' : 'Freeco: ') + this._plain(m);
+        }.bind(this)).join('\n\n');
+      this.copyMessage({ id: -1, raw: out });
+      OpenFangToast.success('Conversation copied.');
+    },
+
+    exportConversation: function () {
+      var out = this.messages.filter(function (m) { return !m.thinking; })
+        .map(function (m) {
+          return (m.role === 'user' ? '**You:** ' : '**Freeco:** ') + this._plain(m);
+        }.bind(this)).join('\n\n');
+      var blob = new Blob([out], { type: 'text/markdown' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'freeco-conversation.md';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    },
+
+    // Retry drops the failed answer and re-sends the question, rather than
+    // making the user retype it.
+    retryFrom: function (m) {
+      if (this.sending) return;
+      var i = this.messages.indexOf(m);
+      var q = null;
+      for (var j = i; j >= 0; j--) {
+        if (this.messages[j].role === 'user') { q = this.messages[j]; break; }
+      }
+      if (!q) return;
+      this.messages = this.messages.slice(0, this.messages.indexOf(q));
+      this.input = this._plain(q);
+      this.attachments = (q.atts || []).slice();
+      this.send();
+    },
+
+    // Edit rewinds to the question so a misunderstood request can be fixed at
+    // the source instead of patched in a follow-up.
+    editMessage: function (m) {
+      if (this.sending) return;
+      this.input = this._plain(m);
+      this.attachments = (m.atts || []).slice();
+      this.messages = this.messages.slice(0, this.messages.indexOf(m));
+      this._scroll();
+    },
+
     send: async function() {
       var text = (this.input || '').trim();
       var atts = this.attachments.slice();
@@ -189,7 +345,9 @@ function freecoAssistant() {
           return '<span class="freeco-att">📎 ' + a.name.replace(/</g, '&lt;') + '</span>';
         }).join('') + '</div>';
       }
-      this.messages.push({ id: ++mId, role: 'user', ts: Date.now(), html: bubble });
+      // Keep the raw text: retry and edit need the original, not the escaped
+      // HTML that was rendered from it.
+      this.messages.push({ id: ++mId, role: 'user', ts: Date.now(), html: bubble, raw: text, atts: atts.slice() });
       this.input = '';
       this.attachments = [];
       this.sending = true;

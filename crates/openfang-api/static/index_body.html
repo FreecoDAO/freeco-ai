@@ -6112,6 +6112,36 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
       </div>
     </div>
 
+    <!-- Conversation history. Preserving chat history in the database is only
+         half the job; without a way back to it, preserved and deleted look
+         the same to the user. -->
+    <div class="freeco-history" x-show="showHistory" x-cloak @click.outside="showHistory = false">
+      <div class="freeco-history-head">
+        <input class="form-input" style="flex:1;font-size:12px" x-model="sessionSearch"
+               placeholder="Search conversations...">
+        <button class="btn btn-ghost btn-sm" @click="newChat()" title="Start a new conversation">New</button>
+      </div>
+      <div class="freeco-history-list">
+        <template x-for="s in filteredSessions" :key="s.id">
+          <div class="freeco-history-item">
+            <button class="freeco-history-open" @click="openSession(s.id)">
+              <span x-text="s.label || 'Untitled conversation'"></span>
+              <small class="text-dim" x-text="(s.updated_at || '').slice(0,16).replace('T',' ')"></small>
+            </button>
+            <button class="btn btn-ghost btn-sm" @click.stop="renameSession(s.id, s.label)"
+                    title="Rename">Rename</button>
+          </div>
+        </template>
+        <div x-show="!filteredSessions.length" class="text-dim" style="padding:10px;font-size:12px">
+          No conversations yet.
+        </div>
+      </div>
+      <div class="freeco-history-foot">
+        <button class="btn btn-ghost btn-sm" @click="copyConversation()">Copy this chat</button>
+        <button class="btn btn-ghost btn-sm" @click="exportConversation()">Export .md</button>
+      </div>
+    </div>
+
     <!-- Live progress: what Freeco is doing right now, and a way to stop it -->
     <div class="freeco-steps-bar" x-show="sending" x-cloak>
       <button class="freeco-steps-toggle" @click="showSteps = !showSteps">

@@ -80,7 +80,14 @@
   --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.08);
 
   /* Typography — dual font system */
+  /* Typography sets. Switch by putting data-type="<name>" on <html>; the
+     default below is what loads with no attribute set. Every stack ends in a
+     system font, so a set still renders correctly on a machine that has none
+     of the named faces installed and nothing is fetched from a CDN. */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-display-weight: 600;
+  --font-display-spacing: -0.01em;
   --font-mono: 'Geist Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
 
   /* Motion — spring curves for premium feel */
@@ -283,4 +290,57 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+/* ---- Typography sets -------------------------------------------------
+   Four looks, all built from faces that ship with macOS, Windows or Linux,
+   so none of them costs a web request or leaks a font-CDN pageview. */
+
+/* Editorial - high-contrast serif headings over a clean sans body. The
+   closest to a printed magazine: authoritative, quiet, unmistakably
+   typeset rather than defaulted. */
+:root[data-type="editorial"] {
+  --font-sans: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Playfair Display', 'Didot', 'Bodoni MT', 'Georgia', serif;
+  --font-display-weight: 700;
+  --font-display-spacing: -0.02em;
+}
+
+/* Gazette - serif throughout, like a broadsheet. Warmest and most
+   readable at length; best if the dashboard is something you read rather
+   than scan. */
+:root[data-type="gazette"] {
+  --font-sans: 'Charter', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-display: 'Charter', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-display-weight: 700;
+  --font-display-spacing: -0.01em;
+}
+
+/* Atelier - grotesque headings, tight and confident. Gallery-catalogue
+   modern: the most contemporary of the four, least "software default". */
+:root[data-type="atelier"] {
+  --font-sans: 'Helvetica Neue', 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Helvetica Neue', 'Arial Narrow', 'Inter', sans-serif;
+  --font-display-weight: 700;
+  --font-display-spacing: -0.03em;
+}
+
+/* Terminal - monospace headings over a sans body. Engineering-journal
+   look; suits an agent OS and pairs naturally with the code and log output
+   already on these screens. */
+:root[data-type="terminal"] {
+  --font-sans: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Geist Mono', 'SF Mono', 'JetBrains Mono', 'Cascadia Code', monospace;
+  --font-display-weight: 600;
+  --font-display-spacing: -0.02em;
+}
+
+/* Headings pick up the display face in every set. Without this the sets
+   would only change body text and the "magazine" character - which lives
+   almost entirely in the headings - would never appear. */
+h1, h2, h3, .card-header, .page-title, .stat-value {
+  font-family: var(--font-display);
+  font-weight: var(--font-display-weight);
+  letter-spacing: var(--font-display-spacing);
 }

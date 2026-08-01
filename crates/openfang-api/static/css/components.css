@@ -3746,3 +3746,42 @@ mark.search-highlight {
   border-radius: 6px; font-size: 10.5px; font-weight: 600;
 }
 .freeco-unlock:hover { background: var(--error-subtle); }
+
+/* ---- Conversation history + message actions -------------------------
+   A chat you cannot return to, copy from or correct loses the user's work,
+   however faithfully the messages are stored. */
+.freeco-history {
+  position: absolute; top: 44px; right: 8px; width: 300px; max-height: 60vh;
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.28); z-index: 40;
+}
+.freeco-history-head, .freeco-history-foot {
+  display: flex; gap: 6px; align-items: center;
+  padding: 8px; border-bottom: 1px solid var(--border);
+}
+.freeco-history-foot { border-bottom: none; border-top: 1px solid var(--border); }
+.freeco-history-list { overflow-y: auto; flex: 1; }
+.freeco-history-item {
+  display: flex; align-items: center; gap: 4px;
+  padding: 2px 6px; border-bottom: 1px solid var(--border-subtle, transparent);
+}
+.freeco-history-open {
+  flex: 1; display: flex; flex-direction: column; align-items: flex-start;
+  gap: 2px; padding: 7px 6px; background: none; border: none;
+  color: var(--text); font: inherit; font-size: 12.5px;
+  text-align: left; cursor: pointer; border-radius: 6px;
+}
+.freeco-history-open:hover { background: var(--surface2); }
+.freeco-history-open small { font-size: 10.5px; }
+
+/* Actions stay hidden until hover so they never compete with the message
+   itself, but are always in the same place when wanted. */
+.freeco-msg-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+.freeco-msg:hover .freeco-msg-actions,
+.freeco-msg-actions:focus-within { opacity: 1; }
+.freeco-msg-act {
+  background: none; border: none; cursor: pointer; padding: 2px 6px;
+  font-size: 11px; color: var(--text-dim); border-radius: 4px;
+}
+.freeco-msg-act:hover { background: var(--surface2); color: var(--text); }

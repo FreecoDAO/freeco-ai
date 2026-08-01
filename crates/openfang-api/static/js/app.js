@@ -1,3 +1,21 @@
+
+/* Typography set. Applied before first paint from localStorage so the page
+   never flashes the default face and then re-renders in the chosen one. */
+(function () {
+  try {
+    var t = localStorage.getItem('freeco-type');
+    if (t) document.documentElement.setAttribute('data-type', t);
+  } catch (e) { /* private mode: fall back to the default set */ }
+})();
+
+window.setTypography = function (name) {
+  if (name) {
+    document.documentElement.setAttribute('data-type', name);
+  } else {
+    document.documentElement.removeAttribute('data-type');
+  }
+  try { localStorage.setItem('freeco-type', name || ''); } catch (e) {}
+};
 // FreEco.ai App — Alpine.js init, hash router, global store
 'use strict';
 
