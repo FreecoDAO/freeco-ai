@@ -25,8 +25,20 @@ const MAX_ACTION_SUMMARY_LEN: usize = 512;
 /// Minimum approval timeout in seconds.
 const MIN_TIMEOUT_SECS: u64 = 10;
 
+/// Four hours. Long enough to survive a night's sleep or a working day away
+/// from the desk, short enough that a forgotten request does not sit pending
+/// for a week. Callers that genuinely want a fast auto-deny still set their
+/// own shorter timeout.
+const DEFAULT_TIMEOUT_SECS: u64 = 4 * 60 * 60;
+
 /// Maximum approval timeout in seconds.
-const MAX_TIMEOUT_SECS: u64 = 300;
+/// 24 hours. An approval request is a question put to a human, and humans
+/// are asleep, in meetings, or away from the machine for hours at a time.
+/// The old five-minute ceiling meant any request raised while the user was
+/// not watching auto-denied itself, so a long agent run would fail on a
+/// permission the user would happily have granted an hour later - and the
+/// failure looked like a bug rather than a timeout.
+const MAX_TIMEOUT_SECS: u64 = 24 * 60 * 60;
 
 // ---------------------------------------------------------------------------
 // RiskLevel
@@ -173,7 +185,8 @@ pub struct ApprovalPolicy {
     /// - `require_approval = true`  → `["shell_exec"]` (the default set)
     #[serde(deserialize_with = "deserialize_require_approval")]
     pub require_approval: Vec<String>,
-    /// Timeout in seconds. Default: 60, range: 10..=300.
+    /// Timeout in seconds before the request auto-denies.
+    /// Default: 4 hours, range: 10 seconds..=24 hours.
     pub timeout_secs: u64,
     /// Auto-approve in autonomous mode. Default: `false`.
     pub auto_approve_autonomous: bool,
@@ -186,7 +199,7 @@ impl Default for ApprovalPolicy {
     fn default() -> Self {
         Self {
             require_approval: vec!["shell_exec".to_string()],
-            timeout_secs: 60,
+            timeout_secs: DEFAULT_TIMEOUT_SECS,
             auto_approve_autonomous: false,
             auto_approve: false,
         }
@@ -298,7 +311,7 @@ mod tests {
             action_summary: "rm -rf /tmp/stale_cache".into(),
             risk_level: RiskLevel::High,
             requested_at: Utc::now(),
-            timeout_secs: 60,
+            timeout_secs: DEFAULT_TIMEOUT_SECS,
         }
     }
 
@@ -476,7 +489,8 @@ mod tests {
     #[test]
     fn request_timeout_too_large() {
         let mut req = valid_request();
-        req.timeout_secs = 301;
+        // Just past the 24-hour ceiling.
+        req.timeout_secs = MAX_TIMEOUT_SECS + 1;
         let err = req.validate().unwrap_err();
         assert!(err.contains("too large"), "{err}");
     }
@@ -537,7 +551,7 @@ mod tests {
         let policy = ApprovalPolicy::default();
         assert!(policy.validate().is_ok());
         assert_eq!(policy.require_approval, vec!["shell_exec".to_string()]);
-        assert_eq!(policy.timeout_secs, 60);
+        assert_eq!(policy.timeout_secs, DEFAULT_TIMEOUT_SECS);
         assert!(!policy.auto_approve_autonomous);
         assert!(!policy.auto_approve);
     }
@@ -546,7 +560,7 @@ mod tests {
     fn policy_serde_default() {
         // An empty JSON object should deserialize to defaults via #[serde(default)].
         let policy: ApprovalPolicy = serde_json::from_str("{}").unwrap();
-        assert_eq!(policy.timeout_secs, 60);
+        assert_eq!(policy.timeout_secs, DEFAULT_TIMEOUT_SECS);
         assert_eq!(policy.require_approval, vec!["shell_exec".to_string()]);
         assert!(!policy.auto_approve_autonomous);
     }
@@ -590,7 +604,8 @@ mod tests {
     #[test]
     fn policy_timeout_too_large() {
         let mut policy = valid_policy();
-        policy.timeout_secs = 301;
+        // Just past the 24-hour ceiling.
+        policy.timeout_secs = MAX_TIMEOUT_SECS + 1;
         let err = policy.validate().unwrap_err();
         assert!(err.contains("too large"), "{err}");
     }
