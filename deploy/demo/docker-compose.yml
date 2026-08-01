@@ -1,0 +1,115 @@
+# FreEco.ai demo stack - the whole product in one command.
+#
+# Brings up FreEco.ai with the three business services it integrates:
+# Twenty (CRM), Akaunting (accounting) and dograh (real-time voice, MCP-native).
+#
+#   docker compose --env-file .env up -d
+#
+# Ports are deliberately explicit and non-overlapping. dograh publishes 3000
+# from its own compose, which is why Twenty is mapped to 3200 rather than the
+# 3000 it uses internally: installing voice and CRM on one host otherwise
+# collides and the second service silently fails to bind.
+#
+#   4200  FreEco.ai dashboard
+#   3200  Twenty CRM
+#   8080  Akaunting
+#   8000  dograh API (added by its own compose, see deploy/demo/README.md)
+#
+# SECURITY: every password here comes from .env and the stack refuses to start
+# without one. Baking demo passwords into a compose file is how "temporary"
+# credentials end up on an internet-facing investor demo.
+
+name: freeco-demo
+
+services:
+  freeco:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: freeco-ai:demo
+    restart: unless-stopped
+    ports: ["4200:4200"]
+    environment:
+      OPENFANG_API_LISTEN: 0.0.0.0:4200
+      # Passed through so agents can reach whichever provider you use. Unset
+      # keys are simply absent rather than empty, so provider detection does
+      # not think a key exists.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - freeco-data:/root/.openfang
+      # The agent sandbox runs containers of its own, so it needs the host
+      # Docker socket. This is a real privilege: anything that can reach this
+      # socket can control Docker on the host. Acceptable for a demo box that
+      # runs nothing else; do not mount it on a machine with other workloads.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on: [twenty, akaunting]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4200/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  # ---- CRM -------------------------------------------------------------
+  twenty-db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${TWENTY_DB_PASSWORD:?set TWENTY_DB_PASSWORD in .env}
+    volumes: [twenty-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      retries: 10
+
+  twenty:
+    image: twentycrm/twenty:latest
+    restart: unless-stopped
+    depends_on:
+      twenty-db: { condition: service_healthy }
+    environment:
+      PG_DATABASE_URL: postgres://postgres:${TWENTY_DB_PASSWORD}@twenty-db:5432/default
+      SERVER_URL: ${TWENTY_URL:-http://localhost:3200}
+      APP_SECRET: ${TWENTY_APP_SECRET:?set TWENTY_APP_SECRET in .env}
+    ports: ["3200:3000"]
+    volumes: [twenty-data:/app/packages/twenty-server/.local-storage]
+
+  # ---- Accounting ------------------------------------------------------
+  akaunting-db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${AKAUNTING_DB_PASSWORD:?set AKAUNTING_DB_PASSWORD in .env}
+      MYSQL_DATABASE: akaunting
+      MYSQL_USER: akaunting
+      MYSQL_PASSWORD: ${AKAUNTING_DB_PASSWORD}
+    volumes: [akaunting-db-data:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      retries: 10
+
+  akaunting:
+    image: akaunting/akaunting:latest
+    restart: unless-stopped
+    depends_on:
+      akaunting-db: { condition: service_healthy }
+    environment:
+      DB_HOST: akaunting-db
+      DB_DATABASE: akaunting
+      DB_USERNAME: akaunting
+      DB_PASSWORD: ${AKAUNTING_DB_PASSWORD}
+      APP_URL: ${AKAUNTING_URL:-http://localhost:8080}
+    ports: ["8080:80"]
+    volumes: [akaunting-data:/var/www/html]
+
+volumes:
+  freeco-data:
+  twenty-db-data:
+  twenty-data:
+  akaunting-db-data:
+  akaunting-data:
