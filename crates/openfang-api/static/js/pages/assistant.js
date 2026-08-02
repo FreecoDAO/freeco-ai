@@ -744,11 +744,23 @@ function freecoAssistant() {
         this._warnedNoSR = true;
         this.messages.push({
           id: ++mId, role: 'system', ts: Date.now(),
-          html: 'This browser has no built-in speech recognition (Firefox does not support it). ' +
-                'For <strong>free</strong> voice with no key, use the <strong>FreEco.ai desktop app</strong>, Chrome, or Edge. ' +
-                'To use voice in <em>any</em> browser, add a Groq API key (free tier) in ' +
+          // Ordered by where the audio actually goes, not by convenience.
+          // The previous wording called Chrome the "free, no key" option, which
+          // read as the private one -- but the Web Speech API is server-side by
+          // default, so that was recommending the path that ships the user's
+          // voice to Google. Both remaining options are cloud services and are
+          // named as such.
+          html: 'This browser has no built-in speech recognition (Firefox does not implement it). ' +
+                '<strong>Both ways forward send your recording somewhere</strong>, so pick knowingly:' +
+                '<br>&bull; <strong>Stays on this machine:</strong> run a local Whisper server and point ' +
+                '<code>[media].audio_base_url</code> at it. Works in any browser, and is the only option ' +
+                'that keeps confidential dictation off someone else\'s servers.' +
+                '<br>&bull; <strong>Goes to a company:</strong> add a transcription key in ' +
                 '<a href="#" onclick="window.dispatchEvent(new CustomEvent(\'freeco-navigate\',{detail:\'settings\'}));return false;">Settings → Providers</a>. ' +
-                'Recording anyway — it will work if a speech-to-text service is already set up.'
+                'Every recording is uploaded and may be retained.' +
+                '<br>Chrome and Edge can transcribe on-device from version 139, but only when the page ' +
+                'asks -- FreEco.ai does, and tells you if the browser refuses.' +
+                '<br><em>Recording anyway; it will work if transcription is already configured.</em>'
         });
         this._scroll();
       }
