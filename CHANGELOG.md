@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-08-01
+## [0.9.1] - 2026-08-02
 
 ### Added
 
@@ -30,13 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Credentials in URLs are now refused.** `web_fetch` rejects URLs carrying userinfo credentials (e.g. `https://token@api.github.com/...`), which wrote secrets into logs and audit records in clear text. The error names the header form to use instead.
 - **Empty POST/PUT/PATCH bodies are now rejected** instead of sending an empty request that the server rejects with a confusing error.
 - **Exec-policy refusal names the actual blocked command** instead of always saying "git and gh", so the caller knows what to allowlist or sandbox.
-- **Brave browser is now detected and preferred** over Chrome and Edge. Brave installs per-user in LOCALAPPDATA on Windows, which was not checked, so an ordinary Brave install was reported as "no browser found." The search order now puts Brave and Chromium ahead of Chrome and Edge — same engine, no Google telemetry.
+- **Brave browser is now detected and preferred** over Chrome and Edge. Brave installs per-user in LOCALAPPDATA on Windows, which was not checked, so an ordinary Brave install was reported as "no browser found." The search order now puts Brave and Chromium ahead of Chrome and Edge â same engine, no Google telemetry.
 - **Voice dictation privacy fix.** The page was telling users that browser-based transcription was on-device, but the Web Speech API is server-side by default. The page now sets `processLocally` and checks `availableOnDevice()`, and warns plainly when the browser vendor's servers are used.
 
 ### Security
 
 - **Assistant gating model** enforces that destruction, trust-changing capabilities (exec policy, user roles, installing tools or MCP hands), and anything leaving the machine require approval. `PurgeSession` and trust-changing capabilities rate Critical severity.
-- **Credential leakage prevention** in `web_fetch` — tokens embedded in URLs are blocked before the request is made.
+- **Credential leakage prevention** in `web_fetch` â tokens embedded in URLs are blocked before the request is made.
 
 ## [0.8.2] - 2026-07-26
 
@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **One-click services (Settings â Services)**: Freeco installs and runs the services a company needs instead of assuming you already have them â **dograh** (real-time voice AI, MCP-native so it auto-connects to your agents), **Twenty** (CRM), and **Akaunting** (accounting). Each install verifies Docker (with a plain-language fix if it's missing), pulls the service, waits for it to come up, and â for MCP-native services â registers it so agents can use it immediately. Service cards show live install progress, download size up front, and running/connected badges. Services are downloaded on demand, not bundled in the installer.
+- **One-click services (Settings Ã¢ÂÂ Services)**: Freeco installs and runs the services a company needs instead of assuming you already have them Ã¢ÂÂ **dograh** (real-time voice AI, MCP-native so it auto-connects to your agents), **Twenty** (CRM), and **Akaunting** (accounting). Each install verifies Docker (with a plain-language fix if it's missing), pulls the service, waits for it to come up, and Ã¢ÂÂ for MCP-native services Ã¢ÂÂ registers it so agents can use it immediately. Service cards show live install progress, download size up front, and running/connected badges. Services are downloaded on demand, not bundled in the installer.
 
 ## [0.8.0] - 2026-07-22
 
@@ -69,27 +69,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Multiuser accounts with roles (RBAC)**: create accounts in **Settings â People** with a role â `owner`, `admin`, `user`, `kid`, or `viewer`. A new **Kid** role sits between viewer and user: a child account can chat with an agent but cannot change settings, spawn agents, or see billing. Dashboard sign-in is now role-aware (the legacy admin account is always owner; unknown or disabled accounts fall back to the least-privileged viewer). Accounts are stored in `config.toml` and apply on restart.
-- **One-click local-first model autoconfig**: *Settings â Providers â Auto-configure models* points everyday work at a free, private **local Gemma** sized to your machine, and automatically registers the strongest cloud model whose key you've configured (Anthropic â OpenAI â Gemini â Novita â Groq â OpenRouter) as a **complex-task tier**. With no cloud key, everything simply stays local.
-- **Company templates in the visual Workflow Builder**: one click lays out a whole organization as a wired sequence of role steps â **Lean startup**, **Nonprofit / charity**, or **Content agency** â each role pre-filled with a starter prompt. Assign an agent per role, then save/run.
+- **Multiuser accounts with roles (RBAC)**: create accounts in **Settings Ã¢ÂÂ People** with a role Ã¢ÂÂ `owner`, `admin`, `user`, `kid`, or `viewer`. A new **Kid** role sits between viewer and user: a child account can chat with an agent but cannot change settings, spawn agents, or see billing. Dashboard sign-in is now role-aware (the legacy admin account is always owner; unknown or disabled accounts fall back to the least-privileged viewer). Accounts are stored in `config.toml` and apply on restart.
+- **One-click local-first model autoconfig**: *Settings Ã¢ÂÂ Providers Ã¢ÂÂ Auto-configure models* points everyday work at a free, private **local Gemma** sized to your machine, and automatically registers the strongest cloud model whose key you've configured (Anthropic Ã¢ÂÂ OpenAI Ã¢ÂÂ Gemini Ã¢ÂÂ Novita Ã¢ÂÂ Groq Ã¢ÂÂ OpenRouter) as a **complex-task tier**. With no cloud key, everything simply stays local.
+- **Company templates in the visual Workflow Builder**: one click lays out a whole organization as a wired sequence of role steps Ã¢ÂÂ **Lean startup**, **Nonprofit / charity**, or **Content agency** Ã¢ÂÂ each role pre-filled with a starter prompt. Assign an agent per role, then save/run.
 
 ### Fixed
 
 - **"Skip" on the first-run password prompt now sticks.** The desktop app binds a random port each launch, and browser `localStorage` is keyed by origin (host **+ port**), so the skip flag was wiped on every restart and the prompt kept reappearing. The dismissal is now persisted server-side (`POST /api/auth/dismiss-setup`), so skipping is permanent.
-- **Voice communication now works â and says why when it doesn't.** Speech-to-text accepts **any OpenAI-compatible transcription endpoint** via `[media].audio_base_url` (a local Whisper server, or a compatible provider), and no longer demands a Groq/OpenAI key when a custom endpoint is set. Previously a failed transcription was logged server-side and silently dropped, so holding the mic just produced an unreadable `[Voice message]`; the reason is now returned to the client and shown in both the chat and the Freeco Assistant, telling you exactly what to configure.
-- **Logo rendered dark in the light/day theme** â a `filter: invert(1)` was flipping the green-on-white mark. The original green-on-white logo now shows in both day and night themes, and is slightly larger.
+- **Voice communication now works Ã¢ÂÂ and says why when it doesn't.** Speech-to-text accepts **any OpenAI-compatible transcription endpoint** via `[media].audio_base_url` (a local Whisper server, or a compatible provider), and no longer demands a Groq/OpenAI key when a custom endpoint is set. Previously a failed transcription was logged server-side and silently dropped, so holding the mic just produced an unreadable `[Voice message]`; the reason is now returned to the client and shown in both the chat and the Freeco Assistant, telling you exactly what to configure.
+- **Logo rendered dark in the light/day theme** Ã¢ÂÂ a `filter: invert(1)` was flipping the green-on-white mark. The original green-on-white logo now shows in both day and night themes, and is slightly larger.
 
 ## [0.7.8] - 2026-07-21
 
 ### Added
 
-- **Freeco Assistant â a global AI concierge on every page**: a floating assistant (bottom-right, present on every dashboard screen) that chats, listens (hold-to-talk voice), and helps set things up. Quick-setup shortcuts route to the right builder (company/nonprofit, agent team, workflow, tools/MCP, channels, local AI) and hand the concierge a guiding prompt; it talks to a concierge agent over the normal message API. Ships with `docs/freeco-concierge-guide.md` â a user guide for building a self-running company/nonprofit (org chart, tools & MCP setup, open-source connectors, per-function recipes).
+- **Freeco Assistant Ã¢ÂÂ a global AI concierge on every page**: a floating assistant (bottom-right, present on every dashboard screen) that chats, listens (hold-to-talk voice), and helps set things up. Quick-setup shortcuts route to the right builder (company/nonprofit, agent team, workflow, tools/MCP, channels, local AI) and hand the concierge a guiding prompt; it talks to a concierge agent over the normal message API. Ships with `docs/freeco-concierge-guide.md` Ã¢ÂÂ a user guide for building a self-running company/nonprofit (org chart, tools & MCP setup, open-source connectors, per-function recipes).
 
 ### Fixed
 
-- **Local-AI (Ollama) setup now works on any connection**: the installer download is resilient to flaky/slow links. It resumes with an HTTP Range request after a dropped connection (instead of restarting), retries up to 8 times with backoff, and verifies the downloaded file matches the server's Content-Length before use. This fixes the confusing `installer failed digital-signature verification ()` error, which was caused by a truncated download producing an unreadable signature â the check now also reports the real reason (empty/missing file, invalid status, or an actual signer mismatch) instead of a blank `()`.
+- **Local-AI (Ollama) setup now works on any connection**: the installer download is resilient to flaky/slow links. It resumes with an HTTP Range request after a dropped connection (instead of restarting), retries up to 8 times with backoff, and verifies the downloaded file matches the server's Content-Length before use. This fixes the confusing `installer failed digital-signature verification ()` error, which was caused by a truncated download producing an unreadable signature Ã¢ÂÂ the check now also reports the real reason (empty/missing file, invalid status, or an actual signer mismatch) instead of a blank `()`.
 - **Desktop app branding**: the window title bar, system-tray tooltip/menu ("Quit FreEco.ai"), and update notifications now read **FreEco.ai** instead of the internal "OpenFang" name.
-- **"Get update" button did nothing**: it was a bare link that silently failed in the desktop webview and gave no feedback. It now runs the desktop auto-updater (download + install + relaunch) when available, or opens the download page in the browser edition â with a toast/status at every step (checking, downloading, installing, error), never silent.
+- **"Get update" button did nothing**: it was a bare link that silently failed in the desktop webview and gave no feedback. It now runs the desktop auto-updater (download + install + relaunch) when available, or opens the download page in the browser edition Ã¢ÂÂ with a toast/status at every step (checking, downloading, installing, error), never silent.
 - **Update check now distinguishes "offline"** from a real failure, showing a calm "you're offline" message instead of a scary network error.
 - **Release verify-release** relaxed from exact tag==main-HEAD to `git merge-base --is-ancestor`, so a tag that is a few commits behind main (e.g. after an auto-tag) still releases. The version/CHANGELOG/tauri-version consistency checks are retained (they catch mislabeled installers).
 
@@ -114,14 +114,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **"Update check failed: Failed to fetch"**: the dashboard page's Content-Security-Policy (`connect-src`) did not include `https://api.github.com`, so the Settings â Software Updates check was blocked by CSP. Added the GitHub API host to the dashboard CSP (it was already allowed in the Tauri shell CSP, but the page-level CSP is the one that governs the fetch).
+- **"Update check failed: Failed to fetch"**: the dashboard page's Content-Security-Policy (`connect-src`) did not include `https://api.github.com`, so the Settings Ã¢ÂÂ Software Updates check was blocked by CSP. Added the GitHub API host to the dashboard CSP (it was already allowed in the Tauri shell CSP, but the page-level CSP is the one that governs the fetch).
 
 ## [0.7.5] - 2026-07-11
 
 ### Added (Tier-0 safety, from the threat model)
 
-- **Cloud data-leak warning**: connecting any online/cloud AI provider now shows a clear privacy confirmation before the key is saved â it explains that agents' messages, files, and company data will be sent to that provider, and points to the local "Free local AI" option that never leaves the device. Local providers save silently (no warning needed). Uses the existing `is_local` provider flag.
-- **Plain-language approval consequences**: every pending approval now shows, in plain words a non-technical user understands, what approving will let the agent do â with severity color: â run a command on your computer / delete data / spend money (red), â ï¸ send something out / change a file / use the internet (amber), â¹ï¸ review (neutral). Derived client-side from the action; no backend change.
+- **Cloud data-leak warning**: connecting any online/cloud AI provider now shows a clear privacy confirmation before the key is saved Ã¢ÂÂ it explains that agents' messages, files, and company data will be sent to that provider, and points to the local "Free local AI" option that never leaves the device. Local providers save silently (no warning needed). Uses the existing `is_local` provider flag.
+- **Plain-language approval consequences**: every pending approval now shows, in plain words a non-technical user understands, what approving will let the agent do Ã¢ÂÂ with severity color: Ã¢ÂÂ run a command on your computer / delete data / spend money (red), Ã¢ÂÂ Ã¯Â¸Â send something out / change a file / use the internet (amber), Ã¢ÂÂ¹Ã¯Â¸Â review (neutral). Derived client-side from the action; no backend change.
 
 ### Verified
 
@@ -133,29 +133,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Local AI model downloads now auto-resume after network drops (up to 6 total attempts with backoff; Ollama keeps finished layers) instead of erroring out and appearing to restart from zero.
-- README: dummy-proof Windows install guide with a direct `-setup.exe` link, SmartScreen note, and desktop-shortcut mention â users were downloading the bare CLI `.zip` and finding "nothing installs". Broken `freeco.ai/install` one-liners replaced with working raw-GitHub URLs; stale v0.5.10 banner updated.
-- Release CI: macOS desktop no longer fails by attempting notarization without an Apple Team ID after ad-hoc signing â the unsigned `.dmg` now builds.
+- README: dummy-proof Windows install guide with a direct `-setup.exe` link, SmartScreen note, and desktop-shortcut mention Ã¢ÂÂ users were downloading the bare CLI `.zip` and finding "nothing installs". Broken `freeco.ai/install` one-liners replaced with working raw-GitHub URLs; stale v0.5.10 banner updated.
+- Release CI: macOS desktop no longer fails by attempting notarization without an Apple Team ID after ad-hoc signing Ã¢ÂÂ the unsigned `.dmg` now builds.
 
 
 ### Added
 
-- **FreEco.ai Editions in the dashboard** â the Overview page now offers one-click setup cards for the four editions: Personal Concierge, Kids (strictly guardrailed: no web, no shell, no agent messaging, parental visibility), Business Suite (Secretary + autonomous buyer team), and AI Company (CEO + Secretary + Shopping team). Five new bundled agent templates: `freeco-concierge`, `freeco-kids`, `freeco-ceo`, `freeco-secretary`, `freeco-shopping`.
-- **Native freeco agents wired into the kernel** â the `freeco-agent-*` crates (previously compiled but unreachable) now execute via new `freeco:*` module ids (`freeco:ceo`, `freeco:secretary`, `freeco:shopping`): kernel dispatch in `execute_agent`, message conversion via `freeco-agent-core`'s bridge, deterministic CEO delegation planning with zero LLM cost, Secretary intent routing (LLM-classified when a key exists, keyword heuristic otherwise), Shopping three-tier research through the permission-gated tool gateway.
-- **Self-development Dev Pod (Phase 6, stage 1)** â new `freeco-developer` and `freeco-tester` bundled agents: the developer implements labeled GitHub issues in a sandboxed repo clone and opens draft PRs; the tester/ethical-hacker verifies with build/test/clippy/`cargo audit` plus a security review of the diff and posts a PASS/FAIL verdict. Narrow manifests (shell limited to git/cargo/gh, network to github.com/crates.io, tester has no write access); humans merge. Dashboard gains a Dev Pod setup card; guide in `docs/self-development.md`; Phase 6 (Self-Running AI Company) added to the README roadmap.
-- **One-click free local AI** â `POST /api/local-ai/setup` + `GET /api/local-ai/status`: detects Ollama, downloads/installs it silently per-user on Windows (official installer only, with progress), streams the model pull (default: lightweight Gemma), and points `[default_model]` at the local runtime. Settings â Providers gains a "Free local AI â no account needed" card with progress bar; macOS/Linux get a guided one-step path.
+- **FreEco.ai Editions in the dashboard** Ã¢ÂÂ the Overview page now offers one-click setup cards for the four editions: Personal Concierge, Kids (strictly guardrailed: no web, no shell, no agent messaging, parental visibility), Business Suite (Secretary + autonomous buyer team), and AI Company (CEO + Secretary + Shopping team). Five new bundled agent templates: `freeco-concierge`, `freeco-kids`, `freeco-ceo`, `freeco-secretary`, `freeco-shopping`.
+- **Native freeco agents wired into the kernel** Ã¢ÂÂ the `freeco-agent-*` crates (previously compiled but unreachable) now execute via new `freeco:*` module ids (`freeco:ceo`, `freeco:secretary`, `freeco:shopping`): kernel dispatch in `execute_agent`, message conversion via `freeco-agent-core`'s bridge, deterministic CEO delegation planning with zero LLM cost, Secretary intent routing (LLM-classified when a key exists, keyword heuristic otherwise), Shopping three-tier research through the permission-gated tool gateway.
+- **Self-development Dev Pod (Phase 6, stage 1)** Ã¢ÂÂ new `freeco-developer` and `freeco-tester` bundled agents: the developer implements labeled GitHub issues in a sandboxed repo clone and opens draft PRs; the tester/ethical-hacker verifies with build/test/clippy/`cargo audit` plus a security review of the diff and posts a PASS/FAIL verdict. Narrow manifests (shell limited to git/cargo/gh, network to github.com/crates.io, tester has no write access); humans merge. Dashboard gains a Dev Pod setup card; guide in `docs/self-development.md`; Phase 6 (Self-Running AI Company) added to the README roadmap.
+- **One-click free local AI** Ã¢ÂÂ `POST /api/local-ai/setup` + `GET /api/local-ai/status`: detects Ollama, downloads/installs it silently per-user on Windows (official installer only, with progress), streams the model pull (default: lightweight Gemma), and points `[default_model]` at the local runtime. Settings Ã¢ÂÂ Providers gains a "Free local AI Ã¢ÂÂ no account needed" card with progress bar; macOS/Linux get a guided one-step path.
 
 ### CI
 
 - macOS desktop bundles with ad-hoc signing when no Apple certificate is configured (previous fix skipped the import but left an empty signing identity, failing the bundle step).
-- Tauri updater artifacts (`latest.json` + signatures) are now generated (`createUpdaterArtifacts: true`) â v0.7.3 is the first release existing installs can auto-update from.
+- Tauri updater artifacts (`latest.json` + signatures) are now generated (`createUpdaterArtifacts: true`) Ã¢ÂÂ v0.7.3 is the first release existing installs can auto-update from.
 - GHCR package-visibility step uses the user endpoint (FreecoDAO is not an org) and no longer fails the release.
 
 ### Earlier in this cycle
 
-- Dashboard software updates: Settings â System now shows the installed vs latest version with a "Check for updates" button, a once-a-day automatic check (on by default, toggleable, throttled via localStorage), and a green "update available" pill in the sidebar linking to the download. Desktop-app CSP updated to allow the GitHub releases API.
+- Dashboard software updates: Settings Ã¢ÂÂ System now shows the installed vs latest version with a "Check for updates" button, a once-a-day automatic check (on by default, toggleable, throttled via localStorage), and a green "update available" pill in the sidebar linking to the download. Desktop-app CSP updated to allow the GitHub releases API.
 - Dashboard sidebar now shows the fre.eco logo (replaced the old logo asset served at `/logo.png`).
 - Portable / USB edition: OS-detecting launcher scripts (`scripts/portable/`) that run FreEco.ai from any folder or USB drive with all data kept alongside the binary via `OPENFANG_HOME`, plus `scripts/build-portable.sh` to assemble the bundle from release binaries, and `docs/usb-portable.md`.
-- Landing page (`docs/index.html`) â self-contained green-brand site with edition overview, download links, terminal install commands, and PayPal donation QR; deployable via GitHub Pages or any static host.
+- Landing page (`docs/index.html`) Ã¢ÂÂ self-contained green-brand site with edition overview, download links, terminal install commands, and PayPal donation QR; deployable via GitHub Pages or any static host.
 - README roadmap: "Planned: Self-Contained Isolation Layer" (bundled agent browser + prebuilt sandbox image, Manus-style all-included isolation).
 - First unit tests for `openfang-learning` (`PromotionPolicy::target_file` mapping).
 
@@ -166,13 +166,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Branding: browser-tab favicon and the entire desktop/installer icon set (shortcut, taskbar, Add/Remove Programs) still showed the old OpenFang cobra â all regenerated from the fre.eco logo.
-- Voice-message transcription: `media_transcribe` resolved paths against the daemon's working directory instead of the agent workspace, and dashboard audio uploads were stored only under a UUID in a temp folder â so agents were told a filename that existed nowhere they could reach ("Failed to read audio file"). The tool now resolves workspace-relative paths first and falls back to the uploads folder by filename, and audio uploads keep a sanitized filename-addressable copy.
-- README typos ("buisiness" â "business", "an SUSTAINABLE" â "a SUSTAINABLE").
-- Dashboard light theme was a duplicate of the dark palette â it is now a real white day theme (the Light/System/Dark switcher finally has visible effect). Previously-undefined modal variables (`--bg-card`, `--bg-input`, `--bg-secondary`) no longer fall back to dark values.
+- Branding: browser-tab favicon and the entire desktop/installer icon set (shortcut, taskbar, Add/Remove Programs) still showed the old OpenFang cobra Ã¢ÂÂ all regenerated from the fre.eco logo.
+- Voice-message transcription: `media_transcribe` resolved paths against the daemon's working directory instead of the agent workspace, and dashboard audio uploads were stored only under a UUID in a temp folder Ã¢ÂÂ so agents were told a filename that existed nowhere they could reach ("Failed to read audio file"). The tool now resolves workspace-relative paths first and falls back to the uploads folder by filename, and audio uploads keep a sanitized filename-addressable copy.
+- README typos ("buisiness" Ã¢ÂÂ "business", "an SUSTAINABLE" Ã¢ÂÂ "a SUSTAINABLE").
+- Dashboard light theme was a duplicate of the dark palette Ã¢ÂÂ it is now a real white day theme (the Light/System/Dark switcher finally has visible effect). Previously-undefined modal variables (`--bg-card`, `--bg-input`, `--bg-secondary`) no longer fall back to dark values.
 - Desktop auto-updater pointed at the upstream repository (RightNow-AI/openfang) with the upstream signing key; it now points at FreecoDAO/freeco-ai signed with the project's own key.
-- Release CI no longer fails the macOS desktop build when Apple signing certificates are absent â it produces an unsigned .dmg instead.
-- Installer branding: product renamed OpenFang â FreEco.ai (shortcuts, Add/Remove Programs, Start Menu folder), installer version no longer stuck at 0.6.9, Windows installs per-user without admin prompts.
+- Release CI no longer fails the macOS desktop build when Apple signing certificates are absent Ã¢ÂÂ it produces an unsigned .dmg instead.
+- Installer branding: product renamed OpenFang Ã¢ÂÂ FreEco.ai (shortcuts, Add/Remove Programs, Start Menu folder), installer version no longer stuck at 0.6.9, Windows installs per-user without admin prompts.
 
 ## [0.5.10] - 2026-04-17
 

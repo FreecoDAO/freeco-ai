@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "FreEco.ai",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "identifier": "ai.freeco.desktop",
   "build": {},
   "app": {
@@ -34,7 +34,7 @@
     ],
     "category": "Productivity",
     "shortDescription": "The Sustainable Ethical Agentic Operating System",
-    "longDescription": "FreEco.ai is an open-source, sustainable, ethical Agent Operating System — run, orchestrate, and extend AI agents across every channel from your desktop.",
+    "longDescription": "FreEco.ai is an open-source, sustainable, ethical Agent Operating System â run, orchestrate, and extend AI agents across every channel from your desktop.",
     "linux": {
       "deb": {
         "depends": []
