@@ -3668,18 +3668,26 @@ impl OpenFangKernel {
         let (repaired_messages, repair_stats) =
             openfang_runtime::session_repair::validate_and_repair_with_stats(&result.kept_messages);
 
-        // Also update the regular session with the repaired messages
-        let mut updated_session = session;
-        updated_session.messages = repaired_messages;
-        self.memory
-            .save_session(&updated_session)
-            .map_err(KernelError::OpenFang)?;
+        // Repair is validated but NOT written back over the full history.
+        //
+        // This previously did `updated_session.messages = repaired_messages`
+        // and saved it, which persisted only the post-compaction remnant and
+        // permanently dropped everything else. Compaction is supposed to
+        // shrink what the model reads, not what the user can scroll back to.
+        //
+        // The repair result is still used for the count reported below, so the
+        // audit stays honest about what the model will actually receive.
+        let kept_for_prompt = repaired_messages.len();
+        let updated_session = session;
 
         // Build result message with audit summary
         let mut msg = format!(
-            "Compacted {} messages into summary ({} chars), kept {} recent messages.",
+            "Compacted {} messages into a summary ({} chars). The model will now \
+             read {} recent messages plus the summary; all {} messages are still \
+             stored and readable.",
             result.compacted_count,
             result.summary.len(),
+            kept_for_prompt,
             updated_session.messages.len()
         );
 

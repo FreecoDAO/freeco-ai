@@ -102,10 +102,8 @@ pub fn derive_session_label(messages: &[Message]) -> Option<String> {
     }
     // Capitalise the first letter so a list of sessions reads like titles.
     let mut chars = trimmed.chars();
-    let label = match chars.next() {
-        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-        None => return None,
-    };
+    let first = chars.next()?;
+    let label = first.to_uppercase().collect::<String>() + chars.as_str();
     Some(label)
 }
 
@@ -422,8 +420,21 @@ impl SessionStore {
     ) -> OpenFangResult<()> {
         let mut canonical = self.load_canonical(agent_id)?;
         canonical.compacted_summary = Some(summary.to_string());
-        canonical.messages = kept_messages;
-        canonical.compaction_cursor = 0;
+
+        // The full history is KEPT. This used to be
+        // `canonical.messages = kept_messages`, which threw away everything the
+        // summariser had folded into prose -- the second of two places doing
+        // that, and the one that survived the first fix. An agent could go from
+        // forty-eight messages to ten in a single compaction.
+        //
+        // Nothing needed those messages gone: `canonical_context` already
+        // returns only a trailing window when building a prompt, so the model
+        // never saw them either way. Summarising for the model and deleting the
+        // user's conversation are different operations, and only the first was
+        // ever asked for.
+        //
+        // `kept_messages` is now only a signal of where the summary ends.
+        canonical.compaction_cursor = canonical.messages.len().saturating_sub(kept_messages.len());
         canonical.updated_at = Utc::now().to_rfc3339();
         self.save_canonical(&canonical)
     }
