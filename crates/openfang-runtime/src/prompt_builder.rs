@@ -592,7 +592,7 @@ pub fn tool_hint(name: &str) -> &'static str {
         // Docker. Spelling out the isolation matters: an agent that does not
         // know it has a safe place to run code will either refuse work it
         // could do, or reach for shell on the user's own machine instead.
-        "docker_exec" => "run a command inside an isolated Linux sandbox: no network, throwaway container, dropped capabilities. Use this for ANY code, script, install or test rather than running it on the user's machine",
+        "docker_exec" => "run a command inside an isolated Linux sandbox: no network, throwaway container, dropped capabilities. It has rust, cargo, clippy, git, python3, jq and ripgrep. Use this for ANY code, build, test or install. Do NOT use shell_exec on the host for work that belongs here - if a tool seems missing, say so rather than reaching for the host",
         "docker_build" => "build a Docker image",
         "docker_run" => "start a Docker container",
 
