@@ -83,6 +83,35 @@ pub enum ApprovalDecision {
 // ApprovalRequest
 // ---------------------------------------------------------------------------
 
+/// What an agent must say when it asks permission.
+///
+/// Written because the old requests were unanswerable. A user was shown a
+/// wall of shell with no statement of intent and no statement of cost, and
+/// asked yes or no. Faced with that, people either approve everything or deny
+/// everything; neither is a decision.
+pub const APPROVAL_REQUEST_RULE: &str = "\
+ASKING PERMISSION
+
+When you need approval, write the request for the person reading it, not for
+yourself. Three things, always:
+
+1. The exact command or action, verbatim. Not a paraphrase.
+2. Why you want it - the outcome you are after, in a sentence someone who does
+   not read code can act on. \"Run git push\" is not a reason; \"publish the
+   reviewed fix so CI can build it\" is.
+3. What changes if it is allowed, whether it can be undone, and what you will
+   do instead if it is denied.
+
+If you cannot state the aim and the consequences, you do not understand the
+action well enough to be asking for it yet.
+
+Ask once and wait. Do not re-send the same request in different words, and do
+not look for another route to the same effect - that turns a decision the user
+was entitled to make into one you made for them.
+
+If a request is denied, say what you will do instead and carry on with the
+parts of the work that do not depend on it.";
+
 /// An approval request for a dangerous agent operation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApprovalRequest {
@@ -92,10 +121,113 @@ pub struct ApprovalRequest {
     pub description: String,
     /// The specific action being requested (sanitized for display).
     pub action_summary: String,
+    /// Why the agent wants this, in plain language.
+    ///
+    /// Required, and required to be a sentence rather than a restatement of
+    /// the command. "Run git push" is not an aim; "publish the reviewed fix so
+    /// CI can build it" is. Without this the user is asked to authorise a
+    /// string of shell they have to reverse-engineer, which is how people end
+    /// up approving reflexively.
+    #[serde(default)]
+    pub aim: String,
+    /// What will change if this is allowed, and what happens if it is refused.
+    ///
+    /// Separate from `aim` on purpose: the reason to want something and the
+    /// cost of granting it are different questions, and only the second tells
+    /// the user what they are risking.
+    #[serde(default)]
+    pub consequences: String,
+    /// Whether the effect can be undone, and how. `None` means the agent did
+    /// not say, which the UI must present as "unknown", never as "safe".
+    #[serde(default)]
+    pub reversible: Option<bool>,
     pub risk_level: RiskLevel,
     pub requested_at: DateTime<Utc>,
     /// Auto-deny timeout in seconds.
     pub timeout_secs: u64,
+}
+
+/// Placeholder text that means an agent filled the field to satisfy the
+/// validator rather than to inform anyone.
+const NON_ANSWERS: &[&str] = &[
+    "n/a",
+    "na",
+    "none",
+    "-",
+    "--",
+    "tbd",
+    "unknown",
+    "see above",
+    "as described",
+    "to complete the task",
+    "as requested",
+    "required",
+    "necessary",
+];
+
+fn is_real_answer(text: &str) -> bool {
+    let t = text.trim().to_ascii_lowercase();
+    // Short enough to be a shrug, or a known non-answer.
+    t.len() >= 15 && !NON_ANSWERS.contains(&t.as_str())
+}
+
+impl ApprovalRequest {
+    /// Render the request the way it must be shown to a person.
+    ///
+    /// One place, so every surface -- chat, dashboard, CLI -- asks the same
+    /// question the same way. A user who sees a different shape in each place
+    /// cannot build the habit of reading it.
+    pub fn plain_language(&self) -> String {
+        let reversible = match self.reversible {
+            Some(true) => "Yes, this can be undone.",
+            Some(false) => "No. This cannot be undone.",
+            None => "Not stated by the agent - treat as if it cannot be undone.",
+        };
+        format!(
+            "{agent} is asking to run:\n\n    {action}\n\n\
+             Why: {aim}\n\
+             If you allow it: {consequences}\n\
+             Reversible: {reversible}\n\
+             Risk: {risk:?}\n\n\
+             You can allow this once, allow it always, or deny it. An \"always\" \
+             can be withdrawn later from Settings > Approvals.",
+            agent = self.agent_id,
+            action = self.action_summary,
+            aim = if self.aim.trim().is_empty() {
+                "(the agent did not say - ask it before allowing)"
+            } else {
+                self.aim.trim()
+            },
+            consequences = if self.consequences.trim().is_empty() {
+                "(the agent did not say - ask it before allowing)"
+            } else {
+                self.consequences.trim()
+            },
+            reversible = reversible,
+            risk = self.risk_level,
+        )
+    }
+
+    /// Whether this request is fit to show a human.
+    ///
+    /// Enforced rather than advised: an agent that can skip the explanation
+    /// will skip it under time pressure, which is precisely when the user most
+    /// needs it.
+    pub fn explains_itself(&self) -> Result<(), String> {
+        if !is_real_answer(&self.aim) {
+            return Err(
+                "aim must say why you want this, in a sentence a non-programmer                  can act on - not a restatement of the command"
+                    .into(),
+            );
+        }
+        if !is_real_answer(&self.consequences) {
+            return Err(
+                "consequences must say what changes if this is allowed, and                  whether it can be undone"
+                    .into(),
+            );
+        }
+        Ok(())
+    }
 }
 
 impl ApprovalRequest {
@@ -309,6 +441,9 @@ mod tests {
             tool_name: "shell_exec".into(),
             description: "Execute rm -rf /tmp/stale_cache".into(),
             action_summary: "rm -rf /tmp/stale_cache".into(),
+            aim: "free disk space by clearing the stale build cache".into(),
+            consequences: "the cache directory is deleted and will be rebuilt on next use".into(),
+            reversible: Some(true),
             risk_level: RiskLevel::High,
             requested_at: Utc::now(),
             timeout_secs: DEFAULT_TIMEOUT_SECS,
@@ -709,5 +844,122 @@ mod tests {
         assert_eq!(back.require_approval, policy.require_approval);
         assert_eq!(back.timeout_secs, 120);
         assert!(back.auto_approve_autonomous);
+    }
+}
+
+#[cfg(test)]
+mod plain_language_tests {
+    use super::*;
+
+    fn req(aim: &str, consequences: &str, reversible: Option<bool>) -> ApprovalRequest {
+        ApprovalRequest {
+            id: Uuid::new_v4(),
+            agent_id: "Developer".into(),
+            tool_name: "shell_exec".into(),
+            description: String::new(),
+            action_summary: "git push origin main".into(),
+            aim: aim.into(),
+            consequences: consequences.into(),
+            reversible,
+            risk_level: RiskLevel::High,
+            requested_at: Utc::now(),
+            timeout_secs: 3600,
+        }
+    }
+
+    /// The rendered request must answer the three questions a person needs:
+    /// what exactly, why, and what it costs.
+    #[test]
+    fn rendered_request_answers_what_why_and_cost() {
+        let text = req(
+            "publish the reviewed fix so CI can build it",
+            "the commit becomes public history on the main branch",
+            Some(false),
+        )
+        .plain_language();
+
+        assert!(
+            text.contains("git push origin main"),
+            "must show the exact action"
+        );
+        assert!(
+            text.contains("publish the reviewed fix"),
+            "must show the aim"
+        );
+        assert!(
+            text.contains("becomes public history"),
+            "must show the cost"
+        );
+        assert!(text.contains("cannot be undone"));
+        assert!(
+            text.contains("withdrawn later"),
+            "must say an always can be revoked"
+        );
+    }
+
+    /// Unstated reversibility must read as dangerous, never as safe. Silence
+    /// is the most common case and the easiest to misread.
+    #[test]
+    fn unknown_reversibility_is_not_presented_as_safe() {
+        let text = req("do the thing properly", "some files are written", None).plain_language();
+        assert!(text.contains("treat as if it cannot be undone"));
+        assert!(!text.contains("Yes, this can be undone"));
+    }
+
+    /// A missing explanation must be visible in the prompt itself, so the user
+    /// sees the gap instead of a blank they might read past.
+    #[test]
+    fn missing_explanation_is_shown_to_the_user() {
+        let text = req("", "", None).plain_language();
+        assert_eq!(text.matches("the agent did not say").count(), 2);
+    }
+
+    /// Boilerplate must not pass. An agent that can type "n/a" to clear the
+    /// check has removed the protection while appearing to satisfy it.
+    #[test]
+    fn boilerplate_is_rejected() {
+        for filler in ["n/a", "none", "TBD", "as requested", "to complete the task"] {
+            assert!(
+                req(
+                    filler,
+                    "the files are written and cannot be recovered",
+                    None
+                )
+                .explains_itself()
+                .is_err(),
+                "{filler} should not count as an aim"
+            );
+        }
+        assert!(
+            req("x", "y", None).explains_itself().is_err(),
+            "too short to inform"
+        );
+    }
+
+    #[test]
+    fn a_real_explanation_passes() {
+        assert!(req(
+            "publish the reviewed fix so CI can build it",
+            "the commit becomes public history and cannot be unpublished",
+            Some(false),
+        )
+        .explains_itself()
+        .is_ok());
+    }
+
+    /// The rule has to tell agents what to do instead of retrying or routing
+    /// around, or it only stops the most literal repetition.
+    #[test]
+    fn the_rule_forbids_retrying_and_rerouting() {
+        let r = APPROVAL_REQUEST_RULE;
+        assert!(r.contains("verbatim"));
+        assert!(r.contains("can be undone"));
+        assert!(r.contains("Ask once and wait"));
+        assert!(r.contains("another route"));
+        // Matched on a fragment that cannot straddle the line wrap: the rule
+        // text is hard-wrapped, so a longer phrase spans a newline and would
+        // fail for a formatting reason rather than a real one.
+        assert!(r.contains("carry on with the"));
+        assert!(r.contains("do not depend on it"));
     }
 }
