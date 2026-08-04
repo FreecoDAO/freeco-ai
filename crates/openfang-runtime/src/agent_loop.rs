@@ -455,6 +455,21 @@ pub async fn run_agent_loop(
     // EndTurn iteration has empty text).
     let mut accumulated_text = String::new();
 
+    // Shrink tool results the model has already read.
+    //
+    // The per-result caps are a percentage of the context window, which stops
+    // one prompt overflowing but does nothing about cost across turns: a
+    // result allowed at 30% of a large window is then re-sent on every
+    // subsequent turn in the history. Measured here at 23.0M input tokens
+    // against 734k output - a 31:1 ratio, and about EUR 25 spent almost
+    // entirely on re-transmitting payloads the model had already seen.
+    //
+    // The most recent results keep full fidelity because they are what the
+    // next turn reasons about. Older ones keep their head and tail, which is
+    // enough to know what ran and how it ended. Nothing is lost from the
+    // stored session; this only governs what goes back over the wire.
+    messages = crate::context_budget::compact_historical_tool_results(messages);
+
     // Safety valve: trim excessively long message histories to prevent context overflow.
     // The full compaction system handles sophisticated summarization, but this prevents
     // the catastrophic case where 200+ messages cause instant context overflow.

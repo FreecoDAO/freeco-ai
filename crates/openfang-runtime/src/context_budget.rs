@@ -359,3 +359,237 @@ mod tests {
         assert!(compacted > 0);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Historical tool results
+// ---------------------------------------------------------------------------
+
+/// How much of an *old* tool result is worth re-sending, in characters.
+///
+/// The caps above are percentages of the context window, which is right for
+/// stopping a single prompt overflowing and wrong for controlling cost. A 30%
+/// cap on a large window permits a tool result of tens of thousands of tokens.
+/// That is affordable once. It is not affordable re-sent on every one of the
+/// next fifty turns, which is exactly what happens to anything left in the
+/// history window.
+///
+/// Measured on this project: 23.0M input tokens against 734k output over 114
+/// calls - a 31:1 ratio, 211k input tokens per call, and about EUR 25 spent
+/// almost entirely on re-transmitting payloads the model had already read.
+/// One agent pushed base64 file contents through tool results; each blob was
+/// then billed again on every subsequent turn.
+///
+/// 4000 characters is roughly 1000 tokens: enough to keep a command's shape,
+/// its first lines of output and its error, which is what later turns actually
+/// reason about. The full result is never lost - it stays in the stored
+/// session and can be read in the UI. This governs the wire, not the record.
+pub const HISTORICAL_TOOL_RESULT_CHARS: usize = 4000;
+
+/// How many recent tool results keep their full budget.
+///
+/// The immediately preceding result is usually the one being acted on, so
+/// truncating it would break the reasoning this is meant to preserve. Two
+/// covers the common read-then-edit pair.
+pub const FULL_FIDELITY_RECENT_RESULTS: usize = 2;
+
+/// Trim a tool result that has already been seen in an earlier turn.
+///
+/// Returns the text unchanged when it is already small, so short results -
+/// the overwhelming majority - are untouched and cost nothing to process.
+pub fn truncate_historical_tool_result(content: &str) -> String {
+    if content.chars().count() <= HISTORICAL_TOOL_RESULT_CHARS {
+        return content.to_string();
+    }
+
+    // Keep the head and the tail. A truncated middle preserves both what the
+    // command was doing and how it ended; keeping only the head loses the
+    // error, which is usually the part that matters.
+    let head_chars = HISTORICAL_TOOL_RESULT_CHARS * 3 / 4;
+    let tail_chars = HISTORICAL_TOOL_RESULT_CHARS - head_chars;
+
+    let head: String = content.chars().take(head_chars).collect();
+    let tail: String = {
+        let total = content.chars().count();
+        content.chars().skip(total - tail_chars).collect()
+    };
+    let omitted = content.chars().count() - head_chars - tail_chars;
+
+    format!(
+        "{head}\n\n[... {omitted} characters omitted from this earlier tool result to \
+         avoid re-sending it in full on every turn. The complete output is kept in the \
+         session and visible in the interface. ...]\n\n{tail}"
+    )
+}
+
+#[cfg(test)]
+mod historical_tests {
+    use super::*;
+
+    /// Short results must pass through untouched. Most tool output is small,
+    /// and rewriting it would add noise for no saving.
+    #[test]
+    fn short_results_are_left_alone() {
+        let text = "SANDBOX_OK\nLinux\nexit 0";
+        assert_eq!(truncate_historical_tool_result(text), text);
+    }
+
+    /// The cost fix: a large result must shrink to roughly the cap, so its
+    /// contribution stops scaling with the number of turns that follow it.
+    #[test]
+    fn a_large_result_is_cut_to_about_the_cap() {
+        let huge = "A".repeat(200_000);
+        let out = truncate_historical_tool_result(&huge);
+        assert!(
+            out.chars().count() < HISTORICAL_TOOL_RESULT_CHARS + 300,
+            "expected about {} chars, got {}",
+            HISTORICAL_TOOL_RESULT_CHARS,
+            out.chars().count()
+        );
+        assert!(
+            out.chars().count() < huge.chars().count() / 40,
+            "must be a real saving"
+        );
+    }
+
+    /// Both ends survive. Keeping only the head would drop the error message,
+    /// which is the part later turns usually need.
+    #[test]
+    fn the_beginning_and_the_end_both_survive() {
+        let text = format!("START-MARKER{}END-MARKER", "x".repeat(100_000));
+        let out = truncate_historical_tool_result(&text);
+        assert!(out.contains("START-MARKER"), "the head must survive");
+        assert!(out.contains("END-MARKER"), "the tail must survive");
+    }
+
+    /// The notice must say the data still exists. A bare "truncated" reads as
+    /// data loss, and this system has already lost the user's data twice.
+    #[test]
+    fn the_notice_says_the_full_output_is_still_available() {
+        let out = truncate_historical_tool_result(&"z".repeat(50_000));
+        assert!(out.contains("characters omitted"));
+        assert!(out.contains("kept in the session"));
+    }
+
+    /// A base64 blob is the case that actually caused the bill.
+    #[test]
+    fn a_base64_payload_stops_being_expensive() {
+        let blob = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=".repeat(1000);
+        let before = blob.chars().count();
+        let after = truncate_historical_tool_result(&blob).chars().count();
+        assert!(
+            after * 5 < before,
+            "a repeated blob must shrink dramatically"
+        );
+    }
+}
+
+/// Shrink tool results that earlier turns have already consumed.
+///
+/// Walks the list from the end so "recent" means recent, and leaves the last
+/// `FULL_FIDELITY_RECENT_RESULTS` untouched: the immediately preceding result
+/// is usually the one being acted on, and truncating it would break the
+/// reasoning this exists to protect.
+pub fn compact_historical_tool_results(
+    messages: Vec<openfang_types::message::Message>,
+) -> Vec<openfang_types::message::Message> {
+    use openfang_types::message::{ContentBlock, MessageContent};
+
+    let mut seen_results = 0usize;
+    let mut out = messages;
+
+    for message in out.iter_mut().rev() {
+        let MessageContent::Blocks(blocks) = &mut message.content else {
+            continue;
+        };
+        for block in blocks.iter_mut() {
+            if let ContentBlock::ToolResult { content, .. } = block {
+                seen_results += 1;
+                if seen_results > FULL_FIDELITY_RECENT_RESULTS {
+                    *content = truncate_historical_tool_result(content);
+                }
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod wiring_tests {
+    use super::*;
+    use openfang_types::message::{ContentBlock, Message, MessageContent, Role};
+
+    fn tool_result(text: &str) -> Message {
+        Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![ContentBlock::ToolResult {
+                tool_use_id: "t1".into(),
+                tool_name: "docker_exec".into(),
+                content: text.into(),
+                is_error: false,
+            }]),
+            ..Default::default()
+        }
+    }
+
+    /// The end-to-end property that costs money: a conversation carrying
+    /// several large tool results must shrink dramatically before it is sent,
+    /// while the newest ones stay intact for the next turn to reason about.
+    #[test]
+    fn old_results_shrink_and_recent_ones_do_not() {
+        // Twenty results is an ordinary working session, and the shape of the
+        // one that cost EUR 25: the two most recent stay whole, so the floor is
+        // 160 KB however long the history gets - which is the point. The saving
+        // is in everything before them, and it grows with the conversation.
+        let big = "Q".repeat(80_000);
+        let history: Vec<Message> = (0..20).map(|_| tool_result(&big)).collect();
+        let before: usize = history
+            .iter()
+            .map(|m| match &m.content {
+                MessageContent::Blocks(b) => b
+                    .iter()
+                    .map(|x| match x {
+                        ContentBlock::ToolResult { content, .. } => content.len(),
+                        _ => 0,
+                    })
+                    .sum::<usize>(),
+                _ => 0,
+            })
+            .sum();
+
+        let after_msgs = compact_historical_tool_results(history);
+        let sizes: Vec<usize> = after_msgs
+            .iter()
+            .map(|m| match &m.content {
+                MessageContent::Blocks(b) => b
+                    .iter()
+                    .map(|x| match x {
+                        ContentBlock::ToolResult { content, .. } => content.len(),
+                        _ => 0,
+                    })
+                    .sum::<usize>(),
+                _ => 0,
+            })
+            .collect();
+        let after: usize = sizes.iter().sum();
+
+        // The historical portion is what scales with turn count, so that is
+        // what the assertion measures. Total saving is bounded below by the two
+        // full-fidelity results and would flatter or damn the fix depending
+        // only on how many results the test happened to use.
+        let kept_whole = 2 * 80_000;
+        let history_before = before - kept_whole;
+        let history_after = after - kept_whole;
+        assert!(
+            history_after * 15 < history_before,
+            "older results must shrink by more than 15x: {history_before} -> {history_after}"
+        );
+        assert!(
+            after < before / 2,
+            "total must still halve: {before} -> {after}"
+        );
+
+        assert_eq!(sizes[19], 80_000, "the newest result must be untouched");
+        assert_eq!(sizes[18], 80_000, "the second newest must be untouched");
+        assert!(sizes[0] < 5_000, "the oldest must be trimmed");
+    }
+}
