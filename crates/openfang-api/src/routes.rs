@@ -11664,6 +11664,15 @@ pub struct CreateApprovalRequest {
     pub description: String,
     #[serde(default)]
     pub action_summary: String,
+    /// Why this is being asked, if the caller can say. Optional so external
+    /// callers are not forced to invent one; an empty value renders as an
+    /// explicit "not stated" rather than silently looking answered.
+    #[serde(default)]
+    pub aim: Option<String>,
+    #[serde(default)]
+    pub consequences: Option<String>,
+    #[serde(default)]
+    pub reversible: Option<bool>,
 }
 
 pub async fn create_approval(
@@ -11688,6 +11697,14 @@ pub async fn create_approval(
         } else {
             req.action_summary
         },
+        // Callers of this endpoint may supply their own reasoning; when they
+        // do not, say so rather than inventing one. An empty aim renders in
+        // the prompt as "the agent did not say - ask it before allowing",
+        // which is honest and visibly incomplete. Filling it with plausible
+        // boilerplate would hide the gap instead.
+        aim: req.aim.unwrap_or_default(),
+        consequences: req.consequences.unwrap_or_default(),
+        reversible: req.reversible,
         risk_level: RiskLevel::High,
         requested_at: chrono::Utc::now(),
         timeout_secs: policy.timeout_secs,

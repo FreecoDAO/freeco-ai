@@ -179,7 +179,7 @@ async fn macos_mem_total_gb() -> Option<u64> {
 }
 
 async fn command_output(command: &str, args: &[&str]) -> Option<String> {
-    let output = tokio::process::Command::new(command)
+    let output = openfang_runtime::quiet_command::quiet_async(command)
         .args(args)
         .output()
         .await
@@ -876,7 +876,7 @@ async fn start_installed_ollama(status: &SharedLocalAiStatus) -> bool {
         .file_name()
         .map(|n| n.to_string_lossy().contains("app"))
         .unwrap_or(false);
-    let mut cmd = tokio::process::Command::new(&exe);
+    let mut cmd = openfang_runtime::quiet_command::quiet_async(&exe);
     if !is_app {
         cmd.arg("serve");
     }
@@ -1023,7 +1023,7 @@ async fn verify_windows_signature(path: &std::path::Path) -> Result<(), String> 
          Write-Output ('OK:' + $s.SignerCertificate.Subject)",
         path.display().to_string().replace('\'', "''")
     );
-    let out = tokio::process::Command::new("powershell")
+    let out = openfang_runtime::quiet_command::quiet_async("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
         .output()
         .await
@@ -1324,7 +1324,7 @@ async fn install_ollama_windows(status: &SharedLocalAiStatus) -> Result<(), Stri
         -1,
     )
     .await;
-    let out = tokio::process::Command::new(&installer)
+    let out = openfang_runtime::quiet_command::quiet_async(&installer)
         .args(["/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES"])
         .output()
         .await
@@ -1343,7 +1343,7 @@ async fn install_ollama_windows(status: &SharedLocalAiStatus) -> Result<(), Stri
             if let Some(local) = dirs::data_local_dir() {
                 let app = local.join("Programs").join("Ollama").join("ollama app.exe");
                 if app.exists() {
-                    let _ = tokio::process::Command::new(app).spawn();
+                    let _ = openfang_runtime::quiet_command::quiet_async(app).spawn();
                 }
             }
         }

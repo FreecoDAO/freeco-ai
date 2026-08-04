@@ -7674,6 +7674,15 @@ impl KernelHandle for OpenFangKernel {
             tool_name: tool_name.to_string(),
             description: format!("Agent {} requests to execute {}", agent_id, tool_name),
             action_summary: action_summary.chars().take(512).collect(),
+            // Derived from the tool, because this path has no agent-supplied
+            // reasoning to pass through. It is a floor, not the goal: a
+            // request that says only what the tool does still leaves the user
+            // guessing why, which is the problem the fields exist to solve.
+            // Agents that can explain themselves should populate these
+            // directly; see APPROVAL_REQUEST_RULE.
+            aim: describe_tool_intent(tool_name),
+            consequences: describe_tool_consequences(tool_name),
+            reversible: tool_is_reversible(tool_name),
             risk_level: crate::approval::ApprovalManager::classify_risk(tool_name),
             requested_at: chrono::Utc::now(),
             timeout_secs: policy.timeout_secs,
@@ -9486,5 +9495,75 @@ system_prompt = "You are a test agent."
         let contents = std::fs::read_to_string(user_workspace.path().join("pre-existing.txt"))
             .expect("read pre-existing");
         assert_eq!(contents, "hello", "must not overwrite user files");
+    }
+}
+
+/// What a tool is for, in a sentence a non-programmer can act on.
+///
+/// A fallback for requests that arrive without agent-supplied reasoning. The
+/// user was previously shown a bare tool name and a string of arguments, which
+/// is not a question anyone can answer: faced with it people approve
+/// everything or deny everything.
+fn describe_tool_intent(tool_name: &str) -> String {
+    match tool_name {
+        "shell_exec" => "run a command directly on your machine, outside the sandbox",
+        "docker_exec" => "run a command inside the isolated Linux sandbox",
+        "file_write" | "file_edit" => "change a file on disk",
+        "file_delete" => "delete a file from disk",
+        "web_fetch" => "fetch a URL over the network",
+        "git_push" => "publish commits to a remote repository",
+        "agent_spawn" => "create a new agent that will act on your behalf",
+        "agent_kill" => "stop a running agent",
+        "email_send" | "channel_send" => "send a message on your behalf",
+        _ => return format!("use the {tool_name} tool"),
+    }
+    .to_string()
+}
+
+/// What changes if the request is allowed.
+///
+/// Stated in terms of effect rather than mechanism: "the file is overwritten"
+/// tells the user what they are risking; "calls fs::write" does not.
+fn describe_tool_consequences(tool_name: &str) -> String {
+    match tool_name {
+        "shell_exec" => {
+            "The command runs with your account's privileges and can touch anything you can. \
+             Nothing confines it."
+        }
+        "docker_exec" => {
+            "Runs in a throwaway container with no network. Nothing reaches your machine, \
+             and the container is discarded afterwards."
+        }
+        "file_write" | "file_edit" => "The file's previous contents are replaced.",
+        "file_delete" => "The file is removed. Recovery depends on your own backups.",
+        "web_fetch" => {
+            "Contacts an external server, which will see your IP address and anything sent \
+             in the request."
+        }
+        "git_push" => {
+            "The commits become part of the remote's history. Anyone who fetches has them, \
+             and unpublishing does not reach them."
+        }
+        "agent_spawn" => {
+            "A new agent starts running with its own tool access and its own spending against \
+             your provider key."
+        }
+        "agent_kill" => "The agent stops; work in progress is lost.",
+        "email_send" | "channel_send" => "The message is delivered and cannot be recalled.",
+        _ => return format!("Effects of {tool_name} are not described; treat as irreversible."),
+    }
+    .to_string()
+}
+
+/// Whether the effect can be undone. `None` means unknown, which the interface
+/// presents as "treat as if it cannot be undone" -- never as safe.
+fn tool_is_reversible(tool_name: &str) -> Option<bool> {
+    match tool_name {
+        "docker_exec" => Some(true),
+        "file_delete" | "git_push" | "email_send" | "channel_send" | "agent_kill" => Some(false),
+        // Deliberately unknown rather than guessed. A shell command may do
+        // anything, and claiming it is reversible would be a lie the user acts on.
+        "shell_exec" => None,
+        _ => None,
     }
 }

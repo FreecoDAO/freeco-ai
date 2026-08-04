@@ -88,7 +88,7 @@ fn validate_command(command: &str) -> Result<(), String> {
 
 /// Check if Docker is available on this system.
 pub async fn is_docker_available() -> bool {
-    match tokio::process::Command::new("docker")
+    match crate::quiet_command::quiet_async("docker")
         .arg("version")
         .arg("--format")
         .arg("{{.Server.Version}}")
@@ -108,7 +108,7 @@ pub async fn is_docker_available() -> bool {
 /// connection means an unannounced multi-hundred-megabyte download. We check
 /// first so the user is told what it costs and decides when to pay it.
 pub async fn is_image_present(image: &str) -> bool {
-    match tokio::process::Command::new("docker")
+    match crate::quiet_command::quiet_async("docker")
         .arg("image")
         .arg("inspect")
         .arg(image)
@@ -148,7 +148,7 @@ pub async fn create_sandbox(
         crate::str_utils::safe_truncate_str(agent_id, 8)
     ))?;
 
-    let mut cmd = tokio::process::Command::new("docker");
+    let mut cmd = crate::quiet_command::quiet_async("docker");
     cmd.arg("run").arg("-d").arg("--name").arg(&container_name);
 
     // Resource limits
@@ -225,7 +225,7 @@ pub async fn exec_in_sandbox(
 ) -> Result<ExecResult, String> {
     validate_command(command)?;
 
-    let mut cmd = tokio::process::Command::new("docker");
+    let mut cmd = crate::quiet_command::quiet_async("docker");
     cmd.arg("exec")
         .arg(&container.container_id)
         .arg("sh")
@@ -272,7 +272,7 @@ pub async fn exec_in_sandbox(
 pub async fn destroy_sandbox(container: &SandboxContainer) -> Result<(), String> {
     debug!(container = %container.container_id, "Destroying Docker sandbox");
 
-    let output = tokio::process::Command::new("docker")
+    let output = crate::quiet_command::quiet_async("docker")
         .arg("rm")
         .arg("-f")
         .arg(&container.container_id)

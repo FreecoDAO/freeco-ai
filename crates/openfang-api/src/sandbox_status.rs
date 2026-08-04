@@ -86,7 +86,7 @@ pub async fn sandbox_pull(State(state): State<Arc<AppState>>) -> impl IntoRespon
         }));
     }
 
-    match tokio::process::Command::new("docker")
+    match openfang_runtime::quiet_command::quiet_async("docker")
         .arg("pull")
         .arg(&image)
         .output()
