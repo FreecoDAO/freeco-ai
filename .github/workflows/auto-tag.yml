@@ -21,10 +21,18 @@ jobs:
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
-          # Silently skip when RELEASE_TOKEN is not configured
+          # A skip that reports success is indistinguishable from a tag that
+          # was pushed. This workflow went green for both v0.9.0 and v0.9.2
+          # while tagging neither, and nobody could tell from the tick. Say
+          # loudly what was skipped and why.
           if [ -z "$RELEASE_TOKEN" ]; then
-            echo "RELEASE_TOKEN is not set — skipping auto-tag"
-            exit 0
+            echo "::error::RELEASE_TOKEN is not configured, so no tag was pushed."
+            echo "::error::Add it under Settings > Secrets and variables > Actions."
+            echo "::error::It needs a personal access token with 'contents: write'"
+            echo "::error::-- the default GITHUB_TOKEN cannot push tags that"
+            echo "::error::trigger further workflows, which is why the release"
+            echo "::error::build never starts."
+            exit 1
           fi
 
           VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
@@ -37,10 +45,12 @@ jobs:
             exit 0
           fi
 
-          # Silently skip when CHANGELOG.md has no section for this version
+          # Also loud. A missing changelog section is a real omission before a
+          # release, not a reason to quietly do nothing.
           if ! grep -q "## \[${VERSION}\]" CHANGELOG.md; then
-            echo "No CHANGELOG section for ${VERSION} — skipping"
-            exit 0
+            echo "::error::CHANGELOG.md has no '## [${VERSION}]' section, so no tag"
+            echo "::error::was pushed. Add the section describing this release."
+            exit 1
           fi
 
           # Push the annotated tag

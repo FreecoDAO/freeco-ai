@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-08-05
+
+### Fixed
+
+- **Chat history is no longer deleted.** Compaction had two deletion sites,
+  not one. The first was fixed before 0.9.0; `store_llm_summary` and the
+  kernel's compaction path both still replaced the message list with the
+  post-compaction remnant and saved it, so an agent could go from 48 messages
+  to 10 in a single pass. Neither was necessary: the prompt window was already
+  bounded, so the model never saw the older messages either way.
+- **Session lists were missing half their rows.** The two queries returned
+  different field names -- `session_id`/`created_at` against
+  `agent_id`/`updated_at` -- while the UI reads `id` and sorts on
+  `updated_at`. Every row lacked one field or the other, so rows dropped out
+  of the sort and the survivors could not be opened.
+- **Tool results are no longer re-sent in full on every turn.** Measured at
+  23.0M input tokens against 734k output across 114 calls, a 31:1 ratio and
+  about EUR 25 spent almost entirely on re-transmitting payloads the model had
+  already read. Historical results are now cut to 4000 characters, head and
+  tail kept; the two most recent keep full fidelity. The complete output stays
+  in the session and is readable in the interface.
+- **Migrations v9 and v10 were being skipped.** They were gated on
+  `< 8` while `SCHEMA_VERSION` stayed at 8, so any database already at 8
+  skipped them permanently and silently. That is why `session_archive` did not
+  exist, leaving the deletion above with no safety net.
+- **`wasmtime` upgraded to 47.0.3**, clearing RUSTSEC-2026-0222. Note that
+  47.0.0-47.0.2 do not clear it.
+- Clippy `question_mark` lint that had been failing Linux CI.
+- Approval timeout test asserted 60 seconds against a deliberate 4 hours.
+
+### Added
+
+- **Companies, projects and teams**, with conversations scoped to them, a
+  Projects page, and archive and trash as distinct non-destructive states.
+- **Unified inbox schema** (migration v12): `inbox_messages`, `contacts` and
+  `contact_handles`, so the 44 channel integrations finally have somewhere to
+  keep what they carry.
+- **Free model discovery** via OpenRouter, fetched live rather than hardcoded.
+- **Security policy** for secret handling and the rule against routing around
+  security controls.
+- **Approval requests must state aim, consequences and reversibility**, and
+  boilerplate such as "n/a" is rejected.
+- **Isolated sandbox image** with a real toolchain: rust, cargo, clippy, git,
+  python3, jq, ripgrep.
+- Brave browser preferred over Chrome, and found where it actually installs.
+- Bootable Kubuntu from the FreEco USB without erasing it.
+
+### Changed
+
+- **Brand colours** applied throughout: `#68F000`, `#70E810`, `#18B810`.
+- **Cloud voices blocked by default**, and the claim that Chrome transcribes
+  on-device corrected -- the Web Speech API is server-side unless the page
+  asks for local mode, which it now does.
+- Credentials in URLs are refused rather than logged.
+
+
 ## [0.9.1] - 2026-08-02
 
 ### Added
