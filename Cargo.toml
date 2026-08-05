@@ -92,7 +92,10 @@ tokio-tungstenite = { version = "0.24", default-features = false, features = ["c
 url = "2"
 
 # WASM sandbox
-wasmtime = "43"
+# 47.0.3 or newer clears RUSTSEC-2026-0222 (stores could mix up type indices
+# between engines). Note 47.0.0-47.0.2 do NOT -- that range is still
+# vulnerable, and 47.0.2 is what dependabot proposed.
+wasmtime = "47.0.3"
 
 # HTTP server (for API daemon)
 axum = { version = "0.8", features = ["ws", "multipart"] }
