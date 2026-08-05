@@ -7,7 +7,7 @@ use rusqlite::Connection;
 /// Current schema version.
 // Must be bumped whenever a migration is added, or the new migration
 // never runs on an existing database.
-const SCHEMA_VERSION: u32 = 11;
+const SCHEMA_VERSION: u32 = 12;
 
 /// Run all migrations to bring the database up to date.
 pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -62,6 +62,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 
     if current_version < 11 {
         migrate_v11(conn)?;
+    }
+
+    if current_version < 12 {
+        migrate_v12(conn)?;
     }
 
     set_schema_version(conn, SCHEMA_VERSION)?;
@@ -502,6 +506,91 @@ fn migrate_v11(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute(
         "INSERT OR IGNORE INTO migrations (version, applied_at, description) \
          VALUES (11, datetime('now'), 'Companies, projects, teams; sessions scoped and archivable')",
+        [],
+    )?;
+    Ok(())
+}
+
+/// One inbox across every channel.
+///
+/// Forty-four channel integrations exist - email, Signal, WhatsApp, Telegram,
+/// Slack, Matrix, XMPP and the rest - and every message they carried was
+/// routed to an agent and then dropped. Nothing was stored, so there was no
+/// way to ask "what did this customer say last month?", no way to search
+/// across channels, and no record of what an agent said on the company's
+/// behalf. The plumbing was complete and the memory was missing.
+///
+/// `direction` distinguishes what arrived from what was sent, because an
+/// audit that cannot tell the two apart cannot answer the question anyone
+/// actually asks after an incident.
+///
+/// `visibility` exists because this table holds both a support queue and
+/// someone's private messages. Without it the only options are showing
+/// everything to everyone or showing nothing to anyone.
+fn migrate_v12(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        "
+        CREATE TABLE IF NOT EXISTS inbox_messages (
+            id             TEXT PRIMARY KEY,
+            channel        TEXT NOT NULL,
+            direction      TEXT NOT NULL DEFAULT 'in',
+            thread_id      TEXT,
+            correspondent  TEXT NOT NULL,
+            display_name   TEXT,
+            agent_id       TEXT,
+            project_id     TEXT,
+            body           TEXT NOT NULL,
+            visibility     TEXT NOT NULL DEFAULT 'team',
+            is_group       INTEGER NOT NULL DEFAULT 0,
+            read           INTEGER NOT NULL DEFAULT 0,
+            sent_at        TEXT NOT NULL,
+            stored_at      TEXT NOT NULL
+        );
+
+        -- The inbox view: newest first, which is the only ordering anyone
+        -- opens a mailbox expecting.
+        CREATE INDEX IF NOT EXISTS idx_inbox_sent      ON inbox_messages(sent_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_inbox_thread    ON inbox_messages(thread_id, sent_at);
+        CREATE INDEX IF NOT EXISTS idx_inbox_person    ON inbox_messages(correspondent, sent_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_inbox_channel   ON inbox_messages(channel, sent_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_inbox_project   ON inbox_messages(project_id);
+
+        -- Address book. Separate from inbox_messages so a contact survives
+        -- having no messages, and so import and export move one table rather
+        -- than reconstructing people from traffic.
+        CREATE TABLE IF NOT EXISTS contacts (
+            id            TEXT PRIMARY KEY,
+            display_name  TEXT NOT NULL,
+            organisation  TEXT,
+            notes         TEXT,
+            -- global, team or private: who may see this entry at all.
+            visibility    TEXT NOT NULL DEFAULT 'team',
+            owner_user    TEXT,
+            archived      INTEGER NOT NULL DEFAULT 0,
+            created_at    TEXT NOT NULL,
+            updated_at    TEXT NOT NULL
+        );
+
+        -- One person, many handles. A contact reachable on email, Signal and
+        -- Telegram is one person, and a schema that cannot say so produces
+        -- three half-empty records and a search that misses two of them.
+        CREATE TABLE IF NOT EXISTS contact_handles (
+            contact_id  TEXT NOT NULL,
+            channel     TEXT NOT NULL,
+            handle      TEXT NOT NULL,
+            is_primary  INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (channel, handle),
+            FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_handles_contact ON contact_handles(contact_id);
+        CREATE INDEX IF NOT EXISTS idx_contacts_name   ON contacts(display_name);
+        ",
+    )?;
+
+    conn.execute(
+        "INSERT OR IGNORE INTO migrations (version, applied_at, description) \
+         VALUES (12, datetime('now'), 'Unified inbox and address book across all channels')",
         [],
     )?;
     Ok(())

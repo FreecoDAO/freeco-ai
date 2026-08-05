@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreEco.ai — the open Agent Operating System</title>
+<meta name="description" content="An operating system for autonomous agents. Self-hosted, open source, with CRM, accounting and real-time voice built in.">
+
+<!-- Self-contained on purpose: no CDN fonts, no analytics, no external
+     requests. A product that blocks cloud voices for privacy should not leak
+     a pageview on every visit, and a page with zero external calls renders
+     instantly on conference wifi. -->
+<style>
+:root{
+  /* Sampled from the FreEco.ai logo, not chosen by eye. #68F000 is the
+     dominant leaf green in the mark; the rest are tints and shades of it.
+     The earlier palette drifted toward sage, which reads as clinical --
+     wrong for a product about living things and daily choices. */
+  --leaf:#68F000;        /* logo primary  */
+  --leaf-2:#70E810;      /* logo secondary */
+  --green-700:#18B810;   /* logo deep     */
+  --green-900:#0d6b09;   /* text on light */
+  --green-300:#a8f76b;
+  --green-100:#dcfcc2;
+  --green-50:#f2fee8;
+  --swiss:#d8232a;
+  --ink:#0f1a0b; --dim:#4a5a44; --line:#cdefb4;
+  --paper:#ffffff; --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+h1,h2,h3{font-weight:700;letter-spacing:-.025em;line-height:1.12;margin:0 0 .5em}
+h1{font-size:clamp(2.5rem,6vw,4.2rem)}
+h2{font-size:clamp(1.8rem,3.6vw,2.6rem);margin-top:0}
+h3{font-size:1.1rem}
+p{margin:0 0 1em}
+a{color:var(--green-700)}
+
+/* The green wave: light, celebratory, never gloomy. */
+header{position:relative;overflow:hidden;background:linear-gradient(170deg,var(--green-50) 0%,#fff 62%);padding:96px 0 0}
+header .wave{display:block;width:100%;height:auto;margin-top:56px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--green-700);background:var(--green-100);padding:6px 14px;border-radius:100px;margin-bottom:1.4rem}
+.eyebrow .swiss{color:var(--swiss);font-size:1rem;line-height:1}
+.lede{font-size:1.22rem;color:var(--dim);max-width:44ch}
+
+section{padding:76px 0;border-top:1px solid var(--line)}
+.sub{font-size:1.05rem;color:var(--dim);max-width:64ch}
+
+.stats{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin:36px 0 0}
+.stat{background:var(--green-50);border:1px solid var(--line);border-radius:14px;padding:22px}
+.stat b{display:block;font-size:1.9rem;color:var(--green-700);letter-spacing:-.03em}
+.stat span{font-size:.88rem;color:var(--dim)}
+
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;margin-top:32px}
+table{border-collapse:collapse;width:100%;min-width:920px;font-size:.9rem;background:#fff}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th{background:var(--green-50);font-size:.76rem;letter-spacing:.05em;text-transform:uppercase;color:var(--green-900);font-weight:700}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{font-weight:600;white-space:normal}
+.own{background:var(--green-100)}
+.yes{color:var(--green-700);font-weight:700}
+.no{color:var(--dim);opacity:.5}
+.part{color:#9a6b00}
+.num{font-variant-numeric:tabular-nums}
+
+.note{background:#fff8e6;border:1px solid #f0dca8;border-left:4px solid #d9a520;border-radius:12px;padding:20px 24px;margin-top:26px}
+.note b{color:#7a5b00}
+
+/* TAM / SAM / SOM as nested rings, sized by area not width, so the visual
+   ratio is honest rather than flattering. */
+.tam{display:flex;gap:40px;align-items:center;flex-wrap:wrap;margin-top:36px}
+.rings{flex:0 0 320px}
+.legend{flex:1;min-width:260px}
+.legend div{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}
+.swatch{width:14px;height:14px;border-radius:4px;flex:0 0 auto;margin-top:5px}
+footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="eyebrow"><span class="swiss">✳</span> Swiss · Open source · Self-hosted</span>
+    <h1>Agents that keep working<br>when you close the laptop.</h1>
+    <p class="lede">
+      An operating system for autonomous agents — with CRM, accounting, real-time
+      voice and an isolated Linux sandbox built in. Runs on hardware you own.
+    </p>
+  </div>
+  <svg class="wave" viewBox="0 0 1440 150" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,60 C240,120 480,0 720,50 C960,100 1200,20 1440,70 L1440,150 L0,150 Z" fill="#dcfcc2"/>
+    <path d="M0,95 C260,140 520,45 760,88 C1000,130 1220,60 1440,100 L1440,150 L0,150 Z" fill="#68F000" opacity=".42"/>
+  </svg>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Where FreEco.ai stands</h2>
+    <p class="sub">Our own figures, stated exactly.</p>
+    <div class="stats">
+      <div class="stat"><b class="num">CHF 500,000</b><span>invested to date</span></div>
+      <div class="stat"><b class="num">USD 1,240,000</b><span>FRE.ECO DAO AI Coin market cap</span></div>
+      <div class="stat"><b class="num">44</b><span>communication channels integrated</span></div>
+      <div class="stat"><b class="num">100%</b><span>open source, self-hostable</span></div>
+    </div>
+  </div>
+</section>
+
+<section style="background:linear-gradient(180deg,var(--green-50),#fff)">
+  <div class="wrap">
+    <h2>Why this exists</h2>
+    <p class="sub" style="font-size:1.15rem">
+      To help individuals, families and businesses live and trade more healthily
+      and ecologically &mdash; by making the consequences of an everyday decision
+      visible at the moment it is taken, not in a report afterwards.
+    </p>
+    <div class="stats">
+      <div class="stat"><b style="font-size:1.15rem">Daily choices</b><span>Every purchase, supplier and workflow carries an ecological and health cost. Agents surface it before you commit, not after.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Sustainable by construction</b><span>Guardrails an agent cannot argue its way past. A cheaper supplier with a worse footprint is flagged, not quietly chosen.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Families and kids</b><span>Health-aware defaults and a kid-safe role, because habits are formed early and most tools ignore that entirely.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Honest about our own cost</b><span>Running a model burns energy. The per-task energy and spend are shown rather than hidden &mdash; a sustainability product that hides its own footprint is not one.</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The competitive landscape</h2>
+    <p class="sub">
+      What each product is built to do — not a verdict on how well it does it.
+      Every one is good at its own job; those jobs differ from this one.
+    </p>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th class="own">FreEco.ai</th>
+            <th>Claude</th><th>ChatGPT</th><th>Manus</th>
+            <th>Copilot</th><th>VS&nbsp;Code</th>
+            <th>OpenClaw</th><th>LangChain&nbsp;/&nbsp;CrewAI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Runs while you are away</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
+          <tr><td>Open source</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Mixed</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+          <tr><td>Self-hosted on your hardware</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Editor</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+          <tr><td>Works fully offline</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">Partial</td><td class="part">Partial</td></tr>
+          <tr><td>Multi-agent org chart</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">Opaque</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
+          <tr><td>Spend caps per agent</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Approval gates</td><td class="own yes">Yes</td><td class="part">Per tool</td><td class="part">Per tool</td><td class="part">Partial</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
+          <tr><td>Isolated Linux sandbox</td><td class="own yes">Yes</td><td class="part">Vendor</td><td class="part">Vendor</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
+          <tr><td>CRM built in</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Accounting built in</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Real-time voice</td><td class="own yes">Yes</td><td class="part">Chat</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>44 messaging channels</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Roles: kids / family / business</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><strong>Ecological impact shown on decisions</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><strong>Sustainability guardrails on agent actions</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><strong>Conscious-consumption guidance</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><strong>Health-aware defaults for families and kids</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><strong>Energy cost of a task made visible</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Your data stays yours</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:48px">Funding and valuation</h3>
+    <p class="sub">Publicly reported figures, each with its source and date.</p>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Project</th><th>Raised</th><th>Valuation / market cap</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+          <tr class="own">
+            <td>FreEco.ai <span style="color:var(--swiss)">&#10033;</span></td>
+            <td class="num">CHF&nbsp;500,000</td>
+            <td class="num">USD&nbsp;1,240,000 <span style="color:var(--dim);font-weight:400">FRE.ECO DAO AI Coin</span></td>
+            <td>Own figures</td>
+          </tr>
+          <tr>
+            <td>Anthropic (Claude)</td>
+            <td class="num">~USD&nbsp;125&nbsp;bn total<br><span style="color:var(--dim);font-weight:400">USD 65 bn Series H</span></td>
+            <td class="num">USD&nbsp;965&nbsp;bn post-money</td>
+            <td>Anthropic, Series H announcement; Axios, 28 May 2026</td>
+          </tr>
+          <tr>
+            <td>OpenAI (ChatGPT)</td>
+            <td class="num">USD&nbsp;110&nbsp;bn round</td>
+            <td class="num">USD&nbsp;840&nbsp;bn post-money</td>
+            <td>Crunchbase News, 2026</td>
+          </tr>
+          <tr>
+            <td>Manus (Butterfly Effect)</td>
+            <td class="num">~USD&nbsp;85&nbsp;m disclosed</td>
+            <td class="num">USD&nbsp;500&nbsp;m (Apr&nbsp;2025)<br><span style="color:var(--dim);font-weight:400">Meta deal ~USD 2 bn blocked by China, Apr 2026</span></td>
+            <td>Benchmark Series B; The AI Rankings, 2026</td>
+          </tr>
+          <tr>
+            <td>Copilot / VS&nbsp;Code</td>
+            <td class="num">&mdash;</td>
+            <td class="num">Microsoft business unit</td>
+            <td>Not separately disclosed</td>
+          </tr>
+          <tr>
+            <td>OpenClaw, LangChain, CrewAI</td>
+            <td class="num">Varies</td>
+            <td class="num">Open source / early stage</td>
+            <td>No comparable public figure</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="font-size:.86rem;color:var(--dim);margin-top:14px">
+      Anthropic and OpenAI figures are post-money valuations from announced
+      rounds, not market capitalisation &mdash; both are private. Anthropic filed
+      confidentially for an IPO on 1 June 2026. Together the two account for
+      roughly 80% of all funding in the Forbes AI 50 (2026). Manus was acquired
+      by Meta for a reported USD&nbsp;2&nbsp;bn+ in December 2025; Chinese
+      regulators ordered the deal unwound in April 2026.
+    </p>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Market: TAM · SAM · SOM</h2>
+    <p class="sub">
+      Areas are drawn in proportion to the values shown, so the picture matches
+      the arithmetic rather than flattering it.
+    </p>
+
+    <div class="tam">
+      <svg class="rings" viewBox="0 0 320 320" role="img" aria-label="Nested market circles: TAM, SAM and SOM">
+        <circle cx="160" cy="160" r="150" fill="var(--green-100)" stroke="var(--leaf)"/>
+        <circle cx="160" cy="212" r="88"  fill="var(--leaf)" stroke="var(--green-700)" opacity=".6"/>
+        <circle cx="160" cy="268" r="30"  fill="var(--green-700)"/>
+        <text x="160" y="46"  text-anchor="middle" font-size="15" font-weight="700" fill="#0a3d2b">TAM</text>
+        <text x="160" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#0a3d2b">SAM</text>
+        <text x="160" y="272" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">SOM</text>
+      </svg>
+
+      <div class="legend">
+        <div>
+          <span class="swatch" style="background:var(--green-100);border:1px solid var(--leaf)"></span>
+          <div><b>TAM — Total addressable market</b><br>
+          <span style="color:var(--dim)">Global AI software spend. Every organisation that could buy AI tooling.</span></div>
+        </div>
+        <div>
+          <span class="swatch" style="background:var(--leaf)"></span>
+          <div><b>SAM — Serviceable addressable market</b><br>
+          <span style="color:var(--dim)">Organisations needing <em>self-hosted, private</em> agents: regulated sectors, EU and Swiss data residency, public bodies, privacy-first SMEs.</span></div>
+        </div>
+        <div>
+          <span class="swatch" style="background:var(--green-700)"></span>
+          <div><b>SOM — Serviceable obtainable market</b><br>
+          <span style="color:var(--dim)">What we can realistically win in the first phase: Swiss and EU SMEs and associations already running open-source back offices.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats" style="margin-top:8px">
+      <div class="stat"><b class="num">USD 3,497 bn</b><span><strong>TAM</strong> &mdash; global AI market by 2033, 30.6% CAGR<br><em>Grand View Research, 2026</em></span></div>
+      <div class="stat"><b class="num">USD 183 bn</b><span><strong>SAM</strong> &mdash; AI agents market by 2033, 49.6% CAGR<br><em>Grand View Research, 2026</em></span></div>
+      <div class="stat"><b class="num">USD 74.5 bn</b><span><strong>SOM proxy</strong> &mdash; vertical AI by 2033, 28.3% CAGR<br><em>Grand View Research, 2026</em></span></div>
+    </div>
+
+    <p style="font-size:.86rem;color:var(--dim);margin-top:18px">
+      <strong>Method, stated so it can be checked.</strong> TAM is the whole AI
+      software market. SAM narrows to the <em>AI agents</em> segment &mdash; the
+      fastest growing of the three at 49.6% CAGR &mdash; because an agent
+      operating system sells into that segment, not into AI spend generally.
+      The SOM figure is the vertical-AI market used as a proxy; our obtainable
+      share is a fraction of it, being the part that requires self-hosting and
+      EU or Swiss data residency. Refine with a bottom-up count of target
+      organisations before quoting a SOM to an investor: a top-down proxy shows
+      the shape, not the ceiling.
+    </p>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong>FreEco.ai</strong> — open-source Agent Operating System ·
+       <a href="https://github.com/FreecoDAO/freeco-ai">github.com/FreecoDAO/freeco-ai</a></p>
+    <p style="font-size:.82rem">
+      Capability comparison reflects each product's design intent at the time of
+      writing. Corrections welcome as an issue on the repository.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

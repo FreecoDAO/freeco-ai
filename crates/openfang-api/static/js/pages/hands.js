@@ -749,7 +749,7 @@ function handsPage() {
         (!document.documentElement.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
       var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
       var textColor = isDark ? '#8A8380' : '#6B6560';
-      var accentColor = '#0B3D2E';
+      var accentColor = 'var(--accent)';
       var successColor = isDark ? '#4ADE80' : '#22C55E';
       var errorColor = '#EF4444';
 

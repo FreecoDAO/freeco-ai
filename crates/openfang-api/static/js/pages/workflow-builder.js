@@ -28,7 +28,7 @@ function workflowBuilder() {
 
     // Node types with their configs
     nodeTypes: [
-      { type: 'agent', label: 'Agent Step', color: '#0B3D2E', icon: 'A', ports: { in: 1, out: 1 } },
+      { type: 'agent', label: 'Agent Step', color: 'var(--accent)', icon: 'A', ports: { in: 1, out: 1 } },
       { type: 'parallel', label: 'Parallel Fan-out', color: '#f59e0b', icon: 'P', ports: { in: 1, out: 3 } },
       { type: 'condition', label: 'Condition', color: '#10b981', icon: '?', ports: { in: 1, out: 2 } },
       { type: 'loop', label: 'Loop', color: '#ef4444', icon: 'L', ports: { in: 1, out: 1 } },

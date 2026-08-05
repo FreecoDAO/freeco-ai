@@ -4,8 +4,8 @@
   "description": "Open-source Agent Operating System",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0f",
-  "theme_color": "#0B3D2E",
+  "background_color": "#FFFFFF",
+  "theme_color": "#18B810",
   "icons": [
     {"src": "/logo.png", "sizes": "128x128", "type": "image/png"}
   ]

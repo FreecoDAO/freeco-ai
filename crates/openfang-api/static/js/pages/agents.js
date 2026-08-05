@@ -47,7 +47,7 @@ function agentsPage() {
     spawnProviders: [],       // populated from /api/providers on wizard open
     spawnProvidersLoading: false,
     spawnStep: 1,
-    spawnIdentity: { emoji: '', color: '#0B3D2E', archetype: '' },
+    spawnIdentity: { emoji: '', color: 'var(--accent)', archetype: '' },
     selectedPreset: '',
     soulContent: '',
     emojiOptions: [
@@ -369,7 +369,7 @@ function agentsPage() {
         api_key_env: model.api_key_env || '',
         base_url: model.base_url || '',
         emoji: identity.emoji || '',
-        color: identity.color || '#0B3D2E',
+        color: identity.color || 'var(--accent)',
         archetype: identity.archetype || '',
         vibe: identity.vibe || ''
       };
@@ -458,7 +458,7 @@ function agentsPage() {
       this.showSpawnModal = true;
       this.spawnStep = 1;
       this.spawnMode = 'wizard';
-      this.spawnIdentity = { emoji: '', color: '#0B3D2E', archetype: '' };
+      this.spawnIdentity = { emoji: '', color: 'var(--accent)', archetype: '' };
       this.selectedPreset = '';
       this.soulContent = '';
       this.spawnForm.name = '';

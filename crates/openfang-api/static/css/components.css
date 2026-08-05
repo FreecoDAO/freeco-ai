@@ -3692,7 +3692,7 @@ mark.search-highlight {
 }
 .freeco-estop:hover { transform: scale(1.06); }
 .freeco-estop:disabled { opacity: .6; cursor: default; }
-.freeco-estop-on { background: #1E6B52; }
+.freeco-estop-on { background: var(--accent-light); }
 
 /* ── Permission requests, answered inline in the chat ── */
 .freeco-approval {

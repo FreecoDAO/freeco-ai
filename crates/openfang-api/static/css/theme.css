@@ -20,12 +20,24 @@
   --text-dim: #61776C;
   --text-muted: #8AA096;
 
-  /* Brand — Deep Forest Green accent */
-  --accent: #0B3D2E;
-  --accent-light: #1E6B52;
-  --accent-dim: #072C22;
-  --accent-glow: rgba(11, 61, 46, 0.14);
-  --accent-subtle: rgba(11, 61, 46, 0.07);
+  /* Brand — FreEco.ai corporate greens.
+     These three are the mark's actual values. The dashboard previously used
+     an invented deep forest green, so the product did not match its own
+     logo. Bright and life-celebrating is the house style, deliberately not
+     dark.
+
+     --leaf is very bright, which is right for fills, highlights and primary
+     actions and wrong for small text on white. --accent is therefore the
+     deep green: it carries links and labels at readable contrast, while
+     --leaf carries emphasis. */
+  --leaf: #68F000;            /* leaf primary, dominant in the mark */
+  --leaf-2: #70E810;          /* leaf secondary */
+  --accent: #18B810;          /* deep green - safe for text and links */
+  --accent-light: #70E810;
+  --accent-dim: #0F8A0B;
+  --accent-glow: rgba(104, 240, 0, 0.18);
+  --accent-subtle: rgba(104, 240, 0, 0.09);
+  --swiss: #D8232A;           /* Swiss red, used sparingly as an accent */
 
   /* Status colors */
   --success: #1E8552;
@@ -120,11 +132,16 @@
   --text-dim: #8CA39A;
   --text-muted: #5E7068;
   --text-on-accent: #FFFFFF;
-  --accent: #0B3D2E;
-  --accent-light: #1E6B52;
-  --accent-dim: #072C22;
-  --accent-glow: rgba(15, 90, 67, 0.25);
-  --accent-subtle: rgba(15, 90, 67, 0.14);
+  /* On dark, the leaf green is the readable one and the deep green is not,
+     so the roles swap. Same three brand values either way. */
+  --leaf: #68F000;
+  --leaf-2: #70E810;
+  --accent: #70E810;
+  --accent-light: #68F000;
+  --accent-dim: #18B810;
+  --accent-glow: rgba(104, 240, 0, 0.28);
+  --accent-subtle: rgba(104, 240, 0, 0.16);
+  --swiss: #FF5A60;           /* Swiss red lifted for contrast on dark */
   --success: #33B879;
   --success-dim: #248A5A;
   --success-subtle: rgba(51, 184, 121, 0.18);
