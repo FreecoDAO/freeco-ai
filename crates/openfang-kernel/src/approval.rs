@@ -464,7 +464,19 @@ mod tests {
         let mgr = default_manager();
         let policy = mgr.policy();
         assert_eq!(policy.require_approval, vec!["shell_exec".to_string()]);
-        assert_eq!(policy.timeout_secs, 60);
+        // Four hours, not sixty seconds. A minute was long enough only if the
+        // user happened to be watching the screen at that moment; otherwise
+        // the request auto-denied before it was ever seen, and the agent
+        // reported a refusal the user never made. Deliberate -- if this drops
+        // back to a value measured in seconds, that is a regression.
+        assert_eq!(
+            policy.timeout_secs,
+            openfang_types::assistant_rights::ASSISTANT_APPROVAL_TIMEOUT_SECS
+        );
+        assert!(
+            policy.timeout_secs >= 3600,
+            "an approval must outlive a coffee break"
+        );
         assert!(!policy.auto_approve_autonomous);
     }
 }
