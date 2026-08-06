@@ -183,14 +183,18 @@ mod tests {
     /// different from a missing pricing object entirely.
     #[test]
     fn absent_components_count_as_free_but_absent_pricing_does_not() {
-        assert!(is_free(&serde_json::json!({ "pricing": { "prompt": "0" } })));
+        assert!(is_free(
+            &serde_json::json!({ "pricing": { "prompt": "0" } })
+        ));
         assert!(!is_free(&serde_json::json!({ "id": "x" })));
     }
 
     /// Numeric zero is as valid as string zero; the API has used both.
     #[test]
     fn numeric_and_string_zero_are_both_accepted() {
-        assert!(is_free(&serde_json::json!({ "pricing": { "prompt": 0, "completion": 0 } })));
+        assert!(is_free(
+            &serde_json::json!({ "pricing": { "prompt": 0, "completion": 0 } })
+        ));
     }
 
     #[test]

@@ -38,6 +38,7 @@ pub mod channel_bridge;
 pub mod local_ai;
 pub mod middleware;
 pub mod openai_compat;
+pub mod openrouter_free;
 pub mod org_routes;
 pub mod rate_limiter;
 pub mod routes;

@@ -39,7 +39,7 @@ a{color:var(--green-700)}
 
 /* The green wave: light, celebratory, never gloomy. */
 header{position:relative;overflow:hidden;background:linear-gradient(170deg,var(--green-50) 0%,#fff 62%);padding:96px 0 0}
-header .wave{display:block;width:100%;height:auto;margin-top:56px}
+header .wave{display:block;width:100%;height:clamp(180px,22vw,300px);margin-top:48px}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--green-700);background:var(--green-100);padding:6px 14px;border-radius:100px;margin-bottom:1.4rem}
 .eyebrow .swiss{color:var(--swiss);font-size:1rem;line-height:1}
 .lede{font-size:1.22rem;color:var(--dim);max-width:44ch}
@@ -74,6 +74,16 @@ td:first-child{font-weight:600;white-space:normal}
 .legend{flex:1;min-width:260px}
 .legend div{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}
 .swatch{width:14px;height:14px;border-radius:4px;flex:0 0 auto;margin-top:5px}
+
+.btnrow{display:flex;gap:14px;flex-wrap:wrap;margin:30px 0 6px}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:14px 26px;border-radius:100px;
+  font-weight:700;font-size:.98rem;text-decoration:none;border:2px solid transparent}
+.btn-primary{background:var(--leaf);color:#0f1a0b;box-shadow:0 6px 18px rgba(104,240,0,.32)}
+.btn-invest{background:var(--green-900);color:#fff}
+.btn-ghost{background:#fff;color:var(--green-900);border-color:var(--leaf)}
+.free-badge{display:inline-flex;align-items:center;gap:8px;background:var(--leaf);color:#0f1a0b;
+  font-weight:800;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;
+  padding:7px 15px;border-radius:100px;margin-bottom:1.1rem}
 footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px solid var(--line)}
 </style>
 </head>
@@ -87,10 +97,54 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
       An operating system for autonomous agents — with CRM, accounting, real-time
       voice and an isolated Linux sandbox built in. Runs on hardware you own.
     </p>
+    <p class="lede" style="max-width:46ch;color:var(--green-900);font-weight:600">
+      Ships with free models already configured. Install it and it answers &mdash;
+      no card, no API key, no signup.
+    </p>
+    <div class="btnrow">
+      <a class="btn btn-primary" href="https://openrouter.ai/openrouter/free" rel="noopener">Start free &rarr;</a>
+      <a class="btn btn-invest" href="https://jup.ag/tokens/2qEb9Ai7uErRxsjWnT6MaoYXajXf8KjGGhQEsG24jPxc" rel="noopener">Invest in FRE.ECO DAO AI Coin</a>
+    </div>
   </div>
-  <svg class="wave" viewBox="0 0 1440 150" preserveAspectRatio="none" aria-hidden="true">
-    <path d="M0,60 C240,120 480,0 720,50 C960,100 1200,20 1440,70 L1440,150 L0,150 Z" fill="#dcfcc2"/>
-    <path d="M0,95 C260,140 520,45 760,88 C1000,130 1220,60 1440,100 L1440,150 L0,150 Z" fill="#68F000" opacity=".42"/>
+  <!-- Flowing ribbons, drawn rather than photographed.
+       Recreates the brand background as vector: no watermark, no external
+       file, and sharp at any size. Greens are the logo's own #68F000 family,
+       with a luminous crest so the ribbons read as curved surfaces catching
+       light rather than flat cut paper. -->
+  <!-- Brand wave as vector: no watermark, no external file, sharp at any size. -->
+  <svg class="wave" viewBox="0 0 1440 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="arcG" x1="0" y1="0" x2="1" y2="0.4">
+        <stop offset="0%" stop-color="#2E9600"/><stop offset="18%" stop-color="#68F000"/>
+        <stop offset="40%" stop-color="#B6FF7A"/><stop offset="58%" stop-color="#68F000"/>
+        <stop offset="86%" stop-color="#57D400" stop-opacity=".55"/>
+        <stop offset="100%" stop-color="#68F000" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="lowG" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0%" stop-color="#7CF41A"/><stop offset="35%" stop-color="#D6FFAE"/>
+        <stop offset="70%" stop-color="#68F000"/><stop offset="100%" stop-color="#2E9600" stop-opacity=".85"/>
+      </linearGradient>
+      <radialGradient id="haze" cx="22%" cy="62%" r="62%">
+        <stop offset="0%" stop-color="#68F000" stop-opacity=".55"/>
+        <stop offset="100%" stop-color="#68F000" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="b8" x="-25%" y="-45%" width="150%" height="190%"><feGaussianBlur stdDeviation="8"/></filter>
+      <filter id="b22" x="-25%" y="-45%" width="150%" height="190%"><feGaussianBlur stdDeviation="22"/></filter>
+      <filter id="b46" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation="46"/></filter>
+    </defs>
+    <rect x="-100" y="0" width="1100" height="400" fill="url(#haze)" filter="url(#b46)"/>
+    <path d="M-120,400 C-40,300 60,150 260,120 C420,96 470,190 640,250 C830,318 1060,300 1500,232 L1500,400 Z"
+          fill="url(#arcG)" filter="url(#b22)" opacity=".9"/>
+    <path d="M-90,400 C-20,315 70,185 258,158 C400,138 452,222 610,278"
+          fill="none" stroke="#F0FFE0" stroke-width="16" opacity=".55" filter="url(#b8)"/>
+    <path d="M-90,400 C-20,318 72,192 258,166 C398,148 450,230 606,284"
+          fill="none" stroke="#FFFFFF" stroke-width="4" opacity=".8"/>
+    <path d="M-120,400 C160,352 420,300 700,318 C960,334 1180,372 1500,330 L1500,400 Z"
+          fill="url(#lowG)" filter="url(#b8)" opacity=".92"/>
+    <path d="M-100,392 C170,344 424,292 700,310 C958,326 1180,364 1500,322"
+          fill="none" stroke="#FFFFFF" stroke-width="3" opacity=".7"/>
+    <path d="M120,400 C300,352 520,318 760,330 C980,341 1180,368 1500,336 L1500,400 Z"
+          fill="#1B7A00" opacity=".22" filter="url(#b22)"/>
   </svg>
 </header>
 
@@ -104,6 +158,42 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
       <div class="stat"><b class="num">44</b><span>communication channels integrated</span></div>
       <div class="stat"><b class="num">100%</b><span>open source, self-hostable</span></div>
     </div>
+  </div>
+</section>
+
+<section style="background:linear-gradient(180deg,var(--green-50),#fff)">
+  <div class="wrap">
+    <span class="free-badge">Free to start &mdash; no card, no key</span>
+    <h2>Free &amp; Eco, literally</h2>
+    <p class="sub" style="font-size:1.12rem">
+      FreEco.ai ships with a free OpenRouter model key already configured. Install
+      it and your assistant answers on the first run &mdash; no signup, no billing
+      details, no hunting for an API key before anything works. Add your own
+      provider later, a model on your own GPU, or neither.
+    </p>
+    <div class="stats" style="margin-top:30px">
+      <div class="stat"><b style="font-size:1.15rem">Works in one step</b>
+        <span>Install and talk to it. Most agent tools want a paid API key before
+        they will say a single word.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">A free tier, not a trial</b>
+        <span>OpenRouter's free models &mdash; not a countdown that expires and
+        leaves you with a dead install.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Swap any time</b>
+        <span>Point it at your own key, another provider, or a local model.
+        Nothing is locked and nothing is lost.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Eco by default</b>
+        <span>The lightest model that can do the job is the one chosen. Compute
+        not spent is energy not burned.</span></div>
+    </div>
+    <div class="btnrow">
+      <a class="btn btn-primary" href="https://openrouter.ai/openrouter/free" rel="noopener">See the free models &rarr;</a>
+      <a class="btn btn-ghost" href="https://github.com/FreecoDAO/freeco-ai" rel="noopener">Install FreEco.ai</a>
+    </div>
+    <p style="font-size:.84rem;color:var(--dim);margin-top:10px">
+      Free models are rate-limited by OpenRouter &mdash; that is what keeps them
+      free. For heavy or commercial use add your own key; the switch is one field
+      in Settings.
+    </p>
   </div>
 </section>
 
@@ -162,6 +252,7 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
           <tr><td><strong>Conscious-consumption guidance</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
           <tr><td><strong>Health-aware defaults for families and kids</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
           <tr><td><strong>Energy cost of a task made visible</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><strong>Works free on first install, no key needed</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">DIY</td><td class="part">DIY</td></tr>
           <tr><td>Your data stays yours</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
         </tbody>
       </table>
@@ -280,6 +371,33 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
       organisations before quoting a SOM to an investor: a top-down proxy shows
       the shape, not the ceiling.
     </p>
+</section>
+
+<section style="background:linear-gradient(180deg,#fff,var(--green-50))">
+  <div class="wrap">
+    <h2>Support the project</h2>
+    <p class="sub">
+      FreEco.ai is open source and self-hostable. Donations fund the parts that
+      do not fund themselves &mdash; the sustainability guardrails, the kid-safe
+      defaults, and keeping the whole thing runnable on hardware people already
+      own.
+    </p>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;margin-top:28px">
+      <a href="https://www.paypal.com/donate/?hosted_button_id=48HDQJNGTYJ86&source=qr" rel="noopener" style="flex:0 0 200px;display:block"><img src="data:image/png;base64,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" alt="Donate to FreEco.ai via PayPal" style="width:200px;height:200px;display:block;border:1px solid var(--line);border-radius:16px;background:#fff;padding:10px;image-rendering:pixelated"></a>
+      <div style="flex:1;min-width:260px">
+        <div class="btnrow" style="margin-top:0"><a class="btn btn-invest" href="https://jup.ag/tokens/2qEb9Ai7uErRxsjWnT6MaoYXajXf8KjGGhQEsG24jPxc" rel="noopener">Invest in FRE.ECO DAO AI Coin</a><a class="btn btn-ghost" href="https://www.paypal.com/donate/?hosted_button_id=48HDQJNGTYJ86&source=qr" rel="noopener">Donate via PayPal</a></div>
+        <p style="margin:.8em 0 .6em"><strong>Donate:</strong>
+          <a href="https://www.paypal.com/donate/?hosted_button_id=48HDQJNGTYJ86&source=qr" rel="noopener">
+            Donate via PayPal
+          </a>
+        </p>
+        <p style="font-size:.86rem;color:var(--dim);margin:0">
+          FRE.ECO DAO AI Coin &mdash; USD&nbsp;1,240,000 market cap.
+          CHF&nbsp;500,000 invested to date.
+        </p>
+      </div>
+    </div>
+  </div>
 </section>
 
 <footer>

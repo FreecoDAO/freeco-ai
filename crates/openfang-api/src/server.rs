@@ -649,6 +649,15 @@ pub async fn build_router(
             "/api/models/autoconfig",
             axum::routing::post(crate::local_ai::models_autoconfig),
         )
+        // Free models, fetched live from OpenRouter rather than hardcoded.
+        // Which models are free changes weekly, so a baked-in list is correct
+        // the day it ships and quietly wrong afterwards - and a first-run
+        // screen recommending a model that no longer exists is worse than one
+        // recommending nothing.
+        .route(
+            "/api/models/free",
+            axum::routing::get(crate::openrouter_free::list_free_models),
+        )
         // One-click service provisioning (Freeco installs + runs + connects)
         .route(
             "/api/services",
