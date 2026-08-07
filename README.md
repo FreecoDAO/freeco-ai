@@ -6,7 +6,7 @@
 <h3 align="center">The Sustainable Ethical Agentic Operating System</h3>
 
 <p align="center">
-  Open-source Agent OS built in Rust. 207K Rust LOC. 22 crates plus xtask. 2,846+ tests. Zero clippy warnings.<br/>
+  FreEco.ai product materials are distributed through authorized Free Eco Association channels.<br/>
   <strong>One binary. Battle-tested. Agents that work for you, your business, and your family.</strong>
 </p>
 
@@ -267,16 +267,21 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 
 <p align="center">
   <img src="https://img.shields.io/badge/language-Rust-orange?style=flat-square" alt="Rust" />
-  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT" />
+  <img src="https://img.shields.io/badge/distribution-authorized%20access-blue?style=flat-square" alt="Authorized access" />
   <img src="https://img.shields.io/badge/version-0.7.4-green?style=flat-square" alt="v0.7.4" />
   <img src="https://img.shields.io/badge/tests-2,696%2B%20passing-brightgreen?style=flat-square" alt="Tests" />
   <img src="https://img.shields.io/badge/clippy-0%20warnings-brightgreen?style=flat-square" alt="Clippy" />
-  <a href="https://www.buymeacoffee.com/openfang" target="_blank"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee" /></a>
 </p>
 
 ---
 
-## ⬇️ Download & Install
+## ⬇️ Authorized Download & Install
+
+FreEco.ai paid product distributions are available only after membership or
+customer entitlement verification and acceptance of the final commercial
+agreement. Contact Free Eco Association for authorized access. Public
+open-source materials and their existing licenses remain identified in
+[COPYRIGHT_AND_PRODUCT_SCOPE.md](COPYRIGHT_AND_PRODUCT_SCOPE.md).
 
 > Choose a **desktop installer** for your operating system. The
 > `openfang-<target>.zip` and `.tar.gz` files are advanced CLI archives, not
@@ -823,7 +828,13 @@ To report a security vulnerability, email **freeco.ch@proton.me**. We take all r
 
 ## License
 
-MIT. Use it Good of the People, Earth, Life
+This repository retains its Apache-2.0 and MIT notices for inherited and
+third-party material. Free Eco-owned product materials are subject to the
+scope and review requirements in
+[COPYRIGHT_AND_PRODUCT_SCOPE.md](COPYRIGHT_AND_PRODUCT_SCOPE.md); no final
+commercial license has been published yet. See
+[PRIVATE_DISTRIBUTION_READINESS.md](PRIVATE_DISTRIBUTION_READINESS.md) before
+any paid distribution.
 
 ---
 
