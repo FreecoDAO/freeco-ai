@@ -1,12 +1,19 @@
 # FreEco.ai Roadmap & verified status
 
-_Last verified: **2026-07-14** against this repository's `v0.7.7` tag,
-workspace manifest, changelog, and source tree._
+_Last verified: **2026-08-07** against this repository's `v0.9.2` tag, the
+running daemon on this machine, and the live OpenRouter model list._
+
+Every claim below was checked against something that can disagree with it — a
+running endpoint, a database row, a test, or a published API — rather than
+against the commit that was supposed to implement it. Several items previously
+described as done turned out to be schema-only or unreachable, and are now
+recorded as such.
 
 ## Status legend
 
 - ✅ **Shipped** — present in a tagged release.
 - 🟨 **Unreleased** — merged on the current branch, not yet tagged.
+- ⚠️ **Partial** — some layers exist, but the feature cannot be used.
 - 📋 **Planned** — intended work that is not implemented.
 
 ## Shipped in v0.7.7
@@ -30,14 +37,70 @@ workspace manifest, changelog, and source tree._
 - ✅ Security scanning coverage for bundled skills and release paths.
 - ✅ Operator and contributor documentation in `wiki/`.
 
+## Shipped in v0.9.2
+
+- ✅ Chat history is no longer deleted during compaction. Two separate call
+  sites were discarding messages; both are removed (`542f980`, and the earlier
+  fix it followed).
+- ✅ Historical tool results are truncated rather than re-sent in full on every
+  turn (`e2ff16b`). This was the source of a ~31:1 token amplification.
+- ✅ wasmtime 47.0.3, clearing RUSTSEC-2026-0222.
+- ✅ Approval requests state what will run, why, and at what cost.
+- ✅ Project, company, and team records with an `/api/org/*` API and a
+  dashboard tab — verified by creating a project against the running daemon
+  and reading it back.
+
 ## Unreleased
 
-- 🟨 Dashboard agent configuration now presents and updates all persisted model
-  settings, including provider, model, output-token limit, temperature, API-key
+- 🟨 Agent ids are derived from agent names instead of being random, so a
+  reinstall reattaches an agent to its own history. Previously the registry
+  came back with new ids and every conversation was orphaned in place: intact
+  in the database, invisible in the product, indistinguishable from deletion.
+- 🟨 Recovery for history orphaned before that fix — `GET
+  /api/sessions/orphaned`, `POST /api/sessions/orphaned/adopt`, and a button on
+  the sessions page. Changes ownership only; no message is rewritten.
+- 🟨 OpenRouter model ids are sent in the form OpenRouter accepts. The
+  catalog's `openrouter/` prefix is stripped only when a vendor/model pair
+  remains, so `openrouter/free` and `openrouter/auto` — real models under the
+  `openrouter` vendor — are passed through unchanged.
+- 🟨 Signup page, one-line instruction, and cost class for all 42 providers,
+  served from the backend beside the provider registry. A test fails if a
+  provider is added without them. Previously 13 of 42 were explained, in a
+  hand-written table in the dashboard JavaScript.
+- 🟨 The agent model field is a list built from the live catalogue rather than
+  a blank box that only worked if you already knew the exact id.
+- 🟨 Dashboard agent configuration presents and updates all persisted model
+  settings: provider, model, output-token limit, temperature, API-key
   environment variable, and provider base URL.
+
+## Partial — do not describe these as done
+
+- ⚠️ **Unified inbox and contacts (CRM).** The tables exist
+  (`inbox_messages`, `contacts`, `contact_handles`, migration v12) and are
+  empty. There is no API — `/api/inbox` and `/api/contacts` both return 404 —
+  and no dashboard tab. Nothing about this is reachable by a user. Building the
+  schema first was reasonable; reporting it as a delivered feature was not.
+
+## Known limits that shape the product
+
+- **OpenRouter's free tier is capped at roughly 50 requests per day** without
+  credits, returning `429 free-models-per-day`. An agent run spends several
+  requests, so a new user on a free key can hit this within a session and will
+  read it as the product being broken — the 429 is currently swallowed and
+  shown as a generic failure. Adding $10 of credit raises the cap to 1000/day
+  and is not consumed by free models. Any "works for free out of the box"
+  claim has to account for this.
+- **The desktop app and the CLI daemon share one database** at `~/.openfang`.
+  Running both at once puts two kernels on the same SQLite file and the same
+  agents, which produces `Agent is unresponsive` heartbeat warnings.
 
 ## Planned
 
+- 📋 Surface provider rate-limit errors (429) as themselves instead of a
+  generic failure, with the remedy stated.
+- 📋 Unified inbox and contacts: API and UI over the existing schema.
+- 📋 Per-model tuning fields exposed for every provider, not just a few.
+- 📋 Import agents and settings from other platforms.
 - 📋 Emergency-freeze control on every dashboard screen.
 - 📋 Agent deletion-confirmation UI.
 - 📋 Automated backup and recovery workflows.
@@ -49,5 +112,9 @@ workspace manifest, changelog, and source tree._
 
 ## Release policy
 
-Only work included in a Git tag is described as shipped. Work on the main branch
-is unreleased until a new tagged release is published.
+Only work included in a Git tag is described as shipped. Work on the main
+branch is unreleased until a new tagged release is published.
+
+A feature is "shipped" when a user can reach it, not when the code that would
+support it exists. Schema without an API, or an API without a route
+registration, is recorded as Partial.
