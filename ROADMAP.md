@@ -96,6 +96,27 @@ recorded as such.
 
 ## Planned
 
+- 📋 **Social login, and the keys that come with it.** Sign in with Google,
+  GitHub, Meta, or OpenAI, and offer to connect the AI subscriptions and keys
+  that account already carries. Most people arriving at FreEco.ai already pay
+  for at least one model provider without knowing they hold an API key; asking
+  them to find and paste one is the step where they give up. Keys obtained
+  this way follow the existing rule — stored in the hands/connector/env layer,
+  never in plaintext, never in config committed to a repo.
+- 📋 **Offer two or three free providers at setup, not one.** OpenRouter's free
+  tier alone runs out within a session (see Known limits). Groq, Google AI
+  Studio, and GitHub Copilot have independent free allowances, so proposing
+  several and configuring them together gives a new user a working day rather
+  than a working ten minutes.
+- 📋 **Automatic switch to a backup provider when one is exhausted.** The
+  fallback chain already exists and is honoured by the agent loop; what is
+  missing is populating it by default from whichever providers the user
+  connected, and treating a daily-quota 429 as a reason to move down the chain
+  rather than to fail. Mixing a top-tier paid model with free ones works the
+  same way: the paid model leads, the free ones catch the overflow.
+- 📋 **AI gateway.** Not built — the crate is not in the tree and nothing in
+  the runtime or kernel references it. Until it exists, no claim can be made
+  about it preventing data leaving the machine.
 - 📋 Surface provider rate-limit errors (429) as themselves instead of a
   generic failure, with the remedy stated.
 - 📋 Unified inbox and contacts: API and UI over the existing schema.

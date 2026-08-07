@@ -170,6 +170,25 @@ struct OaiRequest {
     thinking: Option<serde_json::Value>,
 }
 
+/// True when a 429 means "you have used your allowance for today", rather than
+/// "you are going too fast".
+///
+/// The difference decides whether retrying is useful. A per-minute limit clears
+/// on its own and is worth waiting out; a daily quota does not clear for hours,
+/// so retrying burns the remaining attempts and then reports a generic failure
+/// that tells the user nothing. OpenRouter's free tier returns the latter as
+/// `free-models-per-day`, which is the single most likely thing a new user on a
+/// free key will hit -- and it was being shown to them as "something went
+/// wrong".
+fn is_exhausted_quota(body: &str) -> bool {
+    let b = body.to_lowercase();
+    b.contains("per-day")
+        || b.contains("per day")
+        || b.contains("daily limit")
+        || b.contains("quota")
+        || b.contains("insufficient_quota")
+}
+
 /// Returns true if a model uses `max_completion_tokens` instead of `max_tokens`.
 fn uses_completion_tokens(model: &str) -> bool {
     let m = model.to_lowercase();
@@ -662,6 +681,21 @@ impl LlmDriver for OpenAIDriver {
 
             let status = resp.status().as_u16();
             if status == 429 {
+                // Read the body before deciding. A daily quota and a
+                // per-minute burst limit are the same status code and need
+                // opposite handling, and the provider only says which in the
+                // body.
+                let body = resp.text().await.unwrap_or_default();
+                if is_exhausted_quota(&body) {
+                    warn!(status, "Provider quota exhausted; not retrying");
+                    return Err(LlmError::Api {
+                        status,
+                        message: format!(
+                            "This provider's free allowance for today is used up.                              Add credit, switch to another provider, or wait for                              the daily reset. Provider said: {}",
+                            body.trim()
+                        ),
+                    });
+                }
                 if attempt < max_retries {
                     let retry_ms = (attempt + 1) as u64 * 2000;
                     warn!(status, retry_ms, "Rate limited, retrying");
@@ -1088,6 +1122,23 @@ impl LlmDriver for OpenAIDriver {
 
             let status = resp.status().as_u16();
             if status == 429 {
+                // Same reasoning as the non-streaming path: a daily quota and
+                // a burst limit share this status code, and only the body says
+                // which. Retrying an exhausted quota wastes the attempts and
+                // then reports nothing useful.
+                let body = resp.text().await.unwrap_or_default();
+                if is_exhausted_quota(&body) {
+                    warn!(status, "Provider quota exhausted; not retrying");
+                    return Err(LlmError::Api {
+                        status,
+                        message: format!(
+                            "This provider's free allowance for today is used up. \
+                             Add credit, switch to another provider, or wait for \
+                             the daily reset. Provider said: {}",
+                            body.trim()
+                        ),
+                    });
+                }
                 if attempt < max_retries {
                     let retry_ms = (attempt + 1) as u64 * 2000;
                     warn!(status, retry_ms, "Rate limited (stream), retrying");
