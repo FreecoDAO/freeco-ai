@@ -1,6 +1,12 @@
-# Contributing to OpenFang
+# Contributing to FreEco.ai
 
-Thank you for your interest in contributing to OpenFang. This guide covers everything you need to get started, from setting up your development environment to submitting pull requests.
+Thank you for your interest in contributing to FreEco.ai. This guide covers everything you need to get started, from setting up your development environment to submitting pull requests.
+
+Before submitting a contribution, review
+[CONTRIBUTOR_IP_POLICY.md](CONTRIBUTOR_IP_POLICY.md). Future external
+contributions require a counsel-approved contributor agreement before they can
+be accepted. This requirement does not alter rights in existing contributions
+or upstream OpenFang material.
 
 ## Table of Contents
 

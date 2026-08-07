@@ -1,9 +1,16 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      counsel_approval_reference:
+        description: "Counsel approval reference for the commercial distribution"
+        required: true
+        type: string
+      private_distribution_confirmed:
+        description: "Confirm that the repository, release assets, and package registry are private"
+        required: true
+        type: boolean
 
 permissions:
   contents: write
@@ -15,6 +22,7 @@ env:
 jobs:
   verify-release:
     name: Verify release metadata
+    if: inputs.private_distribution_confirmed == true && inputs.counsel_approval_reference != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -304,11 +312,12 @@ jobs:
             ghcr.io/freecodao/freeco-ai:${{ steps.version.outputs.version }}
           labels: |
             org.opencontainers.image.source=https://github.com/FreecoDAO/FreEco-ai
-            org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.description=OpenFang Agent OS — single-binary Rust agent framework
+            org.opencontainers.image.licenses=Apache-2.0 OR MIT
+            org.opencontainers.image.description=FreEco.ai distribution; see included upstream notices
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Set GHCR package visibility to public
+        if: false # Never override the package's private visibility from automation.
         # FreecoDAO is a user account, not an org — the /orgs/... endpoint
         # 404s. Best-effort: the users endpoint, and never fail the release
         # over package visibility (it can be set once in the UI instead).
