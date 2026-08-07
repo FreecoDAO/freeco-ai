@@ -309,6 +309,116 @@ function freecoAssistant() {
       this._scroll();
     },
 
+    // ---- Message actions ------------------------------------------------
+    // Reading a reply and being unable to keep it is a small, constant tax.
+    // These are the four things people reach for and could not do here.
+
+    // Plain text, not the rendered HTML: pasting markup into an editor is
+    // never what someone means by "copy".
+    copiedId: null,
+
+    copyMessage: function (m) {
+      var text = m.raw || this._plainText(m.html || '');
+      var self = this;
+      var done = function () {
+        // The button swaps its own label to "Copied", so a toast on top of
+        // that would say the same thing twice.
+        self.copiedId = m.id;
+        setTimeout(function () { if (self.copiedId === m.id) self.copiedId = null; }, 1500);
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(done, function () {
+          OpenFangToast.error('Could not copy');
+        });
+        return;
+      }
+      // http:// origins have no clipboard API, and the desktop app is often
+      // served over plain http on localhost. Fall back rather than fail.
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        done();
+      } catch (e) { OpenFangToast.error('Could not copy'); }
+    },
+
+    _plainText: function (html) {
+      var d = document.createElement('div');
+      d.innerHTML = html;
+      return (d.textContent || '').trim();
+    },
+
+    // Ask again, without retyping. Drops this reply and everything after it,
+    // so the retried answer lands where the old one was instead of the
+    // transcript showing two answers to one question.
+    retryFrom: async function (m) {
+      if (this.sending) return;
+      var i = this.messages.indexOf(m);
+      if (i < 0) return;
+      var prompt = null;
+      for (var j = i; j >= 0; j--) {
+        if (this.messages[j].role === 'user') { prompt = this.messages[j]; break; }
+      }
+      if (!prompt) return;
+      this.messages = this.messages.slice(0, this.messages.indexOf(prompt));
+      this.input = prompt.raw || this._plainText(prompt.html || '');
+      await this.send();
+    },
+
+    // Edit and resend. Everything from that message onward goes, because the
+    // replies that followed answered a question that no longer exists.
+    editMessage: function (m) {
+      if (this.sending) return;
+      var i = this.messages.indexOf(m);
+      if (i < 0) return;
+      this.input = m.raw || this._plainText(m.html || '');
+      this.messages = this.messages.slice(0, i);
+      this._scroll();
+      var el = document.getElementById('freeco-input');
+      if (el) el.focus();
+    },
+
+    // ---- Search and export ----------------------------------------------
+    msgSearch: '',
+
+    get visibleMessages() {
+      var q = (this.msgSearch || '').trim().toLowerCase();
+      if (!q) return this.messages;
+      var self = this;
+      return this.messages.filter(function (m) {
+        var t = (m.raw || self._plainText(m.html || '')).toLowerCase();
+        return t.indexOf(q) !== -1;
+      });
+    },
+
+    // Markdown, so the transcript stays readable anywhere it is opened.
+    exportChat: function () {
+      if (!this.messages.length) { OpenFangToast.info('Nothing to export yet.'); return; }
+      var self = this;
+      var lines = ['# FreEco.ai conversation', '', '_' + new Date().toLocaleString() + '_', ''];
+      this.messages.forEach(function (m) {
+        var who = m.role === 'user' ? 'You' : 'Freeco';
+        lines.push('### ' + who);
+        lines.push(m.raw || self._plainText(m.html || ''));
+        lines.push('');
+      });
+      var blob = new Blob([lines.join(String.fromCharCode(10))], { type: 'text/markdown;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'freeco-chat-' + new Date().toISOString().slice(0, 10) + '.md';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Revoking immediately can cancel the download in some browsers.
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    },
+
     async openSession(id) {
       this.showHistory = false;
       try {

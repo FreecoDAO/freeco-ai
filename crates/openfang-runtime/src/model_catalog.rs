@@ -4768,27 +4768,47 @@ mod tests {
         );
     }
 
-    /// Confirm the resolved free model's ID is one of the verified
-    /// tool-supporting free endpoints on OpenRouter.
+    /// `openrouter/free` must be passed through, not rewritten.
+    ///
+    /// This test used to assert the opposite: that the id resolved to one of
+    /// five hardcoded `:free` models, on the belief that OpenRouter's own
+    /// router rejected tool calls. It is a real, published model id — checked
+    /// against the full list OpenRouter serves — and rewriting it recreated the
+    /// problem the router exists to solve, since free models are added and
+    /// delisted constantly and a pinned id is correct only on the day it ships.
+    ///
+    /// The five ids the old test allowed are the evidence: they were pinned as
+    /// "known-good" and nothing would have told anyone when they stopped being
+    /// either known or good.
     #[test]
-    fn test_openrouter_free_alias_target() {
+    fn test_openrouter_free_is_not_rewritten() {
         let catalog = ModelCatalog::new();
-        let resolved = catalog
-            .resolve_alias("openrouter/free")
-            .expect("alias must exist");
-        // Must be one of the known-good free models with tool support.
-        let known_good = [
-            "openrouter/meta-llama/llama-3.3-70b-instruct:free",
-            "openrouter/qwen/qwen3-coder:free",
-            "openrouter/openai/gpt-oss-120b:free",
-            "openrouter/openai/gpt-oss-20b:free",
-            "openrouter/z-ai/glm-4.5-air:free",
-        ];
         assert!(
-            known_good.contains(&resolved),
-            "openrouter/free resolves to {}, expected one of: {:?}",
-            resolved,
-            known_good
+            catalog.resolve_alias("openrouter/free").is_none(),
+            "openrouter/free must reach OpenRouter unchanged, not be aliased \
+             to a pinned model that will eventually be delisted"
+        );
+        let entry = catalog
+            .find_model("openrouter/free")
+            .expect("openrouter/free must be in the catalog so it can be shown and priced");
+        assert_eq!(entry.provider, "openrouter");
+        assert_eq!(
+            entry.input_cost_per_m, 0.0,
+            "the free router must be recorded as free, or the budget page \
+             invents a cost for a conversation that cost nothing"
+        );
+        assert_eq!(entry.output_cost_per_m, 0.0);
+    }
+
+    /// The bare provider name resolves to something usable, so that saving an
+    /// OpenRouter key configures a model rather than leaving the field empty.
+    #[test]
+    fn test_openrouter_provider_alias_resolves() {
+        let catalog = ModelCatalog::new();
+        assert_eq!(
+            catalog.resolve_alias("openrouter"),
+            Some("openrouter/free"),
+            "the provider name must map to a real model id"
         );
     }
 

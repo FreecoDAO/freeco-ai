@@ -6222,6 +6222,13 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
         <button class="freeco-x" @click="toggleHistory()" title="Conversations" aria-label="Conversation history">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
         </button>
+        <!-- Filter the open conversation. Long threads are unnavigable
+             without it, and scrolling to find one line is not a search. -->
+        <input class="freeco-search" type="search" x-model="msgSearch"
+               x-show="messages.length > 4" placeholder="Search this chat"
+               aria-label="Search this conversation">
+        <button class="freeco-x" @click="exportChat()" x-show="messages.length"
+                title="Export as Markdown" aria-label="Export conversation">&#8595;</button>
         <button class="freeco-x" @click="toggleModels()" title="Model" aria-label="Choose model">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
         </button>
@@ -6352,7 +6359,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
     </div>
 
     <div class="freeco-thread" id="freeco-thread">
-      <template x-for="m in messages" :key="m.id">
+      <template x-for="m in visibleMessages" :key="m.id">
         <div class="freeco-msg" :class="'freeco-msg-' + m.role">
           <div class="freeco-bubble" x-html="m.html"></div>
           <!-- Hidden until hover so they never compete with the message, but

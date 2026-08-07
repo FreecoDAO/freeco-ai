@@ -3797,3 +3797,12 @@ mark.search-highlight {
    lags behind the pointer and the drag feels broken. */
 .of-dragging { transition: none !important; cursor: grabbing !important; }
 .freeco-dock, .freeco-estop { cursor: grab; }
+
+/* Inline search in the assistant header. Sized to disappear into the header
+   rather than compete with the conversation. */
+.freeco-search {
+  flex: 1; min-width: 0; max-width: 160px; margin: 0 6px;
+  padding: 4px 8px; font-size: 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+}
+.freeco-search::placeholder { color: var(--text-dim); }
