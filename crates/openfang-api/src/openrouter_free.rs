@@ -19,6 +19,18 @@ use std::sync::Arc;
 
 const OPENROUTER_MODELS_URL: &str = "https://openrouter.ai/api/v1/models";
 
+/// The default model for a fresh install.
+///
+/// `openrouter/free` is OpenRouter's own router across every zero-cost model:
+/// one id, 200k context, priced at zero, and they keep it pointed at whatever
+/// is currently available. That is the whole reason to use it -- the set of
+/// free models changes weekly, and this moves that maintenance burden to the
+/// people who already track it.
+///
+/// The alternative was shipping a list of individual `:free` ids, which is
+/// correct on the day it ships and quietly wrong afterwards.
+pub const DEFAULT_FREE_MODEL: &str = "openrouter/free";
+
 /// How the user gets a key.
 ///
 /// Shipping one inside the product was considered and rejected. FreEco.ai is
@@ -66,17 +78,24 @@ pub async fn list_free_models(State(_state): State<Arc<AppState>>) -> impl IntoR
         Err(e) => return offline(format!("could not read the model list: {e}")),
     };
 
+    // Every model, each flagged free or paid, rather than only the free ones.
+    //
+    // This is what a model picker needs, and it removes any argument for a
+    // hand-maintained list of "top-tier" models or a nightly job to refresh
+    // one. OpenRouter already tracks every vendor's current line-up; a list
+    // baked into this repository would be a second copy that goes stale
+    // between releases and has to be noticed by a person.
     let mut free: Vec<serde_json::Value> = body["data"]
         .as_array()
         .map(|models| {
             models
                 .iter()
-                .filter(|m| is_free(m))
                 .map(|m| {
                     serde_json::json!({
                         "id": m["id"].as_str().unwrap_or(""),
                         "name": m["name"].as_str().unwrap_or(""),
                         "context_length": m["context_length"].as_u64().unwrap_or(0),
+                        "free": is_free(m),
                         "description": truncate(m["description"].as_str().unwrap_or(""), 220),
                     })
                 })
@@ -87,13 +106,24 @@ pub async fn list_free_models(State(_state): State<Arc<AppState>>) -> impl IntoR
     // Largest context first. For an assistant that has to hold a working
     // conversation, context is the difference between usable and not, and it
     // is the one attribute a newcomer can compare without knowing the models.
-    free.sort_by_key(|m| std::cmp::Reverse(m["context_length"].as_u64().unwrap_or(0)));
+    free.sort_by_key(|m| {
+        (
+            // Free first: someone opening this for the first time should meet
+            // the models that cost nothing before the ones that do.
+            !m["free"].as_bool().unwrap_or(false),
+            // Then widest context, the one attribute a newcomer can compare
+            // without already knowing the models.
+            std::cmp::Reverse(m["context_length"].as_u64().unwrap_or(0)),
+        )
+    });
 
     (
         StatusCode::OK,
         Json(serde_json::json!({
             "provider": "openrouter",
+            "recommended": DEFAULT_FREE_MODEL,
             "models": free,
+            "free_count": free.iter().filter(|m| m["free"].as_bool().unwrap_or(false)).count(),
             "signup_url": KEY_SIGNUP_URL,
             "note": "These models are free to use with your own OpenRouter key. \
                      The key takes about a minute to create and is stored on this \
@@ -124,8 +154,68 @@ fn is_free(model: &serde_json::Value) -> bool {
             _ => false,
         }
     };
-    // An unpriced component is treated as free; a non-zero one is not.
-    ["prompt", "completion", "request"].iter().all(|k| zero(k))
+    // Only the two components OpenRouter actually returns. An earlier version
+    // also required `request` to be zero; that key is never present in their
+    // response, so the check relied on absent-means-free and added a failure
+    // mode without adding safety. Both of these must be zero, because a model
+    // that is free to send to and paid to answer is not free, and presenting
+    // it as such produces a surprise bill on the first real reply.
+    ["prompt", "completion"].iter().all(|k| zero(k))
+}
+
+/// The best free model that will actually accept tool definitions.
+///
+/// `openrouter/free` lists `tools` among its supported parameters, but the
+/// endpoints it routes to do not serve them: a request carrying tools comes
+/// back as "No endpoints found that support tool use", both with two tools and
+/// with sixty-five. Named free models accept the identical payload. Agents
+/// always send tools, so the router is the wrong default for them however
+/// convenient its single stable id is — an agent pointed at it cannot answer at
+/// all, which is indistinguishable from the product being broken.
+///
+/// The choice is made from OpenRouter's live model list rather than written
+/// down here. Free models are added and delisted constantly; a hardcoded id is
+/// correct on the day it ships and quietly dead a few weeks later, with nobody
+/// watching. Widest context wins, because that is the one property a newcomer
+/// benefits from without having to know anything about the models.
+///
+/// Returns `None` if the list cannot be fetched, so callers can fall back
+/// rather than pretend a guess is an answer.
+pub async fn best_free_tool_model() -> Option<String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .ok()?;
+    let body: serde_json::Value = client
+        .get(OPENROUTER_MODELS_URL)
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+
+    let mut candidates: Vec<(u64, String)> = body["data"]
+        .as_array()?
+        .iter()
+        .filter(|m| is_free(m))
+        .filter(|m| {
+            m["supported_parameters"]
+                .as_array()
+                .is_some_and(|ps| ps.iter().any(|p| p.as_str() == Some("tools")))
+        })
+        .filter_map(|m| {
+            Some((
+                m["context_length"].as_u64().unwrap_or(0),
+                m["id"].as_str()?.to_string(),
+            ))
+        })
+        .collect();
+
+    // Widest context first; id as a tiebreak so the choice is stable between
+    // calls rather than depending on the order the API happened to return.
+    candidates.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+    candidates.into_iter().next().map(|(_, id)| id)
 }
 
 fn truncate(text: &str, max: usize) -> String {
@@ -158,6 +248,32 @@ mod tests {
             "id": "vendor/model:free",
             "pricing": { "prompt": prompt, "completion": completion }
         })
+    }
+
+    /// The router that a fresh install defaults to. Verified against the live
+    /// API: id `openrouter/free`, 200k context, prompt and completion both "0".
+    #[test]
+    fn the_default_router_is_recognised_as_free() {
+        let router = serde_json::json!({
+            "id": "openrouter/free",
+            "name": "Free Models Router",
+            "context_length": 200000,
+            "pricing": { "prompt": "0", "completion": "0" }
+        });
+        assert!(is_free(&router));
+        assert_eq!(DEFAULT_FREE_MODEL, "openrouter/free");
+    }
+
+    /// The paid auto-router must not be mistaken for the free one. It prices
+    /// at "-1", meaning "varies", and defaulting a new user onto it would
+    /// charge them on their first message.
+    #[test]
+    fn the_paid_auto_router_is_not_free() {
+        let auto = serde_json::json!({
+            "id": "openrouter/auto",
+            "pricing": { "prompt": "-1", "completion": "-1" }
+        });
+        assert!(!is_free(&auto));
     }
 
     #[test]

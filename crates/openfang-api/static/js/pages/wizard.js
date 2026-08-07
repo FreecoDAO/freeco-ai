@@ -271,6 +271,9 @@ function wizardPage() {
     // Step 5: Summary
     setupSummary: {
       provider: '',
+      // Which model the wizard actually settled on. Shown so the user leaves
+      // knowing what is answering them, rather than having to go find it.
+      model: '',
       agent: '',
       channel: ''
     },
@@ -391,13 +394,29 @@ function wizardPage() {
     },
 
     providerHelp: function(id) {
+      // The backend knows all 42 providers and ships a signup page for each.
+      // Prefer that over the table below, which only ever covered 13 and had
+      // no way to notice when a provider was added.
+      var self = this;
+      var match = this.providers.filter(function(p) { return p.id === id; });
+      if (match.length && match[0].signup_url) {
+        return {
+          url: match[0].signup_url,
+          text: match[0].signup_hint || 'Get your API key',
+          cost: match[0].cost || '',
+          free: match[0].cost === 'Free' || match[0].cost === 'Free tier'
+        };
+      }
       var help = {
         anthropic: { url: 'https://console.anthropic.com/settings/keys', text: 'Get your key from the Anthropic Console' },
         openai: { url: 'https://platform.openai.com/api-keys', text: 'Get your key from the OpenAI Platform' },
         gemini: { url: 'https://aistudio.google.com/apikey', text: 'Get your key from Google AI Studio' },
         groq: { url: 'https://console.groq.com/keys', text: 'Get your key from the Groq Console (free tier available)' },
         deepseek: { url: 'https://platform.deepseek.com/api_keys', text: 'Get your key from the DeepSeek Platform (very affordable)' },
-        openrouter: { url: 'https://openrouter.ai/keys', text: 'Get your key from OpenRouter (access 100+ models with one key)' },
+        // Named "free" and "no credit card" because that is the one thing a
+        // newcomer needs to know before deciding, and "access 100+ models with
+        // one key" did not say it. This is the recommended starting point.
+        openrouter: { url: 'https://openrouter.ai/settings/keys', text: 'Free — no credit card. Sign in with Google or GitHub, click "Create Key", and paste it below.', free: true },
         mistral: { url: 'https://console.mistral.ai/api-keys', text: 'Get your key from the Mistral Console' },
         together: { url: 'https://api.together.xyz/settings/api-keys', text: 'Get your key from Together AI' },
         fireworks: { url: 'https://fireworks.ai/account/api-keys', text: 'Get your key from Fireworks AI' },
@@ -431,10 +450,45 @@ function wizardPage() {
         await this.loadProviders();
         // Auto-test after saving
         await this.testKey();
+        // Saving a key switches the system default model, but agents store
+        // their own model and keep whatever they were created with. Without
+        // this, a user finishes the wizard, sees "connected", and the
+        // Assistant still answers "I couldn't reach a language model" because
+        // it is pointed at a provider with no key. Nothing in the UI explains
+        // that, so it reads as the product being broken.
+        if (this.testResult && this.testResult.status === 'ok') {
+          await this.adoptNewDefaultEverywhere();
+        }
       } catch(e) {
         OpenFangToast.error((window.i18n ? window.i18n.t('wizard.failed_save_key') : 'Failed to save key:') + ' ' + e.message);
       }
       this.savingKey = false;
+    },
+
+    // Point every existing agent at the model that is now configured as the
+    // default, so a finished wizard means a working assistant rather than a
+    // saved key the user still has to wire up by hand.
+    async adoptNewDefaultEverywhere() {
+      var status = null;
+      try { status = await OpenFangAPI.get('/api/status'); } catch (e) { return 0; }
+      var target = status && status.default_model;
+      if (!target) return 0;
+      this.setupSummary.model = target;
+      var agents = [];
+      try { agents = await OpenFangAPI.get('/api/agents'); } catch (e) { return 0; }
+      var switched = 0;
+      for (var i = 0; i < agents.length; i++) {
+        if (agents[i].model_name === target) continue;
+        try {
+          await OpenFangAPI.put('/api/agents/' + agents[i].id + '/model', { model: target });
+          switched++;
+        } catch (e) { /* keep going and report the total that did move */ }
+      }
+      if (switched) {
+        OpenFangToast.success(switched + ' agent(s) now use ' + target + '.');
+        try { await Alpine.store('app').refreshAgents(); } catch (e) { /* optional */ }
+      }
+      return switched;
     },
 
     async testKey() {
@@ -539,7 +593,10 @@ function wizardPage() {
         gemini: 'gemini-2.5-flash',
         groq: 'llama-3.3-70b-versatile',
         deepseek: 'deepseek-chat',
-        openrouter: 'openrouter/google/gemini-2.5-flash',
+        // The free router, not a billed model. A new account has no credit, so
+        // defaulting to a paid model here produced an agent that failed on its
+        // first message with a billing error.
+        openrouter: 'openrouter/free',
         mistral: 'mistral-large-latest',
         together: 'meta-llama/Llama-3-70b-chat-hf',
         fireworks: 'accounts/fireworks/models/llama-v3p1-70b-instruct',

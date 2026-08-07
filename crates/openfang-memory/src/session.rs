@@ -235,6 +235,74 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Conversations whose owning agent no longer exists.
+    ///
+    /// History is stored per agent id. If the agent registry is ever rebuilt —
+    /// which is what reinstalling does — agents can come back under new ids,
+    /// and every conversation belonging to the old ids stays in the database
+    /// with nothing pointing at it. The data is intact but invisible, so the
+    /// app looks freshly installed and the user reasonably concludes their
+    /// history was deleted.
+    ///
+    /// Nothing detected this, which is why it was only ever found by opening
+    /// the database by hand. Returning it makes the loss recoverable in the
+    /// product instead.
+    pub fn list_orphaned_sessions(&self) -> OpenFangResult<Vec<serde_json::Value>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, agent_id, messages, created_at, updated_at, label FROM sessions \
+                 WHERE agent_id NOT IN (SELECT id FROM agents) \
+                 AND length(messages) > 1 \
+                 ORDER BY updated_at DESC",
+            )
+            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+        let rows = stmt
+            .query_map([], |row| {
+                let blob: Vec<u8> = row.get(2)?;
+                let count = rmp_serde::from_slice::<Vec<Message>>(&blob)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                Ok(serde_json::json!({
+                    "id": row.get::<_, String>(0)?,
+                    "former_agent_id": row.get::<_, String>(1)?,
+                    "message_count": count,
+                    "created_at": row.get::<_, String>(3)?,
+                    "updated_at": row.get::<_, String>(4)?,
+                    "label": row.get::<_, Option<String>>(5)?,
+                }))
+            })
+            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row.map_err(|e| OpenFangError::Memory(e.to_string()))?);
+        }
+        Ok(out)
+    }
+
+    /// Hand every orphaned conversation to `agent_id`, so it is reachable again.
+    ///
+    /// This only re-points ownership. No message is rewritten and nothing is
+    /// deleted, so running it twice is harmless and running it by mistake
+    /// costs the user nothing but a tidy-up.
+    pub fn adopt_orphaned_sessions(&self, agent_id: &str) -> OpenFangResult<usize> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+        let n = conn
+            .execute(
+                "UPDATE sessions SET agent_id = ?1 \
+                 WHERE agent_id NOT IN (SELECT id FROM agents)",
+                [agent_id],
+            )
+            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+        Ok(n)
+    }
+
     /// List all sessions with metadata (session_id, agent_id, message_count, created_at).
     pub fn list_sessions(&self) -> OpenFangResult<Vec<serde_json::Value>> {
         let conn = self
@@ -304,6 +372,27 @@ impl SessionStore {
         )
         .map_err(|e| OpenFangError::Memory(e.to_string()))?;
         Ok(())
+    }
+
+    /// Load the canonical conversation for an agent as a `Session`.
+    ///
+    /// The canonical log is the one written on every turn, so it holds the
+    /// conversations a user is most likely to open. Without a reader the
+    /// Sessions panel could count these messages but never show them.
+    pub fn get_canonical_as_session(&self, agent_id: AgentId) -> OpenFangResult<Option<Session>> {
+        let canonical = self.load_canonical(agent_id)?;
+        if canonical.messages.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(Session {
+            // Canonical logs have no session id of their own; the agent id is
+            // the stable handle, matching what `list_canonical_sessions` emits.
+            id: SessionId(agent_id.0),
+            agent_id,
+            label: derive_session_label(&canonical.messages),
+            messages: canonical.messages,
+            context_window_tokens: 0,
+        }))
     }
 
     /// Find a session by label for a given agent.
@@ -545,6 +634,12 @@ impl SessionStore {
                     .map(|m| m.len())
                     .unwrap_or(0);
                 Ok(serde_json::json!({
+                    // Canonical logs are keyed by agent, not by session, so
+                    // they used to come back with no session_id at all -- the
+                    // UI rendered rows it had no way to open. The agent id is
+                    // the stable handle for these, so expose it as the id and
+                    // let `kind` tell the caller which store to read.
+                    "session_id": agent_id,
                     "agent_id": agent_id,
                     "message_count": count,
                     "updated_at": updated_at,

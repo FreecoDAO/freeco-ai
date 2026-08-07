@@ -91,6 +91,27 @@ function agentsPage() {
     newAllowTool: '',
     newBlockTool: '',
     // -- Model switch --
+    // The live catalogue, so the field is a list rather than a blank box.
+    // Fetched from /api/models/free, which returns every model flagged free or
+    // paid: a hand-maintained list here would be a second copy that goes stale
+    // between releases and has to be noticed by a person.
+    catalogModels: [],
+    catalogLoading: false,
+
+    async loadModelCatalog() {
+      if (this.catalogModels.length || this.catalogLoading) return;
+      this.catalogLoading = true;
+      try {
+        var d = await OpenFangAPI.get('/api/models/free');
+        this.catalogModels = (d && d.models) || [];
+      } catch (e) {
+        // Leave the field usable as free text rather than blocking the edit:
+        // someone who knows the id should not be stopped by a failed fetch.
+        this.catalogModels = [];
+      }
+      this.catalogLoading = false;
+    },
+
     editingModel: false,
     newModelValue: '',
     editingProvider: false,

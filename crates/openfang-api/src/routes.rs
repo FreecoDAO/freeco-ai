@@ -6502,6 +6502,132 @@ pub async fn list_sessions(State(state): State<Arc<AppState>>) -> impl IntoRespo
     Json(serde_json::json!({"sessions": sessions}))
 }
 
+/// GET /api/sessions/orphaned — conversations whose owning agent is gone.
+///
+/// These are the conversations that make the app look freshly installed after
+/// a reinstall: still in the database, still complete, but owned by an agent id
+/// that no longer exists, so nothing lists them. Surfacing the count is what
+/// turns "my history was deleted" into something the user can act on.
+pub async fn list_orphaned_sessions(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let orphans = state
+        .kernel
+        .memory
+        .list_orphaned_sessions()
+        .unwrap_or_default();
+    let messages: u64 = orphans
+        .iter()
+        .map(|o| o["message_count"].as_u64().unwrap_or(0))
+        .sum();
+    Json(serde_json::json!({
+        "orphaned": orphans.len(),
+        "messages": messages,
+        "sessions": orphans,
+    }))
+}
+
+/// POST /api/sessions/orphaned/adopt — give orphaned conversations to an agent.
+///
+/// Recovery, not deletion: this only changes who owns a conversation, so it is
+/// safe to run twice and safe to run by mistake.
+pub async fn adopt_orphaned_sessions(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    let agent_id = match body["agent_id"].as_str() {
+        Some(a) if !a.is_empty() => a.to_string(),
+        _ => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "agent_id is required"})),
+            );
+        }
+    };
+    // Refuse to hand conversations to an agent that does not exist — that would
+    // just move the orphans somewhere else and report success.
+    let known = state
+        .kernel
+        .registry
+        .list()
+        .iter()
+        .any(|e| e.id.to_string() == agent_id);
+    if !known {
+        return (
+            axum::http::StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": format!("no agent with id {agent_id}")})),
+        );
+    }
+    match state.kernel.memory.adopt_orphaned_sessions(&agent_id) {
+        Ok(n) => (
+            axum::http::StatusCode::OK,
+            Json(serde_json::json!({"adopted": n, "agent_id": agent_id})),
+        ),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ),
+    }
+}
+
+/// GET /api/sessions/:id - the full message history of one conversation.
+///
+/// Without this the Sessions table could show a message COUNT but never the
+/// messages themselves: the route existed for DELETE only, so opening a
+/// session returned 405 and the panel read "no messages". Storing history and
+/// giving no way to read it is barely better than deleting it.
+pub async fn get_session_detail(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let Ok(uuid) = uuid::Uuid::parse_str(&id) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "invalid session id"})),
+        );
+    };
+    let session_id = openfang_types::agent::SessionId(uuid);
+
+    // Two stores hold conversations: `sessions` (written on compaction) and
+    // the canonical per-agent log (written on every turn). Look in both, or
+    // the newer conversations -- the ones the user is most likely opening --
+    // come back empty.
+    if let Ok(Some(session)) = state.kernel.memory.get_session(session_id) {
+        return (StatusCode::OK, Json(session_json(&session)));
+    }
+
+    match state
+        .kernel
+        .memory
+        .get_canonical_as_session(openfang_types::agent::AgentId(uuid))
+    {
+        Ok(Some(session)) => (StatusCode::OK, Json(session_json(&session))),
+        _ => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "session not found"})),
+        ),
+    }
+}
+
+/// Shape one session for the UI, messages included.
+fn session_json(session: &openfang_memory::session::Session) -> serde_json::Value {
+    let messages: Vec<serde_json::Value> = session
+        .messages
+        .iter()
+        .map(|m| {
+            serde_json::json!({
+                "role": format!("{:?}", m.role).to_lowercase(),
+                "content": m.content.text_content(),
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "session_id": session.id.0.to_string(),
+        "agent_id": session.agent_id.0.to_string(),
+        "label": session.label,
+        "message_count": messages.len(),
+        "messages": messages,
+    })
+}
+
 /// DELETE /api/sessions/:id — Delete a session.
 pub async fn delete_session(
     State(state): State<Arc<AppState>>,
@@ -7187,6 +7313,11 @@ pub async fn list_providers(State(state): State<Arc<AppState>>) -> impl IntoResp
     let mut providers: Vec<serde_json::Value> = Vec::with_capacity(provider_list.len());
 
     for (i, p) in provider_list.iter().enumerate() {
+        // Where the user gets a key, and whether it costs anything. Without
+        // this the wizard could show 42 provider cards but only explain 13 of
+        // them, because the explanations lived in a hand-written table in the
+        // dashboard JavaScript that nobody updated when a provider was added.
+        let signup = crate::provider_signup::signup_for(&p.id);
         let mut entry = serde_json::json!({
             "id": p.id,
             "display_name": p.display_name,
@@ -7195,6 +7326,10 @@ pub async fn list_providers(State(state): State<Arc<AppState>>) -> impl IntoResp
             "key_required": p.key_required,
             "api_key_env": p.api_key_env,
             "base_url": p.base_url,
+            "signup_url": signup.as_ref().map(|s| s.url),
+            "signup_hint": signup.as_ref().map(|s| s.hint),
+            "cost": signup.as_ref().map(|s| s.cost.label()),
+            "recommended": p.id == crate::provider_signup::RECOMMENDED_PROVIDER,
         });
 
         // For local providers, attach the probe result
@@ -8432,7 +8567,25 @@ pub async fn set_provider_key(
     };
     let switched = if !current_has_key && current_provider != name {
         // Find a default model for the newly-keyed provider
-        let default_model = {
+        let default_model = if name == "openrouter" {
+            // Ask OpenRouter which free models currently accept tools, and take
+            // the best of them. The catalog default is `openrouter/free`, which
+            // is genuinely free but refuses tool calls — and agents always send
+            // tools, so a user who pastes a key would get an assistant that
+            // cannot answer anything. Falling back to the catalog keeps this
+            // working when the list cannot be fetched.
+            match crate::openrouter_free::best_free_tool_model().await {
+                Some(id) => Some(format!("openrouter/{id}")),
+                None => {
+                    let catalog = state
+                        .kernel
+                        .model_catalog
+                        .read()
+                        .unwrap_or_else(|e| e.into_inner());
+                    catalog.default_model_for_provider(&name)
+                }
+            }
+        } else {
             let catalog = state
                 .kernel
                 .model_catalog
