@@ -1,6 +1,6 @@
 # FreEco.ai Roadmap & verified status
 
-_Last verified: **2026-08-07** against this repository's `v0.9.2` tag, the
+_Last verified: **2026-08-08** against this repository's `v0.9.4` tag, the
 running daemon on this machine, and the live OpenRouter model list._
 
 Every claim below was checked against something that can disagree with it — a
@@ -50,26 +50,26 @@ recorded as such.
   dashboard tab — verified by creating a project against the running daemon
   and reading it back.
 
-## Unreleased
+## Shipped in v0.9.4
 
-- 🟨 Agent ids are derived from agent names instead of being random, so a
+- ✅ Agent ids are derived from agent names instead of being random, so a
   reinstall reattaches an agent to its own history. Previously the registry
   came back with new ids and every conversation was orphaned in place: intact
   in the database, invisible in the product, indistinguishable from deletion.
-- 🟨 Recovery for history orphaned before that fix — `GET
+- ✅ Recovery for history orphaned before that fix — `GET
   /api/sessions/orphaned`, `POST /api/sessions/orphaned/adopt`, and a button on
   the sessions page. Changes ownership only; no message is rewritten.
-- 🟨 OpenRouter model ids are sent in the form OpenRouter accepts. The
+- ✅ OpenRouter model ids are sent in the form OpenRouter accepts. The
   catalog's `openrouter/` prefix is stripped only when a vendor/model pair
   remains, so `openrouter/free` and `openrouter/auto` — real models under the
   `openrouter` vendor — are passed through unchanged.
-- 🟨 Signup page, one-line instruction, and cost class for all 42 providers,
+- ✅ Signup page, one-line instruction, and cost class for all 42 providers,
   served from the backend beside the provider registry. A test fails if a
   provider is added without them. Previously 13 of 42 were explained, in a
   hand-written table in the dashboard JavaScript.
-- 🟨 The agent model field is a list built from the live catalogue rather than
+- ✅ The agent model field is a list built from the live catalogue rather than
   a blank box that only worked if you already knew the exact id.
-- 🟨 Dashboard agent configuration presents and updates all persisted model
+- ✅ Dashboard agent configuration presents and updates all persisted model
   settings: provider, model, output-token limit, temperature, API-key
   environment variable, and provider base URL.
 
@@ -93,6 +93,8 @@ recorded as such.
 - **The desktop app and the CLI daemon share one database** at `~/.openfang`.
   Running both at once puts two kernels on the same SQLite file and the same
   agents, which produces `Agent is unresponsive` heartbeat warnings.
+
+## Unreleased
 
 ## Planned
 
