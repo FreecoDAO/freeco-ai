@@ -7052,6 +7052,24 @@ fn infer_provider_from_model(model: &str) -> Option<String> {
     }
 }
 
+/// Agents that must survive: the entry point, and anything the user would lose
+/// irreplaceable context by removing.
+///
+/// The FreEco.ai Assistant is where a user starts, and it accumulates the plans,
+/// structure and decisions that the rest of the system reads from. Deleting it
+/// does not remove one agent among several; it discards that context, and the
+/// user has no way to tell those two things apart from a confirmation dialog.
+///
+/// Matched on name rather than id because the id differs per install, and
+/// case-insensitively across the spellings that have shipped ("Freeco.AI
+/// assistant", "FreEco.ai Assistant") so a rename of casing does not silently
+/// remove the protection.
+pub fn is_protected_agent(name: &str) -> bool {
+    let n = name.trim().to_lowercase();
+    n == "assistant"
+        || (n.contains("assistant") && (n.contains("freeco") || n.contains("freeco.ai")))
+}
+
 /// A well-known agent ID used for shared memory operations across agents.
 /// This is a fixed UUID so all agents read/write to the same namespace.
 pub fn shared_memory_agent_id() -> AgentId {
@@ -9589,5 +9607,40 @@ fn tool_is_reversible(tool_name: &str) -> Option<bool> {
         // anything, and claiming it is reversible would be a lie the user acts on.
         "shell_exec" => None,
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod protected_agent_tests {
+    use super::is_protected_agent;
+
+    #[test]
+    fn the_assistant_is_protected_across_the_spellings_that_shipped() {
+        for name in [
+            "assistant",
+            "Assistant",
+            "Freeco.AI assistant",
+            "FreEco.ai Assistant",
+            "freeco assistant",
+            "  FreEco.ai Assistant  ",
+        ] {
+            assert!(is_protected_agent(name), "{name} must not be deletable");
+        }
+    }
+
+    /// Ordinary agents stay deletable. A protection that catches everything is
+    /// the same as no delete function at all, and the user asked for buttons
+    /// that work — not for the app to start refusing things.
+    #[test]
+    fn ordinary_agents_are_still_deletable() {
+        for name in [
+            "Developer",
+            "freeco-shopping",
+            "collector-hand",
+            "Release Manager",
+            "researcher",
+        ] {
+            assert!(!is_protected_agent(name), "{name} must remain deletable");
+        }
     }
 }
