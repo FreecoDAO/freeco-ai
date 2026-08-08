@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-08-08
+
+### Fixed
+
+- Agents no longer lose their conversations when FreEco.ai is reinstalled.
+  History is stored keyed by agent id, and agents were assigned random ids,
+  so rebuilding the agent registry -- which is what a reinstall does --
+  brought them back under new ids and left every conversation in the
+  database with nothing pointing at it. The data was intact and completely
+  invisible, which is indistinguishable from deletion for anyone using the
+  app. Built-in and on-disk agents now derive their ids from their names, so
+  an agent comes back as itself. Existing agents are untouched.
+
+- Conversations already orphaned this way can be recovered, since deriving
+  ids does nothing for history that lost its owner before this change:
+  `GET /api/sessions/orphaned` reports what is recoverable and the sessions
+  page offers it as a button. It changes ownership only -- no message is
+  rewritten and nothing is deleted.
+
+- The in-app updater never ran. `withGlobalTauri` was unset, so
+  `window.__TAURI__` did not exist in the dashboard at all, and every update
+  fell through to "open the download page" even inside the desktop app. The
+  dashboard also looked for the updater plugin's JavaScript bindings, which
+  are not served with it, while the app's own `check_for_updates` and
+  `install_update` commands went uncalled. Updates now install in place.
+
+- Tagging a release no longer produces a tag with no build. A tag pushed by
+  a workflow only starts another workflow when the token permits it; when it
+  does not, the tag lands, nothing builds, and no job fails. v0.9.3 was
+  tagged this way and never released. Auto Tag now starts the release build
+  explicitly and fails loudly if it cannot.
+
+- OpenRouter model ids are sent in the form OpenRouter accepts. The catalog
+  prefixes them with `openrouter/` to tell them apart from the same model
+  sold directly by its vendor, and that prefix was being sent upstream,
+  where it is not a known model.
+
+### Added
+
+- The setup wizard says where an API key comes from and what it costs, for
+  every provider it lists. It offered 42 providers and explained 13, because
+  the signup links lived in a hand-written table in the dashboard that
+  nobody updated when a provider was added. A test now fails if a provider
+  ships without one.
+
+- The model field is a list built from the live catalogue rather than a
+  blank box that only worked if you already knew the exact id.
+
+- The Assistant cannot be deleted, only paused. It holds the accumulated
+  context the rest of the system reads from, and no confirmation dialog
+  conveys the difference between removing an agent and discarding that.
+
 ## [0.9.3] - 2026-08-08
 
 ### Fixed

@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - "v*"
+  # Also startable directly on a tag ref, because the push trigger cannot be
+  # relied on alone: a tag pushed by a workflow only starts another workflow if
+  # the token allows it, and when it does not, the tag simply appears with no
+  # build and nothing reports a failure. That is how v0.9.3 came to exist as a
+  # tag with no release. Auto Tag now dispatches this explicitly after pushing.
+  #
+  # Every job reads `github.ref_name`, which is the tag when dispatched with
+  # `--ref v1.2.3`, so nothing else here needs to change.
+  workflow_dispatch:
 
 permissions:
   contents: write

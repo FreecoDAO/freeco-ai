@@ -20,6 +20,9 @@ jobs:
       - name: Read version and conditionally push tag
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          # `gh workflow run` reads GH_TOKEN. Same secret: it already has the
+          # rights to push the tag, so it can start the build for that tag.
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           # A skip that reports success is indistinguishable from a tag that
           # was pushed. This workflow went green for both v0.9.0 and v0.9.2
@@ -60,4 +63,22 @@ jobs:
             "https://x-access-token:${RELEASE_TOKEN}@github.com/${{ github.repository }}.git"
           git tag -a "${TAG}" -m "Release ${TAG}"
           git push origin "${TAG}"
-          echo "Pushed tag ${TAG} — release.yml will now build artifacts"
+          echo "Pushed tag ${TAG}"
+
+          # Start the release build explicitly rather than trusting the tag push
+          # to do it. A tag pushed by a workflow only triggers another workflow
+          # when the token permits it; when it does not, the tag lands, nothing
+          # builds, and no job fails -- so the first sign of trouble is a user
+          # asking why the new version never arrived. v0.9.3 was tagged this way
+          # and never produced a release.
+          #
+          # Dispatching on the tag ref means release.yml sees `github.ref_name`
+          # as the tag, exactly as it does for a tag push.
+          if gh workflow run release.yml --ref "${TAG}"; then
+            echo "Dispatched release.yml on ${TAG}"
+          else
+            echo "::error::Tag ${TAG} was pushed but the release build could not"
+            echo "::error::be started. Run it manually: Actions > Release > Run"
+            echo "::error::workflow > use workflow from ${TAG}."
+            exit 1
+          fi
