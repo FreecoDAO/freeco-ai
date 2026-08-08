@@ -783,6 +783,31 @@ pub async fn uninstall_agent(
         }
     };
 
+    // The Assistant is the entry point and holds the accumulated context every
+    // other feature reads from — plans, structure, the history of what was set
+    // up and why. Deleting it is not "removing an agent", it is discarding that
+    // context, and no confirmation dialog conveys the difference.
+    //
+    // Refused here rather than hidden in the dashboard, because the UI is not
+    // the only caller: the CLI, the API and agents themselves can all reach
+    // this endpoint. Pausing is the reversible operation that was actually
+    // wanted, and it is what the error points at.
+    if openfang_kernel::kernel::is_protected_agent(&agent_name) {
+        return (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "error": format!(
+                    "{agent_name} is the entry point and holds your accumulated context, \
+                     so it cannot be deleted. Pause it instead — that stops it working \
+                     without discarding anything, and it can be resumed."
+                ),
+                "agent": agent_name,
+                "protected": true,
+                "instead": "POST /api/agents/{id}/pause",
+            })),
+        );
+    }
+
     // Step 1: kill the agent (registry, memory, cron, triggers, caps).
     if let Err(e) = state.kernel.kill_agent(agent_id) {
         tracing::warn!("kill_agent failed during uninstall for {id}: {e}");

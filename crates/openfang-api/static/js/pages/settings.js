@@ -705,6 +705,20 @@ function settingsPage() {
       this.updateChecking = false;
     },
 
+    // Reach the desktop app's command bridge, or null in a plain browser.
+    //
+    // Tauri v2 exposes `invoke` at `window.__TAURI__.core.invoke`; v1 put it at
+    // `window.__TAURI__.invoke`. Both are checked so this keeps working if the
+    // desktop shell is upgraded, rather than silently reverting to "go download
+    // it yourself" the way the previous check did.
+    tauriInvoke() {
+      if (typeof window === 'undefined' || !window.__TAURI__) return null;
+      var t = window.__TAURI__;
+      if (t.core && typeof t.core.invoke === 'function') return t.core.invoke;
+      if (typeof t.invoke === 'function') return t.invoke;
+      return null;
+    },
+
     // Handle the "Get update" button. Never do nothing silently: on the desktop
     // app, run the built-in auto-updater (download + install + relaunch) with a
     // toast at every stage; in the browser/portable edition, open the download
@@ -712,27 +726,29 @@ function settingsPage() {
     async getUpdate() {
       if (this.updateBusy) return;
       this.updateBusy = true;
-      var tauri = (typeof window !== 'undefined') && window.__TAURI__;
+      // Call the desktop app's own commands rather than the updater plugin's
+      // JavaScript API. This used to look for `window.__TAURI__.updater.check`,
+      // which never existed: the plugin's JS bindings are not served with the
+      // dashboard, so every desktop user silently fell through to the browser
+      // branch and was told to go download an installer by hand. The Rust side
+      // has always had `check_for_updates` and `install_update` registered --
+      // nothing was calling them.
+      var invoke = this.tauriInvoke();
       try {
-        if (tauri && tauri.updater && tauri.updater.check) {
-          // Desktop app: real download + install.
+        if (invoke) {
+          // Desktop app: real download + install, no browser round trip.
           this.updateStatus = 'Checking for the update package...';
-          var update = await tauri.updater.check();
+          var update = await invoke('check_for_updates');
           if (!update || !update.available) {
             this.updateStatus = 'You are already on the latest version.';
             OpenFangToast.success('You are on the latest version.');
             return;
           }
           this.updateStatus = 'Downloading v' + (update.version || this.updateLatest) + '...';
-          OpenFangToast.info('Downloading the update — this can take a minute.');
-          await update.downloadAndInstall(function(ev) {
-            if (ev && ev.event === 'Progress' && ev.data && ev.data.contentLength) {
-              // best-effort progress; not all platforms report it
-            }
-          });
+          OpenFangToast.info('Downloading the update — this can take a minute. Your data stays where it is.');
+          await invoke('install_update');
           this.updateStatus = 'Update installed. Restarting FreEco.ai...';
           OpenFangToast.success('Update installed — restarting.');
-          if (tauri.process && tauri.process.relaunch) await tauri.process.relaunch();
           return;
         }
         // Browser / portable / CLI: open the download page (no in-app install).
