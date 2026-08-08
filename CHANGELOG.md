@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-08-08
+
+### Fixed
+
+- Compaction no longer deletes messages. It called `split_off` on the
+  message list and discarded older history permanently, keeping only a
+  summary that cut each message to 200 characters and then clipped the
+  result to its trailing 4000. Users who watched older chats vanish were
+  seeing exactly that. The deletion was never necessary: the prompt builder
+  already takes only the trailing window, so the model never saw those
+  messages either way. Keeping the model's context small and throwing away
+  the user's conversation are different things, and the second must not be
+  a side effect of the first.
+- `GET /api/sessions/{id}` exists. The history sidebar had been calling it
+  and getting 405, so a finished feature sat starved of data.
+- The Copy, Edit and Retry buttons do something. They were rendered and
+  bound to `copyMessage`, `editMessage` and `retryFrom`, none of which had
+  been written, so pressing them did nothing at all.
+- Secrets Scan stopped failing at random. TruffleHog's Lob detector matched
+  Rust test function names and reported them as *verified* secrets;
+  verification calls the provider's API, whose answer is not deterministic,
+  so the identical tree passed once and failed the four runs before it. A
+  gate that blocks merges at random teaches people to wave it through.
+- Agents no longer lose their conversations on reinstall. History is keyed by
+  agent id, and agents were getting random UUIDs, so rebuilding the registry
+  brought them back under new ids and orphaned every conversation in place —
+  intact in the database, invisible in the product, indistinguishable from
+  deletion. Ids are now derived from agent names. Existing agents are
+  unaffected, being restored with their stored ids.
+- OpenRouter model ids are sent in the form OpenRouter accepts. The catalog's
+  `openrouter/` prefix is stripped only when a vendor/model pair remains, so
+  `openrouter/free` and `openrouter/auto` — real models published under the
+  `openrouter` vendor — are passed through unchanged.
+- An exhausted daily allowance is reported as itself instead of a generic
+  failure. A 429 was always treated as "too fast": retried, then returned
+  bare. Providers use the same status for "no requests left today", which does
+  not clear for hours, so the retries were wasted and the user saw no cause
+  and no remedy.
+
+### Added
+
+- Recovery for conversations orphaned before the id fix: `GET
+  /api/sessions/orphaned`, `POST /api/sessions/orphaned/adopt`, and a button
+  on the sessions page. Changes ownership only — no message is rewritten and
+  nothing is deleted, so it is safe to run twice.
+- Signup page, one-line instruction, and cost class for all 42 providers,
+  served from the backend beside the provider registry. A test fails if a
+  provider is added without them. Previously 13 of 42 were explained, in a
+  hand-written table in the dashboard JavaScript.
+- The agent model field is a list built from the live catalogue, rather than a
+  blank box usable only if you already knew the exact id.
+- Assistant conversation controls: copy, retry, edit, search, and export.
+
+### Changed
+
+- `ROADMAP.md` re-verified against the running daemon rather than against the
+  commits that were meant to implement each item. The unified inbox is
+  recorded as Partial — tables exist, but `/api/inbox` and `/api/contacts`
+  return 404 and there is no UI. OpenRouter's ~50-requests-per-day free cap is
+  recorded as a known limit, since it shapes what "free by default" can mean.
+
 ## [0.9.2] - 2026-08-05
 
 ### Fixed
