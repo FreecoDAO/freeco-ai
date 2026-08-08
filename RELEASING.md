@@ -1,83 +1,96 @@
 # Releasing FreEco.ai
 
-This is the process that has actually produced releases (v0.9.1, v0.9.2,
-v0.9.4). It is written down because it was twice re-derived from scratch, and
-once replaced with a mechanism that did not work.
+## The entry point: merge a labelled PR
 
-## The one rule
+**Open a PR to `main`, give it the `release` label, merge it.** That is the
+whole process. Everything after it is automatic.
 
-**Push the tag from a local machine.** Every successful release in the run
-history is `event=push`, `actor=FreecoDAO`.
+Do not bump versions or push tags by hand. If you start doing it manually you
+have to finish it manually, and the manual path silently skips several things
+the automation does — see "What you lose" below.
 
-A tag pushed by a GitHub Actions workflow does **not** start another workflow.
-When Auto Tag pushes the tag, the tag appears, `release.yml` never runs, and
-nothing reports a failure — the first sign of trouble is a user asking why the
-new version never arrived. That is exactly how `v0.9.3` came to exist as a tag
-with no release.
+### What the merge sets off
 
-## Steps
+`prepare-release.yml` runs on a merged PR carrying the `release` label:
 
-1. **Bump the version in all four places.** They must agree or the release
-   fails at the first job and every build job is skipped:
+1. **Derives the version increment from the PR title** — `feat*` → minor,
+   a title containing `!` or `BREAKING CHANGE` → major, anything else → patch.
+   So the PR title is the release type. Name it deliberately.
+2. **Runs `scripts/prepare_release_metadata.py`**, which updates all four
+   version locations together:
+   - `Cargo.toml`
+   - `crates/openfang-desktop/tauri.conf.json` — this one sets the **installer
+     filename**, not `Cargo.toml` (PR #54). Every release between v0.7.5 and
+     v0.7.7 shipped installers named with a stale version because the script
+     did not yet touch it.
+   - `CHANGELOG.md` — promotes the `Unreleased` section, which must exist and
+     be non-empty
+   - `ROADMAP.md` — moves `Unreleased` items into `Shipped`, both of which
+     must exist
+3. **Commits `chore(release): vX.Y.Z`, tags it, and pushes with
+   `--follow-tags`** using `RELEASE_TOKEN`.
+4. **Closes the current milestone and opens the next.**
+5. **Moves Project board items** for the previous milestone to Released.
 
-   | file | what to change |
-   |---|---|
-   | `Cargo.toml` | `version = "X.Y.Z"` (workspace root, line ~30) |
-   | `crates/openfang-desktop/tauri.conf.json` | `"version": "X.Y.Z"` |
-   | `CHANGELOG.md` | add a `## [X.Y.Z] - YYYY-MM-DD` section |
-   | the tag itself | `vX.Y.Z` |
+`release.yml` then fires on the tag and builds 14 jobs — 6 desktop platforms,
+7 CLI targets, Docker — producing ~35 `.sig`-signed assets plus `latest.json`,
+which is what the desktop auto-updater reads.
 
-   `tauri.conf.json` is the one that gets forgotten. It is not covered by the
-   workspace version and does not fail any local build, so nothing reminds you.
+### Why `RELEASE_TOKEN` and not `GITHUB_TOKEN`
 
-2. **Check the gate locally before pushing anything.** These are the exact
-   commands `release.yml` runs, so if they pass here they pass there:
+GitHub will not let a tag pushed with the default `GITHUB_TOKEN` trigger
+another workflow. That is why `RELEASE_TOKEN` must be a PAT with
+`contents: write` and `workflow` scope. Without it the tag appears, nothing
+builds, and — before this was made loud — no job failed.
 
-   ```bash
-   version=X.Y.Z
-   grep -q "^version = \"$version\"$" Cargo.toml
-   grep -q "^## \[$version\]" CHANGELOG.md
-   python3 -c 'import json; print(json.load(open("crates/openfang-desktop/tauri.conf.json"))["version"])'
-   ```
+## Guards that will stop you
 
-3. **Commit and push `main` first.** The tag must be an ancestor of
-   `origin/main`; it need not be its exact head.
+- **`guard` job**: fails any merged PR that changes the `Cargo.toml` version
+  without the `release` label. A version bump is a release; it should not
+  arrive by accident.
+- **`verify-release` job**: before anything builds, the tag, `Cargo.toml`,
+  `CHANGELOG.md` and `tauri.conf.json` must all agree. If one disagrees the
+  first job fails and all 14 build jobs are skipped (PR #56).
 
-4. **Push the tag yourself:**
-
-   ```bash
-   git push origin refs/tags/vX.Y.Z
-   ```
-
-   If Auto Tag already created the tag, delete it and re-push it locally, or it
-   will never build:
-
-   ```bash
-   git push origin :refs/tags/vX.Y.Z
-   git tag -f -a vX.Y.Z -m "Release vX.Y.Z"
-   git push origin refs/tags/vX.Y.Z
-   ```
-
-## What the release produces
-
-14 build jobs — 6 desktop platforms, 7 CLI targets, and a Docker image —
-yielding ~35 assets, each `.sig`-signed, plus `latest.json`. That manifest is
-what the desktop auto-updater reads from
-`https://github.com/FreecoDAO/freeco-ai/releases/latest/download/latest.json`.
-
-## Checking it worked
+Check the gate locally with the same commands CI uses:
 
 ```bash
-curl -s https://api.github.com/repos/FreecoDAO/freeco-ai/actions/workflows/release.yml/runs?per_page=3
+version=X.Y.Z
+grep -q "^version = \"$version\"$" Cargo.toml
+grep -q "^## \[$version\]" CHANGELOG.md
+python3 -c 'import json; print(json.load(open("crates/openfang-desktop/tauri.conf.json"))["version"])'
 ```
 
-A release that succeeded shows `conclusion: success`. A tag with no run at all
-means the tag was pushed by a workflow — see the one rule above.
+## `auto-tag.yml` is a fallback, not the path
 
-## Why Auto Tag still exists
+It runs on every push to `main` and tags when the version was bumped but no
+tag exists — self-healing for a release that was prepared without the label
+(PR #50). Originally it exited silently when `RELEASE_TOKEN` was unset or the
+tag already existed, which is why v0.9.0 and v0.9.2 showed a green tick while
+tagging nothing. It now says loudly what it skipped.
 
-It catches the case where `main` has a version bump that nobody tagged, and it
-now fails loudly rather than skipping in silence. Treat a green Auto Tag as
-"the version and changelog agree", not as "a release was built" — those are
-different claims, and conflating them is what hid the v0.9.0 and v0.9.2
-problems at the time.
+**A green Auto Tag means "the version and changelog agree", not "a release was
+built".** Those are different claims and conflating them is what hid the
+problem for two releases.
+
+## What you lose by doing it manually
+
+v0.9.4 was cut by hand, and these did not happen:
+
+- `ROADMAP.md` was not updated — `Unreleased` items were never moved to
+  `Shipped`
+- the v0.9.3 milestone was not closed and no v0.9.4 milestone was created
+- Project board items were not moved to Released
+
+If you have already gone manual, do those by hand or fold them into the next
+release PR.
+
+## Checking a release actually built
+
+```bash
+curl -s "https://api.github.com/repos/FreecoDAO/freeco-ai/actions/workflows/release.yml/runs?per_page=3"
+```
+
+A tag with no run at all means the tag never triggered the build — check the
+token, not the workflow. `v0.9.3` is the example: a tag, no release, no
+failure anywhere.
