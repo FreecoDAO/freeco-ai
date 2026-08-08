@@ -4257,6 +4257,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "openfang-datagateway"
+version = "0.9.4"
+dependencies = [
+ "chrono",
+ "rand 0.9.5",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "openfang-desktop"
 version = "0.9.4"
 dependencies = [
