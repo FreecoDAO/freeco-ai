@@ -122,10 +122,23 @@ jobs:
           tar -xzf /tmp/trufflehog.tar.gz -C /usr/local/bin trufflehog
       - name: Scan for secrets
         run: |
+          # The Lob detector is excluded because it matches Rust test
+          # function names -- test_derive_session_key_different_nonces,
+          # test_image_gen_request_validate_bad_size and 39 others -- and
+          # then reports them as *verified* secrets. Verification calls the
+          # provider API, and Lob answers non-deterministically, so the
+          # identical tree passed once on main and failed the four runs
+          # before it. A gate that blocks merges at random teaches people
+          # to ignore it, which is worse than not having one.
+          #
+          # This drops one provably wrong detector, not the scan: every
+          # other detector still runs with --only-verified --fail. Revisit
+          # if this project ever actually uses Lob.
           trufflehog filesystem . \
             --no-update \
             --fail \
             --only-verified \
+            --exclude-detectors=lob \
             --exclude-paths=<(echo -e "target/\n.git/\nCargo.lock")
 
   # ── Installer smoke test (verify install scripts from Vercel) ──────────────
