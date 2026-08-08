@@ -6,6 +6,11 @@ on:
 
 permissions:
   contents: write
+  # Starting the release build is a separate right from pushing the tag:
+  # `contents: write` pushes it, `actions: write` runs a workflow. Without
+  # both, the tag lands and the build never starts -- which is the exact
+  # failure this workflow now exists to prevent.
+  actions: write
 
 jobs:
   auto-tag:
