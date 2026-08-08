@@ -84,6 +84,23 @@ td:first-child{font-weight:600;white-space:normal}
 .free-badge{display:inline-flex;align-items:center;gap:8px;background:var(--leaf);color:#0f1a0b;
   font-weight:800;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;
   padding:7px 15px;border-radius:100px;margin-bottom:1.1rem}
+
+.tier{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));margin-top:34px}
+.tier .card{background:#fff;border:2px solid var(--line);border-radius:16px;padding:26px;display:flex;flex-direction:column}
+.tier .card.hi{border-color:var(--leaf);box-shadow:0 8px 26px rgba(104,240,0,.18)}
+.tier h3{font-size:1.25rem;margin-bottom:.15em}
+.tier .price{font-size:1.05rem;font-weight:700;color:var(--green-700);margin-bottom:.9em}
+.tier ul{margin:0 0 18px;padding-left:1.15em;font-size:.9rem;color:var(--dim)}
+.tier li{margin-bottom:.45em}
+.tier .foot{margin-top:auto}
+.pill{display:inline-block;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  padding:4px 10px;border-radius:100px;background:var(--green-100);color:var(--green-900);margin-left:8px}
+.pill.soon{background:#f0efe9;color:#6a6a60}
+.rank{display:inline-block;min-width:26px;font-weight:800;color:var(--green-700)}
+.teams{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:32px}
+.team{background:#fff;border:1px solid var(--line);border-left:4px solid var(--leaf);border-radius:12px;padding:20px}
+.team b{display:block;margin-bottom:.35em;color:var(--green-900)}
+.team span{font-size:.9rem;color:var(--dim)}
 footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px solid var(--line)}
 </style>
 </head>
@@ -98,8 +115,8 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
       voice and an isolated Linux sandbox built in. Runs on hardware you own.
     </p>
     <p class="lede" style="max-width:46ch;color:var(--green-900);font-weight:600">
-      Ships with free models already configured. Install it and it answers &mdash;
-      no card, no API key, no signup.
+      Free to run: it finds today&rsquo;s zero-cost models and walks you through
+      claiming your own key. A minute, no card.
     </p>
     <div class="btnrow">
       <a class="btn btn-primary" href="https://openrouter.ai/openrouter/free" rel="noopener">Start free &rarr;</a>
@@ -150,66 +167,65 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
 
 <section>
   <div class="wrap">
-    <h2>Where FreEco.ai stands</h2>
-    <p class="sub">Our own figures, stated exactly.</p>
-    <div class="stats">
-      <div class="stat"><b class="num">CHF 500,000</b><span>invested to date</span></div>
-      <div class="stat"><b class="num">USD 1,240,000</b><span>FRE.ECO DAO AI Coin market cap</span></div>
-      <div class="stat"><b class="num">44</b><span>communication channels integrated</span></div>
-      <div class="stat"><b class="num">100%</b><span>open source, self-hostable</span></div>
-    </div>
-  </div>
-</section>
-
-<section style="background:linear-gradient(180deg,var(--green-50),#fff)">
-  <div class="wrap">
-    <span class="free-badge">Free to start &mdash; no card, no key</span>
+    <span class="free-badge">Free to start</span>
     <h2>Free &amp; Eco, literally</h2>
     <p class="sub" style="font-size:1.12rem">
-      FreEco.ai ships with a free OpenRouter model key already configured. Install
-      it and your assistant answers on the first run &mdash; no signup, no billing
-      details, no hunting for an API key before anything works. Add your own
-      provider later, a model on your own GPU, or neither.
+      On first run FreEco.ai finds the models OpenRouter currently prices at zero
+      and walks you through claiming your own free key &mdash; a minute, no card.
+      The key is yours, so your usage is yours: no shared quota to exhaust, no
+      pooled key to be misused. Add a paid provider later, or a model on your own
+      GPU, or neither.
     </p>
     <div class="stats" style="margin-top:30px">
-      <div class="stat"><b style="font-size:1.15rem">Works in one step</b>
-        <span>Install and talk to it. Most agent tools want a paid API key before
-        they will say a single word.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Your own key, not ours</b>
+        <span>Guided setup at OpenRouter. A shared key would degrade for everyone
+        as adoption grows, and invites abuse.</span></div>
       <div class="stat"><b style="font-size:1.15rem">A free tier, not a trial</b>
-        <span>OpenRouter's free models &mdash; not a countdown that expires and
-        leaves you with a dead install.</span></div>
-      <div class="stat"><b style="font-size:1.15rem">Swap any time</b>
-        <span>Point it at your own key, another provider, or a local model.
-        Nothing is locked and nothing is lost.</span></div>
+        <span>Models genuinely priced at zero &mdash; not a countdown that expires
+        and leaves you with a dead install.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Discovered live</b>
+        <span>Which models are free changes weekly, so the list is fetched rather
+        than hardcoded and stale.</span></div>
       <div class="stat"><b style="font-size:1.15rem">Eco by default</b>
         <span>The lightest model that can do the job is the one chosen. Compute
         not spent is energy not burned.</span></div>
     </div>
     <div class="btnrow">
-      <a class="btn btn-primary" href="https://openrouter.ai/openrouter/free" rel="noopener">See the free models &rarr;</a>
+      <a class="btn btn-primary" href="https://openrouter.ai/openrouter/free" rel="noopener">Get your free key &rarr;</a>
       <a class="btn btn-ghost" href="https://github.com/FreecoDAO/freeco-ai" rel="noopener">Install FreEco.ai</a>
     </div>
-    <p style="font-size:.84rem;color:var(--dim);margin-top:10px">
-      Free models are rate-limited by OpenRouter &mdash; that is what keeps them
-      free. For heavy or commercial use add your own key; the switch is one field
-      in Settings.
-    </p>
   </div>
 </section>
 
 <section style="background:linear-gradient(180deg,var(--green-50),#fff)">
   <div class="wrap">
-    <h2>Why this exists</h2>
+    <h2>What is the use of FreEco.ai</h2>
     <p class="sub" style="font-size:1.15rem">
-      To help individuals, families and businesses live and trade more healthily
-      and ecologically &mdash; by making the consequences of an everyday decision
-      visible at the moment it is taken, not in a report afterwards.
+      It runs the work. Not a chat window you type into &mdash; a team of agents
+      that keeps a company or a household going while you are asleep, and makes
+      the ecological and health cost of each decision visible at the moment it
+      is taken rather than in a report afterwards.
     </p>
+
     <div class="stats">
-      <div class="stat"><b style="font-size:1.15rem">Daily choices</b><span>Every purchase, supplier and workflow carries an ecological and health cost. Agents surface it before you commit, not after.</span></div>
-      <div class="stat"><b style="font-size:1.15rem">Sustainable by construction</b><span>Guardrails an agent cannot argue its way past. A cheaper supplier with a worse footprint is flagged, not quietly chosen.</span></div>
-      <div class="stat"><b style="font-size:1.15rem">Families and kids</b><span>Health-aware defaults and a kid-safe role, because habits are formed early and most tools ignore that entirely.</span></div>
-      <div class="stat"><b style="font-size:1.15rem">Honest about our own cost</b><span>Running a model burns energy. The per-task energy and spend are shown rather than hidden &mdash; a sustainability product that hides its own footprint is not one.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Runs your back office</b>
+        <span>CRM, invoices, calls, projects and messages across 44 channels &mdash;
+        on schedules, with spend caps and approval gates.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Makes the cost visible</b>
+        <span>Every purchase, supplier and workflow carries an ecological and
+        health cost. Agents surface it before you commit, not after.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Guardrails, not guidelines</b>
+        <span>A cheaper supplier with a worse footprint is flagged, not quietly
+        chosen. An agent cannot argue its way past a limit.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Healthy defaults for families</b>
+        <span>A kid-safe role and health-aware defaults, because habits form
+        early and most tools ignore that entirely.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Your data stays yours</b>
+        <span>Self-hosted on hardware you own. It works with no internet at all
+        if you want it to.</span></div>
+      <div class="stat"><b style="font-size:1.15rem">Honest about its own cost</b>
+        <span>Running a model burns energy. Per-task energy and spend are shown,
+        not hidden. A sustainability product that hides its footprint is not one.</span></div>
     </div>
   </div>
 </section>
@@ -226,7 +242,7 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
       <table>
         <thead>
           <tr>
-            <th>Capability</th>
+            <th>Feature</th>
             <th class="own">FreEco.ai</th>
             <th>Claude</th><th>ChatGPT</th><th>Manus</th>
             <th>Copilot</th><th>VS&nbsp;Code</th>
@@ -234,31 +250,28 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
           </tr>
         </thead>
         <tbody>
-          <tr><td>Runs while you are away</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
-          <tr><td>Open source</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Mixed</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
-          <tr><td>Self-hosted on your hardware</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Editor</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
-          <tr><td>Works fully offline</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">Partial</td><td class="part">Partial</td></tr>
-          <tr><td>Multi-agent org chart</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">Opaque</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
-          <tr><td>Spend caps per agent</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td>Approval gates</td><td class="own yes">Yes</td><td class="part">Per tool</td><td class="part">Per tool</td><td class="part">Partial</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
-          <tr><td>Isolated Linux sandbox</td><td class="own yes">Yes</td><td class="part">Vendor</td><td class="part">Vendor</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
-          <tr><td>CRM built in</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td>Accounting built in</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td>Real-time voice</td><td class="own yes">Yes</td><td class="part">Chat</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td>44 messaging channels</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td>Roles: kids / family / business</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td><strong>Ecological impact shown on decisions</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td><strong>Sustainability guardrails on agent actions</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td><strong>Conscious-consumption guidance</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td><strong>Health-aware defaults for families and kids</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td><strong>Energy cost of a task made visible</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-          <tr><td><strong>Works free on first install, no key needed</strong></td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">DIY</td><td class="part">DIY</td></tr>
-          <tr><td>Your data stays yours</td><td class="own yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+          <tr><td><span class="rank">1.</span> Self-running agent teams, 24/7</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="no">No</td><td class="no">No</td><td class="part">DIY</td><td class="part">DIY</td></tr>
+          <tr><td><span class="rank">2.</span> <strong>Import or hire any agent &mdash; ClawHub, GitHub, your own code, any model</strong></td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
+          <tr><td><span class="rank">3.</span> Sustainability guardrails on every action</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><span class="rank">4.</span> Ecological impact shown on decisions</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><span class="rank">5.</span> Free on first install, your own free key</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">DIY</td><td class="part">DIY</td></tr>
+          <tr><td><span class="rank">6.</span> Spend caps per agent</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><span class="rank">7.</span> Self-hosted, your data stays yours</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Editor</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+          <tr><td><span class="rank">8.</span> Open source</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Mixed</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+          <tr><td><span class="rank">9.</span> Approval gates a human answers</td><td class="yes own">Yes</td><td class="part">Per tool</td><td class="part">Per tool</td><td class="part">Partial</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
+          <tr><td><span class="rank">10.</span> CRM and accounting built in</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><span class="rank">11.</span> Real-time voice</td><td class="yes own">Yes</td><td class="part">Chat</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><span class="rank">12.</span> 44 messaging channels</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><span class="rank">13.</span> Isolated Linux sandbox</td><td class="yes own">Yes</td><td class="part">Vendor</td><td class="part">Vendor</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">DIY</td></tr>
+          <tr><td><span class="rank">14.</span> Energy cost of a task made visible</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td><span class="rank">15.</span> Works fully offline</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="part">Partial</td><td class="part">Partial</td><td class="part">Partial</td></tr>
+          <tr><td><span class="rank">16.</span> Roles: kids, family, business</td><td class="yes own">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+
         </tbody>
       </table>
     </div>
 
-    <h3 style="margin-top:48px">Funding and valuation</h3>
+    <h3 style="margin-top:48px">Funding and competitors market valuation</h3>
     <p class="sub">Publicly reported figures, each with its source and date.</p>
 
     <div class="scroll">
@@ -267,12 +280,6 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
           <tr><th>Project</th><th>Raised</th><th>Valuation / market cap</th><th>Source</th></tr>
         </thead>
         <tbody>
-          <tr class="own">
-            <td>FreEco.ai <span style="color:var(--swiss)">&#10033;</span></td>
-            <td class="num">CHF&nbsp;500,000</td>
-            <td class="num">USD&nbsp;1,240,000 <span style="color:var(--dim);font-weight:400">FRE.ECO DAO AI Coin</span></td>
-            <td>Own figures</td>
-          </tr>
           <tr>
             <td>Anthropic (Claude)</td>
             <td class="num">~USD&nbsp;125&nbsp;bn total<br><span style="color:var(--dim);font-weight:400">USD 65 bn Series H</span></td>
@@ -303,7 +310,19 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
             <td class="num">Open source / early stage</td>
             <td>No comparable public figure</td>
           </tr>
-        </tbody>
+                  <tr>
+            <td>xAI (Grok)</td>
+            <td class="num">USD&nbsp;45&nbsp;bn total<br><span style="color:var(--dim);font-weight:400">USD 20 bn Series E</span></td>
+            <td class="num">USD&nbsp;250&nbsp;bn<br><span style="color:var(--dim);font-weight:400">at SpaceX acquisition</span></td>
+            <td>x.ai Series E; CNBC, 6 Jan 2026 &middot; acquisition 2 Feb 2026</td>
+          </tr>
+          <tr>
+            <td>Polsia</td>
+            <td class="num">USD&nbsp;30&nbsp;m</td>
+            <td class="num">USD&nbsp;250&nbsp;m<br><span style="color:var(--dim);font-weight:400">~USD 10 m ARR, zero employees</span></td>
+            <td>Sound Ventures / True Ventures round; AIN, 25 May 2026</td>
+          </tr>
+</tbody>
       </table>
     </div>
 
@@ -315,6 +334,7 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
       by Meta for a reported USD&nbsp;2&nbsp;bn+ in December 2025; Chinese
       regulators ordered the deal unwound in April 2026.
     </p>
+</div>
 </section>
 
 <section>
@@ -371,6 +391,137 @@ footer{padding:56px 0 80px;color:var(--dim);font-size:.88rem;border-top:1px soli
       organisations before quoting a SOM to an investor: a top-down proxy shows
       the shape, not the ceiling.
     </p>
+</div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="free-badge">Where this is going</span>
+    <h2>Self-running sustainable AI teams</h2>
+    <p class="sub" style="font-size:1.12rem">
+      The shift is from assistants that answer to <strong>teams that operate</strong>.
+      An eco-conscious company or nonprofit hires a structured set of agents &mdash;
+      a CEO agent that plans and delegates, specialists that execute, gates where a
+      human decides &mdash; and the organisation runs continuously inside its own
+      sustainability limits.
+    </p>
+
+    <div class="teams">
+      <div class="team"><b>An org chart, not a prompt</b>
+        <span>CEO agent, developer, analyst, support, accountant. Each a signed
+        agent with scoped permissions and its own budget.</span></div>
+      <div class="team"><b>Delegation with a human gate</b>
+        <span>Plans become tasks, tasks become work, and anything consequential
+        stops for approval that states the aim and the cost.</span></div>
+      <div class="team"><b>Sustainability is the constraint</b>
+        <span>Teams optimise inside ecological limits rather than around them.
+        That is the product, not a report bolted on afterwards.</span></div>
+      <div class="team"><b>Small organisations, real capacity</b>
+        <span>A four-person nonprofit gets a back office it could never staff.
+        That is the market, and it is largely unserved.</span></div>
+    </div>
+
+    <div class="note" style="background:var(--green-50);border-color:var(--line);border-left-color:var(--leaf)">
+      <b style="color:var(--green-900)">Why this is the commercial engine</b>
+      <p style="margin:.6em 0 0">
+        Chat subscriptions sell seats. Running teams sell outcomes, and they run
+        continuously, which makes revenue recurring by construction rather than by
+        contract. Sustainability guardrails are the part competitors cannot add
+        late: they have to be in the decision path from the beginning, and in this
+        system they already are.
+      </p>
+    </div>
+    <div class="note" style="background:var(--green-50);border-color:var(--line);border-left-color:var(--leaf);margin-top:22px">
+      <b style="color:var(--green-900)">The category is already proving itself</b>
+      <p style="margin:.6em 0 0">
+        Polsia reached roughly USD&nbsp;10&nbsp;m ARR in five months with 7,600
+        business customers, run by nine agents and <strong>zero employees</strong>,
+        and raised USD&nbsp;30&nbsp;m at a USD&nbsp;250&nbsp;m valuation. That is
+        the demand signal: companies will pay for agents that operate, not agents
+        that answer.
+      </p>
+      <p style="margin:.6em 0 0">
+        FreEco.ai addresses the same shift with two things a closed platform
+        cannot copy: the work stays on infrastructure the customer owns, and
+        every action runs inside ecological and health guardrails rather than
+        being measured after the fact.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<section style="background:linear-gradient(180deg,#fff,var(--green-50))">
+  <div class="wrap">
+    <h2>Editions</h2>
+    <p class="sub">
+      The community edition is genuinely free and stays that way. Businesses pay
+      for what businesses need.
+    </p>
+
+    <div class="tier">
+      <div class="card hi">
+        <h3>Community &amp; Family<span class="pill">Beta now</span></h3>
+        <div class="price">Free for FreEco Association members</div>
+        <ul>
+          <li>The full agent operating system, self-hosted</li>
+          <li>Companies, projects, teams and 44 channels</li>
+          <li>Kid-safe roles and health-aware defaults</li>
+          <li>Ecological guardrails and per-task cost visibility</li>
+          <li>Isolated Linux sandbox, budgets, approval gates</li>
+        </ul>
+        <div class="foot">
+          <a class="btn btn-primary" href="https://github.com/FreecoDAO/freeco-ai" rel="noopener">Install the beta &rarr;</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Business<span class="pill soon">Coming</span></h3>
+        <div class="price">Subscription + usage</div>
+        <ul>
+          <li>Everything in Community &amp; Family</li>
+          <li>Hosted option &mdash; no server to run</li>
+          <li>Multi-user roles, audit and retention controls</li>
+          <li>Sustainability reporting for stakeholders</li>
+          <li>Support with response times</li>
+        </ul>
+        <div class="foot"><span style="font-size:.86rem;color:var(--dim)">Pricing to be announced.</span></div>
+      </div>
+
+      <div class="card">
+        <h3>Enterprise<span class="pill soon">Coming</span></h3>
+        <div class="price">Subscription + usage</div>
+        <ul>
+          <li>Everything in Business</li>
+          <li>Data residency, including Swiss and EU</li>
+          <li>SSO, granular permissions, compliance evidence</li>
+          <li>Private model routing and dedicated capacity</li>
+          <li>Onboarding and named support</li>
+        </ul>
+        <div class="foot"><span style="font-size:.86rem;color:var(--dim)">Pricing to be announced.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<section>
+  <div class="wrap">
+    <h2>Try it</h2>
+    <p class="sub">
+      A hosted instance for evaluation, so you can use it before deciding whether
+      to run it yourself.
+    </p>
+    <div class="btnrow">
+      <a class="btn btn-primary" href="https://freeco.ai/demo" rel="noopener">Open the test instance &rarr;</a>
+      <a class="btn btn-ghost" href="https://github.com/FreecoDAO/freeco-ai" rel="noopener">Or self-host in one command</a>
+    </div>
+    <p style="font-size:.84rem;color:var(--dim);margin-top:12px">
+      Evaluation environment. Data there is not private and is reset periodically
+      &mdash; use the self-hosted build for anything real.
+    </p>
+  </div>
 </section>
 
 <section style="background:linear-gradient(180deg,#fff,var(--green-50))">

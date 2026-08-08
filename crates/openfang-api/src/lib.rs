@@ -40,6 +40,7 @@ pub mod middleware;
 pub mod openai_compat;
 pub mod openrouter_free;
 pub mod org_routes;
+pub mod provider_signup;
 pub mod rate_limiter;
 pub mod routes;
 pub mod sandbox_status;

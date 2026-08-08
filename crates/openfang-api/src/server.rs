@@ -720,9 +720,19 @@ pub async fn build_router(
         )
         // Session endpoints
         .route("/api/sessions", axum::routing::get(routes::list_sessions))
+        // Registered before the `/api/sessions/{id}` routes so "orphaned" is
+        // not swallowed as a session id.
+        .route(
+            "/api/sessions/orphaned",
+            axum::routing::get(routes::list_orphaned_sessions),
+        )
+        .route(
+            "/api/sessions/orphaned/adopt",
+            axum::routing::post(routes::adopt_orphaned_sessions),
+        )
         .route(
             "/api/sessions/{id}",
-            axum::routing::delete(routes::delete_session),
+            axum::routing::get(routes::get_session_detail).delete(routes::delete_session),
         )
         .route(
             "/api/sessions/{id}/label",

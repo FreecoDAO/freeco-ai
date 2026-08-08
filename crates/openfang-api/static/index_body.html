@@ -1098,12 +1098,23 @@
                       <template x-if="!editingModel">
                         <span>
                           <span class="detail-value" x-text="detailAgent.model_name"></span>
-                          <button class="btn btn-ghost btn-sm" style="margin-left:8px;padding:2px 8px;font-size:11px" @click="editingModel = true; newModelValue = detailAgent.model_provider + '/' + detailAgent.model_name">Change</button>
+                          <button class="btn btn-ghost btn-sm" style="margin-left:8px;padding:2px 8px;font-size:11px" @click="editingModel = true; loadModelCatalog(); newModelValue = detailAgent.model_provider + '/' + detailAgent.model_name">Change</button>
                         </span>
                       </template>
                       <template x-if="editingModel">
                         <span class="flex gap-1" style="align-items:center">
-                          <input class="form-input" style="width:240px;font-size:12px" x-model="newModelValue" placeholder="provider/model" @keydown.enter="changeModel()" @keydown.escape="editingModel = false">
+                          <input class="form-input" style="width:300px;font-size:12px" x-model="newModelValue"
+                                 list="of-model-list" placeholder="Type to search, or pick from the list"
+                                 @keydown.enter="changeModel()" @keydown.escape="editingModel = false">
+                          <!-- A blank box asking for "provider/model" is only
+                               usable by someone who already knows the exact id.
+                               This is the live catalogue, free models first,
+                               so the field can be browsed rather than guessed. -->
+                          <datalist id="of-model-list">
+                            <template x-for="m in catalogModels" :key="m.id">
+                              <option :value="m.id" x-text="(m.free ? 'FREE - ' : '') + (m.name || m.id)"></option>
+                            </template>
+                          </datalist>
                           <button class="btn btn-primary btn-sm" @click="changeModel()" :disabled="modelSaving" style="padding:2px 10px">
                             <span x-show="!modelSaving">Save</span><span x-show="modelSaving">...</span>
                           </button>
@@ -5207,6 +5218,24 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               <button class="btn btn-ghost btn-sm" @click="loadData()">Retry</button>
             </div>
             <div x-show="!loading && !loadError">
+            <!-- Conversations that survived but lost their owner. Without this
+                 the app simply does not list them, which reads as "my history
+                 was deleted" when in fact nothing was deleted at all. -->
+            <div class="card mb-4" x-show="orphaned.count > 0" style="border-left:3px solid var(--accent)">
+              <div class="font-bold" style="font-size:13px;margin-bottom:4px">
+                <span x-text="orphaned.count"></span> recoverable conversation<span x-show="orphaned.count !== 1">s</span>
+                (<span x-text="orphaned.messages"></span> messages)
+              </div>
+              <div class="text-sm text-dim" style="line-height:1.6;margin-bottom:10px">
+                These conversations are still stored, but the agent that owned them no longer exists &mdash;
+                usually after a reinstall recreated its agents. Nothing was deleted. Restoring hands them to
+                your first agent so they appear in this list again; it does not change any message.
+              </div>
+              <button class="btn btn-primary btn-sm" @click="restoreOrphaned()" :disabled="restoring">
+                <span x-show="!restoring">Restore <span x-text="orphaned.count"></span> conversation<span x-show="orphaned.count !== 1">s</span></span>
+                <span x-show="restoring">Restoring&hellip;</span>
+              </button>
+            </div>
             <div class="card mb-4" style="border-left:3px solid var(--accent)">
               <div class="font-bold" style="font-size:13px;margin-bottom:4px">Conversation Sessions</div>
               <div class="text-sm text-dim" style="line-height:1.6">
@@ -5706,8 +5735,19 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                       <div class="flex justify-between items-center">
                         <span class="font-bold" style="font-size:13px" x-text="p.display_name"></span>
                         <span class="badge badge-success" x-show="providerIsConfigured(p)" style="font-size:8px">READY</span>
+                        <!-- Cost came from nowhere before: every card looked
+                             identical, so someone with no prior knowledge had
+                             no basis to choose and could land on a provider
+                             that wants a credit card before the first reply.
+                             The label is served by the backend, so a provider
+                             added later is described too. -->
+                        <span class="badge" x-show="p.recommended && !providerIsConfigured(p)" style="font-size:8px;background:var(--accent);color:var(--bg)">FREE &middot; START HERE</span>
                       </div>
-                      <div class="text-xs text-dim mt-1" x-text="(p.model_count || 0) + ' models'"></div>
+                      <div class="text-xs mt-1" :class="p.cost === 'Free' || p.cost === 'Free tier' ? 'text-dim' : 'text-dim'">
+                        <span x-show="p.cost" x-text="p.cost" :style="(p.cost === 'Free' || p.cost === 'Free tier') ? 'color:var(--accent)' : ''"></span>
+                        <span x-show="p.cost && p.model_count"> &middot; </span>
+                        <span x-show="p.model_count" x-text="(p.model_count || 0) + ' models'"></span>
+                      </div>
                     </div>
                   </template>
                 </div>
@@ -5722,7 +5762,11 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                         <span class="font-bold" style="font-size:13px" x-text="p.display_name"></span>
                         <span class="badge badge-success" x-show="providerIsConfigured(p)" style="font-size:8px">READY</span>
                       </div>
-                      <div class="text-xs text-dim mt-1" x-text="(p.model_count || 0) + ' models'"></div>
+                      <div class="text-xs text-dim mt-1">
+                        <span x-show="p.cost" x-text="p.cost" :style="(p.cost === 'Free' || p.cost === 'Free tier') ? 'color:var(--accent)' : ''"></span>
+                        <span x-show="p.cost && p.model_count"> &middot; </span>
+                        <span x-show="p.model_count" x-text="(p.model_count || 0) + ' models'"></span>
+                      </div>
                     </div>
                   </template>
                 </div>
@@ -5756,7 +5800,23 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                   <div class="text-xs text-dim mb-2" x-show="selectedProviderObj.api_key_env">
                     Environment variable: <code style="color:var(--accent-light);background:var(--bg);padding:1px 4px;border-radius:2px" x-text="selectedProviderObj.api_key_env"></code>
                   </div>
-                  <div class="text-xs mb-3" x-show="providerHelp(selectedProvider)" style="color:var(--accent-light)">
+                  <!-- A bare "get your key from OpenRouter" link assumes the
+                       reader knows what an API key is and what to do on the
+                       page it opens. Someone setting this up for the first
+                       time does not, so the free path spells out each click
+                       and says what it costs. -->
+                  <template x-if="selectedProvider === 'openrouter'">
+                    <div style="background:var(--bg);border-radius:6px;padding:12px 14px;margin-bottom:12px;font-size:12px;line-height:1.9">
+                      <div class="font-bold mb-1" style="color:var(--accent)">Free to start &mdash; no credit card</div>
+                      <div><span style="color:var(--accent)">1.</span> Click the button below. It opens OpenRouter in a new tab.</div>
+                      <div><span style="color:var(--accent)">2.</span> Sign in with Google or GitHub (creates the account).</div>
+                      <div><span style="color:var(--accent)">3.</span> Press <strong>Create Key</strong>, give it any name, press Create.</div>
+                      <div><span style="color:var(--accent)">4.</span> Copy the key and paste it in the box below.</div>
+                      <div class="text-dim mt-1">FreEco.ai then sets itself to <code style="color:var(--accent-light);background:var(--bg-secondary);padding:1px 4px;border-radius:2px">openrouter/free</code>, which costs nothing to run. You can switch to a paid model later.</div>
+                      <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="margin-top:10px;text-decoration:none;display:inline-block">Open OpenRouter &rarr;</a>
+                    </div>
+                  </template>
+                  <div class="text-xs mb-3" x-show="providerHelp(selectedProvider) && selectedProvider !== 'openrouter'" style="color:var(--accent-light)">
                     <a :href="providerHelp(selectedProvider) ? providerHelp(selectedProvider).url : '#'" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline" x-text="providerHelp(selectedProvider) ? providerHelp(selectedProvider).text : ''"></a>
                   </div>
                   <div class="form-group">
@@ -5961,7 +6021,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                   <div class="detail-row">
                     <span class="detail-label">LLM Provider</span>
                     <span class="detail-value">
-                      <span x-show="setupSummary.provider" x-text="setupSummary.provider"></span>
+                      <span x-show="setupSummary.provider" x-text="setupSummary.provider + (setupSummary.model ? ' — ' + setupSummary.model : '')"></span>
                       <span x-show="!setupSummary.provider && hasConfiguredProvider" class="badge badge-success">Pre-configured</span>
                       <span x-show="!setupSummary.provider && !hasConfiguredProvider" class="badge badge-warn">Skipped</span>
                     </span>
@@ -6162,6 +6222,13 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
         <button class="freeco-x" @click="toggleHistory()" title="Conversations" aria-label="Conversation history">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
         </button>
+        <!-- Filter the open conversation. Long threads are unnavigable
+             without it, and scrolling to find one line is not a search. -->
+        <input class="freeco-search" type="search" x-model="msgSearch"
+               x-show="messages.length > 4" placeholder="Search this chat"
+               aria-label="Search this conversation">
+        <button class="freeco-x" @click="exportChat()" x-show="messages.length"
+                title="Export as Markdown" aria-label="Export conversation">&#8595;</button>
         <button class="freeco-x" @click="toggleModels()" title="Model" aria-label="Choose model">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
         </button>
@@ -6292,7 +6359,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
     </div>
 
     <div class="freeco-thread" id="freeco-thread">
-      <template x-for="m in messages" :key="m.id">
+      <template x-for="m in visibleMessages" :key="m.id">
         <div class="freeco-msg" :class="'freeco-msg-' + m.role">
           <div class="freeco-bubble" x-html="m.html"></div>
           <!-- Hidden until hover so they never compete with the message, but

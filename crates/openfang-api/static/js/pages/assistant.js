@@ -90,6 +90,16 @@ function freecoAssistant() {
       // Re-resolve the concierge agent whenever the shared agent list changes.
       this.$watch('$store.app.agents', function() { self._resolveAgent(); });
       this._resolveAgent();
+      // Launcher and STOP were fixed to their corners and could not be moved.
+      this.initDraggableWidgets();
+      // A widget parked off the edge of a resized window becomes unreachable,
+      // so pull both back inside whenever the viewport shrinks.
+      window.addEventListener('resize', function () {
+        ['.freeco-dock', '.freeco-estop'].forEach(function (sel) {
+          var el = document.querySelector(sel);
+          if (el && el.style.left) self._placeWidget(el, parseFloat(el.style.left), parseFloat(el.style.top));
+        });
+      });
       // Surface permission requests in this chat, where the user already is.
       this.loadApprovals();
       setInterval(function() { self.loadApprovals(); }, 5000);
@@ -297,6 +307,116 @@ function freecoAssistant() {
       this.sessionId = null;
       this.showHistory = false;
       this._scroll();
+    },
+
+    // ---- Message actions ------------------------------------------------
+    // Reading a reply and being unable to keep it is a small, constant tax.
+    // These are the four things people reach for and could not do here.
+
+    // Plain text, not the rendered HTML: pasting markup into an editor is
+    // never what someone means by "copy".
+    copiedId: null,
+
+    copyMessage: function (m) {
+      var text = m.raw || this._plainText(m.html || '');
+      var self = this;
+      var done = function () {
+        // The button swaps its own label to "Copied", so a toast on top of
+        // that would say the same thing twice.
+        self.copiedId = m.id;
+        setTimeout(function () { if (self.copiedId === m.id) self.copiedId = null; }, 1500);
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(done, function () {
+          OpenFangToast.error('Could not copy');
+        });
+        return;
+      }
+      // http:// origins have no clipboard API, and the desktop app is often
+      // served over plain http on localhost. Fall back rather than fail.
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        done();
+      } catch (e) { OpenFangToast.error('Could not copy'); }
+    },
+
+    _plainText: function (html) {
+      var d = document.createElement('div');
+      d.innerHTML = html;
+      return (d.textContent || '').trim();
+    },
+
+    // Ask again, without retyping. Drops this reply and everything after it,
+    // so the retried answer lands where the old one was instead of the
+    // transcript showing two answers to one question.
+    retryFrom: async function (m) {
+      if (this.sending) return;
+      var i = this.messages.indexOf(m);
+      if (i < 0) return;
+      var prompt = null;
+      for (var j = i; j >= 0; j--) {
+        if (this.messages[j].role === 'user') { prompt = this.messages[j]; break; }
+      }
+      if (!prompt) return;
+      this.messages = this.messages.slice(0, this.messages.indexOf(prompt));
+      this.input = prompt.raw || this._plainText(prompt.html || '');
+      await this.send();
+    },
+
+    // Edit and resend. Everything from that message onward goes, because the
+    // replies that followed answered a question that no longer exists.
+    editMessage: function (m) {
+      if (this.sending) return;
+      var i = this.messages.indexOf(m);
+      if (i < 0) return;
+      this.input = m.raw || this._plainText(m.html || '');
+      this.messages = this.messages.slice(0, i);
+      this._scroll();
+      var el = document.getElementById('freeco-input');
+      if (el) el.focus();
+    },
+
+    // ---- Search and export ----------------------------------------------
+    msgSearch: '',
+
+    get visibleMessages() {
+      var q = (this.msgSearch || '').trim().toLowerCase();
+      if (!q) return this.messages;
+      var self = this;
+      return this.messages.filter(function (m) {
+        var t = (m.raw || self._plainText(m.html || '')).toLowerCase();
+        return t.indexOf(q) !== -1;
+      });
+    },
+
+    // Markdown, so the transcript stays readable anywhere it is opened.
+    exportChat: function () {
+      if (!this.messages.length) { OpenFangToast.info('Nothing to export yet.'); return; }
+      var self = this;
+      var lines = ['# FreEco.ai conversation', '', '_' + new Date().toLocaleString() + '_', ''];
+      this.messages.forEach(function (m) {
+        var who = m.role === 'user' ? 'You' : 'Freeco';
+        lines.push('### ' + who);
+        lines.push(m.raw || self._plainText(m.html || ''));
+        lines.push('');
+      });
+      var blob = new Blob([lines.join(String.fromCharCode(10))], { type: 'text/markdown;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'freeco-chat-' + new Date().toISOString().slice(0, 10) + '.md';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Revoking immediately can cancel the download in some browsers.
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
     },
 
     async openSession(id) {
@@ -1042,6 +1162,85 @@ function freecoAssistant() {
       // default: docked bottom-right, user-set size
       return 'width:' + this.size.w + 'px;height:' + this.size.h + 'px';
     },
+    // Drag any widget, and remember where it was left.
+    //
+    // The launcher and the STOP button were both `position: fixed` with
+    // hardcoded corners, so neither could be moved however many times drag
+    // was "added" -- the panel header had it, these did not. On a small
+    // screen a fixed launcher sits on top of whatever is underneath it, and
+    // the user has no way to shift it.
+    //
+    // Position is stored per widget, because a layout the user arranged and
+    // that resets on reload is barely better than one they cannot change.
+    makeDraggable: function(el, key) {
+      if (!el || el._ofDrag) return;
+      el._ofDrag = true;
+      var self = this;
+
+      try {
+        var saved = JSON.parse(localStorage.getItem(key) || 'null');
+        if (saved && typeof saved.x === 'number') self._placeWidget(el, saved.x, saved.y);
+      } catch (err) { /* corrupt entry: fall back to the CSS default */ }
+
+      var sx = 0, sy = 0, ox = 0, oy = 0, moved = false;
+
+      function down(e) {
+        // Ignore secondary buttons so a right-click menu is still reachable.
+        if (e.button !== undefined && e.button !== 0) return;
+        var r = el.getBoundingClientRect();
+        ox = r.left; oy = r.top;
+        sx = e.clientX; sy = e.clientY;
+        moved = false;
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+      }
+      function move(e) {
+        var dx = e.clientX - sx, dy = e.clientY - sy;
+        // A few pixels of slop, so a click is still a click and not a
+        // one-pixel drag that swallows the button press.
+        if (!moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+        moved = true;
+        el.classList.add('of-dragging');
+        self._placeWidget(el, ox + dx, oy + dy);
+      }
+      function up() {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        el.classList.remove('of-dragging');
+        if (!moved) return;
+        var r = el.getBoundingClientRect();
+        try { localStorage.setItem(key, JSON.stringify({ x: r.left, y: r.top })); } catch (err) {}
+        // Swallow the click that follows a real drag, so releasing over the
+        // launcher does not also open the panel.
+        el.addEventListener('click', function swallow(ev) {
+          ev.stopPropagation(); ev.preventDefault();
+          el.removeEventListener('click', swallow, true);
+        }, true);
+      }
+      el.addEventListener('mousedown', down);
+    },
+
+    // Keep a dragged widget fully on screen: dropped half outside, it becomes
+    // unclickable and there is no way to get it back.
+    _placeWidget: function(el, x, y) {
+      var w = el.offsetWidth || 56, h = el.offsetHeight || 56;
+      x = Math.max(0, Math.min(x, window.innerWidth - w));
+      y = Math.max(0, Math.min(y, window.innerHeight - h));
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+    },
+
+    initDraggableWidgets: function() {
+      var self = this;
+      // Deferred: these render inside x-show blocks that may not exist yet.
+      setTimeout(function () {
+        self.makeDraggable(document.querySelector('.freeco-dock'), 'freeco.pos.dock');
+        self.makeDraggable(document.querySelector('.freeco-estop'), 'freeco.pos.estop');
+      }, 300);
+    },
+
     startDrag: function(e) {
       if (this.fullscreen) return;
       // Switch to free positioning anchored at the current on-screen spot.

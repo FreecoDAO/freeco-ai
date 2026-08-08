@@ -1042,15 +1042,21 @@ fn builtin_aliases() -> HashMap<String, String> {
         ("qwen-coder", "qwen-code/qwen3-coder"),
         ("qwen-coder-plus", "qwen-code/qwen-coder-plus"),
         ("qwq", "qwen-code/qwq-32b"),
-        // OpenRouter free-tier aliases. Point to free models that actually support
-        // tool calling on OpenRouter's free endpoints — agents send tool definitions
-        // by default, so a non-tool model returns "No endpoints found that support
-        // tool use" (issue #1032).
-        (
-            "openrouter/free",
-            "openrouter/meta-llama/llama-3.3-70b-instruct:free",
-        ),
-        ("free", "openrouter/meta-llama/llama-3.3-70b-instruct:free"),
+        // OpenRouter free tier.
+        //
+        // `openrouter` resolves to the free router so that saving an OpenRouter
+        // key configures a model the user can actually call without credit.
+        ("openrouter", "openrouter/free"),
+        ("free", "openrouter/free"),
+        // `openrouter/free` is deliberately NOT rewritten here. It used to be
+        // aliased to a single pinned `:free` model, on the belief that the
+        // router rejected tool calls (issue #1032). Sending tools straight at
+        // the router disproves that — it accepts them and routes to a
+        // tool-capable free model. Pinning one id also recreated the problem
+        // the router exists to solve: free models are added and delisted
+        // weekly, so a hardcoded pin is correct the day it ships and silently
+        // broken later, with nobody watching. Passing the id through leaves
+        // that tracking with OpenRouter, who already do it.
         ("free-reasoning", "openrouter/deepseek/deepseek-r1:free"),
         ("openrouter/free-coder", "openrouter/qwen/qwen3-coder:free"),
         (
@@ -1761,6 +1767,33 @@ fn builtin_models() -> Vec<ModelCatalogEntry> {
         // ══════════════════════════════════════════════════════════════
         // OpenRouter (15+) — pass-through models using real upstream IDs
         // ══════════════════════════════════════════════════════════════
+        //
+        // Listed first on purpose. `default_model_for_provider` falls back to
+        // the first model registered for a provider, so whatever sits at the
+        // top of this block is what a new user gets the moment they save an
+        // OpenRouter key. That used to be Gemini 2.5 Flash, which is billed:
+        // someone who signed up for a free account with no card got a default
+        // they could not actually call, and their first message failed. The
+        // free router has to be first for the no-card path to work at all.
+        ModelCatalogEntry {
+            id: "openrouter/free".into(),
+            display_name: "Free Models Router (OpenRouter)".into(),
+            provider: "openrouter".into(),
+            tier: ModelTier::Smart,
+            context_window: 200_000,
+            max_output_tokens: 32_768,
+            // Genuinely zero on both components — OpenRouter prices this router
+            // at "0"/"0". Recording it as zero also stops the budget page
+            // reporting a few cents for a conversation that cost nothing,
+            // which is worse than useless: it teaches the user to distrust the
+            // number that is supposed to warn them about real spend.
+            input_cost_per_m: 0.0,
+            output_cost_per_m: 0.0,
+            supports_tools: true,
+            supports_vision: false,
+            supports_streaming: true,
+            aliases: vec![],
+        },
         ModelCatalogEntry {
             id: "openrouter/google/gemini-2.5-flash".into(),
             display_name: "Gemini 2.5 Flash (OpenRouter)".into(),
@@ -4735,27 +4768,47 @@ mod tests {
         );
     }
 
-    /// Confirm the resolved free model's ID is one of the verified
-    /// tool-supporting free endpoints on OpenRouter.
+    /// `openrouter/free` must be passed through, not rewritten.
+    ///
+    /// This test used to assert the opposite: that the id resolved to one of
+    /// five hardcoded `:free` models, on the belief that OpenRouter's own
+    /// router rejected tool calls. It is a real, published model id — checked
+    /// against the full list OpenRouter serves — and rewriting it recreated the
+    /// problem the router exists to solve, since free models are added and
+    /// delisted constantly and a pinned id is correct only on the day it ships.
+    ///
+    /// The five ids the old test allowed are the evidence: they were pinned as
+    /// "known-good" and nothing would have told anyone when they stopped being
+    /// either known or good.
     #[test]
-    fn test_openrouter_free_alias_target() {
+    fn test_openrouter_free_is_not_rewritten() {
         let catalog = ModelCatalog::new();
-        let resolved = catalog
-            .resolve_alias("openrouter/free")
-            .expect("alias must exist");
-        // Must be one of the known-good free models with tool support.
-        let known_good = [
-            "openrouter/meta-llama/llama-3.3-70b-instruct:free",
-            "openrouter/qwen/qwen3-coder:free",
-            "openrouter/openai/gpt-oss-120b:free",
-            "openrouter/openai/gpt-oss-20b:free",
-            "openrouter/z-ai/glm-4.5-air:free",
-        ];
         assert!(
-            known_good.contains(&resolved),
-            "openrouter/free resolves to {}, expected one of: {:?}",
-            resolved,
-            known_good
+            catalog.resolve_alias("openrouter/free").is_none(),
+            "openrouter/free must reach OpenRouter unchanged, not be aliased \
+             to a pinned model that will eventually be delisted"
+        );
+        let entry = catalog
+            .find_model("openrouter/free")
+            .expect("openrouter/free must be in the catalog so it can be shown and priced");
+        assert_eq!(entry.provider, "openrouter");
+        assert_eq!(
+            entry.input_cost_per_m, 0.0,
+            "the free router must be recorded as free, or the budget page \
+             invents a cost for a conversation that cost nothing"
+        );
+        assert_eq!(entry.output_cost_per_m, 0.0);
+    }
+
+    /// The bare provider name resolves to something usable, so that saving an
+    /// OpenRouter key configures a model rather than leaving the field empty.
+    #[test]
+    fn test_openrouter_provider_alias_resolves() {
+        let catalog = ModelCatalog::new();
+        assert_eq!(
+            catalog.resolve_alias("openrouter"),
+            Some("openrouter/free"),
+            "the provider name must map to a real model id"
         );
     }
 

@@ -202,6 +202,11 @@ impl MemorySubstrate {
         self.sessions.get_session(session_id)
     }
 
+    /// Load an agent's canonical conversation as a session.
+    pub fn get_canonical_as_session(&self, agent_id: AgentId) -> OpenFangResult<Option<Session>> {
+        self.sessions.get_canonical_as_session(agent_id)
+    }
+
     /// Save a session.
     pub fn save_session(&self, session: &Session) -> OpenFangResult<()> {
         self.sessions.save_session(session)
@@ -230,6 +235,16 @@ impl MemorySubstrate {
     /// List agent conversations (the canonical store) with their names.
     pub fn list_canonical_sessions(&self) -> OpenFangResult<Vec<serde_json::Value>> {
         self.sessions.list_canonical_sessions()
+    }
+
+    /// Conversations whose owning agent no longer exists.
+    pub fn list_orphaned_sessions(&self) -> OpenFangResult<Vec<serde_json::Value>> {
+        self.sessions.list_orphaned_sessions()
+    }
+
+    /// Hand orphaned conversations to an existing agent so they are listed again.
+    pub fn adopt_orphaned_sessions(&self, agent_id: &str) -> OpenFangResult<usize> {
+        self.sessions.adopt_orphaned_sessions(agent_id)
     }
 
     /// Delete a session by ID.

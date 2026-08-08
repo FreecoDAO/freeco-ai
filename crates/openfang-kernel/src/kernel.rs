@@ -1521,7 +1521,27 @@ impl OpenFangKernel {
                         if manifest.name.is_empty() {
                             manifest.name = dir_name.clone();
                         }
-                        match kernel.spawn_agent(manifest) {
+                        // Derive the id from the directory name instead of
+                        // generating a random one.
+                        //
+                        // Conversation history is stored per agent id. A random
+                        // id means that if the registry is ever rebuilt — which
+                        // is what a reinstall does — this agent comes back with
+                        // a new id and every conversation it had is still in the
+                        // database but unreachable, because nothing points at
+                        // the old id any more. The user sees an empty app and
+                        // concludes their data was deleted; it was not, it was
+                        // orphaned. Deriving the id from the directory name
+                        // makes the agent come back as itself and pick its own
+                        // history up again.
+                        //
+                        // Existing agents are unaffected: they are restored from
+                        // the database above with their stored ids, and this
+                        // branch only runs for agents not already registered.
+                        let stable_id = openfang_types::agent::AgentId::from_string(&format!(
+                            "agent-dir:{dir_name}"
+                        ));
+                        match kernel.spawn_agent_with_parent(manifest, None, Some(stable_id)) {
                             Ok(id) => {
                                 auto_spawned += 1;
                                 info!(
@@ -1566,7 +1586,11 @@ impl OpenFangKernel {
                 },
                 ..Default::default()
             };
-            match kernel.spawn_agent(manifest) {
+            // Same reasoning as the on-disk agents above: the built-in
+            // assistant must come back with the same id after a reinstall, or
+            // it loses every conversation the user ever had with it.
+            let stable_id = openfang_types::agent::AgentId::from_string("builtin:assistant");
+            match kernel.spawn_agent_with_parent(manifest, None, Some(stable_id)) {
                 Ok(id) => info!(id = %id, "Default assistant spawned"),
                 Err(e) => warn!("Failed to spawn default assistant: {e}"),
             }

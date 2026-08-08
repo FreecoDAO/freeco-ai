@@ -72,11 +72,39 @@ impl OpenAIDriver {
         self
     }
 
+    /// The model id to actually send to the provider.
+    ///
+    /// The catalog prefixes OpenRouter models with `openrouter/` so they can be
+    /// told apart from the same model offered directly by its vendor. OpenRouter
+    /// does not know that prefix: it wants the upstream id, so
+    /// `openrouter/google/gemini-2.5-flash` has to go out as
+    /// `google/gemini-2.5-flash` or the request is rejected as an unknown model.
+    ///
+    /// The prefix is only stripped when what remains is still a `vendor/model`
+    /// pair. OpenRouter's own routers — `openrouter/free` and `openrouter/auto`
+    /// — are real models published under the `openrouter` vendor, so for those
+    /// the prefix is the vendor name and removing it produces `free`, which is
+    /// not a model at all. Stripping unconditionally therefore breaks exactly
+    /// the free default that new installs rely on, while appearing to fix
+    /// things for every other model.
+    fn effective_model(&self, model: &str) -> String {
+        if !self.base_url.contains("openrouter.ai") {
+            return model.to_string();
+        }
+        match model.strip_prefix("openrouter/") {
+            // Still vendor/model after stripping — the prefix was ours.
+            Some(rest) if rest.contains('/') => rest.to_string(),
+            // Nothing left to qualify it: `openrouter` was the real vendor.
+            _ => model.to_string(),
+        }
+    }
+
     /// Build the chat completions URL for the given model.
     ///
     /// Standard OpenAI: `{base_url}/chat/completions`
     /// Azure OpenAI:    `{base_url}/{model}/chat/completions?api-version=2024-10-21`
     fn chat_url(&self, model: &str) -> String {
+        let model = &self.effective_model(model);
         if self.azure_mode {
             format!(
                 "{}/{}/chat/completions?api-version={}",
@@ -140,6 +168,25 @@ struct OaiRequest {
     /// Moonshot Kimi K2.5: disable thinking so multi-turn with tool_calls works without preserving reasoning_content.
     #[serde(skip_serializing_if = "Option::is_none")]
     thinking: Option<serde_json::Value>,
+}
+
+/// True when a 429 means "you have used your allowance for today", rather than
+/// "you are going too fast".
+///
+/// The difference decides whether retrying is useful. A per-minute limit clears
+/// on its own and is worth waiting out; a daily quota does not clear for hours,
+/// so retrying burns the remaining attempts and then reports a generic failure
+/// that tells the user nothing. OpenRouter's free tier returns the latter as
+/// `free-models-per-day`, which is the single most likely thing a new user on a
+/// free key will hit -- and it was being shown to them as "something went
+/// wrong".
+fn is_exhausted_quota(body: &str) -> bool {
+    let b = body.to_lowercase();
+    b.contains("per-day")
+        || b.contains("per day")
+        || b.contains("daily limit")
+        || b.contains("quota")
+        || b.contains("insufficient_quota")
 }
 
 /// Returns true if a model uses `max_completion_tokens` instead of `max_tokens`.
@@ -586,7 +633,7 @@ impl LlmDriver for OpenAIDriver {
         };
 
         let mut oai_request = OaiRequest {
-            model: request.model.clone(),
+            model: self.effective_model(&request.model),
             messages: oai_messages,
             max_tokens: mt,
             max_completion_tokens: mct,
@@ -634,6 +681,21 @@ impl LlmDriver for OpenAIDriver {
 
             let status = resp.status().as_u16();
             if status == 429 {
+                // Read the body before deciding. A daily quota and a
+                // per-minute burst limit are the same status code and need
+                // opposite handling, and the provider only says which in the
+                // body.
+                let body = resp.text().await.unwrap_or_default();
+                if is_exhausted_quota(&body) {
+                    warn!(status, "Provider quota exhausted; not retrying");
+                    return Err(LlmError::Api {
+                        status,
+                        message: format!(
+                            "This provider's free allowance for today is used up.                              Add credit, switch to another provider, or wait for                              the daily reset. Provider said: {}",
+                            body.trim()
+                        ),
+                    });
+                }
                 if attempt < max_retries {
                     let retry_ms = (attempt + 1) as u64 * 2000;
                     warn!(status, retry_ms, "Rate limited, retrying");
@@ -1012,7 +1074,7 @@ impl LlmDriver for OpenAIDriver {
             (Some(request.max_tokens), None)
         };
         let mut oai_request = OaiRequest {
-            model: request.model.clone(),
+            model: self.effective_model(&request.model),
             messages: oai_messages,
             max_tokens: mt,
             max_completion_tokens: mct,
@@ -1060,6 +1122,23 @@ impl LlmDriver for OpenAIDriver {
 
             let status = resp.status().as_u16();
             if status == 429 {
+                // Same reasoning as the non-streaming path: a daily quota and
+                // a burst limit share this status code, and only the body says
+                // which. Retrying an exhausted quota wastes the attempts and
+                // then reports nothing useful.
+                let body = resp.text().await.unwrap_or_default();
+                if is_exhausted_quota(&body) {
+                    warn!(status, "Provider quota exhausted; not retrying");
+                    return Err(LlmError::Api {
+                        status,
+                        message: format!(
+                            "This provider's free allowance for today is used up. \
+                             Add credit, switch to another provider, or wait for \
+                             the daily reset. Provider said: {}",
+                            body.trim()
+                        ),
+                    });
+                }
                 if attempt < max_retries {
                     let retry_ms = (attempt + 1) as u64 * 2000;
                     warn!(status, retry_ms, "Rate limited (stream), retrying");
@@ -1699,6 +1778,58 @@ fn parse_groq_failed_tool_call(body: &str) -> Option<CompletionResponse> {
             output_tokens: 0,
         },
     })
+}
+
+#[cfg(test)]
+mod effective_model_tests {
+    use super::*;
+
+    fn openrouter() -> OpenAIDriver {
+        OpenAIDriver::new("k".into(), "https://openrouter.ai/api/v1".into())
+    }
+
+    /// The catalog's `openrouter/` prefix is ours, not OpenRouter's, so it has
+    /// to come off before the id goes upstream.
+    #[test]
+    fn strips_our_prefix_from_vendor_models() {
+        let d = openrouter();
+        assert_eq!(
+            d.effective_model("openrouter/google/gemini-2.5-flash"),
+            "google/gemini-2.5-flash"
+        );
+        assert_eq!(
+            d.effective_model("openrouter/anthropic/claude-sonnet-4"),
+            "anthropic/claude-sonnet-4"
+        );
+        assert_eq!(
+            d.effective_model("openrouter/meta-llama/llama-3.3-70b-instruct:free"),
+            "meta-llama/llama-3.3-70b-instruct:free"
+        );
+    }
+
+    /// The case that matters most, and the one an unconditional strip gets
+    /// wrong: OpenRouter publishes its own routers under the vendor name
+    /// `openrouter`. `openrouter/free` is the id; `free` is not a model.
+    /// Getting this wrong breaks the default that every new install starts on,
+    /// while every other model keeps working — so it would not be obvious.
+    #[test]
+    fn keeps_openrouters_own_routers_intact() {
+        let d = openrouter();
+        assert_eq!(d.effective_model("openrouter/free"), "openrouter/free");
+        assert_eq!(d.effective_model("openrouter/auto"), "openrouter/auto");
+    }
+
+    /// Other providers are untouched — a model that happens to start with the
+    /// same characters must not be rewritten when talking to someone else.
+    #[test]
+    fn leaves_other_providers_alone() {
+        let d = OpenAIDriver::new("k".into(), "https://api.openai.com/v1".into());
+        assert_eq!(d.effective_model("gpt-4o"), "gpt-4o");
+        assert_eq!(
+            d.effective_model("openrouter/google/gemini-2.5-flash"),
+            "openrouter/google/gemini-2.5-flash"
+        );
+    }
 }
 
 #[cfg(test)]

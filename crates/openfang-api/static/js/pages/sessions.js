@@ -21,10 +21,47 @@ function sessionsPage() {
     memLoading: false,
     memLoadError: '',
 
+    // -- Recoverable history --
+    // Conversations still in the database but owned by an agent id that no
+    // longer exists. A reinstall can rebuild the agent registry, and anything
+    // owned by the old ids then stops being listed anywhere — the app looks
+    // freshly installed while the data sits there intact. This surfaces it.
+    orphaned: { count: 0, messages: 0, sessions: [] },
+    restoring: false,
+
+    async loadOrphaned() {
+      try {
+        var d = await OpenFangAPI.get('/api/sessions/orphaned');
+        this.orphaned = { count: d.orphaned || 0, messages: d.messages || 0, sessions: d.sessions || [] };
+      } catch (e) {
+        this.orphaned = { count: 0, messages: 0, sessions: [] };
+      }
+    },
+
+    async restoreOrphaned() {
+      var agents = Alpine.store('app').agents || [];
+      if (!agents.length) {
+        OpenFangToast.error('Create an agent first — recovered conversations need an owner.');
+        return;
+      }
+      var target = agents[0];
+      this.restoring = true;
+      try {
+        var r = await OpenFangAPI.post('/api/sessions/orphaned/adopt', { agent_id: target.id });
+        OpenFangToast.success((r.adopted || 0) + ' conversation(s) restored to ' + target.name + '.');
+        await this.loadOrphaned();
+        await this.loadSessions();
+      } catch (e) {
+        OpenFangToast.error('Could not restore: ' + (e.message || e));
+      }
+      this.restoring = false;
+    },
+
     // -- Sessions methods --
     async loadSessions() {
       this.loading = true;
       this.loadError = '';
+      this.loadOrphaned();
       try {
         var data = await OpenFangAPI.get('/api/sessions');
         var sessions = data.sessions || [];
