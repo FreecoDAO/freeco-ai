@@ -16,6 +16,7 @@ pub mod manifest_signing;
 pub mod media;
 pub mod memory;
 pub mod message;
+pub mod naming;
 pub mod model_catalog;
 pub mod scheduler;
 pub mod serde_compat;
