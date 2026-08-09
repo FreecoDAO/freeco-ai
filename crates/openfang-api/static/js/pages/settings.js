@@ -501,6 +501,10 @@ function settingsPage() {
     updateChecking: false,
     updateBusy: false,
     updateStatus: '',
+    // Shown as a real, clickable link when the in-app install is unavailable.
+    // A URL announced only in a toast vanishes a few seconds later, which is
+    // how "your browser blocked the popup" became a dead end.
+    updateDownloadUrl: '',
     updateLatest: '',
     updateAvailable: false,
     updateUrl: 'https://github.com/FreecoDAO/freeco-ai/releases/latest',
@@ -751,15 +755,17 @@ function settingsPage() {
           OpenFangToast.success('Update installed — restarting.');
           return;
         }
-        // Browser / portable / CLI: open the download page (no in-app install).
+        // Browser / portable / CLI: send them to the download page.
         var url = this.updateUrl || 'https://github.com/FreecoDAO/freeco-ai/releases/latest';
-        this.updateStatus = 'Opening the download page in your browser...';
-        OpenFangToast.info('Opening the download page — download and run the installer; your data is kept.');
+        // Show the link before trying to open it, not after failing to.
+        // `window.open` is blocked by default in most browsers and in some
+        // webviews, and the old code only revealed the URL inside a toast that
+        // disappears -- leaving a dead end with nothing left to click.
+        this.updateDownloadUrl = url;
+        this.updateStatus = 'Download the installer, run it, and your data is kept where it is.';
         var win = window.open(url, '_blank', 'noopener');
         if (!win) {
-          // popup blocked or webview refused _blank — fall back + show the URL.
-          this.updateStatus = 'Could not open a new tab. Download manually: ' + url;
-          OpenFangToast.warn('Your browser blocked the popup. Open this link: ' + url);
+          OpenFangToast.warn('Your browser blocked the popup — use the download link shown above.');
         }
       } catch (e) {
         this.updateStatus = 'Update failed: ' + (e.message || 'unknown error');

@@ -4475,6 +4475,13 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                     </template>
                   </div>
                   <div style="font-size:12px;margin-top:4px" :style="updateAvailable ? 'color:var(--success)' : 'color:var(--text-dim)'" x-text="updateStatus || 'Updates are checked once a day while the dashboard is open.'"></div>
+                  <!-- A link that stays on the page. The browser blocks
+                       window.open by default, and the URL used to appear only
+                       in a toast that disappeared, leaving nothing to click. -->
+                  <div x-show="updateDownloadUrl" style="margin-top:6px">
+                    <a :href="updateDownloadUrl" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="text-decoration:none;display:inline-block">Download the installer &rarr;</a>
+                    <div class="text-xs text-dim" style="margin-top:4px;word-break:break-all" x-text="updateDownloadUrl"></div>
+                  </div>
                 </div>
                 <button class="btn btn-ghost btn-sm" @click="checkForUpdates()" :disabled="updateChecking">
                   <span x-show="!updateChecking">Check for updates</span>
