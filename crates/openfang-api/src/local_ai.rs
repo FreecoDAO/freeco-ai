@@ -639,12 +639,27 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
 
     if capability.suitable {
         if let (Some(model), Some(server)) = (llama_model, llama_server.as_ref()) {
-            // Start it if it is not already answering, so "auto-configure" leaves
-            // behind something that actually responds rather than a config file
-            // pointing at a port with nothing on it.
+            // Adopt a local server that is already running. Do NOT start one.
+            //
+            // This used to launch llama-server itself, on the reasoning that
+            // auto-configure should leave behind something that answers rather
+            // than a config pointing at a dead port. That reasoning was wrong,
+            // and the consequence was a user discovering a console window they
+            // never opened, running a model they never chose, holding several
+            // gigabytes of RAM — with no prompt, no notification, and no
+            // obvious way to work out what had spawned it.
+            //
+            // Starting a long-lived process on someone's machine is not a
+            // detail of configuration. It needs to be asked for. The explicit
+            // setup endpoint still starts it, because there the user pressed a
+            // button that says so; detection must stay read-only.
+            let _ = server;
             if !llama_server_ready().await {
-                let _ = start_llama_server(server, &gguf_dir.join(model.file_name));
-                wait_for_llama_server(std::time::Duration::from_secs(30)).await;
+                tracing::info!(
+                    model = %model.id,
+                    "Local model found on disk but its server is not running. \
+                     Not starting it: that is the user's decision, not autoconfig's."
+                );
             }
             if llama_server_ready().await {
                 if let Err(e) = write_default_model_llama(&home, model.id) {
@@ -1749,6 +1764,33 @@ async fn provision_llama(
 
 #[cfg(test)]
 mod tests {
+
+    /// Auto-configure must never spawn a process.
+    ///
+    /// A user found a console window they had not opened, running a model they
+    /// had not chosen, because detection also started things. Starting a
+    /// long-lived process on someone's machine is a decision they make, so the
+    /// detection path stays read-only and only `llama_setup` — reached by
+    /// pressing a button that says so — may launch or download anything.
+    ///
+    /// This asserts on the source itself because the behaviour is an absence,
+    /// and an absence has nothing to call.
+    #[test]
+    fn autoconfig_never_starts_a_server_or_downloads() {
+        let src = include_str!("local_ai.rs");
+        let marker = "if capability.suitable {";
+        let start = src.find(marker).expect("autoconfig branch must exist");
+        // The adopt-only branch runs until the ollama fallback below it.
+        let window = &src[start..start + 1600.min(src.len() - start)];
+        assert!(
+            !window.contains("let _ = start_llama_server("),
+            "auto-configure must not launch llama-server; only explicit setup may"
+        );
+        assert!(
+            !window.contains("download_with_resume("),
+            "auto-configure must not download models; only explicit setup may"
+        );
+    }
     use super::*;
 
     #[test]
