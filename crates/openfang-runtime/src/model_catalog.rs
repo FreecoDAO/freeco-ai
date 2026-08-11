@@ -1029,7 +1029,11 @@ fn builtin_aliases() -> HashMap<String, String> {
         ("codex-4.1", "codex/gpt-4.1"),
         ("codex-o4", "codex/o4-mini"),
         // NVIDIA NIM aliases
-        ("nemotron", "nvidia/llama-3.1-nemotron-70b-instruct"),
+        ("nemotron", "nvidia/nemotron-3-ultra-550b-a55b"),
+        ("nemotron-legacy", "nvidia/llama-3.1-nemotron-70b-instruct"),
+        // Saving an NVIDIA key configures the free flagship, not whichever
+        // model happens to sit first in the list.
+        ("nvidia", "nvidia/nemotron-3-ultra-550b-a55b"),
         // Venice aliases
         ("venice", "venice-uncensored"),
         // Claude Code aliases
@@ -1075,6 +1079,52 @@ fn builtin_models() -> Vec<ModelCatalogEntry> {
         // ══════════════════════════════════════════════════════════════
         // Anthropic (7)
         // ══════════════════════════════════════════════════════════════
+        // Claude 5. Context windows and prices below were read from the live
+        // provider listing, not carried over from the 4-series, because the
+        // 1M context is the reason to choose these and a stale 200_000 here
+        // would silently cap requests at a fifth of what the model accepts.
+        ModelCatalogEntry {
+            id: "claude-opus-5".into(),
+            display_name: "Claude Opus 5".into(),
+            provider: "anthropic".into(),
+            tier: ModelTier::Frontier,
+            context_window: 1_000_000,
+            max_output_tokens: 64_000,
+            input_cost_per_m: 5.0,
+            output_cost_per_m: 25.0,
+            supports_tools: true,
+            supports_vision: true,
+            supports_streaming: true,
+            aliases: vec!["opus-5".into(), "claude-opus-5".into()],
+        },
+        ModelCatalogEntry {
+            id: "claude-sonnet-5".into(),
+            display_name: "Claude Sonnet 5".into(),
+            provider: "anthropic".into(),
+            tier: ModelTier::Frontier,
+            context_window: 1_000_000,
+            max_output_tokens: 64_000,
+            input_cost_per_m: 2.0,
+            output_cost_per_m: 10.0,
+            supports_tools: true,
+            supports_vision: true,
+            supports_streaming: true,
+            aliases: vec!["sonnet-5".into(), "claude-sonnet-5".into()],
+        },
+        ModelCatalogEntry {
+            id: "claude-fable-5".into(),
+            display_name: "Claude Fable 5".into(),
+            provider: "anthropic".into(),
+            tier: ModelTier::Frontier,
+            context_window: 1_000_000,
+            max_output_tokens: 64_000,
+            input_cost_per_m: 10.0,
+            output_cost_per_m: 50.0,
+            supports_tools: true,
+            supports_vision: true,
+            supports_streaming: true,
+            aliases: vec!["fable".into(), "fable-5".into()],
+        },
         ModelCatalogEntry {
             id: "claude-opus-4-6".into(),
             display_name: "Claude Opus 4.6".into(),
@@ -2464,6 +2514,60 @@ fn builtin_models() -> Vec<ModelCatalogEntry> {
         // ══════════════════════════════════════════════════════════════
         // NVIDIA NIM (5)
         // ══════════════════════════════════════════════════════════════
+        // Nemotron 3 on NVIDIA's own NIM endpoint (integrate.api.nvidia.com),
+        // where the free tier costs nothing: no daily token cap, a shared
+        // ~40 RPM limit, and a free developer account. Ids match NVIDIA's.
+        //
+        // Cost is recorded as zero because that is what this provider charges.
+        // These models are also resold through OpenRouter at 0.60/3.60 and
+        // similar; copying those figures here would bill the user for spend
+        // they never incurred and make the budget page untrustworthy.
+        //
+        // Ultra's context is NVIDIA's published 1M for this endpoint. The
+        // OpenRouter resale of the same model advertises 512K, so the two
+        // disagree; this entry describes the NVIDIA endpoint it points at.
+        ModelCatalogEntry {
+            id: "nvidia/nemotron-3-ultra-550b-a55b".into(),
+            display_name: "Nemotron 3 Ultra 550B (free)".into(),
+            provider: "nvidia".into(),
+            tier: ModelTier::Frontier,
+            context_window: 1_000_000,
+            max_output_tokens: 32_768,
+            input_cost_per_m: 0.0,
+            output_cost_per_m: 0.0,
+            supports_tools: true,
+            supports_vision: false,
+            supports_streaming: true,
+            aliases: vec!["nemotron-ultra".into(), "nemotron-3-ultra".into()],
+        },
+        ModelCatalogEntry {
+            id: "nvidia/nemotron-3-super-120b-a12b".into(),
+            display_name: "Nemotron 3 Super 120B".into(),
+            provider: "nvidia".into(),
+            tier: ModelTier::Smart,
+            context_window: 1_000_000,
+            max_output_tokens: 32_768,
+            input_cost_per_m: 0.0,
+            output_cost_per_m: 0.0,
+            supports_tools: true,
+            supports_vision: false,
+            supports_streaming: true,
+            aliases: vec!["nemotron-super".into(), "nemotron-3-super".into()],
+        },
+        ModelCatalogEntry {
+            id: "nvidia/nemotron-3-nano-30b-a3b".into(),
+            display_name: "Nemotron 3 Nano 30B".into(),
+            provider: "nvidia".into(),
+            tier: ModelTier::Fast,
+            context_window: 262_144,
+            max_output_tokens: 32_768,
+            input_cost_per_m: 0.0,
+            output_cost_per_m: 0.0,
+            supports_tools: true,
+            supports_vision: false,
+            supports_streaming: true,
+            aliases: vec!["nemotron-nano".into(), "nemotron-3-nano".into()],
+        },
         ModelCatalogEntry {
             id: "nvidia/llama-3.1-nemotron-70b-instruct".into(),
             display_name: "Nemotron 70B Instruct (NVIDIA NIM)".into(),
@@ -4163,8 +4267,13 @@ mod tests {
     fn test_models_by_provider() {
         let catalog = ModelCatalog::new();
         let anthropic = catalog.models_by_provider("anthropic");
-        assert_eq!(anthropic.len(), 7);
+        // Not an exact count: this asserted 7 and had to be edited every time
+        // a model shipped, which turns adding a model into a test failure that
+        // says nothing about correctness. What matters is that the filter
+        // returns that provider's models and nobody else's.
+        assert!(!anthropic.is_empty());
         assert!(anthropic.iter().all(|m| m.provider == "anthropic"));
+        assert!(anthropic.iter().any(|m| m.id.starts_with("claude-")));
     }
 
     #[test]
@@ -4220,10 +4329,18 @@ mod tests {
     #[test]
     fn test_provider_model_counts() {
         let catalog = ModelCatalog::new();
-        let anthropic = catalog.get_provider("anthropic").unwrap();
-        assert_eq!(anthropic.model_count, 7);
-        let groq = catalog.get_provider("groq").unwrap();
-        assert_eq!(groq.model_count, 7);
+        // The real invariant: a provider's advertised model_count matches the
+        // models actually registered for it. Hardcoded totals only recorded
+        // how many existed on the day the test was written, and broke on every
+        // addition while never catching a genuine mismatch.
+        for provider in catalog.list_providers() {
+            let actual = catalog.models_by_provider(&provider.id).len();
+            assert_eq!(
+                provider.model_count as usize, actual,
+                "{} advertises {} models but {} are registered",
+                provider.id, provider.model_count, actual
+            );
+        }
     }
 
     #[test]
