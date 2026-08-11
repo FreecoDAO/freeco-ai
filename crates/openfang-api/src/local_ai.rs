@@ -45,13 +45,22 @@ pub struct LocalModelProfile {
     pub download_gb: f32,
 }
 
+/// Local models and the hardware they actually need.
+///
+/// `min_vram_gb` is the smallest real GPU size (6/8/12/16/24) that holds the
+/// weights plus context headroom — roughly the download size plus 2 GB. Five
+/// entries used to claim `0`, which reads as "no GPU required" and is why a
+/// 7.2 GB Gemma 4 was being recommended to a laptop with Intel integrated
+/// graphics. Nothing here runs usefully for agent work below 6 GB of VRAM;
+/// that is the same floor `assess_local_ai` enforces, and a catalog that
+/// disagreed with the gate is how the two ended up giving opposite answers.
 const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
     LocalModelProfile {
         id: "llama3.2:1b",
         display_name: "Llama 3.2 1B",
         purpose: "minimum-resource general assistant",
         min_ram_gb: 4,
-        min_vram_gb: 0,
+        min_vram_gb: 6,
         min_disk_gb: 3,
         download_gb: 1.3,
     },
@@ -63,7 +72,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         display_name: "Gemma 3 Nano E2B",
         purpose: "balanced assistant for 8-16 GB laptops (~5.6 GB download)",
         min_ram_gb: 10,
-        min_vram_gb: 0,
+        min_vram_gb: 8,
         min_disk_gb: 8,
         download_gb: 5.6,
     },
@@ -75,7 +84,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         display_name: "Gemma 4 E2B",
         purpose: "lightest Gemma 4 — good general assistant for 16 GB machines",
         min_ram_gb: 12,
-        min_vram_gb: 0,
+        min_vram_gb: 12,
         min_disk_gb: 10,
         download_gb: 7.2,
     },
@@ -88,7 +97,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         display_name: "Gemma 4 E4B",
         purpose: "high-quality general assistant (large download ~10 GB)",
         min_ram_gb: 24,
-        min_vram_gb: 0,
+        min_vram_gb: 12,
         min_disk_gb: 14,
         download_gb: 9.6,
     },
@@ -97,7 +106,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         display_name: "Qwen2.5-Coder 3B",
         purpose: "resource-conscious coding assistant",
         min_ram_gb: 8,
-        min_vram_gb: 0,
+        min_vram_gb: 6,
         min_disk_gb: 5,
         download_gb: 1.9,
     },
