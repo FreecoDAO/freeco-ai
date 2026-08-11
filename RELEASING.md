@@ -75,15 +75,35 @@ problem for two releases.
 
 ## What you lose by doing it manually
 
-v0.9.4 was cut by hand, and these did not happen:
+v0.9.4 was cut by hand, and these did not happen until they were done manually
+afterwards:
 
 - `ROADMAP.md` was not updated — `Unreleased` items were never moved to
   `Shipped`
-- the v0.9.3 milestone was not closed and no v0.9.4 milestone was created
-- Project board items were not moved to Released
+- no v0.9.4 milestone was created
 
-If you have already gone manual, do those by hand or fold them into the next
-release PR.
+Note that replaying the script's ROADMAP regex by hand is not safe: it matches
+from the *first* `## Shipped in v...` heading through to `## Unreleased`, so
+running it against a file that already has several shipped sections relabels
+the oldest one with the new version and loses its heading. Add the new section
+directly instead.
+
+The Project board step is a separate case: it has never run on any release.
+It is guarded by `if: env.PROJECTS_TOKEN != '' && ...` and none of
+`PROJECTS_TOKEN`, `PROJECT_NUMBER`, `PROJECT_STATUS_FIELD` or
+`PROJECT_RELEASED_OPTION` are configured on the repository. That is not
+something a manual release skips — it is unconfigured for everyone.
+
+## Repository secrets, as configured today
+
+Only `RELEASE_TOKEN` and `TAURI_SIGNING_PRIVATE_KEY` exist. Consequences worth
+knowing before blaming a build:
+
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is unset.
+- The macOS signing and notarization secrets are unset, so macOS ships an
+  unsigned `.dmg` that users open with right-click → Open. The workflow does
+  this deliberately rather than failing (see the ad-hoc signing step), so it
+  is a choice, not a bug.
 
 ## Checking a release actually built
 

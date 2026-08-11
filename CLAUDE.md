@@ -106,6 +106,32 @@ taskkill //PID <pid> //F
 | `/api/a2a/send` | POST | Send task to external A2A agent |
 | `/api/a2a/tasks/{id}/status` | GET | Check external A2A task status |
 
+## Releasing — read `RELEASING.md` first
+
+**To release: open a PR to `main`, add the `release` label, merge it.** That is
+the whole process; `prepare-release.yml` does everything else — version bump
+derived from the PR title, all four version files updated together, commit,
+tag, push, milestones.
+
+**Never bump versions or push tags by hand.** Doing so bypasses the automation
+and you then have to finish every step manually, and will miss some. This has
+already gone wrong: v0.9.3 was hand-tagged and exists as a tag with no release;
+v0.9.4 was hand-cut and its ROADMAP and milestone updates had to be repaired
+afterwards.
+
+Before concluding any part of the release pipeline is broken, read
+`.github/workflows/prepare-release.yml` — it is the entry point — and check how
+past releases were actually triggered:
+
+```bash
+curl -s "https://api.github.com/repos/FreecoDAO/freeco-ai/actions/workflows/release.yml/runs?per_page=5"
+```
+
+`auto-tag.yml` is a self-healing fallback, not the path. A green Auto Tag means
+"the version and changelog agree", **not** "a release was built".
+
+Full details, guards, and what breaks: `RELEASING.md`.
+
 ## Architecture Notes
 - **Don't touch `openfang-cli`** — user is actively building the interactive CLI
 - `KernelHandle` trait avoids circular deps between runtime and kernel
