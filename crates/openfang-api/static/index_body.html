@@ -1081,7 +1081,14 @@
                       <template x-if="!editingProvider">
                         <span>
                           <span class="detail-value" x-text="detailAgent.model_provider"></span>
-                          <button class="btn btn-ghost btn-sm" style="margin-left:8px;padding:2px 8px;font-size:11px" @click="editingProvider = true; newProviderValue = detailAgent.model_provider">Change</button>
+                          <!-- Choosing a model already sets the provider: the
+                               backend derives it from the model id and returns
+                               it. Having a second field asking for it made the
+                               user type the provider twice, once here and again
+                               as the prefix of the model. Say so, and keep the
+                               override for custom endpoints. -->
+                          <span class="text-xs text-dim" style="margin-left:8px">set automatically by the model</span>
+                          <button class="btn btn-ghost btn-sm" style="margin-left:8px;padding:2px 8px;font-size:11px" @click="editingProvider = true; newProviderValue = detailAgent.model_provider">Override</button>
                         </span>
                       </template>
                       <template x-if="editingProvider">
@@ -1110,6 +1117,18 @@
                                usable by someone who already knows the exact id.
                                This is the live catalogue, free models first,
                                so the field can be browsed rather than guessed. -->
+                          <!-- Picking a model from a provider with no key
+                               otherwise fails at the first message with a bare
+                               401, and nothing on this screen connects that to
+                               "you need a key". Say it before the model is
+                               saved, and link to where the key comes from. -->
+                          <template x-if="modelKeyWarning()">
+                            <div class="text-xs" style="margin-top:6px;padding:8px 10px;background:var(--bg);border-radius:4px;border-left:2px solid var(--accent)">
+                              <div><strong x-text="modelKeyWarning().provider"></strong> has no API key yet, so this model will not answer.</div>
+                              <div class="text-dim" x-text="modelKeyWarning().hint" style="margin-top:2px"></div>
+                              <a x-show="modelKeyWarning().url" :href="modelKeyWarning().url" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline" x-text="'Get a ' + modelKeyWarning().provider + ' key'"></a>
+                            </div>
+                          </template>
                           <datalist id="of-model-list">
                             <template x-for="m in catalogModels" :key="m.id">
                               <option :value="m.id" x-text="(m.free ? 'FREE - ' : '') + (m.name || m.id)"></option>
