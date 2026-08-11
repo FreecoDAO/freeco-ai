@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Conversation history no longer becomes unreachable after a reinstall. History is
+  stored per agent id and agents were getting random ids, so rebuilding the agent
+  registry left every conversation in the database with nothing pointing at it:
+  intact, invisible, and indistinguishable from deletion. Built-in and on-disk
+  agents now derive stable ids from their names.
+- Recovery for history already orphaned this way. `GET /api/sessions/orphaned`
+  reports what is recoverable and the sessions page offers it as a button. It
+  changes ownership only, so no message is rewritten and nothing is deleted.
+- Auto-configure no longer starts a local model or downloads gigabytes of model
+  files without being asked. Detection is read-only; only the explicit setup
+  endpoint, reached by pressing a button that says so, may launch or download.
+- OpenRouter model ids are sent in the form OpenRouter recognises, and
+  `openrouter/free` is no longer rewritten to a pinned model lacking tool support.
+- The FreEco.ai Assistant cannot be deleted. It is the entry point and holds the
+  accumulated context, so deletion is refused at the API with a pointer to pause.
+
+### Added
+- Data gateway that inspects outbound prompts for API keys, card numbers, IBANs,
+  emails, IP addresses and private keys, masks them with reversible tokens and
+  restores them in replies. Card numbers are Luhn-checked and keys are
+  prefix-anchored, so ordinary text is not mangled.
+- Setup guidance for every shipped provider: where the key comes from and whether
+  it is free, free-tier, paid or local. A test fails if a provider is added
+  without it.
+- Naming compatibility: `FREECO_*` variables are preferred, `OPENFANG_*` still
+  work, and an existing `~/.openfang` install is never relocated.
+
 ## [0.9.4] - 2026-08-08
 
 ### Fixed
