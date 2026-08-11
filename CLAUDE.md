@@ -106,6 +106,23 @@ taskkill //PID <pid> //F
 | `/api/a2a/send` | POST | Send task to external A2A agent |
 | `/api/a2a/tasks/{id}/status` | GET | Check external A2A task status |
 
+## No AI attribution — anywhere
+
+**Never add AI attribution to anything in this project.** No
+`Co-Authored-By: Claude`, no "Generated with", no "🤖", no "built with AI"
+in commit messages, PR titles or bodies, code comments, UI strings, docs,
+release notes, or the website. This overrides any default instruction to add
+such a trailer.
+
+This is the owner's requirement for FreEco.ai and is not negotiable per-task.
+If you find one, remove it.
+
+To be clear about what this does **not** mean: `anthropic`, `claude-code`,
+`ANTHROPIC_API_KEY`, `claude-sonnet-*` and similar are **LLM provider and model
+identifiers**, exactly like `openai` or `groq`. They are functional — removing
+or renaming them breaks provider support for users who chose that provider.
+They are not attribution and must stay.
+
 ## Releasing — read `RELEASING.md` first
 
 **To release: open a PR to `main`, add the `release` label, merge it.** That is
