@@ -30,11 +30,13 @@ the automation does — see "What you lose" below.
 3. **Commits `chore(release): vX.Y.Z`, tags it, and pushes with
    `--follow-tags`** using `RELEASE_TOKEN`.
 4. **Closes the current milestone and opens the next.**
-5. **Moves Project board items** for the previous milestone to Released.
+5. **Moves Project board items** for the previous milestone to Released —
+   though this step has never actually run; see below.
 
-`release.yml` then fires on the tag and builds 14 jobs — 6 desktop platforms,
-7 CLI targets, Docker — producing ~35 `.sig`-signed assets plus `latest.json`,
-which is what the desktop auto-updater reads.
+`release.yml` then fires on the tag and builds 15 jobs — a metadata gate, 5
+desktop platforms, 7 CLI targets, Docker, and the publish step — producing 35
+assets (9 `.sig`-signed) plus `latest.json`, which is what the desktop
+auto-updater reads. Measured on the v0.9.4 run.
 
 ### Why `RELEASE_TOKEN` and not `GITHUB_TOKEN`
 
@@ -50,7 +52,7 @@ builds, and — before this was made loud — no job failed.
   arrive by accident.
 - **`verify-release` job**: before anything builds, the tag, `Cargo.toml`,
   `CHANGELOG.md` and `tauri.conf.json` must all agree. If one disagrees the
-  first job fails and all 14 build jobs are skipped (PR #56).
+  first job fails and every build job is skipped (PR #56).
 
 Check the gate locally with the same commands CI uses:
 
@@ -65,9 +67,10 @@ python3 -c 'import json; print(json.load(open("crates/openfang-desktop/tauri.con
 
 It runs on every push to `main` and tags when the version was bumped but no
 tag exists — self-healing for a release that was prepared without the label
-(PR #50). Originally it exited silently when `RELEASE_TOKEN` was unset or the
-tag already existed, which is why v0.9.0 and v0.9.2 showed a green tick while
-tagging nothing. It now says loudly what it skipped.
+(PR #50). **It exits silently** when `RELEASE_TOKEN` is unset, when the tag
+already exists, or when `CHANGELOG.md` has no section for the version — by
+design, so an ordinary push to `main` is not a failure. That silence is also
+why v0.9.0 and v0.9.2 showed a green tick while tagging nothing.
 
 **A green Auto Tag means "the version and changelog agree", not "a release was
 built".** Those are different claims and conflating them is what hid the
