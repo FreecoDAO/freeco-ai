@@ -35,6 +35,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Naming compatibility: `FREECO_*` variables are preferred, `OPENFANG_*` still
   work, and an existing `~/.openfang` install is never relocated.
 
+- NVIDIA NIM as a free frontier option. Nemotron 3 Ultra 550B, Super 120B and
+  Nano 30B on NVIDIA's own endpoint, where the free tier has no daily token
+  cap. Cost is recorded as zero because that is what this provider charges;
+  the same models resold through OpenRouter are priced, and copying those
+  figures would bill users for spend they never incurred. Saving an NVIDIA key
+  configures Ultra rather than whichever model sits first in the list.
+- Claude Opus 5, Sonnet 5 and Fable 5, at their real 1M context. Carrying the
+  4-series 200k figure over would have silently capped requests at a fifth of
+  what the model accepts.
+
+### Fixed
+
+- Local models are no longer recommended to machines that cannot run them. The
+  recommendation endpoint ignored the hardware gate autoconfigure applies, so a
+  laptop with integrated graphics was offered a 7.2 GB download while
+  autoconfigure refused the same machine. The catalog was the source: five of
+  eight entries claimed to need no GPU at all.
+- Local model setup no longer reports a server as ready while it is still
+  loading. The readiness check accepted any HTTP reply, and llama.cpp answers
+  503 for as long as the weights are loading, so the first message hit a server
+  that had not finished starting.
+- Agent config no longer asks for the provider twice. Choosing a model already
+  sets it, so the provider row says so and the manual field is an override for
+  custom endpoints rather than a second thing to fill in.
+- Choosing a model from a provider with no API key now says so before saving,
+  and links to where the key comes from, instead of failing later with a 401
+  that nothing on the screen explains.
+
 ## [0.9.4] - 2026-08-08
 
 ### Fixed
