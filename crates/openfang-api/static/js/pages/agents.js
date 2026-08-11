@@ -98,7 +98,45 @@ function agentsPage() {
     catalogModels: [],
     catalogLoading: false,
 
+    // Providers, so the model picker can warn that the chosen one has no key
+    // and say where to get one. Picking a model from a provider you have not
+    // configured otherwise fails at the first message with a bare 401, and
+    // nothing in this screen connects that to "you need a key".
+    providerIndex: {},
+
+    async loadProviders() {
+      if (Object.keys(this.providerIndex).length) return;
+      try {
+        var d = await OpenFangAPI.get('/api/providers');
+        var idx = {};
+        (d.providers || []).forEach(function (p) { idx[p.id] = p; });
+        this.providerIndex = idx;
+      } catch (e) { this.providerIndex = {}; }
+    },
+
+    // The provider a typed/selected model id belongs to, or '' if unknown.
+    providerForModel(id) {
+      if (!id) return '';
+      var m = (this.catalogModels || []).filter(function (x) { return x.id === id; });
+      if (m.length && m[0].provider) return m[0].provider;
+      return id.indexOf('/') > 0 ? id.split('/')[0] : '';
+    },
+
+    // Non-empty when the model about to be saved needs a key the user lacks.
+    modelKeyWarning() {
+      var pid = this.providerForModel((this.newModelValue || '').trim());
+      var p = this.providerIndex[pid];
+      if (!p || p.auth_status === 'configured' || p.key_required === false) return null;
+      return {
+        provider: p.display_name || pid,
+        env: p.api_key_env || '',
+        url: p.signup_url || '',
+        hint: p.signup_hint || "Add this provider's API key in Settings."
+      };
+    },
+
     async loadModelCatalog() {
+      this.loadProviders();
       if (this.catalogModels.length || this.catalogLoading) return;
       this.catalogLoading = true;
       try {

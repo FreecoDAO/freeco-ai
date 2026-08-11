@@ -45,13 +45,22 @@ pub struct LocalModelProfile {
     pub download_gb: f32,
 }
 
+/// Local models and the hardware they actually need.
+///
+/// `min_vram_gb` is the smallest real GPU size (6/8/12/16/24) that holds the
+/// weights plus context headroom — roughly the download size plus 2 GB. Five
+/// entries used to claim `0`, which reads as "no GPU required" and is why a
+/// 7.2 GB Gemma 4 was being recommended to a laptop with Intel integrated
+/// graphics. Nothing here runs usefully for agent work below 6 GB of VRAM;
+/// that is the same floor `assess_local_ai` enforces, and a catalog that
+/// disagreed with the gate is how the two ended up giving opposite answers.
 const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
     LocalModelProfile {
         id: "llama3.2:1b",
         display_name: "Llama 3.2 1B",
         purpose: "minimum-resource general assistant",
         min_ram_gb: 4,
-        min_vram_gb: 0,
+        min_vram_gb: 6,
         min_disk_gb: 3,
         download_gb: 1.3,
     },
@@ -63,7 +72,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         display_name: "Gemma 3 Nano E2B",
         purpose: "balanced assistant for 8-16 GB laptops (~5.6 GB download)",
         min_ram_gb: 10,
-        min_vram_gb: 0,
+        min_vram_gb: 8,
         min_disk_gb: 8,
         download_gb: 5.6,
     },
@@ -75,7 +84,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         display_name: "Gemma 4 E2B",
         purpose: "lightest Gemma 4 — good general assistant for 16 GB machines",
         min_ram_gb: 12,
-        min_vram_gb: 0,
+        min_vram_gb: 12,
         min_disk_gb: 10,
         download_gb: 7.2,
     },
@@ -88,7 +97,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         display_name: "Gemma 4 E4B",
         purpose: "high-quality general assistant (large download ~10 GB)",
         min_ram_gb: 24,
-        min_vram_gb: 0,
+        min_vram_gb: 12,
         min_disk_gb: 14,
         download_gb: 9.6,
     },
@@ -97,7 +106,7 @@ const LOCAL_MODEL_CATALOG: &[LocalModelProfile] = &[
         display_name: "Qwen2.5-Coder 3B",
         purpose: "resource-conscious coding assistant",
         min_ram_gb: 8,
-        min_vram_gb: 0,
+        min_vram_gb: 6,
         min_disk_gb: 5,
         download_gb: 1.9,
     },
@@ -527,13 +536,38 @@ pub async fn local_ai_recommendation(
         _ => "general",
     };
     let hardware = detect_hardware().await;
+    let capability = assess_local_ai(&hardware);
     let model = recommended_model(&hardware, purpose);
+
+    // Apply the same hardware gate the autoconfigure path applies.
+    //
+    // This endpoint recommended a model regardless of hardware: on a laptop
+    // with integrated graphics it answered `gemma4:e2b`, a 7.2 GB download,
+    // with no indication that the machine cannot run it usefully. Autoconfigure
+    // refuses the same machine outright, so the product said two different
+    // things depending on which screen the user was on, and the encouraging one
+    // came first.
+    //
+    // The verdict travels with the recommendation rather than replacing it: a
+    // user who has read the estimate and still wants to try is not blocked, but
+    // nobody arrives at a multi-gigabyte download believing it will work.
     Json(serde_json::json!({
         "purpose": purpose,
-        "recommended_model": model,
+        "recommended_model": if capability.suitable { Some(model) } else { None },
+        "would_recommend": model,
+        "suitable": capability.suitable,
+        "has_gpu": capability.has_gpu,
+        "est_minutes_per_agent_turn": capability.est_minutes_per_agent_turn,
+        "requirements": capability.requirements,
         "hardware": hardware,
         "catalog": LOCAL_MODEL_CATALOG,
-        "notice": "Recommendations are conservative estimates. Model setup requires explicit confirmation and may use more memory with larger contexts."
+        "notice": if capability.suitable {
+            "Recommendations are conservative estimates. Model setup requires \
+             explicit confirmation and may use more memory with larger contexts."
+                .to_string()
+        } else {
+            capability.reason.clone()
+        }
     }))
 }
 
@@ -1735,16 +1769,17 @@ async fn provision_llama(
     start_llama_server(&server, &gguf)?;
 
     // 4. Wait for it to answer, then wire it as the default model.
-    let client = reqwest::Client::new();
-    let health = format!("http://127.0.0.1:{LLAMA_PORT}/health");
-    let mut up = false;
-    for _ in 0..60 {
-        if client.get(&health).send().await.is_ok() {
-            up = true;
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    }
+    //
+    // This polled `/health` and accepted any reply at all, because `.is_ok()`
+    // on a reqwest response is true for a 503 as much as a 200 — and llama.cpp
+    // answers 503 on `/health` for as long as the model is still loading. So a
+    // multi-gigabyte GGUF that had merely opened its socket was reported ready,
+    // the default model was written, and the first message failed against a
+    // server that was not finished starting.
+    //
+    // `wait_for_llama_server` polls `/v1/models` and requires a 2xx, which is
+    // only true once the weights are loaded and the model can be served.
+    let up = wait_for_llama_server(std::time::Duration::from_secs(120)).await;
     if !up {
         return Err("llama-server started but did not become healthy within 2 minutes".into());
     }
@@ -1849,6 +1884,37 @@ mod tests {
     /// nothing, so vram is None. Measured ~5 tok/s -- about an hour per agent
     /// turn. Local AI must stay OFF here; enabling it produces an assistant
     /// that looks configured and never answers.
+    /// The recommendation endpoint must apply the same gate autoconfigure does.
+    ///
+    /// It used to answer `gemma4:e2b` — a 7.2 GB download — on a machine with
+    /// integrated graphics, while autoconfigure refused that same machine. The
+    /// product contradicted itself depending on which screen the user reached
+    /// first, and the encouraging answer was the one with the download button.
+    #[test]
+    fn no_gpu_means_no_recommended_model() {
+        let igpu = hw(15, None);
+        let cap = assess_local_ai(&igpu);
+        assert!(!cap.suitable, "an iGPU machine must not be suitable");
+
+        // `recommended_model` still has an opinion; the gate is what decides
+        // whether the user is shown it as a recommendation.
+        let would = recommended_model(&igpu, "general");
+        assert!(!would.is_empty());
+
+        // What the endpoint serves: no recommendation, and a reason that
+        // explains the hardware rather than a generic disclaimer.
+        assert!(
+            cap.reason.to_lowercase().contains("gpu")
+                || cap.reason.to_lowercase().contains("graphics"),
+            "the reason must name the hardware problem, got: {}",
+            cap.reason
+        );
+        assert!(
+            !cap.requirements.is_empty(),
+            "a refusal must say what would work"
+        );
+    }
+
     #[test]
     fn igpu_machine_is_not_suitable_for_local_ai() {
         let cap = assess_local_ai(&hw(8, None));

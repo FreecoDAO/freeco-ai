@@ -97,10 +97,13 @@ pub fn signup_for(provider_id: &str) -> Option<Signup> {
             "Free tier available. Sign up and create an API key.",
             Cost::FreeTier,
         ),
+        // Free, and the only free tier here with no daily token cap. Worth
+        // naming Nemotron: the reason to pick NVIDIA is a 550B frontier model
+        // at no cost, and "free credits on signup" undersold that badly.
         "nvidia" => (
-            "https://build.nvidia.com/explore/discover",
-            "Free credits on signup. Pick a model and press Get API Key.",
-            Cost::FreeTier,
+            "https://build.nvidia.com/settings/api-keys",
+            "Free, no daily token cap. Sign up (phone verification), create a key,              and you get Nemotron 3 Ultra 550B at no cost.",
+            Cost::Free,
         ),
         "zhipu" | "zhipu_coding" => (
             "https://open.bigmodel.cn/usercenter/apikeys",
