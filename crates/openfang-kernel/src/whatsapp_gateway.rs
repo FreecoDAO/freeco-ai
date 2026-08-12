@@ -4,7 +4,7 @@
 //! runs `npm install` if needed, and spawns `node index.js` as a managed child process
 //! that auto-restarts on crash.
 
-use crate::config::openfang_home;
+use crate::config::freeco_ai_home;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -24,7 +24,7 @@ const RESTART_DELAYS: [u64; 3] = [5, 10, 20];
 
 /// Get the gateway installation directory.
 fn gateway_dir() -> PathBuf {
-    openfang_home().join("whatsapp-gateway")
+    freeco_ai_home().join("whatsapp-gateway")
 }
 
 /// Compute a simple hash of content for change detection.

@@ -47,8 +47,8 @@ RUN if [ "$OPENFANG_SMOKE_FULL" = "1" ]; then \
     fi
 
 # If full install succeeded, verify the binary works
-RUN if [ "$OPENFANG_SMOKE_FULL" = "1" ] && [ -f "$HOME/.openfang/bin/openfang" ]; then \
-        $HOME/.openfang/bin/openfang --version && \
+RUN if [ "$FRECO_AI_SMOKE_FULL" = "1" ] && [ -f "$HOME/.freeco-ai/bin/freeco-ai" ]; then \
+        $HOME/.freeco-ai/bin/freeco-ai --version && \
         echo "PASS: openfang binary works"; \
     else \
         echo "SKIP: binary verification (no full install)"; \

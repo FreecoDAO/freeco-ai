@@ -16,20 +16,20 @@ Running `openfang` with no subcommand launches the interactive TUI (terminal use
 ### From source (cargo)
 
 ```bash
-cargo install --path crates/openfang-cli
+cargo install --path crates/openfang-cli --bin freeco-ai
 ```
 
 ### Build from workspace
 
 ```bash
-cargo build --release -p openfang-cli
-# Binary: target/release/openfang (or openfang.exe on Windows)
+cargo build --release -p freeco-ai-cli
+# Binary: target/release/freeco-ai (or freeco-ai.exe on Windows)
 ```
 
 ### Docker
 
 ```bash
-docker run -it openfang/openfang:latest
+docker run -it ghcr.io/freecodao/freeco-ai:latest
 ```
 
 ### Shell installer

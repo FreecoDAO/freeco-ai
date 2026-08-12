@@ -1773,9 +1773,14 @@ fn openfang_home_dir() -> PathBuf {
     if let Ok(home) = std::env::var("FRECO_AI_HOME").or_else(|_| std::env::var("OPENFANG_HOME")) {
         return PathBuf::from(home);
     }
-    dirs::home_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join(".freeco-ai")
+    let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
+    let freeco_home = home.join(".freeco-ai");
+    let legacy_home = home.join(".openfang");
+    if !freeco_home.exists() && legacy_home.exists() {
+        legacy_home
+    } else {
+        freeco_home
+    }
 }
 
 /// Default LLM model configuration.

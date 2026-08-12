@@ -1,10 +1,10 @@
-# OpenFang — Agent Instructions
+# FreEco.ai — Agent Instructions
 
 ## Project Overview
-OpenFang is an open-source Agent Operating System written in Rust (14 crates).
-- Config: `~/.openfang/config.toml`
+FreEco.ai is an open-source Agent Operating System written in Rust (14 crates).
+- Config: `~/.freeco-ai/config.toml`
 - Default API: `http://127.0.0.1:4200`
-- CLI binary: `target/release/openfang.exe` (or `target/debug/openfang.exe`)
+- CLI binary: `target/release/freeco-ai.exe` (or `target/debug/freeco-ai.exe`)
 
 ## Build & Verify Workflow
 After every feature implementation, run ALL THREE checks:
@@ -33,12 +33,12 @@ sleep 3
 
 #### Step 2: Build fresh release binary
 ```bash
-cargo build --release -p openfang-cli
+cargo build --release -p freeco-ai-cli
 ```
 
 #### Step 3: Start daemon with required API keys
 ```bash
-GROQ_API_KEY=<key> target/release/openfang.exe start &
+GROQ_API_KEY=<key> target/release/freeco-ai.exe start &
 sleep 6  # Wait for full boot
 curl -s http://127.0.0.1:4200/api/health  # Verify it's up
 ```

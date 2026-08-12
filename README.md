@@ -373,14 +373,14 @@ On Windows without the MSVC Build Tools, see [Building on Windows](docs/building
 ```bash
 git clone https://github.com/FreecoDAO/freeco-ai.git
 cd freeco-ai
-cargo build --release -p openfang-cli
-./target/release/openfang init          # creates ~/.openfang/config.toml
+cargo build --release -p freeco-ai-cli
+./target/release/freeco-ai init         # creates ~/.freeco-ai/config.toml
 export GROQ_API_KEY=gsk_...             # or ANTHROPIC_API_KEY / OPENAI_API_KEY
-./target/release/openfang start
+./target/release/freeco-ai start
 # Dashboard live at http://localhost:4200
 ```
 
-On Windows use `target\release\openfang.exe`. See [docs/getting-started.md](docs/getting-started.md) for the full guide.
+On Windows use `target\release\freeco-ai.exe`. See [docs/getting-started.md](docs/getting-started.md) for the full guide.
 
 </details>
 
