@@ -295,14 +295,11 @@ mod tests {
     }
 
     #[test]
-    fn test_gateway_dir_under_openfang_home() {
+    fn test_gateway_dir_under_freeco_home() {
         let dir = gateway_dir();
+        let home = freeco_ai_home();
         assert!(dir.ends_with("whatsapp-gateway"));
-        assert!(dir
-            .parent()
-            .unwrap()
-            .to_string_lossy()
-            .contains(".openfang"));
+        assert_eq!(dir.parent(), Some(home.as_path()));
     }
 
     #[test]
