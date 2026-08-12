@@ -114,7 +114,10 @@ mod tests {
         } else {
             tmp.join(CURRENT_DIR)
         };
-        assert_eq!(resolved, legacy, "existing data directory must keep winning");
+        assert_eq!(
+            resolved, legacy,
+            "existing data directory must keep winning"
+        );
         std::fs::remove_dir_all(&tmp).ok();
     }
 
