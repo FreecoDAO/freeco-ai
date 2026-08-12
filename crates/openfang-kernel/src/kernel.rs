@@ -13,7 +13,6 @@ use crate::supervisor::Supervisor;
 use crate::triggers::{TriggerEngine, TriggerId, TriggerPattern};
 use crate::workflow::{StepAgent, Workflow, WorkflowEngine, WorkflowId, WorkflowRunId};
 
-use openfang_memory::MemorySubstrate;
 use freeco_kernel_runtime::agent_loop::{
     run_agent_loop, run_agent_loop_streaming, strip_provider_prefix, AgentLoopResult,
 };
@@ -27,6 +26,7 @@ use freeco_kernel_runtime::python_runtime::{self, PythonConfig};
 use freeco_kernel_runtime::routing::ModelRouter;
 use freeco_kernel_runtime::sandbox::{SandboxConfig, WasmSandbox};
 use freeco_kernel_runtime::tool_runner::builtin_tool_definitions;
+use openfang_memory::MemorySubstrate;
 use openfang_types::agent::*;
 use openfang_types::capability::Capability;
 use openfang_types::config::{KernelConfig, OutputFormat};
@@ -598,8 +598,8 @@ impl OpenFangKernel {
         use openfang_types::config::KernelMode;
 
         // Env var overrides — useful for Docker where config.toml is baked in.
-        if let Ok(listen) = std::env::var("FRECO_AI_LISTEN")
-            .or_else(|_| std::env::var("OPENFANG_LISTEN"))
+        if let Ok(listen) =
+            std::env::var("FRECO_AI_LISTEN").or_else(|_| std::env::var("OPENFANG_LISTEN"))
         {
             config.api_listen = listen;
         }
@@ -796,7 +796,9 @@ impl OpenFangKernel {
 
         // Use the chain, or create a stub driver if everything failed
         let driver: Arc<dyn LlmDriver> = if driver_chain.len() > 1 {
-            Arc::new(freeco_kernel_runtime::drivers::fallback::FallbackDriver::with_models(model_chain))
+            Arc::new(
+                freeco_kernel_runtime::drivers::fallback::FallbackDriver::with_models(model_chain),
+            )
         } else if let Some(single) = driver_chain.into_iter().next() {
             single
         } else {
@@ -1081,17 +1083,19 @@ impl OpenFangKernel {
             }
         };
 
-        let browser_ctx = freeco_kernel_runtime::browser::BrowserManager::new(config.browser.clone());
+        let browser_ctx =
+            freeco_kernel_runtime::browser::BrowserManager::new(config.browser.clone());
 
         // Initialize media understanding engine
         let media_engine =
             freeco_kernel_runtime::media_understanding::MediaEngine::new(config.media.clone());
         // Closes #1051: thread MediaConfig URL overrides into the TTS engine
         // so local OpenAI/ElevenLabs-compatible services can be targeted.
-        let tts_engine = freeco_kernel_runtime::tts::TtsEngine::new(config.tts.clone()).with_base_urls(
-            config.media.tts_openai_base_url.clone(),
-            config.media.tts_elevenlabs_base_url.clone(),
-        );
+        let tts_engine = freeco_kernel_runtime::tts::TtsEngine::new(config.tts.clone())
+            .with_base_urls(
+                config.media.tts_openai_base_url.clone(),
+                config.media.tts_elevenlabs_base_url.clone(),
+            );
         let mut pairing = crate::pairing::PairingManager::new(config.pairing.clone());
 
         // Load paired devices from database and set up persistence callback
@@ -1212,7 +1216,9 @@ impl OpenFangKernel {
             broadcast: initial_broadcast,
             auto_reply_engine,
             hooks: freeco_kernel_runtime::hooks::HookRegistry::new(),
-            process_manager: Arc::new(freeco_kernel_runtime::process_manager::ProcessManager::new(5)),
+            process_manager: Arc::new(freeco_kernel_runtime::process_manager::ProcessManager::new(
+                5,
+            )),
             peer_registry: OnceLock::new(),
             peer_node: OnceLock::new(),
             booted_at: std::time::Instant::now(),
@@ -2316,8 +2322,10 @@ impl OpenFangKernel {
         let memory = Arc::clone(&self.memory);
         // Build link context from user message (auto-extract URLs for the agent)
         let message_owned = if let Some(link_ctx) =
-            freeco_kernel_runtime::link_understanding::build_link_context(message, &self.config.links)
-        {
+            freeco_kernel_runtime::link_understanding::build_link_context(
+                message,
+                &self.config.links,
+            ) {
             format!("{message}{link_ctx}")
         } else {
             message.to_string()
@@ -2965,8 +2973,10 @@ impl OpenFangKernel {
 
         // Build link context from user message (auto-extract URLs for the agent)
         let message_with_links = if let Some(link_ctx) =
-            freeco_kernel_runtime::link_understanding::build_link_context(message, &self.config.links)
-        {
+            freeco_kernel_runtime::link_understanding::build_link_context(
+                message,
+                &self.config.links,
+            ) {
             format!("{message}{link_ctx}")
         } else {
             message.to_string()
@@ -3626,7 +3636,9 @@ impl OpenFangKernel {
     /// Replaces the existing text-truncation compaction with an intelligent
     /// LLM-generated summary of older messages, keeping only recent messages.
     pub async fn compact_agent_session(&self, agent_id: AgentId) -> KernelResult<String> {
-        use freeco_kernel_runtime::compactor::{compact_session, needs_compaction, CompactionConfig};
+        use freeco_kernel_runtime::compactor::{
+            compact_session, needs_compaction, CompactionConfig,
+        };
 
         let entry = self.registry.get(agent_id).ok_or_else(|| {
             KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
@@ -3668,7 +3680,9 @@ impl OpenFangKernel {
 
         // Post-compaction audit: validate and repair the kept messages
         let (repaired_messages, repair_stats) =
-            freeco_kernel_runtime::session_repair::validate_and_repair_with_stats(&result.kept_messages);
+            freeco_kernel_runtime::session_repair::validate_and_repair_with_stats(
+                &result.kept_messages,
+            );
 
         // Repair is validated but NOT written back over the full history.
         //
@@ -4598,9 +4612,11 @@ impl OpenFangKernel {
                 }
 
                 for (provider_id, base_url) in &local_providers {
-                    let result =
-                        freeco_kernel_runtime::provider_health::probe_provider(provider_id, base_url)
-                            .await;
+                    let result = freeco_kernel_runtime::provider_health::probe_provider(
+                        provider_id,
+                        base_url,
+                    )
+                    .await;
                     if result.reachable {
                         info!(
                             provider = %provider_id,
@@ -4791,7 +4807,8 @@ impl OpenFangKernel {
                 let kernel = Arc::clone(self);
                 let agents = a2a_config.external_agents.clone();
                 tokio::spawn(async move {
-                    let discovered = freeco_kernel_runtime::a2a::discover_external_agents(&agents).await;
+                    let discovered =
+                        freeco_kernel_runtime::a2a::discover_external_agents(&agents).await;
                     if let Ok(mut store) = kernel.a2a_external_agents.lock() {
                         *store = discovered;
                     }

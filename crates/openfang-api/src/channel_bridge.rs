@@ -43,6 +43,7 @@ use openfang_channels::twist::TwistAdapter;
 use openfang_channels::webex::WebexAdapter;
 // Wave 5
 use async_trait::async_trait;
+use freeco_kernel_runtime::kernel_handle::KernelHandle;
 use openfang_channels::dingtalk::DingTalkAdapter;
 use openfang_channels::dingtalk_stream::DingTalkStreamAdapter;
 use openfang_channels::discourse::DiscourseAdapter;
@@ -55,7 +56,6 @@ use openfang_channels::ntfy::NtfyAdapter;
 use openfang_channels::webhook::WebhookAdapter;
 use openfang_channels::wecom::WeComAdapter;
 use openfang_kernel::OpenFangKernel;
-use freeco_kernel_runtime::kernel_handle::KernelHandle;
 use openfang_types::agent::AgentId;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
