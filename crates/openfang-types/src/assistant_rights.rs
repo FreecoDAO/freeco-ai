@@ -296,5 +296,4 @@ mod tests {
             assert!(ASSISTANT_APPROVAL_TIMEOUT_SECS >= 4 * 60 * 60);
         }
     }
-
 }

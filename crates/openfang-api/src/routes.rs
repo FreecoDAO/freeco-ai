@@ -6,13 +6,13 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use dashmap::DashMap;
+use freeco_kernel_runtime::kernel_handle::KernelHandle;
+use freeco_kernel_runtime::tool_runner::builtin_tool_definitions;
 use openfang_kernel::triggers::{TriggerId, TriggerPattern};
 use openfang_kernel::workflow::{
     ErrorMode, StepAgent, StepMode, Workflow, WorkflowId, WorkflowStep,
 };
 use openfang_kernel::OpenFangKernel;
-use freeco_kernel_runtime::kernel_handle::KernelHandle;
-use freeco_kernel_runtime::tool_runner::builtin_tool_definitions;
 use openfang_types::agent::{AgentId, AgentIdentity, AgentManifest};
 use std::collections::HashMap;
 use std::path::Path as FsPath;
@@ -1932,8 +1932,8 @@ pub async fn send_message_stream(
     Json(req): Json<MessageRequest>,
 ) -> axum::response::Response {
     use axum::response::sse::{Event, Sse};
-    use futures::stream;
     use freeco_kernel_runtime::llm_driver::StreamEvent;
+    use futures::stream;
 
     // SECURITY: Reject oversized messages to prevent OOM / LLM token abuse.
     const MAX_MESSAGE_SIZE: usize = 64 * 1024; // 64KB

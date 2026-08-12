@@ -8,8 +8,8 @@ pub mod screens;
 pub mod theme;
 
 use event::{AppEvent, BackendRef};
-use openfang_kernel::OpenFangKernel;
 use freeco_kernel_runtime::llm_driver::StreamEvent;
+use openfang_kernel::OpenFangKernel;
 use openfang_types::agent::AgentId;
 use openfang_types::commands::{self, Surfaces};
 use screens::{

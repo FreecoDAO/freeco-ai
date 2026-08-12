@@ -5232,9 +5232,9 @@ fn cmd_config_set_key(provider: &str) {
             ui::error(&format!("Failed to create async runtime: {e}"));
             std::process::exit(1);
         });
-        match rt.block_on(freeco_kernel_runtime::drivers::copilot::run_interactive_setup(
-            &openfang_dir,
-        )) {
+        match rt
+            .block_on(freeco_kernel_runtime::drivers::copilot::run_interactive_setup(&openfang_dir))
+        {
             Ok(_) => {
                 ui::success("GitHub Copilot configured successfully");
                 ui::hint("Restart the daemon: openfang stop && openfang start");
