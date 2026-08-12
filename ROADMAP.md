@@ -1,6 +1,6 @@
 # FreEco.ai Roadmap & verified status
 
-_Last verified: **2026-07-14** against this repository's `v0.7.7` tag,
+_Last verified: **2026-08-12** against this repository's `v0.9.5` tag,
 workspace manifest, changelog, and source tree._
 
 ## Status legend
@@ -9,7 +9,7 @@ workspace manifest, changelog, and source tree._
 - 🟨 **Unreleased** — merged on the current branch, not yet tagged.
 - 📋 **Planned** — intended work that is not implemented.
 
-## Shipped in v0.7.7
+## Shipped in v0.9.5
 
 - ✅ Local-first Agent OS with desktop and CLI clients.
 - ✅ Multi-agent workflows, approvals, budgets, audit records, and channel
@@ -29,6 +29,8 @@ workspace manifest, changelog, and source tree._
 - ✅ Encrypted recovery flow fixes for protected reasoning/persistence data.
 - ✅ Security scanning coverage for bundled skills and release paths.
 - ✅ Operator and contributor documentation in `wiki/`.
+- ✅ FreEco.ai binary, installation, portable, container, and daemon identity
+  with safe legacy-home migration.
 
 ## Unreleased
 

@@ -188,7 +188,7 @@ jobs:
 
             **Coming from OpenClaw?**
             ```bash
-            openfang migrate --from openclaw
+            freeco-ai migrate --from openclaw
             ```
           # Build into a DRAFT. This repo has GitHub "immutable releases"
           # enabled: once a release is published its assets are frozen, so the

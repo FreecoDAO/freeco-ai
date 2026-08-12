@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-08-12
+
+### Changed
+
+- FreEco.ai is now the supported product identity for the CLI, release assets,
+  installers, portable distribution, Docker image, and daemon service.
+- Existing OpenFang home directories are migrated non-destructively on first
+  use; the legacy `OPENFANG_HOME` environment variable remains supported.
+
 ## [0.9.2] - 2026-08-05
 
 ### Fixed
