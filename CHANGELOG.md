@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-08-12
+
 ### Fixed
 - Conversation history no longer becomes unreachable after a reinstall. History is
   stored per agent id and agents were getting random ids, so rebuilding the agent
