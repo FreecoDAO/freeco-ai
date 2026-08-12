@@ -60,22 +60,18 @@ def main() -> None:
     )
 
     roadmap_match = re.search(
-        r"(?ms)^## Unreleased\n(?P<body>.*?)(?=^## Planned\n)", roadmap
+        r"(?ms)^## Unreleased\n(?P<body>.*?)(?=^## |\Z)", roadmap
     )
     if roadmap_match is None or not roadmap_match.group("body").strip():
         raise SystemExit("ROADMAP.md must contain Unreleased roadmap items.")
     shipped_items = re.sub(r"(?m)^- 🟨", "- ✅", roadmap_match.group("body").strip())
     roadmap = roadmap[: roadmap_match.start()] + "## Unreleased\n\n" + roadmap[roadmap_match.end() :]
-    shipped_match = re.search(
-        r"(?ms)^## Shipped in v[^\n]+\n\n(?P<body>.*?)(?=^## Unreleased\n)", roadmap
-    )
-    if shipped_match is None:
+    if not re.search(r"(?m)^## Shipped in v[^\n]+\n", roadmap):
         raise SystemExit("ROADMAP.md must contain a Shipped section before Unreleased.")
-    shipped_body = shipped_match.group("body").strip()
-    roadmap = (
-        roadmap[: shipped_match.start()]
-        + f"## Shipped in v{version}\n\n{shipped_body}\n{shipped_items}\n\n"
-        + roadmap[shipped_match.end() :]
+    roadmap = roadmap.replace(
+        "## Unreleased\n\n",
+        f"## Shipped in v{version}\n\n{shipped_items}\n\n## Unreleased\n\n",
+        1,
     )
     roadmap = re.sub(
         r"(?m)^_Last verified: \*\*[^*]+\*\* against this repository's `v[^`]+` tag,",
