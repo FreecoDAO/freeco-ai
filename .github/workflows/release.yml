@@ -301,6 +301,11 @@ jobs:
       - name: Extract version
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+      - name: Check Dockerfile security rules
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          call: check
       - name: Build and push (multi-arch)
         uses: docker/build-push-action@v7
         with:
@@ -316,6 +321,19 @@ jobs:
             org.opencontainers.image.description=FreEco.ai distribution; see included upstream notices
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Publish BuildKit provenance and an SPDX SBOM attestation with
+          # the OCI image, so consumers can inspect exactly what was released.
+          provenance: mode=max
+          sbom: true
+      - name: Scan published image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ghcr.io/freecodao/freeco-ai:${{ steps.version.outputs.version }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          vuln-type: os,library
       - name: Set GHCR package visibility to public
         if: false # Never override the package's private visibility from automation.
         # FreecoDAO is a user account, not an org — the /orgs/... endpoint
