@@ -127,8 +127,13 @@ pub async fn create_sandbox(
     config: &DockerSandboxConfig,
     agent_id: &str,
     workspace: &Path,
+    writable_workspace: bool,
 ) -> Result<SandboxContainer, String> {
     validate_image_name(&config.image)?;
+    let workspace_str = workspace
+        .to_str()
+        .ok_or_else(|| "Workspace path is not valid UTF-8".to_string())?;
+    validate_bind_mount(workspace_str, &config.blocked_mounts)?;
 
     // Refuse rather than trigger a surprise download. Once the image is
     // cached this check costs milliseconds and never fires again.
@@ -183,9 +188,12 @@ pub async fn create_sandbox(
         cmd.arg("--tmpfs").arg(tmpfs_mount);
     }
 
-    // Mount workspace read-only
+    // The default is a read-only workspace. A writable mount is only used for
+    // an explicitly authorized persistent development workspace.
     let ws_str = workspace.display().to_string();
-    cmd.arg("-v").arg(format!("{ws_str}:{}:ro", config.workdir));
+    let mount_mode = if writable_workspace { "rw" } else { "ro" };
+    cmd.arg("-v")
+        .arg(format!("{ws_str}:{}:{mount_mode}", config.workdir));
 
     // Working directory
     cmd.arg("-w").arg(&config.workdir);
@@ -320,26 +328,24 @@ impl ContainerPool {
     }
 
     /// Acquire a container from the pool matching the config hash, or None.
-    pub fn acquire(&self, config_hash: u64, cool_secs: u64) -> Option<SandboxContainer> {
-        let mut found_key = None;
-        for entry in self.entries.iter() {
-            if entry.config_hash == config_hash && entry.last_used.elapsed().as_secs() >= cool_secs
-            {
-                found_key = Some(entry.key().clone());
-                break;
-            }
+    pub fn acquire(
+        &self,
+        pool_key: &str,
+        config_hash: u64,
+        cool_secs: u64,
+    ) -> Option<SandboxContainer> {
+        let entry = self.entries.get(pool_key)?;
+        if entry.config_hash != config_hash || entry.last_used.elapsed().as_secs() < cool_secs {
+            return None;
         }
-        if let Some(key) = found_key {
-            self.entries.remove(&key).map(|(_, e)| e.container)
-        } else {
-            None
-        }
+        drop(entry);
+        self.entries.remove(pool_key).map(|(_, e)| e.container)
     }
 
     /// Release a container back to the pool.
-    pub fn release(&self, container: SandboxContainer, config_hash: u64) {
+    pub fn release(&self, pool_key: String, container: SandboxContainer, config_hash: u64) {
         self.entries.insert(
-            container.container_id.clone(),
+            pool_key,
             PoolEntry {
                 container,
                 config_hash,
@@ -383,6 +389,17 @@ impl Default for ContainerPool {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Returns true only for content-addressed OCI image references.
+///
+/// Mutable tags are acceptable for short-lived local sandboxes, but a reused
+/// container or writable workspace must be reproducible and auditable.
+pub fn is_immutable_image_reference(image: &str) -> bool {
+    let Some((_, digest)) = image.rsplit_once("@sha256:") else {
+        return false;
+    };
+    digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 // ---------------------------------------------------------------------------
@@ -470,6 +487,14 @@ pub fn config_hash(config: &DockerSandboxConfig) -> u64 {
     config.network.hash(&mut hasher);
     config.memory_limit.hash(&mut hasher);
     config.workdir.hash(&mut hasher);
+    config.cpu_limit.to_bits().hash(&mut hasher);
+    config.timeout_secs.hash(&mut hasher);
+    config.read_only_root.hash(&mut hasher);
+    config.cap_add.hash(&mut hasher);
+    config.tmpfs.hash(&mut hasher);
+    config.pids_limit.hash(&mut hasher);
+    config.persistent_workspace.hash(&mut hasher);
+    config.blocked_mounts.hash(&mut hasher);
     hasher.finish()
 }
 
@@ -570,6 +595,11 @@ mod tests {
         assert!(config.cap_add.is_empty());
         assert_eq!(config.tmpfs, vec!["/tmp:size=64m"]);
         assert_eq!(config.pids_limit, 100);
+        assert_eq!(config.mode, openfang_types::config::DockerSandboxMode::All);
+        assert_eq!(config.scope, openfang_types::config::DockerScope::Session);
+        assert_eq!(config.reuse_cool_secs, 0);
+        assert!(!config.persistent_workspace);
+        assert!(config.persistent_workspace_agents.is_empty());
     }
 
     #[test]
@@ -600,11 +630,11 @@ mod tests {
             agent_id: "agent1".to_string(),
             created_at: chrono::Utc::now(),
         };
-        pool.release(container, 12345);
+        pool.release("agent:one".to_string(), container, 12345);
         assert_eq!(pool.len(), 1);
 
         // Acquire with same hash — should succeed (cool_secs=0 for test)
-        let acquired = pool.acquire(12345, 0);
+        let acquired = pool.acquire("agent:one", 12345, 0);
         assert!(acquired.is_some());
         assert_eq!(acquired.unwrap().container_id, "test123");
         assert!(pool.is_empty());
@@ -618,11 +648,34 @@ mod tests {
             agent_id: "agent1".to_string(),
             created_at: chrono::Utc::now(),
         };
-        pool.release(container, 12345);
+        pool.release("agent:one".to_string(), container, 12345);
 
         // Acquire with different hash — should fail
-        let acquired = pool.acquire(99999, 0);
+        let acquired = pool.acquire("agent:one", 99999, 0);
         assert!(acquired.is_none());
+    }
+
+    #[test]
+    fn test_container_pool_does_not_cross_agent_boundaries() {
+        let pool = ContainerPool::new();
+        let container = SandboxContainer {
+            container_id: "test123".to_string(),
+            agent_id: "agent1".to_string(),
+            created_at: chrono::Utc::now(),
+        };
+        pool.release("agent:one".to_string(), container, 12345);
+        assert!(pool.acquire("agent:two", 12345, 0).is_none());
+    }
+
+    #[test]
+    fn immutable_image_references_require_sha256_digest() {
+        assert!(is_immutable_image_reference(
+            "registry.example/freeco@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ));
+        assert!(!is_immutable_image_reference("python:3.12-slim"));
+        assert!(!is_immutable_image_reference(
+            "registry.example/freeco@sha256:not-a-digest"
+        ));
     }
 
     // ── Bind Mount Validation tests ──────────────────────────────────

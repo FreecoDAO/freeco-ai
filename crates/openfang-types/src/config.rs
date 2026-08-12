@@ -602,9 +602,10 @@ impl Default for TtsElevenLabsConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DockerSandboxConfig {
-    /// Enable Docker sandbox. Default: false.
+    /// Enable Docker sandbox. Default: true.
     pub enabled: bool,
-    /// Docker image for exec sandbox. Default: "python:3.12-slim".
+    /// Docker image for ephemeral exec sandbox. Reusable and persistent modes
+    /// require an immutable image digest.
     pub image: String,
     /// Container name prefix. Default: "openfang-sandbox".
     pub container_prefix: String,
@@ -632,7 +633,7 @@ pub struct DockerSandboxConfig {
     /// Container lifecycle scope. Default: session.
     #[serde(default)]
     pub scope: DockerScope,
-    /// Cooldown before reusing a released container (seconds). Default: 300.
+    /// Minimum delay before reusing a released container (seconds). Default: 0.
     #[serde(default = "default_reuse_cool_secs")]
     pub reuse_cool_secs: u64,
     /// Idle timeout — destroy containers after N seconds of inactivity. Default: 86400 (24h).
@@ -644,10 +645,24 @@ pub struct DockerSandboxConfig {
     /// Paths blocked from bind mounting.
     #[serde(default)]
     pub blocked_mounts: Vec<String>,
+    /// Permit selected agents to retain files in their own workspace between
+    /// reusable sandbox commands. Default: false.
+    ///
+    /// This is deliberately separate from `scope`: a reusable container remains
+    /// read-only unless this explicit opt-in is enabled.
+    #[serde(default)]
+    pub persistent_workspace: bool,
+    /// Agent IDs authorized to use a writable persistent workspace.
+    ///
+    /// An empty list authorizes no agent, even when `persistent_workspace` is
+    /// enabled. This prevents a global configuration change from silently
+    /// widening every agent's filesystem access.
+    #[serde(default)]
+    pub persistent_workspace_agents: Vec<String>,
 }
 
 fn default_reuse_cool_secs() -> u64 {
-    300
+    0
 }
 fn default_docker_idle_timeout() -> u64 {
     86400
@@ -679,12 +694,14 @@ impl Default for DockerSandboxConfig {
             cap_add: Vec::new(),
             tmpfs: vec!["/tmp:size=64m".to_string()],
             pids_limit: 100,
-            mode: DockerSandboxMode::Off,
+            mode: DockerSandboxMode::All,
             scope: DockerScope::Session,
             reuse_cool_secs: default_reuse_cool_secs(),
             idle_timeout_secs: default_docker_idle_timeout(),
             max_age_secs: default_docker_max_age(),
             blocked_mounts: Vec::new(),
+            persistent_workspace: false,
+            persistent_workspace_agents: Vec::new(),
         }
     }
 }
@@ -1115,11 +1132,11 @@ impl std::fmt::Debug for AuthProfile {
 #[serde(rename_all = "snake_case")]
 pub enum DockerSandboxMode {
     /// Docker sandbox disabled.
-    #[default]
     Off,
     /// Only use Docker for non-main agents.
     NonMain,
     /// Use Docker for all agents.
+    #[default]
     All,
 }
 

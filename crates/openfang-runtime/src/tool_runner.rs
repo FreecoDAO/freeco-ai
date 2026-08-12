@@ -13,10 +13,29 @@ use openfang_types::tool_compat::normalize_tool_name;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::OnceLock;
 use tracing::{debug, warn};
 
 /// Maximum inter-agent call depth to prevent infinite recursion (A->B->C->...).
 const MAX_AGENT_CALL_DEPTH: u32 = 5;
+
+/// Reusable containers are deliberately process-local: daemon shutdown drops
+/// them, while workspace files remain on the explicitly authorized host volume.
+static DOCKER_CONTAINER_POOL: OnceLock<crate::docker_sandbox::ContainerPool> = OnceLock::new();
+
+fn docker_container_pool() -> &'static crate::docker_sandbox::ContainerPool {
+    DOCKER_CONTAINER_POOL.get_or_init(crate::docker_sandbox::ContainerPool::new)
+}
+
+fn schedule_docker_pool_cleanup(idle_timeout_secs: u64, max_age_secs: u64) {
+    let delay_secs = idle_timeout_secs.min(max_age_secs).max(1);
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+        docker_container_pool()
+            .cleanup(idle_timeout_secs, max_age_secs)
+            .await;
+    });
+}
 
 /// Check if a tool name refers to a shell execution tool.
 ///
@@ -3357,6 +3376,12 @@ async fn tool_docker_exec(
     if !config.enabled {
         return Err("Docker sandbox is disabled. Set docker.enabled=true in config.".into());
     }
+    if config.mode != openfang_types::config::DockerSandboxMode::All {
+        return Err(
+            "docker_exec requires docker.mode = 'all'. The 'off' and 'non_main' modes do not grant this tool because it has no trusted main-agent identity context."
+                .into(),
+        );
+    }
 
     let command = input["command"]
         .as_str()
@@ -3364,6 +3389,34 @@ async fn tool_docker_exec(
 
     let workspace = workspace_root.ok_or("Docker exec requires a workspace directory")?;
     let agent_id = caller_agent_id.unwrap_or("default");
+    let reusable = config.scope != openfang_types::config::DockerScope::Session;
+    let persistent_workspace = config.persistent_workspace
+        && config
+            .persistent_workspace_agents
+            .iter()
+            .any(|authorized_agent| authorized_agent == agent_id);
+    if persistent_workspace && !reusable {
+        return Err(
+            "Persistent development workspaces require docker.scope = 'agent'; session scope is always ephemeral and read-only."
+                .into(),
+        );
+    }
+
+    // Shared containers would couple otherwise isolated workspaces. They are
+    // intentionally not implemented as a convenience feature: SaaS workers
+    // must be tenant-bound, not pooled across principals.
+    if config.scope == openfang_types::config::DockerScope::Shared {
+        return Err(
+            "docker.scope = 'shared' is not supported for agent execution because it can cross workspace or tenant boundaries. Use scope = 'agent' for an isolated reusable development sandbox."
+                .into(),
+        );
+    }
+    if reusable && !crate::docker_sandbox::is_immutable_image_reference(&config.image) {
+        return Err(
+            "Reusable Docker sandboxes require docker.image pinned by immutable SHA-256 digest (for example registry.example/freeco@sha256:<64-hex-digits>). Mutable tags are allowed only for ephemeral session sandboxes."
+                .into(),
+        );
+    }
 
     // Check Docker availability. Failing here is the correct outcome: the
     // sandbox is the safety boundary, so when it is unavailable the tool
@@ -3377,19 +3430,59 @@ async fn tool_docker_exec(
         );
     }
 
-    // Create sandbox container
-    let container = crate::docker_sandbox::create_sandbox(config, agent_id, workspace).await?;
+    let pool = docker_container_pool();
+    if reusable {
+        pool.cleanup(config.idle_timeout_secs, config.max_age_secs)
+            .await;
+    }
+    let canonical_workspace = workspace
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve Docker workspace: {e}"))?;
+    let pool_key = format!("agent:{agent_id}:{}", canonical_workspace.display());
+    let config_hash = crate::docker_sandbox::config_hash(config);
+    let container = if reusable {
+        match pool.acquire(&pool_key, config_hash, config.reuse_cool_secs) {
+            Some(container) => container,
+            None => {
+                crate::docker_sandbox::create_sandbox(
+                    config,
+                    agent_id,
+                    &canonical_workspace,
+                    persistent_workspace,
+                )
+                .await?
+            }
+        }
+    } else {
+        crate::docker_sandbox::create_sandbox(config, agent_id, &canonical_workspace, false).await?
+    };
 
     // Execute command with timeout
     let timeout = std::time::Duration::from_secs(config.timeout_secs);
     let result = crate::docker_sandbox::exec_in_sandbox(&container, command, timeout).await;
 
-    // Always destroy the container after execution
-    if let Err(e) = crate::docker_sandbox::destroy_sandbox(&container).await {
-        warn!("Failed to destroy Docker sandbox: {e}");
-    }
-
-    let exec_result = result?;
+    // Ephemeral sandboxes are always destroyed. Reusable containers return only
+    // after a successful command; a timed-out or failed Docker invocation can
+    // leave unknown state, so it is destroyed rather than reused.
+    let exec_result = match result {
+        Ok(result) if reusable => {
+            pool.release(pool_key, container.clone(), config_hash);
+            schedule_docker_pool_cleanup(config.idle_timeout_secs, config.max_age_secs);
+            result
+        }
+        Ok(result) => {
+            if let Err(e) = crate::docker_sandbox::destroy_sandbox(&container).await {
+                warn!("Failed to destroy Docker sandbox: {e}");
+            }
+            result
+        }
+        Err(error) => {
+            if let Err(e) = crate::docker_sandbox::destroy_sandbox(&container).await {
+                warn!("Failed to destroy failed Docker sandbox: {e}");
+            }
+            return Err(error);
+        }
+    };
 
     let response = serde_json::json!({
         "exit_code": exec_result.exit_code,
