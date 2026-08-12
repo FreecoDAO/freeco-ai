@@ -134,11 +134,15 @@ afterwards:
   `Shipped`
 - no v0.9.4 milestone was created
 
-Note that replaying the script's ROADMAP regex by hand is not safe: it matches
-from the *first* `## Shipped in v...` heading through to `## Unreleased`, so
-running it against a file that already has several shipped sections relabels
-the oldest one with the new version and loses its heading. Add the new section
-directly instead.
+That hand repair then broke the next release: it emptied `## Unreleased`, which
+the script requires, so v0.9.5 aborted until the edit was reverted. One manual
+fix created the next failure — which is the whole argument for the labelled-PR
+path.
+
+The two ROADMAP regexes that made hand-replaying dangerous were fixed in #98:
+`Unreleased` now stops at the next `##` heading instead of swallowing
+`Partial` and `Known limits`, and a new `## Shipped in vX.Y.Z` section is
+inserted rather than rewriting the span from the oldest shipped heading.
 
 The Project board step is a separate case: it has never run on any release.
 It is guarded by `if: env.PROJECTS_TOKEN != '' && ...` and none of
@@ -156,6 +160,44 @@ knowing before blaming a build:
   unsigned `.dmg` that users open with right-click → Open. The workflow does
   this deliberately rather than failing (see the ad-hoc signing step), so it
   is a choice, not a bug.
+
+## Before merging a release PR: dry-run the script
+
+Read the diff, then run the script — they answer different questions. Copy the
+four files and the script into a temp directory and run it there:
+
+```bash
+python3 scripts/prepare_release_metadata.py --bump patch --date $(date +%F)
+grep -nE "^## " ROADMAP.md      # every section must still be present
+```
+
+The script's regexes capture *spans between headings*, so a section sitting in
+the wrong place is silently absorbed and rewritten. This check caught a bug
+that renamed `## Shipped in v0.7.7` to the new version and folded the other
+shipped sections inside it — invisible in the diff, obvious after one run.
+
+## If a PR's checks never start
+
+A run stuck at `action_required` with zero jobs means GitHub is holding
+workflows because the commit came from a bot (Copilot, dependabot). The
+approve endpoint refuses it — `not from a fork pull request` — but re-running
+the run starts it normally:
+
+```bash
+gh run rerun <run-id>
+```
+
+Do not merge on the strength of CodeQL alone; it runs separately and passing
+CodeQL says nothing about the build.
+
+## When `prepare` fails at checkout
+
+`fatal: could not read Username for 'https://github.com'` means `RELEASE_TOKEN`
+has expired. The secret is still there — the non-empty guard passes — it just
+no longer authenticates. It needs a new PAT with `repo` + `workflow` scope,
+which only the repository owner can create. Do not work around it by pushing
+tags by hand, and do not substitute a broader-scoped token: a release needs
+`repo` + `workflow`, not org or enterprise admin.
 
 ## Checking a release actually built
 
