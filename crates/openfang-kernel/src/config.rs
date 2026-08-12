@@ -364,10 +364,11 @@ pub fn freeco_ai_home() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
     let freeco_home = home.join(".freeco-ai");
     let legacy_home = home.join(".openfang");
-    if !freeco_home.exists() && legacy_home.exists() {
-        if std::fs::rename(&legacy_home, &freeco_home).is_err() {
-            return legacy_home;
-        }
+    if !freeco_home.exists()
+        && legacy_home.exists()
+        && std::fs::rename(&legacy_home, &freeco_home).is_err()
+    {
+        return legacy_home;
     }
     freeco_home
 }
