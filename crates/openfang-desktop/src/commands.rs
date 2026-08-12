@@ -1,7 +1,7 @@
 //! Tauri IPC command handlers.
 
 use crate::{KernelState, PortState};
-use openfang_kernel::config::openfang_home;
+use openfang_kernel::config::freeco_ai_home;
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_dialog::DialogExt;
 use tracing::info;
@@ -63,7 +63,7 @@ pub fn import_agent_toml(
         toml::from_str(&content).map_err(|e| format!("Invalid agent manifest: {e}"))?;
 
     let agent_name = manifest.name.clone();
-    let agent_dir = openfang_home().join("agents").join(&agent_name);
+    let agent_dir = freeco_ai_home().join("agents").join(&agent_name);
     std::fs::create_dir_all(&agent_dir)
         .map_err(|e| format!("Failed to create agent directory: {e}"))?;
 
@@ -107,7 +107,7 @@ pub fn import_skill_file(
         .to_string_lossy()
         .to_string();
 
-    let skills_dir = openfang_home().join("skills");
+    let skills_dir = freeco_ai_home().join("skills");
     std::fs::create_dir_all(&skills_dir)
         .map_err(|e| format!("Failed to create skills directory: {e}"))?;
 
@@ -154,18 +154,18 @@ pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     crate::updater::download_and_install_update(&app).await
 }
 
-/// Open the OpenFang config directory (`~/.openfang/`) in the OS file manager.
+/// Open the FreEco.ai config directory in the OS file manager.
 #[tauri::command]
 pub fn open_config_dir() -> Result<(), String> {
-    let dir = openfang_home();
+    let dir = freeco_ai_home();
     std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create config dir: {e}"))?;
     open::that(&dir).map_err(|e| format!("Failed to open directory: {e}"))
 }
 
-/// Open the OpenFang logs directory (`~/.openfang/logs/`) in the OS file manager.
+/// Open the FreEco.ai logs directory in the OS file manager.
 #[tauri::command]
 pub fn open_logs_dir() -> Result<(), String> {
-    let dir = openfang_home().join("logs");
+    let dir = freeco_ai_home().join("logs");
     std::fs::create_dir_all(&dir).map_err(|e| format!("Failed to create logs dir: {e}"))?;
     open::that(&dir).map_err(|e| format!("Failed to open directory: {e}"))
 }

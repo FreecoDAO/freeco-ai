@@ -11,7 +11,7 @@
 set -euo pipefail
 
 REPO="FreecoDAO/freeco-ai"
-VERSION="${1:-${OPENFANG_VERSION:-}}"
+VERSION="${1:-${FRECO_AI_VERSION:-}}"
 OUT_DIR="${2:-dist/freeco-portable}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORTABLE_SRC="$SCRIPT_DIR/portable"
@@ -46,7 +46,7 @@ trap cleanup EXIT
 
 for entry in "${TARGETS[@]}"; do
     IFS=':' read -r OS_DIR ARCH TARGET EXT <<< "$entry"
-    ARCHIVE="openfang-$TARGET.$EXT"
+    ARCHIVE="freeco-ai-$TARGET.$EXT"
     URL="https://github.com/$REPO/releases/download/$VERSION/$ARCHIVE"
     CHECKSUM_URL="$URL.sha256"
     DEST_DIR="$OUT_DIR/bin/$OS_DIR/$ARCH"

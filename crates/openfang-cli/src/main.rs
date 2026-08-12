@@ -1,6 +1,6 @@
-//! OpenFang CLI — command-line interface for the OpenFang Agent OS.
+//! FreEco.ai CLI — command-line interface for FreEco.ai.
 //!
-//! When a daemon is running (`openfang start`), the CLI talks to it over HTTP.
+//! When a daemon is running (`freeco-ai start`), the CLI talks to it over HTTP.
 //! Otherwise, commands boot an in-process kernel (single-shot mode).
 
 mod bundled_agents;
@@ -63,31 +63,31 @@ const AFTER_HELP: &str = "\
 \x1b[1mHint:\x1b[0m Commands suffixed with [*] have subcommands. Run `<command> --help` for details.
 
 \x1b[1;36mExamples:\x1b[0m
-  openfang init                 Initialize config and data directories
-  openfang start                Start the kernel daemon
-  openfang tui                  Launch the interactive terminal dashboard
-  openfang chat                 Quick chat with the default agent
-  openfang agent new coder      Spawn a new agent from a template
-  openfang models list          Browse available LLM models
-  openfang add github           Install the GitHub integration
-  openfang doctor               Run diagnostic health checks
-  openfang channel setup        Interactive channel setup wizard
-  openfang cron list            List scheduled jobs
-  openfang uninstall            Completely remove FreEco.ai from your system
+  freeco-ai init                 Initialize config and data directories
+  freeco-ai start                Start the kernel daemon
+  freeco-ai tui                  Launch the interactive terminal dashboard
+  freeco-ai chat                 Quick chat with the default agent
+  freeco-ai agent new coder      Spawn a new agent from a template
+  freeco-ai models list          Browse available LLM models
+  freeco-ai add github           Install the GitHub integration
+  freeco-ai doctor               Run diagnostic health checks
+  freeco-ai channel setup        Interactive channel setup wizard
+  freeco-ai cron list            List scheduled jobs
+  freeco-ai uninstall            Completely remove FreEco.ai from your system
 
 \x1b[1;36mQuick Start:\x1b[0m
-  1. openfang init              Set up config + API key
-  2. openfang start             Launch the daemon
-  3. openfang chat              Start chatting!
+  1. freeco-ai init              Set up config + API key
+  2. freeco-ai start             Launch the daemon
+  3. freeco-ai chat              Start chatting!
 
 \x1b[1;36mMore:\x1b[0m
-  Docs:       https://github.com/RightNow-AI/openfang
+  Docs:       https://github.com/FreecoDAO/freeco-ai
   Dashboard:  http://127.0.0.1:4200/ (when daemon is running)";
 
 /// FreEco.ai — the open-source Agent Operating System.
 #[derive(Parser)]
 #[command(
-    name = "openfang",
+    name = "freeco-ai",
     version,
     about = "\u{1F40D} FreEco.ai \u{2014} Open-source Agent Operating System",
     long_about = "\u{1F40D} FreEco.ai \u{2014} Open-source Agent Operating System\n\n\
@@ -106,13 +106,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Initialize OpenFang (create ~/.openfang/ and default config).
+    /// Initialize FreEco.ai (create ~/.freeco-ai/ and default config).
     Init {
         /// Quick mode: no prompts, just write config + .env (for CI/scripts).
         #[arg(long)]
         quick: bool,
     },
-    /// Start the OpenFang kernel daemon (API server + kernel).
+    /// Start the FreEco.ai daemon (API server + kernel).
     Start {
         /// Auto-approve all tool calls (no confirmation prompts).
         #[arg(long)]
@@ -222,7 +222,7 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Tail the OpenFang log file.
+    /// Tail the FreEco.ai log file.
     Logs {
         /// Number of lines to show.
         #[arg(long, default_value = "50")]
@@ -832,14 +832,7 @@ enum SystemCommands {
 }
 
 fn config_log_level() -> String {
-    let config_path = if let Ok(home) = std::env::var("OPENFANG_HOME") {
-        std::path::PathBuf::from(home).join("config.toml")
-    } else {
-        dirs::home_dir()
-            .unwrap_or_else(std::env::temp_dir)
-            .join(".openfang")
-            .join("config.toml")
-    };
+    let config_path = openfang_kernel::config::default_config_path();
     if let Ok(content) = std::fs::read_to_string(config_path) {
         for line in content.lines() {
             let trimmed = line.trim();
@@ -866,14 +859,9 @@ fn init_tracing_stderr() {
         .init();
 }
 
-/// Get the OpenFang home directory, respecting OPENFANG_HOME env var.
+/// Get the FreEco.ai home directory, including the legacy data migration.
 fn cli_openfang_home() -> std::path::PathBuf {
-    if let Ok(home) = std::env::var("OPENFANG_HOME") {
-        return std::path::PathBuf::from(home);
-    }
-    dirs::home_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join(".openfang")
+    openfang_kernel::config::freeco_ai_home()
 }
 
 /// Redirect tracing to a log file so it doesn't corrupt the ratatui TUI.
@@ -5368,15 +5356,7 @@ fn cmd_quick_chat(config: Option<PathBuf>, agent: Option<String>) {
 // ---------------------------------------------------------------------------
 
 pub(crate) fn openfang_home() -> PathBuf {
-    if let Ok(home) = std::env::var("OPENFANG_HOME") {
-        return PathBuf::from(home);
-    }
-    dirs::home_dir()
-        .unwrap_or_else(|| {
-            eprintln!("Error: Could not determine home directory");
-            std::process::exit(1);
-        })
-        .join(".openfang")
+    openfang_kernel::config::freeco_ai_home()
 }
 
 fn prompt_input(prompt: &str) -> String {

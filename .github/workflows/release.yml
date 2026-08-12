@@ -248,33 +248,33 @@ jobs:
           key: cli-${{ matrix.target }}
       - name: Build CLI (cross)
         if: matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf'
-        run: cross build --release --target ${{ matrix.target }} --bin openfang
+        run: cross build --release --target ${{ matrix.target }} --bin freeco-ai
       - name: Build CLI
         if: matrix.target != 'aarch64-unknown-linux-gnu' && matrix.target != 'armv7-unknown-linux-gnueabihf'
-        run: cargo build --release --target ${{ matrix.target }} --bin openfang
+        run: cargo build --release --target ${{ matrix.target }} --bin freeco-ai
       - name: Ad-hoc codesign CLI binary (macOS)
         if: runner.os == 'macOS'
         run: |
-          xattr -cr target/${{ matrix.target }}/release/openfang || true
-          codesign --force --sign - target/${{ matrix.target }}/release/openfang
+          xattr -cr target/${{ matrix.target }}/release/freeco-ai || true
+          codesign --force --sign - target/${{ matrix.target }}/release/freeco-ai
       - name: Package (Unix)
         if: matrix.archive == 'tar.gz'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../openfang-${{ matrix.target }}.tar.gz openfang
+          tar czf ../../../freeco-ai-${{ matrix.target }}.tar.gz freeco-ai
           cd ../../..
-          sha256sum openfang-${{ matrix.target }}.tar.gz > openfang-${{ matrix.target }}.tar.gz.sha256
+          sha256sum freeco-ai-${{ matrix.target }}.tar.gz > freeco-ai-${{ matrix.target }}.tar.gz.sha256
       - name: Package (Windows)
         if: matrix.archive == 'zip'
         shell: pwsh
         run: |
-          Compress-Archive -Path "target/${{ matrix.target }}/release/openfang.exe" -DestinationPath "openfang-${{ matrix.target }}.zip"
-          $hash = (Get-FileHash "openfang-${{ matrix.target }}.zip" -Algorithm SHA256).Hash.ToLower()
-          "$hash  openfang-${{ matrix.target }}.zip" | Out-File -Encoding ASCII "openfang-${{ matrix.target }}.zip.sha256"
+          Compress-Archive -Path "target/${{ matrix.target }}/release/freeco-ai.exe" -DestinationPath "freeco-ai-${{ matrix.target }}.zip"
+          $hash = (Get-FileHash "freeco-ai-${{ matrix.target }}.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  freeco-ai-${{ matrix.target }}.zip" | Out-File -Encoding ASCII "freeco-ai-${{ matrix.target }}.zip.sha256"
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          files: openfang-${{ matrix.target }}.*
+          files: freeco-ai-${{ matrix.target }}.*
           # Keep the release a draft while assets land — see releaseDraft note
           # in the desktop job (immutable releases reject post-publish uploads).
           draft: true

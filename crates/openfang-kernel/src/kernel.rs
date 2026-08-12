@@ -598,7 +598,9 @@ impl OpenFangKernel {
         use openfang_types::config::KernelMode;
 
         // Env var overrides — useful for Docker where config.toml is baked in.
-        if let Ok(listen) = std::env::var("OPENFANG_LISTEN") {
+        if let Ok(listen) = std::env::var("FRECO_AI_LISTEN")
+            .or_else(|_| std::env::var("OPENFANG_LISTEN"))
+        {
             config.api_listen = listen;
         }
 

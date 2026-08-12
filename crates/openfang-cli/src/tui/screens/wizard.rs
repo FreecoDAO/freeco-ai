@@ -167,14 +167,7 @@ const PROVIDERS: &[ProviderInfo] = &[
 
 /// Check if first-run setup is needed.
 pub fn needs_setup() -> bool {
-    let of_home = if let Ok(h) = std::env::var("OPENFANG_HOME") {
-        std::path::PathBuf::from(h)
-    } else {
-        match dirs::home_dir() {
-            Some(h) => h.join(".openfang"),
-            None => return true,
-        }
-    };
+    let of_home = openfang_kernel::config::freeco_ai_home();
     !of_home.join("config.toml").exists()
 }
 
