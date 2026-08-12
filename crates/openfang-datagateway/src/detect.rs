@@ -71,7 +71,7 @@ fn luhn_valid(digits: &[u8]) -> bool {
         }
         sum += v;
     }
-    sum % 10 == 0
+    sum.is_multiple_of(10)
 }
 
 /// Known provider key prefixes, and how long the key runs after them.
@@ -264,7 +264,10 @@ fn scan_iban(text: &str, start: usize) -> Option<Finding> {
     let c1 = chars.next()?;
     let d0 = chars.next()?;
     let d1 = chars.next()?;
-    if !(c0.is_ascii_uppercase() && c1.is_ascii_uppercase() && d0.is_ascii_digit() && d1.is_ascii_digit())
+    if !(c0.is_ascii_uppercase()
+        && c1.is_ascii_uppercase()
+        && d0.is_ascii_digit()
+        && d1.is_ascii_digit())
     {
         return None;
     }
@@ -389,14 +392,20 @@ mod tests {
     #[test]
     fn card_numbers_need_a_valid_checksum() {
         // Luhn-valid test number.
-        assert_eq!(kinds("pay with 4242 4242 4242 4242"), vec![DataKind::CreditCard]);
+        assert_eq!(
+            kinds("pay with 4242 4242 4242 4242"),
+            vec![DataKind::CreditCard]
+        );
         // Same shape, checksum deliberately wrong -> an order number, not a card.
         assert!(scan("order 4242 4242 4242 4243").is_empty());
     }
 
     #[test]
     fn finds_emails_but_not_every_at_sign() {
-        assert_eq!(kinds("write to a.b+c@example.com now"), vec![DataKind::Email]);
+        assert_eq!(
+            kinds("write to a.b+c@example.com now"),
+            vec![DataKind::Email]
+        );
         assert!(scan("mention @someone in chat").is_empty());
     }
 
@@ -408,7 +417,10 @@ mod tests {
 
     #[test]
     fn finds_iban() {
-        assert_eq!(kinds("send to DE89370400440532013000 today"), vec![DataKind::Iban]);
+        assert_eq!(
+            kinds("send to DE89370400440532013000 today"),
+            vec![DataKind::Iban]
+        );
     }
 
     #[test]

@@ -121,7 +121,9 @@ impl DataGateway {
     /// Open a gateway over an existing database connection.
     pub fn new(conn: Arc<Mutex<Connection>>, policy: Policy) -> Result<Self> {
         {
-            let c = conn.lock().map_err(|e| GatewayError::Store(e.to_string()))?;
+            let c = conn
+                .lock()
+                .map_err(|e| GatewayError::Store(e.to_string()))?;
             c.execute_batch(
                 "CREATE TABLE IF NOT EXISTS gateway_tokens (
                      token      TEXT PRIMARY KEY,
@@ -259,12 +261,7 @@ impl DataGateway {
         let token = new_token();
         conn.execute(
             "INSERT INTO gateway_tokens (token, value, kind, created_at) VALUES (?1, ?2, ?3, ?4)",
-            rusqlite::params![
-                token,
-                value,
-                kind.as_str(),
-                chrono::Utc::now().to_rfc3339()
-            ],
+            rusqlite::params![token, value, kind.as_str(), chrono::Utc::now().to_rfc3339()],
         )
         .map_err(|e| GatewayError::Store(e.to_string()))?;
         Ok(token)
@@ -322,7 +319,9 @@ mod tests {
     fn one_value_gets_one_stable_token() {
         let g = gw();
         let (a, _) = g.process_outbound("k sk-ant-0123456789abcdefgh").unwrap();
-        let (b, _) = g.process_outbound("again sk-ant-0123456789abcdefgh").unwrap();
+        let (b, _) = g
+            .process_outbound("again sk-ant-0123456789abcdefgh")
+            .unwrap();
         let ta = a.split_whitespace().last().unwrap();
         let tb = b.split_whitespace().last().unwrap();
         assert_eq!(ta, tb);
@@ -352,7 +351,9 @@ mod tests {
         let conn = Arc::new(Mutex::new(Connection::open_in_memory().unwrap()));
         let sent = {
             let g = DataGateway::new(conn.clone(), Policy::default()).unwrap();
-            g.process_outbound("key sk-proj-abcdef0123456789abcd").unwrap().0
+            g.process_outbound("key sk-proj-abcdef0123456789abcd")
+                .unwrap()
+                .0
         };
         let g2 = DataGateway::new(conn, Policy::default()).unwrap();
         assert_eq!(
