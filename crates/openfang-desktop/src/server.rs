@@ -151,20 +151,10 @@ async fn run_embedded_server(
     }
 }
 
-/// Load ~/.openfang/.env and ~/.openfang/secrets.env into the process environment.
+/// Load FreEco.ai environment files into the process environment.
 /// System env vars take priority — existing vars are NOT overridden.
 fn load_dotenv_files() {
-    let home = if let Ok(h) = std::env::var("OPENFANG_HOME") {
-        std::path::PathBuf::from(h)
-    } else {
-        let user_home = std::env::var("HOME")
-            .or_else(|_| std::env::var("USERPROFILE"))
-            .unwrap_or_default();
-        if user_home.is_empty() {
-            return;
-        }
-        std::path::PathBuf::from(user_home).join(".openfang")
-    };
+    let home = openfang_kernel::config::freeco_ai_home();
 
     for filename in &[".env", "secrets.env"] {
         let path = home.join(filename);

@@ -1766,16 +1766,16 @@ impl std::fmt::Debug for KernelConfig {
     }
 }
 
-/// Resolve the OpenFang home directory.
+/// Resolve the FreEco.ai home directory.
 ///
-/// Priority: `OPENFANG_HOME` env var > `~/.openfang`.
+/// Priority: `FRECO_AI_HOME` env var > legacy `OPENFANG_HOME` > `~/.freeco-ai`.
 fn openfang_home_dir() -> PathBuf {
-    if let Ok(home) = std::env::var("OPENFANG_HOME") {
+    if let Ok(home) = std::env::var("FRECO_AI_HOME").or_else(|_| std::env::var("OPENFANG_HOME")) {
         return PathBuf::from(home);
     }
     dirs::home_dir()
         .unwrap_or_else(std::env::temp_dir)
-        .join(".openfang")
+        .join(".freeco-ai")
 }
 
 /// Default LLM model configuration.

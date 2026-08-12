@@ -1,27 +1,24 @@
 [Unit]
-Description=OpenFang Agent OS Daemon
-Documentation=https://github.com/FreecoDAO/FreEco-ai
+Description=FreEco.ai Agent OS Daemon
+Documentation=https://github.com/FreecoDAO/freeco-ai
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=openfang
-Group=openfang
-ExecStart=/usr/local/bin/openfang start
+User=freeco-ai
+Group=freeco-ai
+ExecStart=/usr/local/bin/freeco-ai start
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
-
-# Environment
-EnvironmentFile=-/etc/openfang/env
-WorkingDirectory=/var/lib/openfang
-
-# Security hardening
+Environment=FRECO_AI_HOME=/var/lib/freeco-ai
+EnvironmentFile=-/etc/freeco-ai/env
+WorkingDirectory=/var/lib/freeco-ai
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/openfang
+ReadWritePaths=/var/lib/freeco-ai
 PrivateTmp=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
@@ -29,8 +26,6 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 MemoryDenyWriteExecute=false
 RestrictRealtime=true
-
-# Resource limits
 LimitNOFILE=65536
 LimitNPROC=4096
 

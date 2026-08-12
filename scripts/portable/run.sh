@@ -7,8 +7,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export OPENFANG_HOME="$ROOT/data"
-export OPENFANG_LISTEN="${OPENFANG_LISTEN:-127.0.0.1:4200}"
+export FRECO_AI_HOME="$ROOT/data"
+export FRECO_AI_LISTEN="${FRECO_AI_LISTEN:-127.0.0.1:4200}"
 
 OS="$(uname -s)"
 ARCH="$(uname -m)"
@@ -23,7 +23,7 @@ case "$OS" in
     *) echo "  Unsupported OS: $OS (this launcher is for Linux/macOS)"; exit 1 ;;
 esac
 
-EXE="$ROOT/bin/$PLATFORM_DIR/$ARCH/openfang"
+EXE="$ROOT/bin/$PLATFORM_DIR/$ARCH/freeco-ai"
 if [ ! -f "$EXE" ]; then
     echo "  Could not find a FreEco.ai binary for $PLATFORM_DIR/$ARCH at:"
     echo "    $EXE"
@@ -37,8 +37,8 @@ if [ "$PLATFORM_DIR" = "macos" ]; then
     command -v codesign >/dev/null 2>&1 && codesign --force --sign - "$EXE" 2>/dev/null || true
 fi
 
-mkdir -p "$OPENFANG_HOME"
-if [ ! -f "$OPENFANG_HOME/config.toml" ]; then
+mkdir -p "$FRECO_AI_HOME"
+if [ ! -f "$FRECO_AI_HOME/config.toml" ]; then
     echo "  First run — starting FreEco.ai setup wizard..."
     "$EXE" init
 fi
@@ -48,15 +48,15 @@ fi
 (
     sleep 3
     if command -v xdg-open >/dev/null 2>&1; then
-        xdg-open "http://$OPENFANG_LISTEN" >/dev/null 2>&1 || true
+        xdg-open "http://$FRECO_AI_LISTEN" >/dev/null 2>&1 || true
     elif command -v open >/dev/null 2>&1; then
-        open "http://$OPENFANG_LISTEN" >/dev/null 2>&1 || true
+        open "http://$FRECO_AI_LISTEN" >/dev/null 2>&1 || true
     fi
 ) &
 
 echo ""
-echo "  FreEco.ai starting — dashboard: http://$OPENFANG_LISTEN"
-echo "  Data directory: $OPENFANG_HOME"
+echo "  FreEco.ai starting — dashboard: http://$FRECO_AI_LISTEN"
+echo "  Data directory: $FRECO_AI_HOME"
 echo "  Press Ctrl+C to stop."
 echo ""
 exec "$EXE" start

@@ -39,14 +39,7 @@ fn detect_provider() -> Option<(&'static str, &'static str)> {
 }
 
 fn is_first_run() -> bool {
-    let of_home = if let Ok(h) = std::env::var("OPENFANG_HOME") {
-        std::path::PathBuf::from(h)
-    } else {
-        match dirs::home_dir() {
-            Some(h) => h.join(".openfang"),
-            None => return true,
-        }
-    };
+    let of_home = openfang_kernel::config::freeco_ai_home();
     !of_home.join("config.toml").exists()
 }
 

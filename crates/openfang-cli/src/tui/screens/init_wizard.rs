@@ -1196,13 +1196,7 @@ fn handle_migration_key(
                 if yes {
                     state.migration_phase = MigrationPhase::Running;
                     let source_dir = state.openclaw_path.clone().unwrap_or_default();
-                    let target_dir = if let Ok(h) = std::env::var("OPENFANG_HOME") {
-                        PathBuf::from(h)
-                    } else {
-                        dirs::home_dir()
-                            .unwrap_or_else(|| PathBuf::from("."))
-                            .join(".openfang")
-                    };
+                    let target_dir = openfang_kernel::config::freeco_ai_home();
                     let tx = migrate_tx.clone();
                     std::thread::spawn(move || {
                         let options = openfang_migrate::MigrateOptions {
