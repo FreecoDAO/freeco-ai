@@ -7,8 +7,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export FRECO_AI_HOME="$ROOT/data"
-export FRECO_AI_LISTEN="${FRECO_AI_LISTEN:-127.0.0.1:4200}"
+export FREECO_AI_HOME="$ROOT/data"
+export FREECO_AI_LISTEN="${FREECO_AI_LISTEN:-127.0.0.1:4200}"
+# The interactive CLI still recognizes the legacy home variable. Keep it
+# aligned so first-run setup writes into this portable bundle.
+export OPENFANG_HOME="$FREECO_AI_HOME"
 
 OS="$(uname -s)"
 ARCH="$(uname -m)"
@@ -37,8 +40,8 @@ if [ "$PLATFORM_DIR" = "macos" ]; then
     command -v codesign >/dev/null 2>&1 && codesign --force --sign - "$EXE" 2>/dev/null || true
 fi
 
-mkdir -p "$FRECO_AI_HOME"
-if [ ! -f "$FRECO_AI_HOME/config.toml" ]; then
+mkdir -p "$FREECO_AI_HOME"
+if [ ! -f "$FREECO_AI_HOME/config.toml" ]; then
     echo "  First run — starting FreEco.ai setup wizard..."
     "$EXE" init
 fi
@@ -48,15 +51,15 @@ fi
 (
     sleep 3
     if command -v xdg-open >/dev/null 2>&1; then
-        xdg-open "http://$FRECO_AI_LISTEN" >/dev/null 2>&1 || true
+        xdg-open "http://$FREECO_AI_LISTEN" >/dev/null 2>&1 || true
     elif command -v open >/dev/null 2>&1; then
-        open "http://$FRECO_AI_LISTEN" >/dev/null 2>&1 || true
+        open "http://$FREECO_AI_LISTEN" >/dev/null 2>&1 || true
     fi
 ) &
 
 echo ""
-echo "  FreEco.ai starting — dashboard: http://$FRECO_AI_LISTEN"
-echo "  Data directory: $FRECO_AI_HOME"
+echo "  FreEco.ai starting — dashboard: http://$FREECO_AI_LISTEN"
+echo "  Data directory: $FREECO_AI_HOME"
 echo "  Press Ctrl+C to stop."
 echo ""
 exec "$EXE" start

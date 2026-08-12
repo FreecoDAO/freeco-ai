@@ -12,7 +12,7 @@ ExecStart=/usr/local/bin/freeco-ai start
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
-Environment=FRECO_AI_HOME=/var/lib/freeco-ai
+Environment=FREECO_AI_HOME=/var/lib/freeco-ai
 EnvironmentFile=-/etc/freeco-ai/env
 WorkingDirectory=/var/lib/freeco-ai
 NoNewPrivileges=true

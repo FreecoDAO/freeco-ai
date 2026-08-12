@@ -75,6 +75,12 @@ recorded as such.
 
 ## Unreleased
 
+- 🟨 Label-driven release preparation that validates private-distribution
+  prerequisites, creates release metadata, tags the commit, and triggers the
+  artifact build without manual version or tag changes.
+- 🟨 FreEco.ai sandbox and distribution naming with safe legacy configuration
+  compatibility and per-workspace reusable-container isolation.
+
 ## Partial — do not describe these as done
 
 - ⚠️ **Unified inbox and contacts (CRM).** The tables exist

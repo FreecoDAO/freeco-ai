@@ -3,14 +3,20 @@
 #   or:  powershell -c "irm https://www.freeco.ai/install.ps1 | iex"
 #
 # Flags (via environment variables):
-#   $env:FRECO_AI_INSTALL_DIR = custom install directory
-#   $env:FRECO_AI_VERSION     = specific version tag (e.g. "v0.1.0")
+#   $env:FREECO_AI_INSTALL_DIR = custom install directory
+#   $env:FREECO_AI_VERSION     = specific version tag (e.g. "v0.1.0")
+#   $env:FREECO_AI_RELEASE_TOKEN = authorized GitHub token for private releases
+#   $env:FRECO_AI_*            = legacy aliases
 
 $ErrorActionPreference = 'Stop'
 
 $Repo = "FreecoDAO/freeco-ai"
 $DefaultInstallDir = Join-Path $env:USERPROFILE ".freeco-ai\bin"
-$InstallDir = if ($env:FRECO_AI_INSTALL_DIR) { $env:FRECO_AI_INSTALL_DIR } else { $DefaultInstallDir }
+$InstallDir = if ($env:FREECO_AI_INSTALL_DIR) { $env:FREECO_AI_INSTALL_DIR } elseif ($env:FRECO_AI_INSTALL_DIR) { $env:FRECO_AI_INSTALL_DIR } else { $DefaultInstallDir }
+$ReleaseHeaders = @{ Accept = "application/vnd.github+json" }
+if ($env:FREECO_AI_RELEASE_TOKEN) {
+    $ReleaseHeaders["Authorization"] = "******"
+}
 
 function Write-Banner {
     Write-Host ""
@@ -60,19 +66,21 @@ function Get-Architecture {
 }
 
 function Get-LatestVersion {
+    if ($env:FREECO_AI_VERSION) {
+        return $env:FREECO_AI_VERSION
+    }
     if ($env:FRECO_AI_VERSION) {
         return $env:FRECO_AI_VERSION
     }
 
     Write-Host "  Fetching latest release..."
     try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers $ReleaseHeaders
         return $release.tag_name
     }
     catch {
         Write-Host "  Could not determine latest version." -ForegroundColor Red
-        Write-Host "  Install from source instead:" -ForegroundColor Yellow
-        Write-Host "    cargo install --git https://github.com/$Repo freeco-ai-cli"
+        Write-Host "  For a private release, request authorized access and set FREECO_AI_RELEASE_TOKEN." -ForegroundColor Yellow
         exit 1
     }
 }
@@ -103,12 +111,11 @@ function Install-FreEcoAi {
     $checksumPath = Join-Path $tempDir "$archive.sha256"
 
     try {
-        Invoke-WebRequest -Uri $url -OutFile $archivePath -UseBasicParsing
+        Invoke-WebRequest -Uri $url -OutFile $archivePath -UseBasicParsing -Headers $ReleaseHeaders
     }
     catch {
         Write-Host "  Download failed. The release may not exist for your platform." -ForegroundColor Red
-        Write-Host "  Install from source instead:" -ForegroundColor Yellow
-        Write-Host "    cargo install --git https://github.com/$Repo freeco-ai-cli"
+        Write-Host "  Request an authorized release token or use the Association distribution channel." -ForegroundColor Yellow
         Remove-Item -Recurse -Force $tempDir -ErrorAction SilentlyContinue
         exit 1
     }
@@ -116,7 +123,7 @@ function Install-FreEcoAi {
     # Verify checksum if available
     $checksumDownloaded = $false
     try {
-        Invoke-WebRequest -Uri $checksumUrl -OutFile $checksumPath -UseBasicParsing
+        Invoke-WebRequest -Uri $checksumUrl -OutFile $checksumPath -UseBasicParsing -Headers $ReleaseHeaders
         $checksumDownloaded = $true
     }
     catch {

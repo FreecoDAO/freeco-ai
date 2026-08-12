@@ -9,7 +9,7 @@
 # Build once:
 #   docker build -t freeco-sandbox:latest deploy/sandbox
 #
-# Then set in ~/.openfang/config.toml:
+# Then set in ~/.freeco-ai/config.toml:
 #   [docker]
 #   image = "freeco-sandbox:latest"
 FROM rust:1.85-slim-bookworm

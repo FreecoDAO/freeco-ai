@@ -426,7 +426,9 @@ print(json.dumps({"text": result.text, "model": "mlx-community/parakeet-tdt-0.6b
 /// Detect which audio transcription provider is available.
 fn detect_audio_provider() -> Option<&'static str> {
     // Explicit opt-in for local Parakeet MLX transcription
-    if std::env::var("OPENFANG_ENABLE_PARAKEET_MLX").is_ok() {
+    if std::env::var("FREECO_AI_ENABLE_PARAKEET_MLX").is_ok()
+        || std::env::var("OPENFANG_ENABLE_PARAKEET_MLX").is_ok()
+    {
         return Some("parakeet-mlx");
     }
     if std::env::var("GROQ_API_KEY").is_ok() {

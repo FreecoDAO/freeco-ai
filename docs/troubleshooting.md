@@ -94,13 +94,13 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 **Fix**: Boot to a TTY (`Ctrl+Alt+F2`) and remove any FreEco.ai PATH lines from `config.fish`:
 ```bash
-sed -i '/openfang/d' ~/.config/fish/config.fish
+sed -i '/openfang\|freeco-ai/d' ~/.config/fish/config.fish
 ```
-Then re-run the installer — current versions write to `~/.config/fish/conf.d/openfang.fish` (a drop-in directory) instead, and guard the path with `test -d` so a missing install dir can never wedge fish startup.
+Then re-run the installer — current versions write to `~/.config/fish/conf.d/freeco-ai.fish` (a drop-in directory) instead, and guard the path with `test -d` so a missing install dir can never wedge fish startup.
 
 To remove FreEco.ai's PATH entry cleanly:
 ```bash
-rm ~/.config/fish/conf.d/openfang.fish
+rm ~/.config/fish/conf.d/freeco-ai.fish
 ```
 
 ### Docker container won't start

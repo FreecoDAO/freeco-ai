@@ -1,16 +1,9 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      counsel_approval_reference:
-        description: "Counsel approval reference for the commercial distribution"
-        required: true
-        type: string
-      private_distribution_confirmed:
-        description: "Confirm that the repository, release assets, and package registry are private"
-        required: true
-        type: boolean
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -18,22 +11,44 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  PRIVATE_DISTRIBUTION_READY: ${{ vars.PRIVATE_DISTRIBUTION_READY }}
+  COUNSEL_APPROVAL_REFERENCE: ${{ vars.COUNSEL_APPROVAL_REFERENCE }}
 
 jobs:
   verify-release:
     name: Verify release metadata
-    if: inputs.private_distribution_confirmed == true && inputs.counsel_approval_reference != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - name: Verify private-distribution prerequisites
+        env:
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$PRIVATE_DISTRIBUTION_READY" = "true" || {
+            echo "::error::PRIVATE_DISTRIBUTION_READY must be true before a release can publish."
+            exit 1
+          }
+          test -n "$COUNSEL_APPROVAL_REFERENCE" || {
+            echo "::error::COUNSEL_APPROVAL_REFERENCE must be configured before a release can publish."
+            exit 1
+          }
+          repository_private="$(gh api "/repos/$REPOSITORY" --jq '.private')"
+          test "$repository_private" = "true" || {
+            echo "::error::The repository must be private before a commercial release."
+            exit 1
+          }
+          # The first Docker publish creates this package. The Docker job
+          # verifies its visibility before the release draft is published.
       - name: Verify tag, main, package version, and changelog agree
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           version="${RELEASE_TAG#v}"
           test "$RELEASE_TAG" = "v$version"
+          test "$(git log -1 --format=%s "$RELEASE_TAG")" = "chore(release): $RELEASE_TAG"
           git fetch origin main
           # The tag must be ON the main line, but need not be the exact HEAD:
           # commits can legitimately land after an auto-tag is pushed. Requiring
@@ -306,6 +321,22 @@ jobs:
         with:
           context: .
           call: check
+      - name: Reject a public existing GHCR package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          owner_type="$(gh api "/repos/$REPOSITORY" --jq '.owner.type')"
+          if [ "$owner_type" = "Organization" ]; then
+            package_path="/orgs/${REPOSITORY%%/*}/packages/container/freeco-ai"
+          else
+            package_path="/users/${REPOSITORY%%/*}/packages/container/freeco-ai"
+          fi
+          package_visibility="$(gh api "$package_path" --jq '.visibility' 2>/dev/null || true)"
+          if [ -n "$package_visibility" ] && [ "$package_visibility" != "private" ]; then
+            echo "::error::The existing GHCR freeco-ai package must be private before a commercial release."
+            exit 1
+          fi
       - name: Build and push (multi-arch)
         uses: docker/build-push-action@v7
         with:
@@ -334,8 +365,8 @@ jobs:
           ignore-unfixed: true
           severity: CRITICAL,HIGH
           vuln-type: os,library
-      - name: Set GHCR package visibility to public
-        if: false # Never override the package's private visibility from automation.
+      - name: Deprecated public-visibility step (disabled)
+        if: false
         # FreecoDAO is a user account, not an org — the /orgs/... endpoint
         # 404s. Best-effort: the users endpoint, and never fail the release
         # over package visibility (it can be set once in the UI instead).
@@ -347,16 +378,31 @@ jobs:
             https://api.github.com/users/FreecoDAO/packages/container/freeco-ai \
             -d '{"visibility":"public"}' \
           || echo "Package visibility unchanged (set it once via GitHub UI: Packages -> freeco-ai -> settings)"
+      - name: Verify GHCR package is private
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          owner_type="$(gh api "/repos/$REPOSITORY" --jq '.owner.type')"
+          if [ "$owner_type" = "Organization" ]; then
+            package_path="/orgs/${REPOSITORY%%/*}/packages/container/freeco-ai"
+          else
+            package_path="/users/${REPOSITORY%%/*}/packages/container/freeco-ai"
+          fi
+          package_visibility="$(gh api "$package_path" --jq '.visibility')"
+          test "$package_visibility" = "private" || {
+            echo "::error::The GHCR freeco-ai package must be private before publishing the release."
+            exit 1
+          }
 
   # ── Publish the draft once every artifact is uploaded ─────────────────────
   # GitHub "immutable releases" freeze a release's assets the moment it is
   # published, so the desktop/cli jobs build into a DRAFT. This job flips it
-  # live after all of them succeed. Docker is intentionally not a dependency:
-  # it publishes to GHCR, not to the release, and must not gate the download
-  # links.
+  # live after all artifacts, including the private GHCR image, pass their
+  # validation.
   publish-release:
     name: Publish release
-    needs: [desktop, cli]
+    needs: [desktop, cli, docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write

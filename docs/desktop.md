@@ -3,7 +3,7 @@
 The FreEco.ai Desktop App is a native desktop wrapper built with [Tauri 2.0](https://v2.tauri.app/) that packages the entire FreEco.ai Agent OS into a single, installable application. Instead of running a CLI daemon and opening a browser, users get a native window with system tray integration, OS notifications, and single-instance enforcement -- all powered by the same kernel and API server that the headless deployment uses.
 
 **Crate:** `openfang-desktop`
-**Identifier:** `ai.openfang.desktop`
+**Identifier:** `ai.freeco.desktop`
 **Product name:** FreEco.ai
 
 ---
@@ -93,7 +93,7 @@ The system tray (defined in `src/tray.rs`) provides quick access without bringin
 | **Status: Running (uptime)** | Disabled (info only) — shows uptime in human-readable format |
 | **Launch at Login** | Checkbox — toggles OS-level auto-start via `tauri-plugin-autostart` |
 | **Check for Updates...** | Checks for updates, downloads, installs, and restarts if available. Shows notifications for progress/success/failure |
-| **Open Config Directory** | Opens `~/.openfang/` in the OS file manager |
+| **Open Config Directory** | Opens `~/.freeco-ai/` in the OS file manager |
 | **Quit FreEco.ai** | Logs the quit event and calls `app.exit(0)` |
 
 The tray tooltip reads **"FreEco.ai Agent OS"**.
@@ -188,11 +188,11 @@ const count: number = await invoke("get_agent_count");
 
 ### `import_agent_toml`
 
-Opens a native file picker for `.toml` files. Validates the selected file as an `AgentManifest`, copies it to `~/.openfang/agents/{name}/agent.toml`, and spawns the agent. Returns the agent name on success.
+Opens a native file picker for `.toml` files. Validates the selected file as an `AgentManifest`, copies it to `~/.freeco-ai/agents/{name}/agent.toml`, and spawns the agent. Returns the agent name on success.
 
 ### `import_skill_file`
 
-Opens a native file picker for skill files (`.md`, `.toml`, `.py`, `.js`, `.wasm`). Copies the file to `~/.openfang/skills/` and triggers a hot-reload of the skill registry.
+Opens a native file picker for skill files (`.md`, `.toml`, `.py`, `.js`, `.wasm`). Copies the file to `~/.freeco-ai/skills/` and triggers a hot-reload of the skill registry.
 
 ### `get_autostart` / `set_autostart`
 
@@ -216,7 +216,7 @@ await invoke("install_update"); // App restarts if update succeeds
 
 ### `open_config_dir` / `open_logs_dir`
 
-Opens `~/.openfang/` or `~/.openfang/logs/` in the OS file manager.
+Opens `~/.freeco-ai/` or `~/.freeco-ai/logs/` in the OS file manager.
 
 ---
 
@@ -237,7 +237,9 @@ The window uses `WebviewUrl::External(...)` rather than a bundled frontend, beca
 
 ### Auto-Updater
 
-The app checks for updates 10 seconds after startup. If an update is available, it is downloaded, installed, and the app restarts automatically. Users can also trigger a manual check via the system tray.
+The app checks for updates 10 seconds after startup. If an authorized update is
+available, it is downloaded, installed, and the app restarts automatically.
+Users can also trigger a manual check via the system tray.
 
 **Flow:**
 1. Startup check (10s delay) → `check_for_update()` → if available → notify user → `download_and_install_update()` → app restarts
@@ -245,10 +247,18 @@ The app checks for updates 10 seconds after startup. If an update is available, 
 
 **Configuration** (in `tauri.conf.json`):
 - `plugins.updater.pubkey` — Ed25519 public key (must match the signing private key)
-- `plugins.updater.endpoints` — URL to `latest.json` (hosted on GitHub Releases)
+- `plugins.updater.endpoints` — URL to the signed `latest.json` update manifest
 - `plugins.updater.windows.installMode` — `"passive"` (install without full UI)
 
-**Signing:** Every release bundle is signed with `TAURI_SIGNING_PRIVATE_KEY` (GitHub Secret). The `tauri-action` generates `latest.json` containing download URLs and signatures for each platform.
+**Private distribution:** Set `FREECO_AI_RELEASE_TOKEN` only from an authorized
+runtime environment when the update endpoint is private. The value is sent as
+an authorization header and is never embedded in the app. Long-lived customer
+tokens must be replaced by the entitlement service described in
+[Private Distribution Readiness](../PRIVATE_DISTRIBUTION_READINESS.md).
+
+**Signing:** Every release bundle is signed with `TAURI_SIGNING_PRIVATE_KEY`
+(GitHub Secret). The `tauri-action` generates `latest.json` containing download
+URLs and signatures for each platform.
 
 See [Production Checklist](production-checklist.md) for key generation and setup instructions.
 

@@ -52,7 +52,7 @@ def main() -> None:
         raise SystemExit("CHANGELOG.md must contain an Unreleased section.")
     release_notes = changelog_match.group("body").strip()
     if not release_notes:
-        release_notes = "### Changed\n\n- Maintenance release."
+        raise SystemExit("CHANGELOG.md must contain Unreleased release notes.")
     changelog = (
         changelog[: changelog_match.start()]
         + f"## [Unreleased]\n\n## [{version}] - {args.date}\n\n{release_notes}\n\n"

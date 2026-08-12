@@ -284,7 +284,7 @@ mod tests {
     /// adding its signup page.
     #[test]
     fn every_shipped_provider_has_signup_guidance() {
-        let catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+        let catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
         let missing: Vec<&str> = catalog
             .list_providers()
             .iter()
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn hints_are_actually_instructive() {
-        let catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+        let catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
         for p in catalog.list_providers() {
             if let Some(s) = signup_for(&p.id) {
                 assert!(

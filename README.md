@@ -268,7 +268,7 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 <p align="center">
   <img src="https://img.shields.io/badge/language-Rust-orange?style=flat-square" alt="Rust" />
   <img src="https://img.shields.io/badge/distribution-authorized%20access-blue?style=flat-square" alt="Authorized access" />
-  <img src="https://img.shields.io/badge/version-0.7.4-green?style=flat-square" alt="v0.7.4" />
+  <img src="https://img.shields.io/badge/version-0.9.5-green?style=flat-square" alt="v0.9.5" />
   <img src="https://img.shields.io/badge/tests-2,696%2B%20passing-brightgreen?style=flat-square" alt="Tests" />
   <img src="https://img.shields.io/badge/clippy-0%20warnings-brightgreen?style=flat-square" alt="Clippy" />
 </p>
@@ -284,7 +284,7 @@ open-source materials and their existing licenses remain identified in
 [COPYRIGHT_AND_PRODUCT_SCOPE.md](COPYRIGHT_AND_PRODUCT_SCOPE.md).
 
 > Choose a **desktop installer** for your operating system. The
-> `openfang-<target>.zip` and `.tar.gz` files are advanced CLI archives, not
+> `freeco-ai-<target>.zip` and `.tar.gz` files are advanced CLI archives, not
 > desktop installers. The portable USB bundle is a separate download.
 
 ### 🪟 Windows — step by step
@@ -327,7 +327,7 @@ available, so no such image is offered as a download.
 
 ---
 
-> **Latest release: v0.7.4 (July 2026)**
+> **Latest release: v0.9.5 (August 2026)**
 >
 > FreEco.ai is feature complete but still pre-1.0. Expect rough edges and breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/FreecoDAO/freeco-ai/issues)
 >
@@ -347,8 +347,8 @@ The entire system compiles to a **single ~32MB binary**. One install, one comman
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.sh | sh
-openfang init
-openfang start
+freeco-ai init
+freeco-ai start
 # Dashboard live at http://localhost:4200
 ```
 
@@ -357,8 +357,8 @@ openfang start
 
 ```powershell
 irm https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.ps1 | iex
-openfang init
-openfang start
+freeco-ai init
+freeco-ai start
 ```
 
 </details>
@@ -429,19 +429,19 @@ All compiled into the binary. No downloading, no pip install, no Docker pull.
 
 ```bash
 # Activate the Researcher Hand. It starts working immediately.
-openfang hand activate researcher
+freeco-ai hand activate researcher
 
 # Check its progress anytime
-openfang hand status researcher
+freeco-ai hand status researcher
 
 # Activate lead generation on a daily schedule
-openfang hand activate lead
+freeco-ai hand activate lead
 
 # Pause without losing state
-openfang hand pause lead
+freeco-ai hand pause lead
 
 # See all available Hands
-openfang hand list
+freeco-ai hand list
 ```
 
 **Build your own.** Define a `HAND.toml` with tools, settings, and a system prompt. Publish to FangHub.
@@ -659,7 +659,7 @@ The gateway listens on port `3009` by default. Override with `WHATSAPP_GATEWAY_P
 **5. Start FreEco.ai:**
 
 ```bash
-openfang start
+freeco-ai start
 # Dashboard at http://localhost:4200
 ```
 
@@ -677,8 +677,8 @@ Once scanned, the status changes to `connected` and incoming messages are routed
 |----------|-------------|---------|
 | `WHATSAPP_WEB_GATEWAY_URL` | Gateway URL for FreEco.ai to connect to | _(empty = disabled)_ |
 | `WHATSAPP_GATEWAY_PORT` | Port the gateway listens on | `3009` |
-| `OPENFANG_URL` | FreEco.ai API URL the gateway reports to | `http://127.0.0.1:4200` |
-| `OPENFANG_DEFAULT_AGENT` | Agent that handles incoming messages | `assistant` |
+| `FREECO_AI_URL` | FreEco.ai API URL the gateway reports to | `http://127.0.0.1:4200` |
+| `FREECO_AI_DEFAULT_AGENT` | Agent that handles incoming messages | `assistant` |
 
 ### Gateway API Endpoints
 
@@ -720,13 +720,13 @@ Already running OpenClaw? One command:
 
 ```bash
 # Migrate everything: agents, memory, skills, configs.
-openfang migrate --from openclaw
+freeco-ai migrate --from openclaw
 
 # Migrate from a specific path
-openfang migrate --from openclaw --path ~/.openclaw
+freeco-ai migrate --from openclaw --path ~/.openclaw
 
 # Dry run first to see what would change
-openfang migrate --from openclaw --dry-run
+freeco-ai migrate --from openclaw --dry-run
 ```
 
 The migration engine imports your agents, conversation history, skills, and configuration. FreEco.ai reads SKILL.md natively and is compatible with the ClawHub marketplace.
@@ -758,22 +758,22 @@ curl -X POST localhost:4200/v1/chat/completions \
 curl -fsSL https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.sh | sh
 
 # 2. Initialize. Walks you through provider setup.
-openfang init
+freeco-ai init
 
 # 3. Start the daemon
-openfang start
+freeco-ai start
 
 # 4. Dashboard is live at http://localhost:4200
 
 # 5. Activate a Hand. It starts working for you.
-openfang hand activate researcher
+freeco-ai hand activate researcher
 
 # 6. Chat with an agent
-openfang chat researcher
+freeco-ai chat researcher
 > "What are the emerging trends in AI agent frameworks?"
 
 # 7. Spawn a pre-built agent
-openfang agent spawn coder
+freeco-ai agent spawn coder
 ```
 
 <details>
@@ -781,8 +781,8 @@ openfang agent spawn coder
 
 ```powershell
 irm https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.ps1 | iex
-openfang init
-openfang start
+freeco-ai init
+freeco-ai start
 ```
 
 </details>

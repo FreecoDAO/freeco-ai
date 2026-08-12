@@ -32,17 +32,17 @@ Complete reference for `config.toml`, covering every configurable field in the F
 FreEco.ai reads its configuration from a single TOML file:
 
 ```
-~/.openfang/config.toml
+~/.freeco-ai/config.toml
 ```
 
 On Windows, `~` resolves to `C:\Users\<username>`. If the home directory cannot be determined, the system temp directory is used as a fallback.
 
 The home directory is resolved with the following priority:
 
-1. `OPENFANG_HOME` environment variable (e.g. `OPENFANG_HOME=/data` in the official Docker image).
-2. `~/.openfang` (default).
+1. `FREECO_AI_HOME` environment variable (e.g. `FREECO_AI_HOME=/data` in the official Docker image).
+2. `~/.freeco-ai` (default).
 
-So inside the Docker container the config file must live at `/data/config.toml` (because the image sets `ENV OPENFANG_HOME=/data`). Placing it anywhere else (for example `/opt/openfang/config.toml`) will be silently ignored.
+So inside the Docker container the config file must live at `/data/config.toml` (because the image sets `ENV FREECO_AI_HOME=/data`). Placing it anywhere else (for example `/opt/freeco-ai/config.toml`) will be silently ignored.
 
 **Key behaviors:**
 
@@ -58,7 +58,7 @@ So inside the Docker container the config file must live at `/data/config.toml` 
 The simplest working configuration only needs an LLM provider API key set as an environment variable. With no config file at all, FreEco.ai boots with Anthropic as the default provider:
 
 ```toml
-# ~/.openfang/config.toml
+# ~/.freeco-ai/config.toml
 # Minimal: just override the model if you want something other than defaults.
 # Set ANTHROPIC_API_KEY in your environment.
 
@@ -88,8 +88,8 @@ api_key_env = ""
 # ============================================================
 
 # --- Top-level fields ---
-home_dir = "~/.openfang"             # FreEco.ai home directory
-data_dir = "~/.openfang/data"        # SQLite databases and data files
+home_dir = "~/.freeco-ai"            # FreEco.ai home directory
+data_dir = "~/.freeco-ai/data"       # SQLite databases and data files
 log_level = "info"                   # trace | debug | info | warn | error
 api_listen = "127.0.0.1:50051"      # HTTP/WS API bind address
 network_enabled = false              # Enable OFP peer-to-peer network
@@ -119,7 +119,7 @@ api_key_env = "GROQ_API_KEY"
 
 # --- Memory ---
 [memory]
-# sqlite_path = "~/.openfang/data/openfang.db"  # Auto-resolved if omitted
+# sqlite_path = "~/.freeco-ai/data/freeco-ai.db"  # Auto-resolved if omitted
 embedding_model = "all-MiniLM-L6-v2"
 consolidation_threshold = 10000
 decay_rate = 0.1
@@ -232,10 +232,10 @@ These fields sit at the root of `config.toml` (not inside any `[section]`).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `home_dir` | path | `~/.openfang` | FreEco.ai home directory. Stores config, agents, skills. |
-| `data_dir` | path | `~/.openfang/data` | Directory for SQLite databases and persistent data. |
+| `home_dir` | path | `~/.freeco-ai` | FreEco.ai home directory. Stores config, agents, skills. |
+| `data_dir` | path | `~/.freeco-ai/data` | Directory for SQLite databases and persistent data. |
 | `log_level` | string | `"info"` | Log verbosity. One of: `trace`, `debug`, `info`, `warn`, `error`. |
-| `api_listen` | string | `"127.0.0.1:50051"` | Bind address for the HTTP/WebSocket/SSE API server. Use `0.0.0.0:<port>` to accept connections from outside the host (LAN, Docker, remote clients). See [Exposing the Dashboard](#exposing-the-dashboard) below before doing so. Can be overridden at runtime with the `OPENFANG_LISTEN` environment variable. |
+| `api_listen` | string | `"127.0.0.1:50051"` | Bind address for the HTTP/WebSocket/SSE API server. Use `0.0.0.0:<port>` to accept connections from outside the host (LAN, Docker, remote clients). See [Exposing the Dashboard](#exposing-the-dashboard) below before doing so. Can be overridden at runtime with the `FREECO_AI_LISTEN` environment variable. |
 | `network_enabled` | bool | `false` | Enable the OFP peer-to-peer network layer. |
 | `api_key` | string | `""` (empty) | API authentication key. When set, all endpoints except `/api/health` require `Authorization: Bearer <key>`. Empty means unauthenticated (local development only). |
 | `mode` | string | `"default"` | Kernel operating mode. See below. |
@@ -273,41 +273,44 @@ By default FreEco.ai binds the API and dashboard to `127.0.0.1` (loopback only) 
    api_listen = "0.0.0.0:4200"
    ```
 
-2. Or set the `OPENFANG_LISTEN` environment variable (overrides `config.toml`):
+2. Or set the `FREECO_AI_LISTEN` environment variable (overrides `config.toml`):
 
    ```bash
-   export OPENFANG_LISTEN=0.0.0.0:4200
+   export FREECO_AI_LISTEN=0.0.0.0:4200
    ```
 
    The env var route is the recommended path for Docker because it does not require mounting a config file.
 
-**Docker example.** The official image sets `OPENFANG_HOME=/data` and exposes port `4200`. The simplest end-to-end setup is:
+**Docker example.** The official image sets `FREECO_AI_HOME=/data` and exposes port `4200`. The simplest end-to-end setup is:
 
 ```yaml
 services:
-  openfang:
+  freeco-ai:
     image: ghcr.io/freecodao/freeco-ai:latest
     ports:
       - "4200:4200"
     volumes:
-      - openfang-data:/data
+      - freeco-ai-data:/data
     environment:
-      - OPENFANG_LISTEN=0.0.0.0:4200          # required: bind to all interfaces inside the container
-      - OPENFANG_API_KEY=${OPENFANG_API_KEY}  # strongly recommended when exposing
+      - FREECO_AI_LISTEN=0.0.0.0:4200          # required: bind to all interfaces inside the container
+      - FREECO_AI_API_KEY=${FREECO_AI_API_KEY}  # strongly recommended when exposing
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
 volumes:
-  openfang-data:
+  freeco-ai-data:
 ```
 
-If you prefer mounting `config.toml`, the file must live at `/data/config.toml` inside the container (because of `OPENFANG_HOME=/data`). Placing it at `/opt/openfang/config.toml` or any other path will not be picked up. The port in `api_listen` must also match the port published in `ports:` — the example config in `openfang.toml.example` ships with port `50051` to be safe; change it to `4200` (or whatever port you publish) when running in Docker.
+If you prefer mounting `config.toml`, the file must live at `/data/config.toml` inside the container (because of `FREECO_AI_HOME=/data`). Placing it at `/opt/freeco-ai/config.toml` or any other path will not be picked up. The port in `api_listen` must also match the port published in `ports:` — the example config in `freeco-ai.toml.example` ships with port `50051` to be safe; change it to `4200` (or whatever port you publish) when running in Docker.
 
 **Security warning.** Once you bind to a non-loopback address, anyone reachable at that address can talk to the API. FreEco.ai's middleware enforces a fail-closed default on authenticated routes:
 
 - If `api_key` is empty AND dashboard auth is disabled AND the bind address is not loopback, authenticated routes reject non-loopback requests with `401 Unauthorized`.
 - A small set of public routes (health check, static assets, OAuth callback) remain reachable so the dashboard can render its login page. They do not expose agent data or accept commands.
-- To run with full open access anyway (not recommended), set `OPENFANG_ALLOW_NO_AUTH=1`. This will be loudly logged.
+- To run with full open access anyway (not recommended), set `FREECO_AI_ALLOW_NO_AUTH=1`. This will be loudly logged.
 
 The supported ways to expose the dashboard safely:
+
+Prefer `FREECO_AI_API_KEY`; the legacy `OPENFANG_API_KEY` remains
+supported for existing installations.
 
 - Set `api_key = "..."` in `config.toml` (or `OPENFANG_API_KEY=...`) and send `Authorization: Bearer <key>` on every request.
 - Or enable the [`[auth]`](#auth) section to require username/password login on the dashboard UI.

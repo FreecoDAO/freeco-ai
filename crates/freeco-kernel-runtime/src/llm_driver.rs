@@ -200,7 +200,7 @@ pub struct DriverConfig {
     /// to bump this to 480–600s.
     ///
     /// Can also be overridden at runtime via the
-    /// `OPENFANG_SUBPROCESS_TIMEOUT_SECS` env var, which wins over both
+    /// `FREECO_AI_SUBPROCESS_TIMEOUT_SECS` env var, which wins over both
     /// this field and the driver default.
     ///
     /// **Scope:** Currently only honored by `provider = "claude-code"`.

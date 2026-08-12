@@ -1238,7 +1238,7 @@ pub fn builtin_tool_definitions() -> Vec<ToolDefinition> {
             input_schema: serde_json::json!({
                 "type": "object",
                 "properties": {
-                    "url": { "type": "string", "description": "Base URL of the remote OpenFang/A2A-compatible agent (e.g., 'https://agent.example.com')" }
+                    "url": { "type": "string", "description": "Base URL of the remote FreEco.ai/A2A-compatible agent (e.g., 'https://agent.example.com')" }
                 },
                 "required": ["url"]
             }),
@@ -1379,7 +1379,7 @@ pub fn builtin_tool_definitions() -> Vec<ToolDefinition> {
         },
         // --- Skill introspection tools (issue #1038) ---
         // These let the agent discover and read installed skills without
-        // touching the filesystem. Global skills live at ~/.openfang/skills/
+        // touching the filesystem. Global skills live at ~/.freeco-ai/skills/
         // which is outside the workspace sandbox — file_read cannot reach them.
         ToolDefinition {
             name: "skill_list".to_string(),
@@ -1656,7 +1656,7 @@ async fn tool_web_search_legacy(input: &serde_json::Value) -> Result<String, Str
     let resp = client
         .get("https://html.duckduckgo.com/html/")
         .query(&[("q", query)])
-        .header("User-Agent", "Mozilla/5.0 (compatible; OpenFangAgent/0.1)")
+        .header("User-Agent", "Mozilla/5.0 (compatible; FreEcoAgent/0.1)")
         .send()
         .await
         .map_err(|e| format!("Search request failed: {e}"))?;
@@ -2994,7 +2994,7 @@ async fn tool_location_get() -> Result<String, String> {
     // Use ip-api.com (free, no API key, JSON response)
     let resp = client
         .get("https://ip-api.com/json/?fields=status,message,country,regionName,city,zip,lat,lon,timezone,isp,query")
-        .header("User-Agent", "OpenFang/0.1")
+        .header("User-Agent", "FreEco.ai/0.1")
         .send()
         .await
         .map_err(|e| format!("Location request failed: {e}"))?;
@@ -3440,10 +3440,27 @@ async fn tool_docker_exec(
         .map_err(|e| format!("Failed to resolve Docker workspace: {e}"))?;
     let pool_key = format!("agent:{agent_id}:{}", canonical_workspace.display());
     let config_hash = crate::docker_sandbox::config_hash(config);
-    let container = if reusable {
-        match pool.acquire(&pool_key, config_hash, config.reuse_cool_secs) {
-            Some(container) => container,
-            None => {
+    let reservation = reusable.then(|| pool.reserve(&pool_key)).transpose()?;
+    let container = if let Some(reservation) = reservation.as_ref() {
+        match reservation.acquire(config_hash, config.reuse_cool_secs) {
+            crate::docker_sandbox::PoolAcquire::Available(container) => container,
+            crate::docker_sandbox::PoolAcquire::Missing => {
+                crate::docker_sandbox::create_sandbox(
+                    config,
+                    agent_id,
+                    &canonical_workspace,
+                    persistent_workspace,
+                )
+                .await?
+            }
+            crate::docker_sandbox::PoolAcquire::CoolingDown => {
+                return Err(format!(
+                    "Docker sandbox reuse is cooling down for {} seconds. Wait and try again.",
+                    config.reuse_cool_secs
+                ));
+            }
+            crate::docker_sandbox::PoolAcquire::Incompatible(container) => {
+                crate::docker_sandbox::destroy_sandbox(&container).await?;
                 crate::docker_sandbox::create_sandbox(
                     config,
                     agent_id,
@@ -3466,7 +3483,10 @@ async fn tool_docker_exec(
     // leave unknown state, so it is destroyed rather than reused.
     let exec_result = match result {
         Ok(result) if reusable => {
-            pool.release(pool_key, container.clone(), config_hash);
+            reservation
+                .as_ref()
+                .expect("reusable sandboxes reserve their pool key")
+                .release(container.clone(), config_hash);
             schedule_docker_pool_cleanup(config.idle_timeout_secs, config.max_age_secs);
             result
         }
@@ -3750,7 +3770,7 @@ async fn tool_canvas_present(
 // ---------------------------------------------------------------------------
 // Skill introspection tools (issue #1038)
 //
-// Global skills live at ~/.openfang/skills/ which is outside the agent
+// Global skills live at ~/.freeco-ai/skills/ which is outside the agent
 // workspace sandbox. Without these tools the LLM falls back to file_read /
 // shell_exec to inspect SKILL.md files — which fail with path-resolution
 // errors because file_read is workspace-scoped. These tools surface the

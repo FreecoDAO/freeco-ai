@@ -215,7 +215,7 @@ fn has_extension_in_dir(dir: &Path, ext: &str) -> bool {
     false
 }
 
-/// Persistent workspace state, saved to `.openfang/workspace-state.json`.
+/// Persistent workspace state, saved to `.freeco-ai/workspace-state.json`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WorkspaceState {
     /// State format version.
@@ -232,22 +232,28 @@ fn default_version() -> u32 {
 }
 
 impl WorkspaceState {
-    /// Load state from the workspace's `.openfang/workspace-state.json`.
+    /// Load state from the workspace's `.freeco-ai/workspace-state.json`.
     pub fn load(workspace_root: &Path) -> Self {
-        let path = workspace_root
-            .join(".openfang")
-            .join("workspace-state.json");
-        match std::fs::read_to_string(&path) {
-            Ok(json) => serde_json::from_str(&json).unwrap_or_default(),
-            Err(_) => Self::default(),
+        for path in [
+            workspace_root
+                .join(".freeco-ai")
+                .join("workspace-state.json"),
+            workspace_root
+                .join(".openfang")
+                .join("workspace-state.json"),
+        ] {
+            if let Ok(json) = std::fs::read_to_string(path) {
+                return serde_json::from_str(&json).unwrap_or_default();
+            }
         }
+        Self::default()
     }
 
-    /// Save state to the workspace's `.openfang/workspace-state.json`.
+    /// Save state to the workspace's `.freeco-ai/workspace-state.json`.
     pub fn save(&self, workspace_root: &Path) -> Result<(), String> {
-        let dir = workspace_root.join(".openfang");
+        let dir = workspace_root.join(".freeco-ai");
         std::fs::create_dir_all(&dir)
-            .map_err(|e| format!("Failed to create .openfang dir: {e}"))?;
+            .map_err(|e| format!("Failed to create .freeco-ai dir: {e}"))?;
         let path = dir.join("workspace-state.json");
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| format!("Failed to serialize state: {e}"))?;
@@ -388,6 +394,7 @@ mod tests {
             onboarding_completed_at: None,
         };
         state.save(&dir).unwrap();
+        assert!(dir.join(".freeco-ai/workspace-state.json").is_file());
 
         let loaded = WorkspaceState::load(&dir);
         assert_eq!(loaded.version, 1);
@@ -396,6 +403,27 @@ mod tests {
             Some("2026-01-01T00:00:00Z")
         );
         assert!(loaded.onboarding_completed_at.is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_workspace_state_loads_legacy_location() {
+        let dir = std::env::temp_dir().join("openfang_ws_state_legacy");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join(".openfang")).unwrap();
+        std::fs::write(
+            dir.join(".openfang/workspace-state.json"),
+            r#"{"version":1,"onboarding_completed_at":"2026-01-01T00:00:00Z"}"#,
+        )
+        .unwrap();
+
+        let loaded = WorkspaceState::load(&dir);
+        assert_eq!(loaded.version, 1);
+        assert_eq!(
+            loaded.onboarding_completed_at.as_deref(),
+            Some("2026-01-01T00:00:00Z")
+        );
 
         let _ = std::fs::remove_dir_all(&dir);
     }

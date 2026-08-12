@@ -1,6 +1,6 @@
 //! WhatsApp Web gateway — embedded Node.js process management.
 //!
-//! Embeds the gateway JS at compile time, extracts it to `~/.openfang/whatsapp-gateway/`,
+//! Embeds the gateway JS at compile time, extracts it to `~/.freeco-ai/whatsapp-gateway/`,
 //! runs `npm install` if needed, and spawns `node index.js` as a managed child process
 //! that auto-restarts on crash.
 
@@ -154,7 +154,7 @@ pub async fn start_whatsapp_gateway(kernel: &Arc<super::kernel::OpenFangKernel>)
 
     let port = DEFAULT_GATEWAY_PORT;
     let api_listen = &kernel.config.api_listen;
-    let openfang_url = format!("http://{api_listen}");
+    let freeco_ai_url = format!("http://{api_listen}");
     let gateway_token = uuid::Uuid::new_v4().to_string();
     let api_key = kernel.config.api_key.trim().to_string();
     let default_agent = wa_config
@@ -187,10 +187,10 @@ pub async fn start_whatsapp_gateway(kernel: &Arc<super::kernel::OpenFangKernel>)
                 .arg("index.js")
                 .current_dir(&gateway_path)
                 .env("WHATSAPP_GATEWAY_PORT", port.to_string())
-                .env("OPENFANG_URL", &openfang_url)
-                .env("OPENFANG_DEFAULT_AGENT", &default_agent)
+                .env("FREECO_AI_URL", &freeco_ai_url)
+                .env("FREECO_AI_DEFAULT_AGENT", &default_agent)
                 .env("WHATSAPP_GATEWAY_TOKEN", &gateway_token)
-                .env("OPENFANG_API_KEY", &api_key)
+                .env("FREECO_AI_API_KEY", &api_key)
                 .stdout(std::process::Stdio::inherit())
                 .stderr(std::process::Stdio::inherit())
                 .spawn();

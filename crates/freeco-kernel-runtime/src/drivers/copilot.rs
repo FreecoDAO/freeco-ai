@@ -51,7 +51,7 @@ const ACCESS_TOKEN_REFRESH_BUFFER_SECS: u64 = 600; // 10 minutes
 /// Scopes requested during device flow.
 const OAUTH_SCOPES: &str = "copilot";
 
-/// File name for persisted OAuth tokens (inside ~/.openfang/).
+/// File name for persisted OAuth tokens (inside ~/.freeco-ai/).
 const TOKEN_FILE_NAME: &str = ".copilot-tokens.json";
 
 /// Device flow polling interval (seconds) — GitHub default is 5.
@@ -336,7 +336,7 @@ pub async fn exchange_copilot_token(
         .get(COPILOT_TOKEN_URL)
         .header("Authorization", format!("token {access_token}"))
         .header("Accept", "application/json")
-        .header("User-Agent", "OpenFang/1.0")
+        .header("User-Agent", "FreEco.ai/1.0")
         .header("Editor-Version", "vscode/1.96.0")
         .header("Editor-Plugin-Version", "copilot/1.250.0")
         .send()
@@ -420,7 +420,7 @@ pub async fn fetch_models(
     let resp = client
         .get(&url)
         .header("Authorization", format!("Bearer {copilot_token}"))
-        .header("User-Agent", "OpenFang/1.0")
+        .header("User-Agent", "FreEco.ai/1.0")
         .header("Editor-Version", "vscode/1.96.0")
         .send()
         .await

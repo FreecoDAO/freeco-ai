@@ -39,7 +39,7 @@ struct ProviderDefaults {
 /// well-known environment variables. Returns `None` if no override is set.
 ///
 /// This lets users point Ollama / LM Studio / vLLM / Lemonade at a remote host
-/// (VPS, LXC, another box on the LAN) without editing `~/.openfang/config.toml`.
+/// (VPS, LXC, another box on the LAN) without editing `~/.freeco-ai/config.toml`.
 ///
 /// Recognised variables:
 /// - `ollama`   → `OLLAMA_BASE_URL`, then `OLLAMA_HOST` (Ollama CLI convention)
@@ -414,7 +414,7 @@ pub fn create_driver(config: &DriverConfig) -> Result<Arc<dyn LlmDriver>, LlmErr
     if provider == "claude-code" {
         let cli_path = config.base_url.clone();
         // Timeout precedence (highest wins):
-        //   1. OPENFANG_SUBPROCESS_TIMEOUT_SECS env var (no-rebuild override for emergencies)
+        //   1. FREECO_AI_SUBPROCESS_TIMEOUT_SECS env var (no-rebuild override for emergencies)
         //   2. DriverConfig.subprocess_timeout_secs, populated upstream from
         //      config.toml — `default_model.subprocess_timeout_secs` for the
         //      primary driver, `[[fallback_providers]].subprocess_timeout_secs`
@@ -425,7 +425,8 @@ pub fn create_driver(config: &DriverConfig) -> Result<Arc<dyn LlmDriver>, LlmErr
         // driver, but today only `provider = "claude-code"` reads them. Other
         // drivers accept the field silently (forward-compat); future subprocess
         // drivers (qwen-code, etc.) will opt in here individually.
-        let timeout = std::env::var("OPENFANG_SUBPROCESS_TIMEOUT_SECS")
+        let timeout = std::env::var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS")
+            .or_else(|_| std::env::var("OPENFANG_SUBPROCESS_TIMEOUT_SECS"))
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
             .or(config.subprocess_timeout_secs);

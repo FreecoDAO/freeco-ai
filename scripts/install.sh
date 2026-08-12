@@ -3,13 +3,24 @@
 # Usage: curl -sSf https://www.freeco.ai | sh
 #
 # Environment variables:
-#   FRECO_AI_INSTALL_DIR  — custom install directory (default: ~/.freeco-ai/bin)
-#   FRECO_AI_VERSION      — install a specific version tag (default: latest)
+#   FREECO_AI_INSTALL_DIR  — custom install directory (default: ~/.freeco-ai/bin)
+#   FREECO_AI_VERSION      — install a specific version tag (default: latest)
+#   FREECO_AI_RELEASE_TOKEN — authorized GitHub token for private release access
+#   FRECO_AI_*             — legacy aliases
 
 set -euo pipefail
 
 REPO="FreecoDAO/freeco-ai"
-INSTALL_DIR="${FRECO_AI_INSTALL_DIR:-$HOME/.freeco-ai/bin}"
+INSTALL_DIR="${FREECO_AI_INSTALL_DIR:-${FRECO_AI_INSTALL_DIR:-$HOME/.freeco-ai/bin}}"
+RELEASE_TOKEN="${FREECO_AI_RELEASE_TOKEN:-}"
+
+release_curl() {
+    local args=(-fsSL)
+    if [ -n "$RELEASE_TOKEN" ]; then
+        args+=(-H "Authorization: ******")
+    fi
+    curl "${args[@]}" "$@"
+}
 
 detect_platform() {
     OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -27,8 +38,7 @@ detect_platform() {
             echo "  For Windows, use PowerShell instead:"
             echo "    irm https://www.freeco.ai/install.ps1 | iex"
             echo ""
-            echo "  Or download the .msi installer from:"
-            echo "    https://github.com/$REPO/releases/latest"
+            echo "  Or obtain an authenticated installer from the Association distribution channel."
             echo ""
             echo "  Or install via cargo:"
             echo "    cargo install --git https://github.com/$REPO freeco-ai-cli"
@@ -47,13 +57,13 @@ install() {
     echo ""
 
     # Get latest version with binary assets
-    if [ -n "${FRECO_AI_VERSION:-}" ]; then
-        VERSION="$FRECO_AI_VERSION"
+    if [ -n "${FREECO_AI_VERSION:-${FRECO_AI_VERSION:-}}" ]; then
+        VERSION="${FREECO_AI_VERSION:-${FRECO_AI_VERSION:-}}"
         echo "  Using specified version: $VERSION"
     else
         echo "  Fetching latest release..."
         # Find the most recent release that has binary assets (skip empty tag-only releases)
-        VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=10" | \
+        VERSION=$(release_curl "https://api.github.com/repos/$REPO/releases?per_page=10" | \
             grep -E '"tag_name"|"assets":\[' | \
             paste - - | \
             grep -v '"assets":\[\]' | \
@@ -61,14 +71,14 @@ install() {
             sed 's/.*"tag_name": *"//' | sed 's/".*//')
         # Fallback to /releases/latest if the above fails
         if [ -z "$VERSION" ]; then
-            VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
+            VERSION=$(release_curl "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
         fi
     fi
 
     if [ -z "$VERSION" ]; then
         echo "  Could not determine latest version."
-        echo "  Install from source instead:"
-        echo "    cargo install --git https://github.com/$REPO freeco-ai-cli"
+        echo "  If this is a private release, request authorized access and set"
+        echo "  FREECO_AI_RELEASE_TOKEN to a short-lived token with repository read access."
         exit 1
     fi
 
@@ -86,15 +96,14 @@ install() {
     cleanup() { rm -rf "$TMPDIR"; }
     trap cleanup EXIT
 
-    if ! curl -fsSL "$URL" -o "$ARCHIVE" 2>/dev/null; then
+    if ! release_curl "$URL" -o "$ARCHIVE" 2>/dev/null; then
         echo "  Download failed. The release may not exist for your platform."
-        echo "  Install from source instead:"
-        echo "    cargo install --git https://github.com/$REPO freeco-ai-cli"
+        echo "  Request an authorized release token or download from the Association distribution channel."
         exit 1
     fi
 
     # Verify checksum if available
-    if curl -fsSL "$CHECKSUM_URL" -o "$CHECKSUM_FILE" 2>/dev/null; then
+    if release_curl "$CHECKSUM_URL" -o "$CHECKSUM_FILE" 2>/dev/null; then
         EXPECTED=$(cut -d ' ' -f 1 < "$CHECKSUM_FILE")
         if command -v sha256sum &>/dev/null; then
             ACTUAL=$(sha256sum "$ARCHIVE" | cut -d ' ' -f 1)

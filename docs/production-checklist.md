@@ -1,12 +1,13 @@
 # Production Release Checklist
 
-Everything that must be done before tagging `v0.1.0` and shipping to users. Items are ordered by dependency — complete them top to bottom.
+Everything that must be done before creating a private commercial release.
+Items are ordered by dependency — complete them top to bottom.
 
 ---
 
 ## 1. Generate Tauri Signing Keypair
 
-**Status:** BLOCKING — without this, auto-updater is dead. No user will ever receive an update.
+**Status:** BLOCKING — without this, signed desktop updates cannot be verified.
 
 The Tauri updater requires an Ed25519 keypair. The private key signs every release bundle, and the public key is embedded in the app binary so it can verify updates.
 
@@ -15,7 +16,7 @@ The Tauri updater requires an Ed25519 keypair. The private key signs every relea
 cargo install tauri-cli --locked
 
 # Generate the keypair
-cargo tauri signer generate -w ~/.tauri/openfang.key
+cargo tauri signer generate -w ~/.tauri/freeco-ai.key
 ```
 
 The command will output:
@@ -24,7 +25,7 @@ The command will output:
 Your public key was generated successfully:
 dW50cnVzdGVkIGNvb...  <-- COPY THIS
 
-Your private key was saved to: ~/.tauri/openfang.key
+Your private key was saved to: ~/.tauri/freeco-ai.key
 ```
 
 Save both values. You need them for steps 2 and 3.
@@ -57,7 +58,7 @@ Go to **GitHub repo → Settings → Secrets and variables → Actions → New r
 
 | Secret Name | Value | Required |
 |---|---|---|
-| `TAURI_SIGNING_PRIVATE_KEY` | Contents of `~/.tauri/openfang.key` | Yes |
+| `TAURI_SIGNING_PRIVATE_KEY` | Contents of `~/.tauri/freeco-ai.key` | Yes |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Password you set during keygen (or empty string) | Yes |
 
 ### Optional — macOS Code Signing

@@ -201,7 +201,7 @@ pub(crate) struct WsAuthCtx<'a> {
     pub session_secret: &'a str,
     /// Whether the request originated from a loopback address.
     pub is_loopback: bool,
-    /// True iff `OPENFANG_ALLOW_NO_AUTH=1` is set (loose mode for LAN binds).
+    /// True iff `FREECO_AI_ALLOW_NO_AUTH=1` is set (loose mode for LAN binds).
     pub allow_no_auth: bool,
     pub headers: &'a axum::http::HeaderMap,
     pub uri: &'a axum::http::Uri,
@@ -215,7 +215,7 @@ pub(crate) struct WsAuthCtx<'a> {
 ///   2. `?token=<api_key>` query parameter
 ///   3. `openfang_session=<token>` cookie when dashboard auth is enabled
 ///   4. Loopback origin when no api_key is configured
-///   5. Any origin when `OPENFANG_ALLOW_NO_AUTH=1`
+///   5. Any origin when `FREECO_AI_ALLOW_NO_AUTH=1`
 ///
 /// Fix for issue #1085: previously only (1), (2), and (4) were honored, so
 /// dashboard users logged in via session cookie saw "No active connection"
@@ -247,7 +247,7 @@ pub(crate) fn check_ws_auth(ctx: &WsAuthCtx<'_>) -> Result<(), axum::http::Statu
             return Err(StatusCode::UNAUTHORIZED);
         }
         // No api_key AND dashboard auth disabled: keep the dev convenience
-        // path (loopback or explicit OPENFANG_ALLOW_NO_AUTH=1).
+        // path (loopback or explicit FREECO_AI_ALLOW_NO_AUTH=1).
         if ctx.is_loopback || ctx.allow_no_auth {
             return Ok(());
         }
@@ -319,9 +319,7 @@ pub async fn agent_ws(
     let api_key_raw = &state.kernel.config.api_key;
     let api_key = api_key_raw.trim();
     let is_loopback = addr.ip().is_loopback();
-    let allow_no_auth = std::env::var("OPENFANG_ALLOW_NO_AUTH")
-        .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "yes" | "on"))
-        .unwrap_or(false);
+    let allow_no_auth = crate::middleware::allow_no_auth_from_env();
 
     // Mirror the session_secret derivation in server.rs::AuthState so cookies
     // issued by /api/auth/login verify the same way over HTTP and WS.

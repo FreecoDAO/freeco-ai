@@ -143,15 +143,11 @@ pub async fn create_sandbox(
              Fetching it needs a one-time download (roughly 130 MB for the default \
              python:3.12-slim), so it is not started behind your back. \
              Run `docker pull {}` when you are ready, or set docker.image in \
-             ~/.openfang/config.toml to an image you already have.",
+             ~/.freeco-ai/config.toml to an image you already have.",
             config.image, config.image
         ));
     }
-    let container_name = sanitize_container_name(&format!(
-        "{}-{}",
-        config.container_prefix,
-        crate::str_utils::safe_truncate_str(agent_id, 8)
-    ))?;
+    let container_name = sandbox_container_name(config, agent_id, workspace)?;
 
     let mut cmd = crate::quiet_command::quiet_async("docker");
     cmd.arg("run").arg("-d").arg("--name").arg(&container_name);
@@ -311,12 +307,31 @@ struct PoolEntry {
     container: SandboxContainer,
     config_hash: u64,
     last_used: std::time::Instant,
-    created: std::time::Instant,
+}
+
+/// The result of looking up a reusable sandbox container.
+#[derive(Debug)]
+pub enum PoolAcquire {
+    Available(SandboxContainer),
+    Missing,
+    CoolingDown,
+    Incompatible(SandboxContainer),
 }
 
 /// Container pool for reusing Docker containers.
+#[derive(Debug, Clone)]
 pub struct ContainerPool {
     entries: Arc<DashMap<String, PoolEntry>>,
+    reservations: Arc<DashMap<String, ()>>,
+}
+
+/// An exclusive reservation for one reusable sandbox key.
+///
+/// A key stays reserved while a command is running, preventing simultaneous
+/// calls for one agent workspace from creating duplicate named containers.
+pub struct ContainerReservation {
+    pool: ContainerPool,
+    pool_key: String,
 }
 
 impl ContainerPool {
@@ -324,22 +339,46 @@ impl ContainerPool {
     pub fn new() -> Self {
         Self {
             entries: Arc::new(DashMap::new()),
+            reservations: Arc::new(DashMap::new()),
         }
     }
 
-    /// Acquire a container from the pool matching the config hash, or None.
-    pub fn acquire(
-        &self,
-        pool_key: &str,
-        config_hash: u64,
-        cool_secs: u64,
-    ) -> Option<SandboxContainer> {
-        let entry = self.entries.get(pool_key)?;
-        if entry.config_hash != config_hash || entry.last_used.elapsed().as_secs() < cool_secs {
-            return None;
+    /// Reserve one agent workspace for a reusable sandbox command.
+    pub fn reserve(&self, pool_key: &str) -> Result<ContainerReservation, String> {
+        if self.reservations.insert(pool_key.to_string(), ()).is_some() {
+            return Err(
+                "A Docker sandbox command is already running for this agent workspace. \
+                 Wait for it to finish before starting another."
+                    .to_string(),
+            );
+        }
+        Ok(ContainerReservation {
+            pool: self.clone(),
+            pool_key: pool_key.to_string(),
+        })
+    }
+
+    /// Acquire a container from the pool matching the config hash.
+    pub fn acquire(&self, pool_key: &str, config_hash: u64, cool_secs: u64) -> PoolAcquire {
+        let Some(entry) = self.entries.get(pool_key) else {
+            return PoolAcquire::Missing;
+        };
+        if entry.config_hash != config_hash {
+            drop(entry);
+            return self
+                .entries
+                .remove(pool_key)
+                .map(|(_, entry)| PoolAcquire::Incompatible(entry.container))
+                .unwrap_or(PoolAcquire::Missing);
+        }
+        if entry.last_used.elapsed().as_secs() < cool_secs {
+            return PoolAcquire::CoolingDown;
         }
         drop(entry);
-        self.entries.remove(pool_key).map(|(_, e)| e.container)
+        self.entries
+            .remove(pool_key)
+            .map(|(_, entry)| PoolAcquire::Available(entry.container))
+            .unwrap_or(PoolAcquire::Missing)
     }
 
     /// Release a container back to the pool.
@@ -350,7 +389,6 @@ impl ContainerPool {
                 container,
                 config_hash,
                 last_used: std::time::Instant::now(),
-                created: std::time::Instant::now(),
             },
         );
     }
@@ -360,10 +398,7 @@ impl ContainerPool {
         let to_remove: Vec<(String, SandboxContainer)> = self
             .entries
             .iter()
-            .filter(|e| {
-                e.last_used.elapsed().as_secs() > idle_timeout_secs
-                    || e.created.elapsed().as_secs() > max_age_secs
-            })
+            .filter(|entry| pool_entry_is_expired(entry.value(), idle_timeout_secs, max_age_secs))
             .map(|e| (e.key().clone(), e.container.clone()))
             .collect();
 
@@ -385,10 +420,59 @@ impl ContainerPool {
     }
 }
 
+impl ContainerReservation {
+    /// Look up the reserved workspace's reusable container.
+    pub fn acquire(&self, config_hash: u64, cool_secs: u64) -> PoolAcquire {
+        self.pool.acquire(&self.pool_key, config_hash, cool_secs)
+    }
+
+    /// Return a successfully used container to the pool.
+    pub fn release(&self, container: SandboxContainer, config_hash: u64) {
+        self.pool
+            .release(self.pool_key.clone(), container, config_hash);
+    }
+}
+
+impl Drop for ContainerReservation {
+    fn drop(&mut self) {
+        self.pool.reservations.remove(&self.pool_key);
+    }
+}
+
 impl Default for ContainerPool {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn pool_entry_is_expired(entry: &PoolEntry, idle_timeout_secs: u64, max_age_secs: u64) -> bool {
+    let age_secs = chrono::Utc::now()
+        .signed_duration_since(entry.container.created_at)
+        .to_std()
+        .map(|age| age.as_secs())
+        .unwrap_or(0);
+    entry.last_used.elapsed().as_secs() > idle_timeout_secs || age_secs > max_age_secs
+}
+
+/// Build a stable, workspace-specific container name.
+///
+/// The workspace suffix prevents one agent's independent workspaces from
+/// colliding on Docker's globally unique container names.
+fn sandbox_container_name(
+    config: &DockerSandboxConfig,
+    agent_id: &str,
+    workspace: &Path,
+) -> Result<String, String> {
+    let mut hash = 0xcbf29ce484222325_u64;
+    for byte in workspace.to_string_lossy().as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    sanitize_container_name(&format!(
+        "{}-{}-{hash:012x}",
+        config.container_prefix,
+        crate::str_utils::safe_truncate_str(agent_id, 8)
+    ))
 }
 
 /// Returns true only for content-addressed OCI image references.
@@ -469,6 +553,14 @@ pub fn validate_bind_mount(path: &str, blocked: &[String]) -> Result<(), String>
                         ));
                     }
                 }
+                for blocked_path in blocked {
+                    if canonical_str.starts_with(blocked_path) {
+                        return Err(format!(
+                            "Bind mount resolves to configured blocked path via symlink: {} → {}",
+                            path, canonical_str
+                        ));
+                    }
+                }
             }
             Err(_) => {
                 // Can't canonicalize — path doesn't exist yet, allow it
@@ -484,6 +576,7 @@ pub fn config_hash(config: &DockerSandboxConfig) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     config.image.hash(&mut hasher);
+    config.container_prefix.hash(&mut hasher);
     config.network.hash(&mut hasher);
     config.memory_limit.hash(&mut hasher);
     config.workdir.hash(&mut hasher);
@@ -494,6 +587,7 @@ pub fn config_hash(config: &DockerSandboxConfig) -> u64 {
     config.tmpfs.hash(&mut hasher);
     config.pids_limit.hash(&mut hasher);
     config.persistent_workspace.hash(&mut hasher);
+    config.persistent_workspace_agents.hash(&mut hasher);
     config.blocked_mounts.hash(&mut hasher);
     hasher.finish()
 }
@@ -504,8 +598,8 @@ mod tests {
 
     #[test]
     fn test_sanitize_container_name_valid() {
-        let result = sanitize_container_name("openfang-sandbox-abc123").unwrap();
-        assert_eq!(result, "openfang-sandbox-abc123");
+        let result = sanitize_container_name("freeco-ai-sandbox-abc123").unwrap();
+        assert_eq!(result, "freeco-ai-sandbox-abc123");
     }
 
     #[test]
@@ -585,7 +679,7 @@ mod tests {
         // if it ever flips back to false, that is a regression, not a tidy-up.
         assert!(config.enabled);
         assert_eq!(config.image, "python:3.12-slim");
-        assert_eq!(config.container_prefix, "openfang-sandbox");
+        assert_eq!(config.container_prefix, "freeco-ai-sandbox");
         assert_eq!(config.workdir, "/workspace");
         assert_eq!(config.network, "none");
         assert_eq!(config.memory_limit, "512m");
@@ -635,8 +729,10 @@ mod tests {
 
         // Acquire with same hash — should succeed (cool_secs=0 for test)
         let acquired = pool.acquire("agent:one", 12345, 0);
-        assert!(acquired.is_some());
-        assert_eq!(acquired.unwrap().container_id, "test123");
+        assert!(matches!(
+            acquired,
+            PoolAcquire::Available(container) if container.container_id == "test123"
+        ));
         assert!(pool.is_empty());
     }
 
@@ -650,9 +746,14 @@ mod tests {
         };
         pool.release("agent:one".to_string(), container, 12345);
 
-        // Acquire with different hash — should fail
+        // A changed config must return the old container for destruction before
+        // a replacement with the same stable name is created.
         let acquired = pool.acquire("agent:one", 99999, 0);
-        assert!(acquired.is_none());
+        assert!(matches!(
+            acquired,
+            PoolAcquire::Incompatible(container) if container.container_id == "test123"
+        ));
+        assert!(pool.is_empty());
     }
 
     #[test]
@@ -664,7 +765,60 @@ mod tests {
             created_at: chrono::Utc::now(),
         };
         pool.release("agent:one".to_string(), container, 12345);
-        assert!(pool.acquire("agent:two", 12345, 0).is_none());
+        assert!(matches!(
+            pool.acquire("agent:two", 12345, 0),
+            PoolAcquire::Missing
+        ));
+    }
+
+    #[test]
+    fn test_container_pool_reservation_prevents_concurrent_workspace_execution() {
+        let pool = ContainerPool::new();
+        let reservation = pool.reserve("agent:one").unwrap();
+        assert!(pool.reserve("agent:one").is_err());
+        drop(reservation);
+        assert!(pool.reserve("agent:one").is_ok());
+    }
+
+    #[test]
+    fn test_container_pool_cooling_does_not_create_a_duplicate() {
+        let pool = ContainerPool::new();
+        let container = SandboxContainer {
+            container_id: "test123".to_string(),
+            agent_id: "agent1".to_string(),
+            created_at: chrono::Utc::now(),
+        };
+        pool.release("agent:one".to_string(), container, 12345);
+        assert!(matches!(
+            pool.acquire("agent:one", 12345, 60),
+            PoolAcquire::CoolingDown
+        ));
+        assert_eq!(pool.len(), 1);
+    }
+
+    #[test]
+    fn test_max_age_uses_the_container_creation_time() {
+        let entry = PoolEntry {
+            container: SandboxContainer {
+                container_id: "test123".to_string(),
+                agent_id: "agent1".to_string(),
+                created_at: chrono::Utc::now() - chrono::Duration::seconds(2),
+            },
+            config_hash: 12345,
+            last_used: std::time::Instant::now(),
+        };
+        assert!(pool_entry_is_expired(&entry, 60, 1));
+    }
+
+    #[test]
+    fn test_container_names_are_unique_per_workspace() {
+        let config = DockerSandboxConfig::default();
+        let first =
+            sandbox_container_name(&config, "agent1", Path::new("/tmp/workspace-one")).unwrap();
+        let second =
+            sandbox_container_name(&config, "agent1", Path::new("/tmp/workspace-two")).unwrap();
+        assert!(first.starts_with("freeco-ai-sandbox-agent1-"));
+        assert_ne!(first, second);
     }
 
     #[test]
@@ -711,6 +865,19 @@ mod tests {
         assert!(validate_bind_mount("/data/public", &blocked).is_ok());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn test_validate_bind_mount_custom_blocked_symlink() {
+        let temp = tempfile::tempdir().unwrap();
+        let blocked_dir = temp.path().join("blocked");
+        let alias = temp.path().join("workspace");
+        std::fs::create_dir(&blocked_dir).unwrap();
+        std::os::unix::fs::symlink(&blocked_dir, &alias).unwrap();
+
+        let blocked = vec![blocked_dir.display().to_string()];
+        assert!(validate_bind_mount(alias.to_str().unwrap(), &blocked).is_err());
+    }
+
     #[test]
     fn test_config_hash_deterministic() {
         let c1 = DockerSandboxConfig::default();
@@ -725,6 +892,14 @@ mod tests {
             image: "node:20-slim".to_string(),
             ..Default::default()
         };
+        assert_ne!(config_hash(&c1), config_hash(&c2));
+    }
+
+    #[test]
+    fn test_config_hash_changes_when_writable_workspace_access_changes() {
+        let c1 = DockerSandboxConfig::default();
+        let mut c2 = c1.clone();
+        c2.persistent_workspace_agents.push("agent-1".to_string());
         assert_ne!(config_hash(&c1), config_hash(&c2));
     }
 }

@@ -607,7 +607,7 @@ pub struct DockerSandboxConfig {
     /// Docker image for ephemeral exec sandbox. Reusable and persistent modes
     /// require an immutable image digest.
     pub image: String,
-    /// Container name prefix. Default: "openfang-sandbox".
+    /// Container name prefix. Default: "freeco-ai-sandbox".
     pub container_prefix: String,
     /// Working directory inside container. Default: "/workspace".
     pub workdir: String,
@@ -627,7 +627,7 @@ pub struct DockerSandboxConfig {
     pub tmpfs: Vec<String>,
     /// PID limit. Default: 100.
     pub pids_limit: u32,
-    /// Docker sandbox mode: off, non_main, all. Default: off.
+    /// Docker sandbox mode: off, non_main, all. Default: all.
     #[serde(default)]
     pub mode: DockerSandboxMode,
     /// Container lifecycle scope. Default: session.
@@ -682,7 +682,7 @@ impl Default for DockerSandboxConfig {
             // anything less safe than it was.
             enabled: true,
             image: "python:3.12-slim".to_string(),
-            container_prefix: "openfang-sandbox".to_string(),
+            container_prefix: "freeco-ai-sandbox".to_string(),
             workdir: "/workspace".to_string(),
             // No network unless deliberately widened: a sandbox that can reach
             // the internet can also exfiltrate whatever it was given.
@@ -1785,9 +1785,13 @@ impl std::fmt::Debug for KernelConfig {
 
 /// Resolve the FreEco.ai home directory.
 ///
-/// Priority: `FRECO_AI_HOME` env var > legacy `OPENFANG_HOME` > `~/.freeco-ai`.
+/// Priority: `FREECO_AI_HOME` env var > legacy `FRECO_AI_HOME` >
+/// legacy `OPENFANG_HOME` > `~/.freeco-ai`.
 fn openfang_home_dir() -> PathBuf {
-    if let Ok(home) = std::env::var("FRECO_AI_HOME").or_else(|_| std::env::var("OPENFANG_HOME")) {
+    if let Ok(home) = std::env::var("FREECO_AI_HOME")
+        .or_else(|_| std::env::var("FRECO_AI_HOME"))
+        .or_else(|_| std::env::var("OPENFANG_HOME"))
+    {
         return PathBuf::from(home);
     }
     let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);

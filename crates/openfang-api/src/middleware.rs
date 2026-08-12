@@ -49,9 +49,23 @@ pub struct AuthState {
     pub api_key: String,
     pub auth_enabled: bool,
     pub session_secret: String,
-    /// Set from `OPENFANG_ALLOW_NO_AUTH=1` to permit running without an api_key
-    /// on a non-loopback bind. Off by default so empty keys fail closed.
+    /// Set from `FREECO_AI_ALLOW_NO_AUTH=1` (or the legacy
+    /// `OPENFANG_ALLOW_NO_AUTH=1`) to permit running without an api_key on a
+    /// non-loopback bind. Off by default so empty keys fail closed.
     pub allow_no_auth: bool,
+}
+
+/// Whether an explicit environment opt-in permits unauthenticated non-loopback
+/// access. The FreEco.ai variable takes precedence over the legacy name.
+pub fn allow_no_auth_from_env() -> bool {
+    std::env::var("FREECO_AI_ALLOW_NO_AUTH")
+        .or_else(|_| std::env::var("OPENFANG_ALLOW_NO_AUTH"))
+        .map(|v| is_true_env_flag(&v))
+        .unwrap_or(false)
+}
+
+fn is_true_env_flag(value: &str) -> bool {
+    matches!(value.trim(), "1" | "true" | "TRUE" | "yes" | "on")
 }
 
 /// Bearer token authentication middleware.
@@ -64,8 +78,8 @@ pub struct AuthState {
 /// Loopback traffic (127.0.0.1 / ::1) is always allowed through with no
 /// key so single-user local setups keep zero-config UX. To explicitly
 /// run a no-auth server on a LAN/WAN address, set
-/// `OPENFANG_ALLOW_NO_AUTH=1`; this opts out of fail-closed and is
-/// reported loudly at startup.
+/// `FREECO_AI_ALLOW_NO_AUTH=1` (or the legacy `OPENFANG_ALLOW_NO_AUTH=1`);
+/// this opts out of fail-closed and is reported loudly at startup.
 ///
 /// When dashboard auth is enabled, session cookies are also accepted.
 pub async fn auth(
@@ -117,7 +131,7 @@ pub async fn auth(
 
     // If no API key configured and no dashboard login is active, fail closed
     // for anything that did not come from loopback. Opting out of this
-    // behavior requires setting `OPENFANG_ALLOW_NO_AUTH=1`, which is logged
+    // behavior requires setting `FREECO_AI_ALLOW_NO_AUTH=1`, which is logged
     // loudly at startup.
     //
     // See issue #1034 (B1/B2): empty api_key previously bypassed auth for
@@ -133,7 +147,7 @@ pub async fn auth(
             .header("www-authenticate", "Bearer")
             .body(Body::from(
                 serde_json::json!({
-                    "error": "API key required for non-loopback requests. Set OPENFANG_API_KEY or bind to 127.0.0.1."
+                    "error": "API key required for non-loopback requests. Set FREECO_AI_API_KEY or bind to 127.0.0.1."
                 })
                 .to_string(),
             ))
@@ -260,6 +274,16 @@ mod tests {
     #[test]
     fn test_request_id_header_constant() {
         assert_eq!(REQUEST_ID_HEADER, "x-request-id");
+    }
+
+    #[test]
+    fn allow_no_auth_flag_is_opt_in() {
+        for value in ["1", "true", "TRUE", "yes", "on", " on "] {
+            assert!(is_true_env_flag(value));
+        }
+        for value in ["", "0", "false", "truE", "onward"] {
+            assert!(!is_true_env_flag(value));
+        }
     }
 
     fn auth_state_empty() -> AuthState {

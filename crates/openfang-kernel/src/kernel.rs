@@ -598,19 +598,23 @@ impl OpenFangKernel {
         use openfang_types::config::KernelMode;
 
         // Env var overrides — useful for Docker where config.toml is baked in.
-        if let Ok(listen) =
-            std::env::var("FRECO_AI_LISTEN").or_else(|_| std::env::var("OPENFANG_LISTEN"))
+        if let Ok(listen) = std::env::var("FREECO_AI_LISTEN")
+            .or_else(|_| std::env::var("FRECO_AI_LISTEN"))
+            .or_else(|_| std::env::var("OPENFANG_LISTEN"))
         {
             config.api_listen = listen;
         }
 
-        // OPENFANG_API_KEY: env var sets the API authentication key when
-        // config.toml doesn't already have one.  Config file takes precedence.
+        // FREECO_AI_API_KEY sets the API authentication key when config.toml
+        // does not already have one. Config file takes precedence; legacy names
+        // remain valid for existing installations.
         if config.api_key.trim().is_empty() {
-            if let Ok(key) = std::env::var("OPENFANG_API_KEY") {
+            if let Ok(key) =
+                std::env::var("FREECO_AI_API_KEY").or_else(|_| std::env::var("OPENFANG_API_KEY"))
+            {
                 let key = key.trim().to_string();
                 if !key.is_empty() {
-                    info!("Using API key from OPENFANG_API_KEY environment variable");
+                    info!("Using API key from environment variable");
                     config.api_key = key;
                 }
             }

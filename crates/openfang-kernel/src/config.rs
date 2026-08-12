@@ -1,4 +1,4 @@
-//! Configuration loading from `~/.openfang/config.toml` with defaults.
+//! Configuration loading from `~/.freeco-ai/config.toml` with defaults.
 //!
 //! Supports config includes: the `include` field specifies additional TOML files
 //! to load and deep-merge before the root config (root overrides includes).
@@ -341,20 +341,27 @@ fn lenient_extract_bindings(root_value: &mut toml::Value) {
 
 /// Get the default config file path.
 ///
-/// Respects `FRECO_AI_HOME` (or the legacy `OPENFANG_HOME`) environment variable.
+/// Respects `FREECO_AI_HOME` (or legacy `FRECO_AI_HOME` / `OPENFANG_HOME`)
+/// environment variables.
 pub fn default_config_path() -> PathBuf {
     freeco_ai_home().join("config.toml")
 }
 
 /// Get the FreEco.ai home directory.
 ///
-/// Priority: `FRECO_AI_HOME` > legacy `OPENFANG_HOME` > `~/.freeco-ai`.
+/// Priority: `FREECO_AI_HOME` > legacy `FRECO_AI_HOME` > legacy
+/// `OPENFANG_HOME` > `~/.freeco-ai`.
 ///
 /// On first use, an existing legacy `~/.openfang` directory is renamed to the
 /// new location. Renaming is atomic on a single filesystem and preserves
 /// credentials, databases, permissions, and daemon state. If it cannot be
 /// renamed, the legacy directory remains in use rather than risking data loss.
+/// If an earlier command already created `~/.freeco-ai`, non-conflicting legacy
+/// entries are moved individually so setup data is not stranded in the old home.
 pub fn freeco_ai_home() -> PathBuf {
+    if let Ok(home) = std::env::var("FREECO_AI_HOME") {
+        return PathBuf::from(home);
+    }
     if let Ok(home) = std::env::var("FRECO_AI_HOME") {
         return PathBuf::from(home);
     }
@@ -370,7 +377,39 @@ pub fn freeco_ai_home() -> PathBuf {
     {
         return legacy_home;
     }
+    if freeco_home.is_dir() && legacy_home.is_dir() {
+        migrate_legacy_home_contents(&legacy_home, &freeco_home);
+    }
     freeco_home
+}
+
+fn migrate_legacy_home_contents(legacy_home: &Path, freeco_home: &Path) {
+    let Ok(entries) = std::fs::read_dir(legacy_home) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let source = entry.path();
+        let destination = freeco_home.join(entry.file_name());
+        if destination.exists() {
+            continue;
+        }
+        if let Err(error) = std::fs::rename(&source, &destination) {
+            tracing::warn!(
+                source = %source.display(),
+                destination = %destination.display(),
+                %error,
+                "Could not migrate legacy FreEco.ai home entry"
+            );
+        }
+    }
+
+    if std::fs::read_dir(legacy_home)
+        .ok()
+        .is_some_and(|mut entries| entries.next().is_none())
+    {
+        let _ = std::fs::remove_dir(legacy_home);
+    }
 }
 
 #[cfg(test)]
@@ -388,6 +427,48 @@ mod tests {
     fn test_load_config_missing_file() {
         let config = load_config(Some(Path::new("/nonexistent/config.toml")));
         assert_eq!(config.log_level, "info");
+    }
+
+    #[test]
+    fn test_migrate_legacy_home_contents_preserves_existing_new_entries() {
+        let temp = tempfile::tempdir().unwrap();
+        let legacy = temp.path().join(".openfang");
+        let current = temp.path().join(".freeco-ai");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::create_dir_all(&current).unwrap();
+        std::fs::write(legacy.join("config.toml"), "log_level = \"debug\"\n").unwrap();
+        std::fs::write(legacy.join("legacy-only"), "migrate me").unwrap();
+        std::fs::write(current.join("config.toml"), "log_level = \"info\"\n").unwrap();
+
+        migrate_legacy_home_contents(&legacy, &current);
+
+        assert_eq!(
+            std::fs::read_to_string(current.join("config.toml")).unwrap(),
+            "log_level = \"info\"\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(current.join("legacy-only")).unwrap(),
+            "migrate me"
+        );
+        assert!(legacy.join("config.toml").exists());
+    }
+
+    #[test]
+    fn test_migrate_legacy_home_contents_moves_stranded_config() {
+        let temp = tempfile::tempdir().unwrap();
+        let legacy = temp.path().join(".openfang");
+        let current = temp.path().join(".freeco-ai");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::create_dir_all(&current).unwrap();
+        std::fs::write(legacy.join("config.toml"), "log_level = \"debug\"\n").unwrap();
+
+        migrate_legacy_home_contents(&legacy, &current);
+
+        assert_eq!(
+            std::fs::read_to_string(current.join("config.toml")).unwrap(),
+            "log_level = \"debug\"\n"
+        );
+        assert!(!legacy.exists());
     }
 
     #[test]

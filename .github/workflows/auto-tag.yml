@@ -31,6 +31,14 @@ jobs:
           TAG="v${VERSION}"
           echo "Detected version: ${VERSION}  (tag: ${TAG})"
 
+          # This is recovery-only. The supported release path is a merged,
+          # release-labelled PR handled by prepare-release.yml. Do not turn an
+          # ordinary hand-edited version bump into a release tag.
+          if [ "$(git log -1 --format=%s)" != "chore(release): ${TAG}" ]; then
+           echo "No prepared release metadata commit at HEAD — fallback idle"
+           exit 0
+          fi
+
           # Silently skip if the tag already exists on the remote
           if git ls-remote --tags origin "${TAG}" | grep -q "refs/tags/${TAG}$"; then
             echo "Tag ${TAG} already exists — skipping"

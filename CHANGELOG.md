@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Releases are prepared only when a merged PR has the `release` label; the
+  metadata commit and tag then trigger the release build automatically.
+- FreEco.ai is now the primary identity for sandbox containers, workspace state,
+  portable launchers, WhatsApp gateway integration, and environment variables.
+
+### Fixed
+
+- Reusable Docker sandboxes now preserve their maximum lifetime, avoid
+  cross-workspace container-name collisions, safely retire incompatible
+  containers, and reject concurrent execution in one agent workspace.
+- Release preparation rejects empty changelog notes and preserves every roadmap
+  section while moving Unreleased items into the tagged release.
+
 ## [0.9.5] - 2026-08-12
 
 ### Fixed

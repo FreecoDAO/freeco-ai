@@ -29,6 +29,6 @@ COPY --from=builder /build/target/release/freeco-ai /usr/local/bin/
 COPY --from=builder /build/agents /opt/freeco-ai/agents
 EXPOSE 4200
 VOLUME /data
-ENV FRECO_AI_HOME=/data
+ENV FREECO_AI_HOME=/data
 ENTRYPOINT ["freeco-ai"]
 CMD ["start"]

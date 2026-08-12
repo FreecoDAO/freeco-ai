@@ -11,9 +11,11 @@ Association administrator must complete and record the following controls.
 - Set the `freeco-ai` GHCR package to **private** and confirm no public
   package, GitHub release, source archive, container tag, mirror, or download
   URL remains available.
-- Use the `Release` workflow only by manual dispatch after entering a counsel
-  approval reference and confirming private distribution. Tag pushes no longer
-  publish artifacts automatically.
+- Set `PRIVATE_DISTRIBUTION_READY=true` and a non-empty
+  `COUNSEL_APPROVAL_REFERENCE` repository variable only after the authorized
+  administrator and counsel complete the required review. Merging a PR labelled
+  `release` is then the only release entry point: it creates the metadata commit
+  and tag, and the tag triggers the artifact build automatically.
 - Store release signing and registry credentials only in protected secrets and
   restrict workflow dispatch to release administrators.
 
@@ -24,6 +26,12 @@ paid membership/subscription/lump-sum entitlement, acceptance of the approved
 commercial agreement, authorized users, and expiry date. The distribution
 service must issue short-lived, authenticated download URLs only after it
 checks that record.
+
+The CLI installers and desktop updater can send `FREECO_AI_RELEASE_TOKEN` to
+an authorized private GitHub release. Treat that only as a compatibility path
+for authorized repository access: never embed a long-lived token in a binary,
+installer URL, or customer-facing document, and do not use it instead of the
+entitlement service.
 
 On cancellation, expiry, failed payment, or eligibility revocation, revoke
 download access and service credentials promptly. Do not put payment records,

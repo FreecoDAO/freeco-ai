@@ -16,10 +16,10 @@ const __dirname = path.dirname(__filename);
 // Config from environment
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.WHATSAPP_GATEWAY_PORT || '3009', 10);
-const OPENFANG_URL = (process.env.OPENFANG_URL || 'http://127.0.0.1:4200').replace(/\/+$/, '');
-const DEFAULT_AGENT = process.env.OPENFANG_DEFAULT_AGENT || 'assistant';
+const FREECO_AI_URL = (process.env.FREECO_AI_URL || process.env.OPENFANG_URL || 'http://127.0.0.1:4200').replace(/\/+$/, '');
+const DEFAULT_AGENT = process.env.FREECO_AI_DEFAULT_AGENT || process.env.OPENFANG_DEFAULT_AGENT || 'assistant';
 const GATEWAY_TOKEN = process.env.WHATSAPP_GATEWAY_TOKEN || '';
-const OPENFANG_API_KEY = process.env.OPENFANG_API_KEY || '';
+const FREECO_AI_API_KEY = process.env.FREECO_AI_API_KEY || process.env.OPENFANG_API_KEY || '';
 
 // ---------------------------------------------------------------------------
 // State
@@ -54,7 +54,7 @@ async function startConnection() {
     auth: state,
     logger,
     printQRInTerminal: true,
-    browser: ['OpenFang', 'Desktop', '1.0.0'],
+    browser: ['FreEco.ai', 'Desktop', '1.0.0'],
   });
 
   // Save credentials whenever they update
@@ -117,7 +117,7 @@ async function startConnection() {
     }
   });
 
-  // Incoming messages → forward to OpenFang
+  // Incoming messages → forward to FreEco.ai
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
 
@@ -163,9 +163,9 @@ async function startConnection() {
         console.log(`[gateway] Incoming from ${pushName} (${phone}): ${text.substring(0, 80)}`);
       }
 
-      // Forward to OpenFang agent
+      // Forward to FreEco.ai agent
       try {
-        const response = await forwardToOpenFang(text, phone, pushName, metadata);
+        const response = await forwardToFreecoAi(text, phone, pushName, metadata);
         if (response && sock) {
           // Reply in the same context: group → group, DM → DM
           const replyJid = isGroup ? remoteJid : senderJid.replace(/@.*$/, '') + '@s.whatsapp.net';
@@ -180,9 +180,9 @@ async function startConnection() {
 }
 
 // ---------------------------------------------------------------------------
-// Forward incoming message to OpenFang API, return agent response
+// Forward incoming message to FreEco.ai API, return agent response
 // ---------------------------------------------------------------------------
-function forwardToOpenFang(text, phone, pushName, metadata) {
+function forwardToFreecoAi(text, phone, pushName, metadata) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
       message: text,
@@ -193,7 +193,7 @@ function forwardToOpenFang(text, phone, pushName, metadata) {
       },
     });
 
-    const url = new URL(`${OPENFANG_URL}/api/agents/${encodeURIComponent(DEFAULT_AGENT)}/message`);
+    const url = new URL(`${FREECO_AI_URL}/api/agents/${encodeURIComponent(DEFAULT_AGENT)}/message`);
 
     const req = http.request(
       {
@@ -206,7 +206,7 @@ function forwardToOpenFang(text, phone, pushName, metadata) {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
           };
-          if (OPENFANG_API_KEY) headers.Authorization = ['Bearer', OPENFANG_API_KEY].join(' ');
+          if (FREECO_AI_API_KEY) headers.Authorization = ['Bearer', FREECO_AI_API_KEY].join(' ');
           return headers;
         })(),
         timeout: 120_000, // LLM calls can be slow
@@ -229,7 +229,7 @@ function forwardToOpenFang(text, phone, pushName, metadata) {
     req.on('error', reject);
     req.on('timeout', () => {
       req.destroy();
-      reject(new Error('OpenFang API timeout'));
+      reject(new Error('FreEco.ai API timeout'));
     });
     req.write(payload);
     req.end();
@@ -237,7 +237,7 @@ function forwardToOpenFang(text, phone, pushName, metadata) {
 }
 
 // ---------------------------------------------------------------------------
-// Send a message via Baileys (called by OpenFang for outgoing)
+// Send a message via Baileys (called by FreEco.ai for outgoing)
 // ---------------------------------------------------------------------------
 async function sendMessage(to, text) {
   if (!sock || connStatus !== 'connected') {
@@ -273,7 +273,7 @@ function jsonResponse(res, status, data) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(body),
-    'Access-Control-Allow-Origin': OPENFANG_URL,
+    'Access-Control-Allow-Origin': FREECO_AI_URL,
     'Vary': 'Origin',
   });
   res.end(body);
@@ -291,11 +291,11 @@ function hasValidToken(req) {
 const server = http.createServer(async (req, res) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
-    if (req.headers.origin !== OPENFANG_URL) {
+    if (req.headers.origin !== FREECO_AI_URL) {
       return jsonResponse(res, 403, { error: 'Untrusted origin' });
     }
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': OPENFANG_URL,
+      'Access-Control-Allow-Origin': FREECO_AI_URL,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Authorization, Content-Type',
       'Vary': 'Origin',
@@ -382,7 +382,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[gateway] WhatsApp Web gateway listening on http://127.0.0.1:${PORT}`);
-  console.log(`[gateway] OpenFang URL: ${OPENFANG_URL}`);
+  console.log(`[gateway] FreEco.ai URL: ${FREECO_AI_URL}`);
   console.log(`[gateway] Default agent: ${DEFAULT_AGENT}`);
 
   // Auto-connect if credentials already exist from a previous session

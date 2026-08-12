@@ -418,7 +418,7 @@ impl A2aClient {
         let response = self
             .client
             .get(&agent_json_url)
-            .header("User-Agent", "OpenFang/0.1 A2A")
+            .header("User-Agent", "FreEco.ai/0.1 A2A")
             .send()
             .await
             .map_err(|e| format!("A2A discovery failed: {e}"))?;
