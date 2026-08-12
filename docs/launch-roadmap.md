@@ -17,13 +17,13 @@ These are showstoppers. The app literally crashes or looks broken without them.
 
 **What to do:**
 
-1. **Add token estimation & context guard** (`crates/openfang-runtime/src/compactor.rs`)
+1. **Add token estimation & context guard** (`crates/freeco-kernel-runtime/src/compactor.rs`)
    - Add `estimate_token_count(messages, system_prompt, tools)` — chars/4 heuristic
    - Add `needs_compaction_by_tokens(estimated, context_window)` — triggers at 70% capacity
    - Add `token_threshold_ratio: f64` (default 0.7) and `context_window_tokens: usize` (default 200_000) to `CompactionConfig`
    - Lower message threshold from 80 to 30
 
-2. **Add in-loop token guard** (`crates/openfang-runtime/src/agent_loop.rs`)
+2. **Add in-loop token guard** (`crates/freeco-kernel-runtime/src/agent_loop.rs`)
    - Before each LLM call: estimate tokens vs context window
    - Over 70%: emergency-trim old messages (keep last 10), log warning
    - Over 90%: aggressive trim to last 4 messages + inject summary
@@ -117,7 +117,7 @@ These close the gaps that would make users pick OpenClaw over FreEco.ai.
 3. Store `_imageUrls` on the tool card
 4. UI already renders `tool._imageUrls` — just need to populate it
 
-**Files:** `crates/openfang-api/static/js/pages/chat.js`, `crates/openfang-runtime/src/tool_runner.rs`
+**Files:** `crates/openfang-api/static/js/pages/chat.js`, `crates/freeco-kernel-runtime/src/tool_runner.rs`
 
 **Done when:**
 - Browser screenshots appear as inline images in tool cards

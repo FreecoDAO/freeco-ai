@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use crate::tui::theme;
-use openfang_runtime::model_catalog::ModelCatalog;
+use freeco_kernel_runtime::model_catalog::ModelCatalog;
 use openfang_types::model_catalog::ModelTier;
 
 // ── Provider metadata ──────────────────────────────────────────────────────
@@ -476,7 +476,7 @@ impl State {
         let gemini_via_google = std::env::var("GOOGLE_API_KEY").is_ok();
         for (i, p) in PROVIDERS.iter().enumerate() {
             let detected = if p.name == "claude-code" {
-                openfang_runtime::drivers::claude_code::claude_code_available()
+                freeco_kernel_runtime::drivers::claude_code::claude_code_available()
             } else {
                 (!p.env_var.is_empty() && std::env::var(p.env_var).is_ok())
                     || (p.name == "gemini" && gemini_via_google)
@@ -487,7 +487,7 @@ impl State {
         }
         for (i, p) in PROVIDERS.iter().enumerate() {
             let detected = if p.name == "claude-code" {
-                openfang_runtime::drivers::claude_code::claude_code_available()
+                freeco_kernel_runtime::drivers::claude_code::claude_code_available()
             } else {
                 (!p.env_var.is_empty() && std::env::var(p.env_var).is_ok())
                     || (p.name == "gemini" && gemini_via_google)
@@ -532,7 +532,7 @@ impl State {
     fn is_provider_detected(&self, prov_idx: usize) -> bool {
         let p = &PROVIDERS[prov_idx];
         if p.name == "claude-code" {
-            return openfang_runtime::drivers::claude_code::claude_code_available();
+            return freeco_kernel_runtime::drivers::claude_code::claude_code_available();
         }
         (!p.env_var.is_empty() && std::env::var(p.env_var).is_ok())
             || (p.name == "gemini" && std::env::var("GOOGLE_API_KEY").is_ok())
@@ -900,7 +900,7 @@ pub fn run() -> InitResult {
                                             };
 
                                             // Step 1: request device code
-                                            use openfang_runtime::drivers::copilot;
+                                            use freeco_kernel_runtime::drivers::copilot;
                                             let device =
                                                 match copilot::request_device_code(&http).await {
                                                     Ok(d) => d,
@@ -1008,7 +1008,7 @@ pub fn run() -> InitResult {
                                 CopilotAuthStatus::WaitingForUser
                             ) && !state.copilot_verification_uri.is_empty() =>
                         {
-                            let _ = openfang_runtime::drivers::copilot::open_verification_url(
+                            let _ = freeco_kernel_runtime::drivers::copilot::open_verification_url(
                                 &state.copilot_verification_uri,
                             );
                         }

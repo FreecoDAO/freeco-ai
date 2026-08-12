@@ -6,7 +6,7 @@ license.workspace = true
 repository = "https://github.com/FreecoDAO/openfang"
 
 # cdylib: WASM dynamic library target (wasm-pack / wasm-bindgen)
-# rlib:   normal Rust library used by openfang-runtime and agent crates
+# rlib:   normal Rust library used by freeco-kernel-runtime and agent crates
 [lib]
 crate-type = ["cdylib", "rlib"]
 

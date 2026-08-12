@@ -36,8 +36,8 @@ The Model Context Protocol (MCP) is a JSON-RPC 2.0 based protocol that standardi
 FreEco.ai implements MCP protocol version `2024-11-05`.
 
 **Source files:**
-- Client: `crates/openfang-runtime/src/mcp.rs`
-- Server handler: `crates/openfang-runtime/src/mcp_server.rs`
+- Client: `crates/freeco-kernel-runtime/src/mcp.rs`
+- Server handler: `crates/freeco-kernel-runtime/src/mcp_server.rs`
 - CLI server: `crates/openfang-cli/src/mcp.rs`
 - Config types: `crates/openfang-types/src/config.rs` (`McpServerConfigEntry`, `McpTransportEntry`)
 
@@ -45,7 +45,7 @@ FreEco.ai implements MCP protocol version `2024-11-05`.
 
 ### MCP Client
 
-The MCP client (`McpConnection` in `openfang-runtime`) allows FreEco.ai to connect to any MCP-compatible server and use its tools as if they were built-in.
+The MCP client (`McpConnection` in `freeco-kernel-runtime`) allows FreEco.ai to connect to any MCP-compatible server and use its tools as if they were built-in.
 
 #### Configuration
 
@@ -101,7 +101,7 @@ Examples:
 - Server `github`, tool `create_issue` becomes `mcp_github_create_issue`
 - Server `my-server`, tool `do_thing` becomes `mcp_my_server_do_thing`
 
-Helper functions (exported from `openfang_runtime::mcp`):
+Helper functions (exported from `freeco_kernel_runtime::mcp`):
 - `format_mcp_tool_name(server, tool)` -- builds the namespaced name
 - `is_mcp_tool(name)` -- checks if a tool name starts with `mcp_`
 - `extract_mcp_server(tool_name)` -- extracts the server name from a namespaced tool
@@ -462,7 +462,7 @@ FreEco.ai implements A2A in both directions:
 - **As a client**: Discovers external A2A agents at boot time, sends tasks to them, and polls for results.
 
 **Source files:**
-- Protocol types and logic: `crates/openfang-runtime/src/a2a.rs`
+- Protocol types and logic: `crates/freeco-kernel-runtime/src/a2a.rs`
 - API routes: `crates/openfang-api/src/routes.rs`
 - Config types: `crates/openfang-types/src/config.rs` (`A2aConfig`, `ExternalAgent`)
 

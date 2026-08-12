@@ -195,7 +195,7 @@ impl MeteringEngine {
     /// Falls back to the default rate ($1/$3 per million) if the model is not
     /// found in the catalog.
     pub fn estimate_cost_with_catalog(
-        catalog: &openfang_runtime::model_catalog::ModelCatalog,
+        catalog: &freeco_kernel_runtime::model_catalog::ModelCatalog,
         model: &str,
         input_tokens: u64,
         output_tokens: u64,
@@ -759,7 +759,7 @@ mod tests {
 
     #[test]
     fn test_estimate_cost_with_catalog() {
-        let catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+        let catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
         // Sonnet: $3/M input, $15/M output
         let cost = MeteringEngine::estimate_cost_with_catalog(
             &catalog,
@@ -772,7 +772,7 @@ mod tests {
 
     #[test]
     fn test_estimate_cost_with_catalog_alias() {
-        let catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+        let catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
         // "sonnet" alias should resolve to same pricing
         let cost =
             MeteringEngine::estimate_cost_with_catalog(&catalog, "sonnet", 1_000_000, 1_000_000);
@@ -781,7 +781,7 @@ mod tests {
 
     #[test]
     fn test_estimate_cost_with_catalog_unknown_uses_default() {
-        let catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+        let catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
         // Unknown model falls back to $1/$3
         let cost = MeteringEngine::estimate_cost_with_catalog(
             &catalog,

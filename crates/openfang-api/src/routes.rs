@@ -11,8 +11,8 @@ use openfang_kernel::workflow::{
     ErrorMode, StepAgent, StepMode, Workflow, WorkflowId, WorkflowStep,
 };
 use openfang_kernel::OpenFangKernel;
-use openfang_runtime::kernel_handle::KernelHandle;
-use openfang_runtime::tool_runner::builtin_tool_definitions;
+use freeco_kernel_runtime::kernel_handle::KernelHandle;
+use freeco_kernel_runtime::tool_runner::builtin_tool_definitions;
 use openfang_types::agent::{AgentId, AgentIdentity, AgentManifest};
 use std::collections::HashMap;
 use std::path::Path as FsPath;
@@ -40,7 +40,7 @@ pub struct AppState {
     /// Probe cache for local provider health checks (ollama/vllm/lmstudio).
     /// Avoids blocking the `/api/providers` endpoint on TCP timeouts to
     /// unreachable local services. 60-second TTL.
-    pub provider_probe_cache: openfang_runtime::provider_health::ProbeCache,
+    pub provider_probe_cache: freeco_kernel_runtime::provider_health::ProbeCache,
     /// Thread-safe mutable budget config. Updated via PUT /api/budget.
     /// Initialized from `kernel.config.budget` at startup.
     pub budget_config: Arc<tokio::sync::RwLock<openfang_types::config::BudgetConfig>>,
@@ -66,7 +66,7 @@ fn security_gate(
     let audit = state.security.scan(subject, content);
     state.kernel.audit_log.record(
         "security-agent",
-        openfang_runtime::audit::AuditAction::CapabilityCheck,
+        freeco_kernel_runtime::audit::AuditAction::CapabilityCheck,
         format!("security scan {} ({})", audit.subject, audit.content_hash),
         format!("{:?}", audit.decision),
     );
@@ -174,7 +174,7 @@ pub async fn spawn_agent(
                 tracing::warn!("Manifest signature verification failed: {e}");
                 state.kernel.audit_log.record(
                     "system",
-                    openfang_runtime::audit::AuditAction::AuthAttempt,
+                    freeco_kernel_runtime::audit::AuditAction::AuthAttempt,
                     "manifest signature verification failed",
                     format!("error: {e}"),
                 );
@@ -1038,7 +1038,7 @@ pub async fn shutdown(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     // SECURITY: Record shutdown in audit trail
     state.kernel.audit_log.record(
         "system",
-        openfang_runtime::audit::AuditAction::ConfigChange,
+        freeco_kernel_runtime::audit::AuditAction::ConfigChange,
         "shutdown requested via API",
         "ok",
     );
@@ -1257,7 +1257,7 @@ pub async fn scan_security_content(
     let audit = state.security.scan(&req.subject, &req.content);
     state.kernel.audit_log.record(
         "security-agent",
-        openfang_runtime::audit::AuditAction::CapabilityCheck,
+        freeco_kernel_runtime::audit::AuditAction::CapabilityCheck,
         format!(
             "manual security scan {} ({})",
             audit.subject, audit.content_hash
@@ -1287,7 +1287,7 @@ pub async fn approve_security_content(
     }
     state.kernel.audit_log.record(
         "security-agent",
-        openfang_runtime::audit::AuditAction::CapabilityCheck,
+        freeco_kernel_runtime::audit::AuditAction::CapabilityCheck,
         format!("security approval {}", content_hash),
         req.approved_by,
     );
@@ -1352,7 +1352,7 @@ pub async fn create_backup(
         Ok(result) => {
             state.kernel.audit_log.record(
                 "security-agent",
-                openfang_runtime::audit::AuditAction::ConfigChange,
+                freeco_kernel_runtime::audit::AuditAction::ConfigChange,
                 "encrypted backup created",
                 result.path.clone(),
             );
@@ -1392,7 +1392,7 @@ pub async fn restore_backup(
         Ok(result) => {
             state.kernel.audit_log.record(
                 "security-agent",
-                openfang_runtime::audit::AuditAction::ConfigChange,
+                freeco_kernel_runtime::audit::AuditAction::ConfigChange,
                 "encrypted backup restore verified",
                 format!("dry_run={}", result.dry_run),
             );
@@ -1933,7 +1933,7 @@ pub async fn send_message_stream(
 ) -> axum::response::Response {
     use axum::response::sse::{Event, Sse};
     use futures::stream;
-    use openfang_runtime::llm_driver::StreamEvent;
+    use freeco_kernel_runtime::llm_driver::StreamEvent;
 
     // SECURITY: Reject oversized messages to prevent OOM / LLM token abuse.
     const MAX_MESSAGE_SIZE: usize = 64 * 1024; // 64KB
@@ -4267,7 +4267,7 @@ pub async fn audit_append(
     State(state): State<Arc<AppState>>,
     Json(req): Json<AuditAppendRequest>,
 ) -> impl IntoResponse {
-    use openfang_runtime::audit::AuditAction;
+    use freeco_kernel_runtime::audit::AuditAction;
 
     // SECURITY: bound input sizes so a wrapper cannot wedge the chain with
     // unbounded strings. The audit table stores TEXT columns and the chain
@@ -5595,7 +5595,7 @@ pub async fn hand_instance_browser(
         .browser_ctx
         .send_command(
             &agent_id_str,
-            openfang_runtime::browser::BrowserCommand::ReadPage,
+            freeco_kernel_runtime::browser::BrowserCommand::ReadPage,
         )
         .await
     {
@@ -5625,7 +5625,7 @@ pub async fn hand_instance_browser(
         .browser_ctx
         .send_command(
             &agent_id_str,
-            openfang_runtime::browser::BrowserCommand::Screenshot,
+            freeco_kernel_runtime::browser::BrowserCommand::Screenshot,
         )
         .await
     {
@@ -7323,13 +7323,13 @@ pub async fn list_providers(State(state): State<Arc<AppState>>) -> impl IntoResp
     let probe_futures: Vec<_> = local_providers
         .iter()
         .map(|(_, id, url)| {
-            openfang_runtime::provider_health::probe_provider_cached(id, url, cache)
+            freeco_kernel_runtime::provider_health::probe_provider_cached(id, url, cache)
         })
         .collect();
     let probe_results = futures::future::join_all(probe_futures).await;
 
     // Index probe results by provider list position for O(1) lookup
-    let mut probe_map: HashMap<usize, openfang_runtime::provider_health::ProbeResult> =
+    let mut probe_map: HashMap<usize, freeco_kernel_runtime::provider_health::ProbeResult> =
         HashMap::with_capacity(local_providers.len());
     for ((idx, _, _), result) in local_providers.iter().zip(probe_results) {
         probe_map.insert(*idx, result);
@@ -7528,7 +7528,7 @@ pub async fn a2a_agent_card(State(state): State<Arc<AppState>>) -> impl IntoResp
     let base_url = format!("http://{}", state.kernel.config.api_listen);
 
     if let Some(first) = agents.first() {
-        let card = openfang_runtime::a2a::build_agent_card(&first.manifest, &base_url);
+        let card = freeco_kernel_runtime::a2a::build_agent_card(&first.manifest, &base_url);
         (
             StatusCode::OK,
             Json(serde_json::to_value(&card).unwrap_or_default()),
@@ -7556,7 +7556,7 @@ pub async fn a2a_list_agents(State(state): State<Arc<AppState>>) -> impl IntoRes
     let cards: Vec<serde_json::Value> = agents
         .iter()
         .map(|entry| {
-            let card = openfang_runtime::a2a::build_agent_card(&entry.manifest, &base_url);
+            let card = freeco_kernel_runtime::a2a::build_agent_card(&entry.manifest, &base_url);
             serde_json::to_value(&card).unwrap_or_default()
         })
         .collect();
@@ -7613,13 +7613,13 @@ pub async fn a2a_send_task(
     let session_id = request["params"]["sessionId"].as_str().map(String::from);
 
     // Create the task in the store as Working
-    let task = openfang_runtime::a2a::A2aTask {
+    let task = freeco_kernel_runtime::a2a::A2aTask {
         id: task_id.clone(),
         session_id: session_id.clone(),
-        status: openfang_runtime::a2a::A2aTaskStatus::Working.into(),
-        messages: vec![openfang_runtime::a2a::A2aMessage {
+        status: freeco_kernel_runtime::a2a::A2aTaskStatus::Working.into(),
+        messages: vec![freeco_kernel_runtime::a2a::A2aMessage {
             role: "user".to_string(),
-            parts: vec![openfang_runtime::a2a::A2aPart::Text {
+            parts: vec![freeco_kernel_runtime::a2a::A2aPart::Text {
                 text: message_text.clone(),
             }],
         }],
@@ -7630,9 +7630,9 @@ pub async fn a2a_send_task(
     // Send message to agent
     match state.kernel.send_message(agent.id, &message_text).await {
         Ok(result) => {
-            let response_msg = openfang_runtime::a2a::A2aMessage {
+            let response_msg = freeco_kernel_runtime::a2a::A2aMessage {
                 role: "agent".to_string(),
-                parts: vec![openfang_runtime::a2a::A2aPart::Text {
+                parts: vec![freeco_kernel_runtime::a2a::A2aPart::Text {
                     text: result.response,
                 }],
             };
@@ -7652,9 +7652,9 @@ pub async fn a2a_send_task(
             }
         }
         Err(e) => {
-            let error_msg = openfang_runtime::a2a::A2aMessage {
+            let error_msg = freeco_kernel_runtime::a2a::A2aMessage {
                 role: "agent".to_string(),
-                parts: vec![openfang_runtime::a2a::A2aPart::Text {
+                parts: vec![freeco_kernel_runtime::a2a::A2aPart::Text {
                     text: format!("Error: {e}"),
                 }],
             };
@@ -7753,7 +7753,7 @@ pub async fn a2a_discover_external(
         }
     };
 
-    let client = openfang_runtime::a2a::A2aClient::new();
+    let client = freeco_kernel_runtime::a2a::A2aClient::new();
     match client.discover(&url).await {
         Ok(card) => {
             let card_json = serde_json::to_value(&card).unwrap_or_default();
@@ -7811,7 +7811,7 @@ pub async fn a2a_send_external(
     };
     let session_id = body["session_id"].as_str();
 
-    let client = openfang_runtime::a2a::A2aClient::new();
+    let client = freeco_kernel_runtime::a2a::A2aClient::new();
     match client.send_task(&url, &message, session_id).await {
         Ok(task) => (
             StatusCode::OK,
@@ -7840,7 +7840,7 @@ pub async fn a2a_external_task_status(
         }
     };
 
-    let client = openfang_runtime::a2a::A2aClient::new();
+    let client = freeco_kernel_runtime::a2a::A2aClient::new();
     match client.get_task(&url, &task_id).await {
         Ok(task) => (
             StatusCode::OK,
@@ -7910,9 +7910,9 @@ pub async fn mcp_http(
             .snapshot();
 
         // Execute the tool via the kernel's tool runner
-        let kernel_handle: Arc<dyn openfang_runtime::kernel_handle::KernelHandle> =
-            state.kernel.clone() as Arc<dyn openfang_runtime::kernel_handle::KernelHandle>;
-        let result = openfang_runtime::tool_runner::execute_tool(
+        let kernel_handle: Arc<dyn freeco_kernel_runtime::kernel_handle::KernelHandle> =
+            state.kernel.clone() as Arc<dyn freeco_kernel_runtime::kernel_handle::KernelHandle>;
+        let result = freeco_kernel_runtime::tool_runner::execute_tool(
             "mcp-http",
             tool_name,
             &arguments,
@@ -7952,7 +7952,7 @@ pub async fn mcp_http(
     }
 
     // For non-tools/call methods (initialize, tools/list, etc.), delegate to the handler
-    let response = openfang_runtime::mcp_server::handle_mcp_request(&request, &tools).await;
+    let response = freeco_kernel_runtime::mcp_server::handle_mcp_request(&request, &tools).await;
     Json(response)
 }
 
@@ -8441,7 +8441,7 @@ pub async fn get_agent_mcp_servers(
     if let Ok(mcp_tools) = state.kernel.mcp_tools.lock() {
         let mut seen = std::collections::HashSet::new();
         for tool in mcp_tools.iter() {
-            if let Some(server) = openfang_runtime::mcp::extract_mcp_server(&tool.name) {
+            if let Some(server) = freeco_kernel_runtime::mcp::extract_mcp_server(&tool.name) {
                 if seen.insert(server.to_string()) {
                     available.push(server.to_string());
                 }
@@ -8801,7 +8801,7 @@ pub async fn test_provider(
 
     // Attempt a lightweight connectivity test
     let start = std::time::Instant::now();
-    let driver_config = openfang_runtime::llm_driver::DriverConfig {
+    let driver_config = freeco_kernel_runtime::llm_driver::DriverConfig {
         provider: name.clone(),
         api_key,
         base_url: if base_url.is_empty() {
@@ -8813,10 +8813,10 @@ pub async fn test_provider(
         subprocess_timeout_secs: None,
     };
 
-    match openfang_runtime::drivers::create_driver(&driver_config) {
+    match freeco_kernel_runtime::drivers::create_driver(&driver_config) {
         Ok(driver) => {
             // Send a minimal completion request to test connectivity
-            let test_req = openfang_runtime::llm_driver::CompletionRequest {
+            let test_req = freeco_kernel_runtime::llm_driver::CompletionRequest {
                 model: default_model.clone(),
                 messages: vec![openfang_types::message::Message::user("Hi")],
                 tools: vec![],
@@ -8903,7 +8903,7 @@ pub async fn set_provider_url(
     }
 
     // Probe reachability at the new URL
-    let probe = openfang_runtime::provider_health::probe_provider(&name, &base_url).await;
+    let probe = freeco_kernel_runtime::provider_health::probe_provider(&name, &base_url).await;
 
     // Merge discovered models into catalog
     if !probe.discovered_models.is_empty() {
@@ -11973,7 +11973,7 @@ pub async fn config_reload(State(state): State<Arc<AppState>>) -> impl IntoRespo
     // SECURITY: Record config reload in audit trail
     state.kernel.audit_log.record(
         "system",
-        openfang_runtime::audit::AuditAction::ConfigChange,
+        freeco_kernel_runtime::audit::AuditAction::ConfigChange,
         "config reload requested via API",
         "pending",
     );
@@ -12228,7 +12228,7 @@ pub async fn config_set(
 
     state.kernel.audit_log.record(
         "system",
-        openfang_runtime::audit::AuditAction::ConfigChange,
+        freeco_kernel_runtime::audit::AuditAction::ConfigChange,
         format!("config set: {path}"),
         "completed",
     );
@@ -12977,7 +12977,7 @@ pub async fn copilot_oauth_start() -> impl IntoResponse {
     // Clean up expired flows first
     COPILOT_FLOWS.retain(|_, state| state.expires_at > Instant::now());
 
-    match openfang_runtime::copilot_oauth::start_device_flow().await {
+    match freeco_kernel_runtime::copilot_oauth::start_device_flow().await {
         Ok(resp) => {
             let poll_id = uuid::Uuid::new_v4().to_string();
 
@@ -13039,12 +13039,12 @@ pub async fn copilot_oauth_poll(
     let device_code = flow.device_code.clone();
     drop(flow);
 
-    match openfang_runtime::copilot_oauth::poll_device_flow(&device_code).await {
-        openfang_runtime::copilot_oauth::DeviceFlowStatus::Pending => (
+    match freeco_kernel_runtime::copilot_oauth::poll_device_flow(&device_code).await {
+        freeco_kernel_runtime::copilot_oauth::DeviceFlowStatus::Pending => (
             StatusCode::OK,
             Json(serde_json::json!({"status": "pending"})),
         ),
-        openfang_runtime::copilot_oauth::DeviceFlowStatus::Complete { access_token } => {
+        freeco_kernel_runtime::copilot_oauth::DeviceFlowStatus::Complete { access_token } => {
             // Store in vault (best-effort)
             state.kernel.store_credential("GITHUB_TOKEN", &access_token);
 
@@ -13078,7 +13078,7 @@ pub async fn copilot_oauth_poll(
                 Json(serde_json::json!({"status": "complete"})),
             )
         }
-        openfang_runtime::copilot_oauth::DeviceFlowStatus::SlowDown { new_interval } => {
+        freeco_kernel_runtime::copilot_oauth::DeviceFlowStatus::SlowDown { new_interval } => {
             // Update interval
             if let Some(mut f) = COPILOT_FLOWS.get_mut(&poll_id) {
                 f.interval = new_interval;
@@ -13088,21 +13088,21 @@ pub async fn copilot_oauth_poll(
                 Json(serde_json::json!({"status": "pending", "interval": new_interval})),
             )
         }
-        openfang_runtime::copilot_oauth::DeviceFlowStatus::Expired => {
+        freeco_kernel_runtime::copilot_oauth::DeviceFlowStatus::Expired => {
             COPILOT_FLOWS.remove(&poll_id);
             (
                 StatusCode::OK,
                 Json(serde_json::json!({"status": "expired"})),
             )
         }
-        openfang_runtime::copilot_oauth::DeviceFlowStatus::AccessDenied => {
+        freeco_kernel_runtime::copilot_oauth::DeviceFlowStatus::AccessDenied => {
             COPILOT_FLOWS.remove(&poll_id);
             (
                 StatusCode::OK,
                 Json(serde_json::json!({"status": "denied"})),
             )
         }
-        openfang_runtime::copilot_oauth::DeviceFlowStatus::Error(e) => (
+        freeco_kernel_runtime::copilot_oauth::DeviceFlowStatus::Error(e) => (
             StatusCode::OK,
             Json(serde_json::json!({"status": "error", "error": e})),
         ),
@@ -13234,7 +13234,7 @@ fn filter_to_comms_event(
 
 /// Convert an audit entry into a CommsEvent if it represents inter-agent activity.
 fn audit_to_comms_event(
-    entry: &openfang_runtime::audit::AuditEntry,
+    entry: &freeco_kernel_runtime::audit::AuditEntry,
     agents: &[openfang_types::agent::AgentEntry],
 ) -> Option<openfang_types::comms::CommsEvent> {
     use openfang_types::comms::{CommsEvent, CommsEventKind};
@@ -13616,7 +13616,7 @@ pub async fn auth_login(
         // Audit log the failed attempt
         state.kernel.audit_log.record(
             "system",
-            openfang_runtime::audit::AuditAction::AuthAttempt,
+            freeco_kernel_runtime::audit::AuditAction::AuthAttempt,
             "dashboard login failed",
             format!("username: {username}"),
         );
@@ -13645,7 +13645,7 @@ pub async fn auth_login(
 
     state.kernel.audit_log.record(
         "system",
-        openfang_runtime::audit::AuditAction::AuthAttempt,
+        freeco_kernel_runtime::audit::AuditAction::AuthAttempt,
         "dashboard login success",
         format!("username: {username}"),
     );
@@ -13798,7 +13798,7 @@ pub async fn auth_set_password(
 
     state.kernel.audit_log.record(
         "system",
-        openfang_runtime::audit::AuditAction::ConfigChange,
+        freeco_kernel_runtime::audit::AuditAction::ConfigChange,
         "dashboard password updated",
         "completed",
     );
@@ -13852,7 +13852,7 @@ pub async fn auth_disable(
         Ok(s) if std::fs::write(&config_path, &s).is_ok() => {
             state.kernel.audit_log.record(
                 "system",
-                openfang_runtime::audit::AuditAction::ConfigChange,
+                freeco_kernel_runtime::audit::AuditAction::ConfigChange,
                 "dashboard auth disabled from login screen",
                 "completed",
             );

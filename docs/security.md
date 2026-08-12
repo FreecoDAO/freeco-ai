@@ -42,20 +42,20 @@ overlapping layers so that a failure in any one layer is caught by others.
 | # | System | Crate | Protects Against |
 |---|--------|-------|------------------|
 | 1 | Capability-Based Security | `openfang-types` | Unauthorized actions by agents |
-| 2 | WASM Dual Metering | `openfang-runtime` | Infinite loops, CPU DoS |
-| 3 | Merkle Audit Trail | `openfang-runtime` | Tampered audit logs |
+| 2 | WASM Dual Metering | `freeco-kernel-runtime` | Infinite loops, CPU DoS |
+| 3 | Merkle Audit Trail | `freeco-kernel-runtime` | Tampered audit logs |
 | 4 | Taint Tracking | `openfang-types` | Prompt injection, data exfiltration |
 | 5 | Ed25519 Manifest Signing | `openfang-types` | Supply chain attacks |
-| 6 | SSRF Protection | `openfang-runtime` | Server-Side Request Forgery |
-| 7 | Secret Zeroization | `openfang-runtime`, `openfang-channels` | Memory forensics, key leakage |
+| 6 | SSRF Protection | `freeco-kernel-runtime` | Server-Side Request Forgery |
+| 7 | Secret Zeroization | `freeco-kernel-runtime`, `openfang-channels` | Memory forensics, key leakage |
 | 8 | OFP Mutual Auth | `openfang-wire` | Unauthorized peer connections |
 | 9 | Security Headers | `openfang-api` | XSS, clickjacking, MIME sniffing |
 | 10 | GCRA Rate Limiter | `openfang-api` | API abuse, denial of service |
-| 11 | Path Traversal Prevention | `openfang-runtime` | Directory traversal attacks |
-| 12 | Subprocess Sandbox | `openfang-runtime` | Secret leakage via child processes |
+| 11 | Path Traversal Prevention | `freeco-kernel-runtime` | Directory traversal attacks |
+| 12 | Subprocess Sandbox | `freeco-kernel-runtime` | Secret leakage via child processes |
 | 13 | Prompt Injection Scanner | `openfang-skills` | Malicious skill prompts |
-| 14 | Loop Guard | `openfang-runtime` | Stuck agent tool loops |
-| 15 | Session Repair | `openfang-runtime` | Corrupted LLM conversation history |
+| 14 | Loop Guard | `freeco-kernel-runtime` | Stuck agent tool loops |
+| 15 | Session Repair | `freeco-kernel-runtime` | Corrupted LLM conversation history |
 | 16 | Health Endpoint Redaction | `openfang-api` | Information leakage |
 
 ---
@@ -185,7 +185,7 @@ which invokes this validation before the child is created.
 
 ## 3. WASM Dual Metering
 
-**Source:** `openfang-runtime/src/sandbox.rs`
+**Source:** `freeco-kernel-runtime/src/sandbox.rs`
 
 Untrusted WASM modules run inside a Wasmtime sandbox with **two
 independent** metering mechanisms running simultaneously.
@@ -268,7 +268,7 @@ pub enum SandboxError {
 
 ## 4. Merkle Hash Chain Audit Trail
 
-**Source:** `openfang-runtime/src/audit.rs`
+**Source:** `freeco-kernel-runtime/src/audit.rs`
 
 Every security-critical action is appended to a tamper-evident Merkle hash
 chain, similar to a blockchain.  Each entry contains the SHA-256 hash of its
@@ -553,7 +553,7 @@ pub fn verify(&self) -> Result<(), String> {
 
 ## 7. SSRF Protection
 
-**Source:** `openfang-runtime/src/host_functions.rs`
+**Source:** `freeco-kernel-runtime/src/host_functions.rs`
 
 The `host_net_fetch` function (WASM host call for network requests) includes
 comprehensive Server-Side Request Forgery protection.
@@ -668,7 +668,7 @@ client.post(url).header("authorization", format!("Bearer {}", &*key));
 
 ### 8.2 Fields Using Zeroization
 
-**LLM Drivers** (`openfang-runtime/src/drivers/`):
+**LLM Drivers** (`freeco-kernel-runtime/src/drivers/`):
 
 | Driver | Field |
 |--------|-------|
@@ -689,7 +689,7 @@ client.post(url).header("authorization", format!("Bearer {}", &*key));
 | `GitterAdapter` | `token: Zeroizing<String>` |
 | `GotifyAdapter` | `app_token: Zeroizing<String>`, `client_token: Zeroizing<String>` |
 
-**Web Search** (`openfang-runtime/src/web_search.rs`):
+**Web Search** (`freeco-kernel-runtime/src/web_search.rs`):
 
 ```rust
 fn resolve_api_key(env_var: &str) -> Option<Zeroizing<String>> {
@@ -697,7 +697,7 @@ fn resolve_api_key(env_var: &str) -> Option<Zeroizing<String>> {
 }
 ```
 
-**Embedding** (`openfang-runtime/src/embedding.rs`):
+**Embedding** (`freeco-kernel-runtime/src/embedding.rs`):
 
 | Struct | Field |
 |--------|-------|
@@ -926,7 +926,7 @@ entry cleanup.
 
 ## 12. Path Traversal Prevention
 
-**Source:** `openfang-runtime/src/host_functions.rs`
+**Source:** `freeco-kernel-runtime/src/host_functions.rs`
 
 Two functions provide defense-in-depth against directory traversal.
 
@@ -995,7 +995,7 @@ pattern like `"*"`, path traversal is still blocked.
 
 ## 13. Subprocess Sandbox
 
-**Source:** `openfang-runtime/src/subprocess_sandbox.rs`
+**Source:** `freeco-kernel-runtime/src/subprocess_sandbox.rs`
 
 When the runtime spawns child processes (e.g., for the shell tool or skill
 execution), the inherited environment must be stripped to prevent accidental
@@ -1154,7 +1154,7 @@ pub struct SkillWarning {
 
 ## 15. Loop Guard
 
-**Source:** `openfang-runtime/src/loop_guard.rs`
+**Source:** `freeco-kernel-runtime/src/loop_guard.rs`
 
 The `LoopGuard` tracks tool calls within a single agent loop execution to
 detect when the agent is stuck calling the same tool repeatedly.
@@ -1234,7 +1234,7 @@ an agent that calls `web_search({"query": "test"})` 5 times will be blocked.
 
 ## 16. Session Repair
 
-**Source:** `openfang-runtime/src/session_repair.rs`
+**Source:** `freeco-kernel-runtime/src/session_repair.rs`
 
 Before sending message history to the LLM, this module validates and repairs
 common structural issues that would cause API errors.

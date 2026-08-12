@@ -104,7 +104,7 @@
 
   <!-- === Runtime (left) === -->
   <rect x="30" y="318" width="420" height="110" rx="8" fill="url(#rt)" opacity="0.12" stroke="#3b82f6" stroke-width="1"/>
-  <text x="50" y="337" fill="#60a5fa" font-size="9" font-weight="600" letter-spacing="1">RUNTIME — openfang-runtime</text>
+  <text x="50" y="337" fill="#60a5fa" font-size="9" font-weight="600" letter-spacing="1">RUNTIME — freeco-kernel-runtime</text>
   <text x="50" y="354" fill="#93c5fd" font-size="10">Agent loop (streaming) | 3 LLM drivers | 53 tools</text>
   <text x="50" y="369" fill="#93c5fd" font-size="10">WASM sandbox (dual metering) | MCP client/server</text>
   <text x="50" y="384" fill="#93c5fd" font-size="10">Loop guard | Session repair | Auth cooldown</text>

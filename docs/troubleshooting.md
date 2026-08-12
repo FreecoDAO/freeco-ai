@@ -626,7 +626,7 @@ FreEco.ai can import OpenClaw configs: `openfang migrate --from openclaw`
 ### How do I enable debug logging for a specific crate?
 
 ```bash
-RUST_LOG=openfang_runtime=debug,openfang_channels=info openfang start
+RUST_LOG=freeco_kernel_runtime=debug,openfang_channels=info openfang start
 ```
 
 ### Can I use FreEco.ai as a library?
@@ -634,7 +634,7 @@ RUST_LOG=openfang_runtime=debug,openfang_channels=info openfang start
 Yes. Each crate is independently usable:
 ```toml
 [dependencies]
-openfang-runtime = { path = "crates/openfang-runtime" }
+freeco-kernel-runtime = { path = "crates/freeco-kernel-runtime" }
 openfang-memory = { path = "crates/openfang-memory" }
 ```
 

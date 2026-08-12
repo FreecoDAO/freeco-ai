@@ -14,19 +14,19 @@ use crate::triggers::{TriggerEngine, TriggerId, TriggerPattern};
 use crate::workflow::{StepAgent, Workflow, WorkflowEngine, WorkflowId, WorkflowRunId};
 
 use openfang_memory::MemorySubstrate;
-use openfang_runtime::agent_loop::{
+use freeco_kernel_runtime::agent_loop::{
     run_agent_loop, run_agent_loop_streaming, strip_provider_prefix, AgentLoopResult,
 };
-use openfang_runtime::audit::AuditLog;
-use openfang_runtime::drivers;
-use openfang_runtime::kernel_handle::{self, KernelHandle};
-use openfang_runtime::llm_driver::{
+use freeco_kernel_runtime::audit::AuditLog;
+use freeco_kernel_runtime::drivers;
+use freeco_kernel_runtime::kernel_handle::{self, KernelHandle};
+use freeco_kernel_runtime::llm_driver::{
     CompletionRequest, CompletionResponse, DriverConfig, LlmDriver, LlmError, StreamEvent,
 };
-use openfang_runtime::python_runtime::{self, PythonConfig};
-use openfang_runtime::routing::ModelRouter;
-use openfang_runtime::sandbox::{SandboxConfig, WasmSandbox};
-use openfang_runtime::tool_runner::builtin_tool_definitions;
+use freeco_kernel_runtime::python_runtime::{self, PythonConfig};
+use freeco_kernel_runtime::routing::ModelRouter;
+use freeco_kernel_runtime::sandbox::{SandboxConfig, WasmSandbox};
+use freeco_kernel_runtime::tool_runner::builtin_tool_definitions;
 use openfang_types::agent::*;
 use openfang_types::capability::Capability;
 use openfang_types::config::{KernelConfig, OutputFormat};
@@ -89,7 +89,7 @@ pub struct OpenFangKernel {
     /// RBAC authentication manager.
     pub auth: AuthManager,
     /// Model catalog registry (RwLock for auth status refresh from API).
-    pub model_catalog: std::sync::RwLock<openfang_runtime::model_catalog::ModelCatalog>,
+    pub model_catalog: std::sync::RwLock<freeco_kernel_runtime::model_catalog::ModelCatalog>,
     /// Skill registry for plugin skills (RwLock for hot-reload on install/uninstall).
     pub skill_registry: std::sync::RwLock<openfang_skills::registry::SkillRegistry>,
     /// Per-skill config overrides applied on top of `self.config.skills`.
@@ -104,26 +104,26 @@ pub struct OpenFangKernel {
     /// Tracks running agent tasks for cancellation support.
     pub running_tasks: dashmap::DashMap<AgentId, tokio::task::AbortHandle>,
     /// MCP server connections (lazily initialized at start_background_agents).
-    pub mcp_connections: tokio::sync::Mutex<Vec<openfang_runtime::mcp::McpConnection>>,
+    pub mcp_connections: tokio::sync::Mutex<Vec<freeco_kernel_runtime::mcp::McpConnection>>,
     /// MCP tool definitions cache (populated after connections are established).
     pub mcp_tools: std::sync::Mutex<Vec<ToolDefinition>>,
     /// A2A task store for tracking task lifecycle.
-    pub a2a_task_store: openfang_runtime::a2a::A2aTaskStore,
+    pub a2a_task_store: freeco_kernel_runtime::a2a::A2aTaskStore,
     /// Discovered external A2A agent cards.
-    pub a2a_external_agents: std::sync::Mutex<Vec<(String, openfang_runtime::a2a::AgentCard)>>,
+    pub a2a_external_agents: std::sync::Mutex<Vec<(String, freeco_kernel_runtime::a2a::AgentCard)>>,
     /// Web tools context (multi-provider search + SSRF-protected fetch + caching).
-    pub web_ctx: openfang_runtime::web_search::WebToolsContext,
+    pub web_ctx: freeco_kernel_runtime::web_search::WebToolsContext,
     /// Browser automation manager (Playwright bridge sessions).
-    pub browser_ctx: openfang_runtime::browser::BrowserManager,
+    pub browser_ctx: freeco_kernel_runtime::browser::BrowserManager,
     /// Media understanding engine (image description, audio transcription).
-    pub media_engine: openfang_runtime::media_understanding::MediaEngine,
+    pub media_engine: freeco_kernel_runtime::media_understanding::MediaEngine,
     /// Text-to-speech engine.
-    pub tts_engine: openfang_runtime::tts::TtsEngine,
+    pub tts_engine: freeco_kernel_runtime::tts::TtsEngine,
     /// Device pairing manager.
     pub pairing: crate::pairing::PairingManager,
     /// Embedding driver for vector similarity search (None = text fallback).
     pub embedding_driver:
-        Option<Arc<dyn openfang_runtime::embedding::EmbeddingDriver + Send + Sync>>,
+        Option<Arc<dyn freeco_kernel_runtime::embedding::EmbeddingDriver + Send + Sync>>,
     /// Hand registry — curated autonomous capability packages.
     pub hand_registry: openfang_hands::registry::HandRegistry,
     /// Credential resolver — vault → dotenv → env var priority chain.
@@ -147,9 +147,9 @@ pub struct OpenFangKernel {
     /// Auto-reply engine.
     pub auto_reply_engine: crate::auto_reply::AutoReplyEngine,
     /// Plugin lifecycle hook registry.
-    pub hooks: openfang_runtime::hooks::HookRegistry,
+    pub hooks: freeco_kernel_runtime::hooks::HookRegistry,
     /// Persistent process manager for interactive sessions (REPLs, servers).
-    pub process_manager: Arc<openfang_runtime::process_manager::ProcessManager>,
+    pub process_manager: Arc<freeco_kernel_runtime::process_manager::ProcessManager>,
     /// OFP peer registry — tracks connected peers (OnceLock for safe init after Arc creation).
     pub peer_registry: OnceLock<openfang_wire::PeerRegistry>,
     /// OFP peer node — the local networking node (OnceLock for safe init after Arc creation).
@@ -556,7 +556,7 @@ impl OpenFangKernel {
     /// Fetch live Copilot models by exchanging the persisted token and querying the API.
     /// Works both inside and outside a tokio runtime.
     fn fetch_copilot_models(openfang_dir: &Path) -> Result<Vec<String>, String> {
-        use openfang_runtime::drivers::copilot;
+        use freeco_kernel_runtime::drivers::copilot;
 
         let tokens = copilot::PersistedTokens::load(openfang_dir)
             .ok_or("No persisted Copilot tokens found")?;
@@ -796,7 +796,7 @@ impl OpenFangKernel {
 
         // Use the chain, or create a stub driver if everything failed
         let driver: Arc<dyn LlmDriver> = if driver_chain.len() > 1 {
-            Arc::new(openfang_runtime::drivers::fallback::FallbackDriver::with_models(model_chain))
+            Arc::new(freeco_kernel_runtime::drivers::fallback::FallbackDriver::with_models(model_chain))
         } else if let Some(single) = driver_chain.into_iter().next() {
             single
         } else {
@@ -825,7 +825,7 @@ impl OpenFangKernel {
         }
 
         // Initialize model catalog, detect provider auth, and apply URL overrides
-        let mut model_catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+        let mut model_catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
         model_catalog.detect_auth();
         // Env-var overrides for local providers (OLLAMA_HOST, LMSTUDIO_BASE_URL, etc.).
         // Applied before `provider_urls` so explicit config.toml entries win. See #1154.
@@ -842,7 +842,7 @@ impl OpenFangKernel {
         model_catalog.load_custom_models(&custom_models_path);
 
         // Fetch live Copilot models if authenticated
-        if openfang_runtime::drivers::copilot::copilot_auth_available(&config.home_dir) {
+        if freeco_kernel_runtime::drivers::copilot::copilot_auth_available(&config.home_dir) {
             let copilot_dir = config.home_dir.clone();
             match Self::fetch_copilot_models(&copilot_dir) {
                 Ok(models) => {
@@ -963,13 +963,13 @@ impl OpenFangKernel {
 
         // Initialize web tools (multi-provider search + SSRF-protected fetch + caching)
         let cache_ttl = std::time::Duration::from_secs(config.web.cache_ttl_minutes * 60);
-        let web_cache = Arc::new(openfang_runtime::web_cache::WebCache::new(cache_ttl));
-        let web_ctx = openfang_runtime::web_search::WebToolsContext {
-            search: openfang_runtime::web_search::WebSearchEngine::new(
+        let web_cache = Arc::new(freeco_kernel_runtime::web_cache::WebCache::new(cache_ttl));
+        let web_ctx = freeco_kernel_runtime::web_search::WebToolsContext {
+            search: freeco_kernel_runtime::web_search::WebSearchEngine::new(
                 config.web.clone(),
                 web_cache.clone(),
             ),
-            fetch: openfang_runtime::web_fetch::WebFetchEngine::new(
+            fetch: freeco_kernel_runtime::web_fetch::WebFetchEngine::new(
                 config.web.fetch.clone(),
                 web_cache,
             ),
@@ -977,9 +977,9 @@ impl OpenFangKernel {
 
         // Auto-detect embedding driver for vector similarity search
         let embedding_driver: Option<
-            Arc<dyn openfang_runtime::embedding::EmbeddingDriver + Send + Sync>,
+            Arc<dyn freeco_kernel_runtime::embedding::EmbeddingDriver + Send + Sync>,
         > = {
-            use openfang_runtime::embedding::create_embedding_driver;
+            use freeco_kernel_runtime::embedding::create_embedding_driver;
             let configured_model = &config.memory.embedding_model;
             if let Some(ref provider) = config.memory.embedding_provider {
                 // Explicit config takes priority — use the configured embedding model.
@@ -1081,14 +1081,14 @@ impl OpenFangKernel {
             }
         };
 
-        let browser_ctx = openfang_runtime::browser::BrowserManager::new(config.browser.clone());
+        let browser_ctx = freeco_kernel_runtime::browser::BrowserManager::new(config.browser.clone());
 
         // Initialize media understanding engine
         let media_engine =
-            openfang_runtime::media_understanding::MediaEngine::new(config.media.clone());
+            freeco_kernel_runtime::media_understanding::MediaEngine::new(config.media.clone());
         // Closes #1051: thread MediaConfig URL overrides into the TTS engine
         // so local OpenAI/ElevenLabs-compatible services can be targeted.
-        let tts_engine = openfang_runtime::tts::TtsEngine::new(config.tts.clone()).with_base_urls(
+        let tts_engine = freeco_kernel_runtime::tts::TtsEngine::new(config.tts.clone()).with_base_urls(
             config.media.tts_openai_base_url.clone(),
             config.media.tts_elevenlabs_base_url.clone(),
         );
@@ -1192,7 +1192,7 @@ impl OpenFangKernel {
             running_tasks: dashmap::DashMap::new(),
             mcp_connections: tokio::sync::Mutex::new(Vec::new()),
             mcp_tools: std::sync::Mutex::new(Vec::new()),
-            a2a_task_store: openfang_runtime::a2a::A2aTaskStore::default(),
+            a2a_task_store: freeco_kernel_runtime::a2a::A2aTaskStore::default(),
             a2a_external_agents: std::sync::Mutex::new(Vec::new()),
             web_ctx,
             browser_ctx,
@@ -1211,8 +1211,8 @@ impl OpenFangKernel {
             bindings: std::sync::Mutex::new(initial_bindings),
             broadcast: initial_broadcast,
             auto_reply_engine,
-            hooks: openfang_runtime::hooks::HookRegistry::new(),
-            process_manager: Arc::new(openfang_runtime::process_manager::ProcessManager::new(5)),
+            hooks: freeco_kernel_runtime::hooks::HookRegistry::new(),
+            process_manager: Arc::new(freeco_kernel_runtime::process_manager::ProcessManager::new(5)),
             peer_registry: OnceLock::new(),
             peer_node: OnceLock::new(),
             booted_at: std::time::Instant::now(),
@@ -1240,7 +1240,7 @@ impl OpenFangKernel {
                 let hash = hex::encode(hasher.finalize());
                 audit_log_initial.record(
                     "kernel",
-                    openfang_runtime::audit::AuditAction::ConfigChange,
+                    freeco_kernel_runtime::audit::AuditAction::ConfigChange,
                     format!("HAND.toml load hand={hand_id} sha256={hash}"),
                     "ok",
                 );
@@ -1252,7 +1252,7 @@ impl OpenFangKernel {
                 .set_audit_callback(Arc::new(move |hand_id: &str, hash: &str| {
                     audit_log_for_cb.record(
                         "kernel",
-                        openfang_runtime::audit::AuditAction::ConfigChange,
+                        freeco_kernel_runtime::audit::AuditAction::ConfigChange,
                         format!("HAND.toml reload hand={hand_id} sha256={hash}"),
                         "ok",
                     );
@@ -1785,7 +1785,7 @@ impl OpenFangKernel {
         // SECURITY: Record agent spawn in audit trail
         self.audit_log.record(
             agent_id.to_string(),
-            openfang_runtime::audit::AuditAction::AgentSpawn,
+            freeco_kernel_runtime::audit::AuditAction::AgentSpawn,
             format!("name={name}, parent={parent:?}"),
             "ok",
         );
@@ -1956,7 +1956,7 @@ impl OpenFangKernel {
                 &agent_id.to_string(),
             )
             .await
-            .map(|out| openfang_runtime::agent_loop::AgentLoopResult {
+            .map(|out| freeco_kernel_runtime::agent_loop::AgentLoopResult {
                 response: out.response,
                 total_usage: Default::default(),
                 iterations: 1,
@@ -1990,7 +1990,7 @@ impl OpenFangKernel {
                 // SECURITY: Record successful message in audit trail
                 self.audit_log.record(
                     agent_id.to_string(),
-                    openfang_runtime::audit::AuditAction::AgentMessage,
+                    freeco_kernel_runtime::audit::AuditAction::AgentMessage,
                     format!(
                         "tokens_in={}, tokens_out={}",
                         result.total_usage.input_tokens, result.total_usage.output_tokens
@@ -2004,7 +2004,7 @@ impl OpenFangKernel {
                 // SECURITY: Record failed message in audit trail
                 self.audit_log.record(
                     agent_id.to_string(),
-                    openfang_runtime::audit::AuditAction::AgentMessage,
+                    freeco_kernel_runtime::audit::AuditAction::AgentMessage,
                     "agent loop failed",
                     format!("error: {e}"),
                 );
@@ -2115,7 +2115,7 @@ impl OpenFangKernel {
 
         // Check if auto-compaction is needed: message-count OR token-count OR quota-headroom trigger
         let needs_compact = {
-            use openfang_runtime::compactor::{
+            use freeco_kernel_runtime::compactor::{
                 estimate_token_count, needs_compaction as check_compact,
                 needs_compaction_by_tokens, CompactionConfig,
             };
@@ -2241,7 +2241,7 @@ impl OpenFangKernel {
                 })
                 .collect();
 
-            let prompt_ctx = openfang_runtime::prompt_builder::PromptContext {
+            let prompt_ctx = freeco_kernel_runtime::prompt_builder::PromptContext {
                 agent_name: manifest.name.clone(),
                 agent_description: manifest.description.clone(),
                 base_system_prompt: manifest.model.system_prompt.clone(),
@@ -2293,7 +2293,7 @@ impl OpenFangKernel {
                     .and_then(|s| read_identity_file(s, "BOOTSTRAP.md")),
                 workspace_context: manifest.workspace.as_ref().map(|w| {
                     let mut ws_ctx =
-                        openfang_runtime::workspace_context::WorkspaceContext::detect(w);
+                        freeco_kernel_runtime::workspace_context::WorkspaceContext::detect(w);
                     ws_ctx.build_context_section()
                 }),
                 identity_md: manifest
@@ -2320,15 +2320,15 @@ impl OpenFangKernel {
                 // (cron jobs, integrations) reach the LLM on the next message.
                 // Opt out via `cache_context = true` on the manifest. (#843)
                 context_md: manifest.workspace.as_ref().and_then(|w| {
-                    openfang_runtime::agent_context::load_context_md(w, manifest.cache_context)
+                    freeco_kernel_runtime::agent_context::load_context_md(w, manifest.cache_context)
                 }),
             };
             manifest.model.system_prompt =
-                openfang_runtime::prompt_builder::build_system_prompt(&prompt_ctx);
+                freeco_kernel_runtime::prompt_builder::build_system_prompt(&prompt_ctx);
             // Store canonical context separately for injection as user message
             // (keeps system prompt stable across turns for provider prompt caching)
             if let Some(cc_msg) =
-                openfang_runtime::prompt_builder::build_canonical_context_message(&prompt_ctx)
+                freeco_kernel_runtime::prompt_builder::build_canonical_context_message(&prompt_ctx)
             {
                 manifest.metadata.insert(
                     "canonical_context_msg".to_string(),
@@ -2340,7 +2340,7 @@ impl OpenFangKernel {
         let memory = Arc::clone(&self.memory);
         // Build link context from user message (auto-extract URLs for the agent)
         let message_owned = if let Some(link_ctx) =
-            openfang_runtime::link_understanding::build_link_context(message, &self.config.links)
+            freeco_kernel_runtime::link_understanding::build_link_context(message, &self.config.links)
         {
             format!("{message}{link_ctx}")
         } else {
@@ -2372,9 +2372,9 @@ impl OpenFangKernel {
 
             // Create a phase callback that emits PhaseChange events to WS/SSE clients
             let phase_tx = tx.clone();
-            let phase_cb: openfang_runtime::agent_loop::PhaseCallback =
+            let phase_cb: freeco_kernel_runtime::agent_loop::PhaseCallback =
                 std::sync::Arc::new(move |phase| {
-                    use openfang_runtime::agent_loop::LoopPhase;
+                    use freeco_kernel_runtime::agent_loop::LoopPhase;
                     let (phase_str, detail) = match &phase {
                         LoopPhase::Thinking => ("thinking".to_string(), None),
                         LoopPhase::ToolUse { tool_name } => {
@@ -2491,7 +2491,7 @@ impl OpenFangKernel {
                     // Post-loop compaction check: if session now exceeds token threshold,
                     // trigger compaction in background for the next call.
                     {
-                        use openfang_runtime::compactor::{
+                        use freeco_kernel_runtime::compactor::{
                             estimate_token_count, needs_compaction_by_tokens, CompactionConfig,
                         };
                         let config = CompactionConfig::default();
@@ -2701,7 +2701,7 @@ impl OpenFangKernel {
 
         // Pre-emptive compaction: compact before LLM call if session is large or quota headroom is low
         {
-            use openfang_runtime::compactor::{
+            use freeco_kernel_runtime::compactor::{
                 estimate_token_count, needs_compaction as check_compact,
                 needs_compaction_by_tokens, CompactionConfig,
             };
@@ -2824,7 +2824,7 @@ impl OpenFangKernel {
                 })
                 .collect();
 
-            let prompt_ctx = openfang_runtime::prompt_builder::PromptContext {
+            let prompt_ctx = freeco_kernel_runtime::prompt_builder::PromptContext {
                 agent_name: manifest.name.clone(),
                 agent_description: manifest.description.clone(),
                 base_system_prompt: manifest.model.system_prompt.clone(),
@@ -2876,7 +2876,7 @@ impl OpenFangKernel {
                     .and_then(|s| read_identity_file(s, "BOOTSTRAP.md")),
                 workspace_context: manifest.workspace.as_ref().map(|w| {
                     let mut ws_ctx =
-                        openfang_runtime::workspace_context::WorkspaceContext::detect(w);
+                        freeco_kernel_runtime::workspace_context::WorkspaceContext::detect(w);
                     ws_ctx.build_context_section()
                 }),
                 identity_md: manifest
@@ -2901,15 +2901,15 @@ impl OpenFangKernel {
                 sender_name,
                 // Re-read context.md per turn by default (#843).
                 context_md: manifest.workspace.as_ref().and_then(|w| {
-                    openfang_runtime::agent_context::load_context_md(w, manifest.cache_context)
+                    freeco_kernel_runtime::agent_context::load_context_md(w, manifest.cache_context)
                 }),
             };
             manifest.model.system_prompt =
-                openfang_runtime::prompt_builder::build_system_prompt(&prompt_ctx);
+                freeco_kernel_runtime::prompt_builder::build_system_prompt(&prompt_ctx);
             // Store canonical context separately for injection as user message
             // (keeps system prompt stable across turns for provider prompt caching)
             if let Some(cc_msg) =
-                openfang_runtime::prompt_builder::build_canonical_context_message(&prompt_ctx)
+                freeco_kernel_runtime::prompt_builder::build_canonical_context_message(&prompt_ctx)
             {
                 manifest.metadata.insert(
                     "canonical_context_msg".to_string(),
@@ -2989,7 +2989,7 @@ impl OpenFangKernel {
 
         // Build link context from user message (auto-extract URLs for the agent)
         let message_with_links = if let Some(link_ctx) =
-            openfang_runtime::link_understanding::build_link_context(message, &self.config.links)
+            freeco_kernel_runtime::link_understanding::build_link_context(message, &self.config.links)
         {
             format!("{message}{link_ctx}")
         } else {
@@ -3543,12 +3543,12 @@ impl OpenFangKernel {
                 let mut known_servers: std::collections::HashSet<String> =
                     std::collections::HashSet::new();
                 for tool in mcp_tools.iter() {
-                    if let Some(s) = openfang_runtime::mcp::extract_mcp_server(&tool.name) {
+                    if let Some(s) = freeco_kernel_runtime::mcp::extract_mcp_server(&tool.name) {
                         known_servers.insert(s.to_string());
                     }
                 }
                 for name in &servers {
-                    let normalized = openfang_runtime::mcp::normalize_name(name);
+                    let normalized = freeco_kernel_runtime::mcp::normalize_name(name);
                     if !known_servers.contains(&normalized) {
                         return Err(KernelError::OpenFang(OpenFangError::Internal(format!(
                             "Unknown MCP server: {name}"
@@ -3650,7 +3650,7 @@ impl OpenFangKernel {
     /// Replaces the existing text-truncation compaction with an intelligent
     /// LLM-generated summary of older messages, keeping only recent messages.
     pub async fn compact_agent_session(&self, agent_id: AgentId) -> KernelResult<String> {
-        use openfang_runtime::compactor::{compact_session, needs_compaction, CompactionConfig};
+        use freeco_kernel_runtime::compactor::{compact_session, needs_compaction, CompactionConfig};
 
         let entry = self.registry.get(agent_id).ok_or_else(|| {
             KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
@@ -3692,7 +3692,7 @@ impl OpenFangKernel {
 
         // Post-compaction audit: validate and repair the kept messages
         let (repaired_messages, repair_stats) =
-            openfang_runtime::session_repair::validate_and_repair_with_stats(&result.kept_messages);
+            freeco_kernel_runtime::session_repair::validate_and_repair_with_stats(&result.kept_messages);
 
         // Repair is validated but NOT written back over the full history.
         //
@@ -3739,8 +3739,8 @@ impl OpenFangKernel {
     pub fn context_report(
         &self,
         agent_id: AgentId,
-    ) -> KernelResult<openfang_runtime::compactor::ContextReport> {
-        use openfang_runtime::compactor::generate_context_report;
+    ) -> KernelResult<freeco_kernel_runtime::compactor::ContextReport> {
+        use freeco_kernel_runtime::compactor::generate_context_report;
 
         let entry = self.registry.get(agent_id).ok_or_else(|| {
             KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
@@ -3840,7 +3840,7 @@ impl OpenFangKernel {
         // SECURITY: Record agent kill in audit trail
         self.audit_log.record(
             agent_id.to_string(),
-            openfang_runtime::audit::AuditAction::AgentKill,
+            freeco_kernel_runtime::audit::AuditAction::AgentKill,
             format!("name={}", entry.name),
             "ok",
         );
@@ -4623,7 +4623,7 @@ impl OpenFangKernel {
 
                 for (provider_id, base_url) in &local_providers {
                     let result =
-                        openfang_runtime::provider_health::probe_provider(provider_id, base_url)
+                        freeco_kernel_runtime::provider_health::probe_provider(provider_id, base_url)
                             .await;
                     if result.reachable {
                         info!(
@@ -4815,7 +4815,7 @@ impl OpenFangKernel {
                 let kernel = Arc::clone(self);
                 let agents = a2a_config.external_agents.clone();
                 tokio::spawn(async move {
-                    let discovered = openfang_runtime::a2a::discover_external_agents(&agents).await;
+                    let discovered = freeco_kernel_runtime::a2a::discover_external_agents(&agents).await;
                     if let Ok(mut store) = kernel.a2a_external_agents.lock() {
                         *store = discovered;
                     }
@@ -5792,7 +5792,7 @@ impl OpenFangKernel {
         // Primary driver uses an empty model name so the request's `model` field
         // (which is the agent's own model) is used as-is.
         let mut chain: Vec<(
-            std::sync::Arc<dyn openfang_runtime::llm_driver::LlmDriver>,
+            std::sync::Arc<dyn freeco_kernel_runtime::llm_driver::LlmDriver>,
             String,
         )> = vec![(primary.clone(), String::new())];
 
@@ -5891,7 +5891,7 @@ impl OpenFangKernel {
 
         if chain.len() > 1 {
             return Ok(Arc::new(
-                openfang_runtime::drivers::fallback::FallbackDriver::with_models(chain),
+                freeco_kernel_runtime::drivers::fallback::FallbackDriver::with_models(chain),
             ));
         }
 
@@ -5900,7 +5900,7 @@ impl OpenFangKernel {
 
     /// Connect to all configured MCP servers and cache their tool definitions.
     async fn connect_mcp_servers(self: &Arc<Self>) {
-        use openfang_runtime::mcp::{McpConnection, McpServerConfig, McpTransport};
+        use freeco_kernel_runtime::mcp::{McpConnection, McpServerConfig, McpTransport};
         use openfang_types::config::McpTransportEntry;
 
         let servers = self
@@ -5980,7 +5980,7 @@ impl OpenFangKernel {
     ///
     /// Called by the API reload endpoint after CLI installs/removes integrations.
     pub async fn reload_extension_mcps(self: &Arc<Self>) -> Result<usize, String> {
-        use openfang_runtime::mcp::{McpConnection, McpServerConfig, McpTransport};
+        use freeco_kernel_runtime::mcp::{McpConnection, McpServerConfig, McpTransport};
         use openfang_types::config::McpTransportEntry;
 
         // 1. Reload installed integrations from disk
@@ -6118,7 +6118,7 @@ impl OpenFangKernel {
 
     /// Reconnect a single extension MCP server by ID.
     pub async fn reconnect_extension_mcp(self: &Arc<Self>, id: &str) -> Result<usize, String> {
-        use openfang_runtime::mcp::{McpConnection, McpServerConfig, McpTransport};
+        use freeco_kernel_runtime::mcp::{McpConnection, McpServerConfig, McpTransport};
         use openfang_types::config::McpTransportEntry;
 
         // Find the config for this server
@@ -6359,12 +6359,12 @@ impl OpenFangKernel {
             } else {
                 let normalized: Vec<String> = mcp_allowlist
                     .iter()
-                    .map(|s| openfang_runtime::mcp::normalize_name(s))
+                    .map(|s| freeco_kernel_runtime::mcp::normalize_name(s))
                     .collect();
                 mcp_tools
                     .iter()
                     .filter(|t| {
-                        openfang_runtime::mcp::extract_mcp_server(&t.name)
+                        freeco_kernel_runtime::mcp::extract_mcp_server(&t.name)
                             .map(|s| normalized.iter().any(|n| n == s))
                             .unwrap_or(false)
                     })
@@ -6552,7 +6552,7 @@ impl OpenFangKernel {
         // Normalize allowlist for matching
         let normalized: Vec<String> = mcp_allowlist
             .iter()
-            .map(|s| openfang_runtime::mcp::normalize_name(s))
+            .map(|s| freeco_kernel_runtime::mcp::normalize_name(s))
             .collect();
 
         // Group tools by MCP server prefix (mcp_{server}_{tool})
@@ -8786,7 +8786,7 @@ mod tests {
 
     #[test]
     fn test_activate_agent_handle_accepts_name_and_uuid() {
-        use openfang_runtime::kernel_handle::KernelHandle;
+        use freeco_kernel_runtime::kernel_handle::KernelHandle;
 
         let tmp = tempfile::tempdir().unwrap();
         let home_dir = tmp.path().join("openfang-kernel-activate-handle-test");

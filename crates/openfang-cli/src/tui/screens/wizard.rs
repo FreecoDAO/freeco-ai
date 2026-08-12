@@ -227,7 +227,7 @@ impl WizardState {
         // Detected providers first
         for (i, p) in PROVIDERS.iter().enumerate() {
             let detected = if p.name == "claude-code" {
-                openfang_runtime::drivers::claude_code::claude_code_available()
+                freeco_kernel_runtime::drivers::claude_code::claude_code_available()
             } else {
                 !p.env_var.is_empty() && std::env::var(p.env_var).is_ok()
             };
@@ -238,7 +238,7 @@ impl WizardState {
         // Then the rest
         for (i, p) in PROVIDERS.iter().enumerate() {
             let detected = if p.name == "claude-code" {
-                openfang_runtime::drivers::claude_code::claude_code_available()
+                freeco_kernel_runtime::drivers::claude_code::claude_code_available()
             } else {
                 !p.env_var.is_empty() && std::env::var(p.env_var).is_ok()
             };
@@ -528,7 +528,7 @@ fn draw_provider(f: &mut Frame, area: Rect, state: &mut WizardState) {
         .map(|&idx| {
             let p = &PROVIDERS[idx];
             let hint = if p.name == "claude-code" {
-                if openfang_runtime::drivers::claude_code::claude_code_available() {
+                if freeco_kernel_runtime::drivers::claude_code::claude_code_available() {
                     "CLI detected".to_string()
                 } else {
                     "no API key needed".to_string()

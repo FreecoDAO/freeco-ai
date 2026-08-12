@@ -28,7 +28,7 @@ rather than from zero.
   `store.rs` fixes the first two; the panic path still needs converting to
   `Result`.
 - **Wire it into the LLM call path.** `grep datagateway` across
-  `openfang-runtime` and `openfang-kernel` currently returns nothing, so it
+  `freeco-kernel-runtime` and `openfang-kernel` currently returns nothing, so it
   inspects zero traffic. A security control that is present but not connected
   is worse than absent: the dashboard implies protection that does not exist.
 - **Continuous inspection** of agent traffic, using the gateway as the

@@ -8,7 +8,7 @@ description = "Core kernel for the OpenFang Agent OS"
 [dependencies]
 openfang-types = { path = "../openfang-types" }
 openfang-memory = { path = "../openfang-memory" }
-openfang-runtime = { path = "../openfang-runtime" }
+freeco-kernel-runtime = { path = "../freeco-kernel-runtime" }
 openfang-skills = { path = "../openfang-skills" }
 openfang-hands = { path = "../openfang-hands" }
 openfang-extensions = { path = "../openfang-extensions" }

@@ -2512,7 +2512,7 @@ decay_rate = 0.05
     // Check GitHub Copilot auth (separate from env var checks)
     {
         let openfang_dir = cli_openfang_home();
-        if openfang_runtime::drivers::copilot::copilot_auth_available(&openfang_dir) {
+        if freeco_kernel_runtime::drivers::copilot::copilot_auth_available(&openfang_dir) {
             any_key_set = true;
             if !json {
                 ui::check_ok("GitHub Copilot (authenticated via device flow)");
@@ -5232,7 +5232,7 @@ fn cmd_config_set_key(provider: &str) {
             ui::error(&format!("Failed to create async runtime: {e}"));
             std::process::exit(1);
         });
-        match rt.block_on(openfang_runtime::drivers::copilot::run_interactive_setup(
+        match rt.block_on(freeco_kernel_runtime::drivers::copilot::run_interactive_setup(
             &openfang_dir,
         )) {
             Ok(_) => {
@@ -5737,7 +5737,7 @@ fn cmd_models_list(provider_filter: Option<&str>, json: bool) {
         }
     } else {
         // Standalone: use ModelCatalog directly
-        let catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+        let catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
         let models = catalog.list_models();
         if json {
             let arr: Vec<serde_json::Value> = models
@@ -5802,7 +5802,7 @@ fn cmd_models_aliases(json: bool) {
             );
         }
     } else {
-        let catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+        let catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
         let aliases = catalog.list_aliases();
         if json {
             let obj: serde_json::Map<String, serde_json::Value> = aliases
@@ -5853,7 +5853,7 @@ fn cmd_models_providers(json: bool) {
             );
         }
     } else {
-        let catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+        let catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
         let providers = catalog.list_providers();
         if json {
             let arr: Vec<serde_json::Value> = providers
@@ -5913,7 +5913,7 @@ fn cmd_models_set(model: Option<String>) {
 
 /// Interactive model picker — shows numbered list, accepts number or model ID.
 fn pick_model() -> String {
-    let catalog = openfang_runtime::model_catalog::ModelCatalog::new();
+    let catalog = freeco_kernel_runtime::model_catalog::ModelCatalog::new();
     let models = catalog.list_models();
 
     if models.is_empty() {

@@ -9,7 +9,7 @@ pub mod theme;
 
 use event::{AppEvent, BackendRef};
 use openfang_kernel::OpenFangKernel;
-use openfang_runtime::llm_driver::StreamEvent;
+use freeco_kernel_runtime::llm_driver::StreamEvent;
 use openfang_types::agent::AgentId;
 use openfang_types::commands::{self, Surfaces};
 use screens::{
@@ -1197,7 +1197,7 @@ impl App {
 
     fn handle_stream_done(
         &mut self,
-        result: Result<openfang_runtime::agent_loop::AgentLoopResult, String>,
+        result: Result<freeco_kernel_runtime::agent_loop::AgentLoopResult, String>,
     ) {
         self.chat.finalize_stream();
         match result {

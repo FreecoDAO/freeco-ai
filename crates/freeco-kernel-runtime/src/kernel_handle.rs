@@ -1,6 +1,6 @@
 //! Trait abstraction for kernel operations needed by the agent runtime.
 //!
-//! This trait allows `openfang-runtime` to call back into the kernel for
+//! This trait allows `freeco-kernel-runtime` to call back into the kernel for
 //! inter-agent operations (spawn, send, list, kill) without creating
 //! a circular dependency. The kernel implements this trait and passes
 //! it into the agent loop.
