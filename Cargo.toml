@@ -3,7 +3,7 @@ resolver = "2"
 members = [
     "crates/openfang-types",
     "crates/openfang-memory",
-    "crates/openfang-runtime",
+    "crates/freeco-kernel-runtime",
     "crates/openfang-wire",
     "crates/openfang-api",
     "crates/openfang-kernel",

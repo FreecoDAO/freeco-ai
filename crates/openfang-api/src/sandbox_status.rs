@@ -23,11 +23,11 @@ use std::sync::Arc;
 pub async fn sandbox_status(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let config = &state.kernel.config.docker;
 
-    let docker_running = openfang_runtime::docker_sandbox::is_docker_available().await;
+    let docker_running = freeco_kernel_runtime::docker_sandbox::is_docker_available().await;
     // Only probe the image when Docker answers; otherwise the inspect call
     // just times out and we would report "image missing" for the wrong reason.
     let image_present = if docker_running {
-        openfang_runtime::docker_sandbox::is_image_present(&config.image).await
+        freeco_kernel_runtime::docker_sandbox::is_image_present(&config.image).await
     } else {
         false
     };
@@ -79,14 +79,14 @@ pub async fn sandbox_status(State(state): State<Arc<AppState>>) -> impl IntoResp
 pub async fn sandbox_pull(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let image = state.kernel.config.docker.image.clone();
 
-    if !openfang_runtime::docker_sandbox::is_docker_available().await {
+    if !freeco_kernel_runtime::docker_sandbox::is_docker_available().await {
         return Json(serde_json::json!({
             "ok": false,
             "error": "Docker is not running, so the image cannot be downloaded. Start Docker Desktop and try again.",
         }));
     }
 
-    match openfang_runtime::quiet_command::quiet_async("docker")
+    match freeco_kernel_runtime::quiet_command::quiet_async("docker")
         .arg("pull")
         .arg(&image)
         .output()

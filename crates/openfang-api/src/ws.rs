@@ -20,9 +20,9 @@ use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use openfang_kernel::OpenFangKernel;
-use openfang_runtime::kernel_handle::KernelHandle;
-use openfang_runtime::llm_driver::StreamEvent;
-use openfang_runtime::llm_errors;
+use freeco_kernel_runtime::kernel_handle::KernelHandle;
+use freeco_kernel_runtime::llm_driver::StreamEvent;
+use freeco_kernel_runtime::llm_errors;
 use openfang_types::agent::AgentId;
 use openfang_types::commands::{self, Surfaces};
 use std::collections::hash_map::DefaultHasher;
@@ -1125,7 +1125,7 @@ async fn handle_command(
         },
         "context" => match state.kernel.context_report(agent_id) {
             Ok(report) => {
-                let formatted = openfang_runtime::compactor::format_context_report(&report);
+                let formatted = freeco_kernel_runtime::compactor::format_context_report(&report);
                 serde_json::json!({
                     "type": "command_result",
                     "command": cmd,
@@ -1404,7 +1404,7 @@ fn sanitize_text(s: &str) -> String {
 
 /// Classify a streaming/setup error into a user-friendly message.
 ///
-/// Uses the proper LLM error classifier from `openfang_runtime::llm_errors`
+/// Uses the proper LLM error classifier from `freeco_kernel_runtime::llm_errors`
 /// for comprehensive 20-provider coverage with actionable advice.
 fn classify_streaming_error(err: &openfang_kernel::error::KernelError) -> String {
     let inner = format!("{err}");

@@ -63,7 +63,7 @@ impl AutoReplyEngine {
     /// The `send_fn` is called with the agent response to deliver it back to the channel.
     pub async fn execute_reply<F>(
         &self,
-        kernel_handle: Arc<dyn openfang_runtime::kernel_handle::KernelHandle>,
+        kernel_handle: Arc<dyn freeco_kernel_runtime::kernel_handle::KernelHandle>,
         agent_id: AgentId,
         message: String,
         reply_channel: AutoReplyChannel,

@@ -292,6 +292,9 @@ mod tests {
     /// they wake up.
     #[test]
     fn approval_window_survives_a_night() {
-        assert!(ASSISTANT_APPROVAL_TIMEOUT_SECS >= 4 * 60 * 60);
+        const {
+            assert!(ASSISTANT_APPROVAL_TIMEOUT_SECS >= 4 * 60 * 60);
+        }
     }
+
 }

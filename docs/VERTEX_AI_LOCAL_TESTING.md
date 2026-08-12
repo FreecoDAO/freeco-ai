@@ -146,13 +146,13 @@ $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
 cargo build -p openfang-cli
 
 # Run tests
-cargo test -p openfang-runtime --lib vertex
+cargo test -p freeco-kernel-runtime --lib vertex
 
 # Check formatting
-cargo fmt --check -p openfang-runtime
+cargo fmt --check -p freeco-kernel-runtime
 
 # Run clippy
-cargo clippy -p openfang-runtime --lib -- -W warnings
+cargo clippy -p freeco-kernel-runtime --lib -- -W warnings
 ```
 
 ## API Endpoints
@@ -167,5 +167,5 @@ cargo clippy -p openfang-runtime --lib -- -W warnings
 
 ## Files Modified in PR
 
-- `crates/openfang-runtime/src/drivers/vertex.rs` (NEW - ~790 lines)
-- `crates/openfang-runtime/src/drivers/mod.rs` (+62 lines)
+- `crates/freeco-kernel-runtime/src/drivers/vertex.rs` (NEW - ~790 lines)
+- `crates/freeco-kernel-runtime/src/drivers/mod.rs` (+62 lines)

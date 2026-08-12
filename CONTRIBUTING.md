@@ -87,7 +87,7 @@ The test suite is currently 1,744+ tests. All must pass before merging.
 
 ```bash
 cargo test -p openfang-kernel
-cargo test -p openfang-runtime
+cargo test -p freeco-kernel-runtime
 cargo test -p openfang-memory
 ```
 
@@ -142,7 +142,7 @@ OpenFang is organized as a Cargo workspace with 14 crates:
 |-------|------|
 | `openfang-types` | Shared type definitions, taint tracking, manifest signing (Ed25519), model catalog, MCP/A2A config types |
 | `openfang-memory` | SQLite-backed memory substrate with vector embeddings, usage tracking, canonical sessions, JSONL mirroring |
-| `openfang-runtime` | Agent loop, 3 LLM drivers (Anthropic/Gemini/OpenAI-compat), 38 built-in tools, WASM sandbox, MCP client/server, A2A protocol |
+| `freeco-kernel-runtime` | Agent loop, 3 LLM drivers (Anthropic/Gemini/OpenAI-compat), 38 built-in tools, WASM sandbox, MCP client/server, A2A protocol |
 | `openfang-hands` | Hands system (curated autonomous capability packages), 7 bundled hands |
 | `openfang-extensions` | Integration registry (25 bundled MCP templates), AES-256-GCM credential vault, OAuth2 PKCE |
 | `openfang-kernel` | Assembles all subsystems: workflow engine, RBAC auth, heartbeat monitor, cron scheduler, config hot-reload |
@@ -157,7 +157,7 @@ OpenFang is organized as a Cargo workspace with 14 crates:
 
 ### Key Architectural Patterns
 
-- **`KernelHandle` trait**: Defined in `openfang-runtime`, implemented on `OpenFangKernel` in `openfang-kernel`. This avoids circular crate dependencies while enabling inter-agent tools.
+- **`KernelHandle` trait**: Defined in `freeco-kernel-runtime`, implemented on `OpenFangKernel` in `openfang-kernel`. This avoids circular crate dependencies while enabling inter-agent tools.
 - **Shared memory**: A fixed UUID (`AgentId(Uuid::from_bytes([0..0, 0x01]))`) provides a cross-agent KV namespace.
 - **Daemon detection**: The CLI checks `~/.openfang/daemon.json` and pings the health endpoint. If a daemon is running, commands use HTTP; otherwise, they boot an in-process kernel.
 - **Capability-based security**: Every agent operation is checked against the agent's granted capabilities before execution.
@@ -279,7 +279,7 @@ pub mod myplatform;
 
 ## How to Add a New Tool
 
-Built-in tools are defined in `crates/openfang-runtime/src/tool_runner.rs`.
+Built-in tools are defined in `crates/freeco-kernel-runtime/src/tool_runner.rs`.
 
 ### Steps
 

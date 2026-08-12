@@ -1,8 +1,8 @@
 //! Event system: crossterm polling, tick timer, streaming bridges.
 
 use openfang_kernel::OpenFangKernel;
-use openfang_runtime::agent_loop::AgentLoopResult;
-use openfang_runtime::llm_driver::StreamEvent;
+use freeco_kernel_runtime::agent_loop::AgentLoopResult;
+use freeco_kernel_runtime::llm_driver::StreamEvent;
 use openfang_types::agent::AgentId;
 use ratatui::crossterm::event::{self, Event as CtEvent, KeyEvent, KeyEventKind};
 use std::sync::{mpsc, Arc};
@@ -1116,7 +1116,7 @@ pub fn spawn_fetch_agent_mcp_servers(
                 if let Ok(mcp_tools) = kernel.mcp_tools.lock() {
                     let mut seen = std::collections::HashSet::new();
                     for tool in mcp_tools.iter() {
-                        if let Some(server) = openfang_runtime::mcp::extract_mcp_server(&tool.name)
+                        if let Some(server) = freeco_kernel_runtime::mcp::extract_mcp_server(&tool.name)
                         {
                             if seen.insert(server.to_string()) {
                                 available.push(server.to_string());

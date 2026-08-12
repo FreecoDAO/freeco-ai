@@ -4,7 +4,7 @@ use agent_core::{
     Agent, AgentContext, AgentError, AgentResponse, Capability, Message, MessageContent,
 };
 use async_trait::async_trait;
-use openfang_runtime::kernel_handle::KernelHandle;
+use freeco_kernel_runtime::kernel_handle::KernelHandle;
 
 use crate::types::Directive;
 use agent_core::message::Priority;

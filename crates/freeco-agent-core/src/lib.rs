@@ -4,7 +4,7 @@
 //!
 //! Compiles to both **native** (via `rlib`) and **`wasm32-unknown-unknown`**
 //! (via `cdylib`), enabling the same agent logic to run on:
-//! - the server-side [`openfang-runtime`] orchestrator (native + tokio)
+//! - the server-side [`freeco-kernel-runtime`] orchestrator (native + tokio)
 //! - the browser / edge via `wasm-pack` / Cloudflare Workers
 //!
 //! # Design

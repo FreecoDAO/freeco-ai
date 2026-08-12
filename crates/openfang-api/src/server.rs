@@ -50,7 +50,7 @@ pub async fn build_router(
         channels_config: tokio::sync::RwLock::new(channels_config),
         shutdown_notify: Arc::new(tokio::sync::Notify::new()),
         clawhub_cache: dashmap::DashMap::new(),
-        provider_probe_cache: openfang_runtime::provider_health::ProbeCache::new(),
+        provider_probe_cache: freeco_kernel_runtime::provider_health::ProbeCache::new(),
         budget_config: Arc::new(tokio::sync::RwLock::new(kernel.config.budget.clone())),
         local_ai: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         services: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),

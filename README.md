@@ -574,7 +574,7 @@ FreEco.ai doesn't bolt security on after the fact. Every layer is independently 
 
 ```
 openfang-kernel      Orchestration, workflows, metering, RBAC, scheduler, budget tracking
-openfang-runtime     Agent loop, 3 LLM drivers, 53 tools, WASM sandbox, MCP, A2A
+freeco-kernel-runtime     Agent loop, 3 LLM drivers, 53 tools, WASM sandbox, MCP, A2A
 openfang-api         140+ REST/WS/SSE endpoints, OpenAI-compatible API, dashboard
 openfang-channels    40 messaging adapters with rate limiting, DM/group policies
 openfang-memory      SQLite persistence, vector embeddings, canonical sessions, compaction

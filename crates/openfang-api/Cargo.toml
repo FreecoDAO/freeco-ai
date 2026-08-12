@@ -8,7 +8,7 @@ description = "HTTP/WebSocket API server for the FreEco.ai daemon"
 [dependencies]
 openfang-types = { path = "../openfang-types" }
 openfang-kernel = { path = "../openfang-kernel" }
-openfang-runtime = { path = "../openfang-runtime" }
+freeco-kernel-runtime = { path = "../freeco-kernel-runtime" }
 openfang-memory = { path = "../openfang-memory" }
 openfang-channels = { path = "../openfang-channels" }
 openfang-wire = { path = "../openfang-wire" }

@@ -55,13 +55,13 @@ use openfang_channels::ntfy::NtfyAdapter;
 use openfang_channels::webhook::WebhookAdapter;
 use openfang_channels::wecom::WeComAdapter;
 use openfang_kernel::OpenFangKernel;
-use openfang_runtime::kernel_handle::KernelHandle;
+use freeco_kernel_runtime::kernel_handle::KernelHandle;
 use openfang_types::agent::AgentId;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{error, info, warn};
 
-use openfang_runtime::str_utils::safe_truncate_str;
+use freeco_kernel_runtime::str_utils::safe_truncate_str;
 
 /// Wraps `OpenFangKernel` to implement `ChannelBridgeHandle`.
 pub struct KernelBridgeAdapter {

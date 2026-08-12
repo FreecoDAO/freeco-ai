@@ -8,7 +8,7 @@ use super::event::{self, AppEvent};
 use super::screens::chat::{self, ChatAction, ChatState, Role};
 use super::theme;
 use openfang_kernel::OpenFangKernel;
-use openfang_runtime::llm_driver::StreamEvent;
+use freeco_kernel_runtime::llm_driver::StreamEvent;
 use openfang_types::agent::AgentId;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::Style;
@@ -162,7 +162,7 @@ impl StandaloneChat {
 
     fn handle_stream_done(
         &mut self,
-        result: Result<openfang_runtime::agent_loop::AgentLoopResult, String>,
+        result: Result<freeco_kernel_runtime::agent_loop::AgentLoopResult, String>,
     ) {
         self.chat.finalize_stream();
         match result {
