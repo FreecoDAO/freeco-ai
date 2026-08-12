@@ -3,7 +3,7 @@ name = "openfang-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "HTTP/WebSocket API server for the OpenFang Agent OS daemon"
+description = "HTTP/WebSocket API server for the FreEco.ai daemon"
 
 [dependencies]
 openfang-types = { path = "../openfang-types" }
