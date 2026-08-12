@@ -341,21 +341,35 @@ fn lenient_extract_bindings(root_value: &mut toml::Value) {
 
 /// Get the default config file path.
 ///
-/// Respects `OPENFANG_HOME` env var (e.g. `OPENFANG_HOME=/opt/openfang`).
+/// Respects `FRECO_AI_HOME` (or the legacy `OPENFANG_HOME`) environment variable.
 pub fn default_config_path() -> PathBuf {
-    openfang_home().join("config.toml")
+    freeco_ai_home().join("config.toml")
 }
 
-/// Get the OpenFang home directory.
+/// Get the FreEco.ai home directory.
 ///
-/// Priority: `OPENFANG_HOME` env var > `~/.openfang`.
-pub fn openfang_home() -> PathBuf {
+/// Priority: `FRECO_AI_HOME` > legacy `OPENFANG_HOME` > `~/.freeco-ai`.
+///
+/// On first use, an existing legacy `~/.openfang` directory is renamed to the
+/// new location. Renaming is atomic on a single filesystem and preserves
+/// credentials, databases, permissions, and daemon state. If it cannot be
+/// renamed, the legacy directory remains in use rather than risking data loss.
+pub fn freeco_ai_home() -> PathBuf {
+    if let Ok(home) = std::env::var("FRECO_AI_HOME") {
+        return PathBuf::from(home);
+    }
     if let Ok(home) = std::env::var("OPENFANG_HOME") {
         return PathBuf::from(home);
     }
-    dirs::home_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join(".openfang")
+    let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
+    let freeco_home = home.join(".freeco-ai");
+    let legacy_home = home.join(".openfang");
+    if !freeco_home.exists() && legacy_home.exists() {
+        if std::fs::rename(&legacy_home, &freeco_home).is_err() {
+            return legacy_home;
+        }
+    }
+    freeco_home
 }
 
 #[cfg(test)]

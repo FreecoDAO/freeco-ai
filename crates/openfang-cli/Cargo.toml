@@ -1,12 +1,12 @@
 [package]
-name = "openfang-cli"
+name = "freeco-ai-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "CLI tool for the OpenFang Agent OS"
+description = "CLI tool for FreEco.ai"
 
 [[bin]]
-name = "openfang"
+name = "freeco-ai"
 path = "src/main.rs"
 
 [dependencies]

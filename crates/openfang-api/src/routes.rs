@@ -3133,7 +3133,7 @@ pub async fn configure_channel(
         }
     };
 
-    let home = openfang_kernel::config::openfang_home();
+    let home = openfang_kernel::config::freeco_ai_home();
     let secrets_path = home.join("secrets.env");
     let config_path = home.join("config.toml");
     let mut config_fields: HashMap<String, (String, FieldType)> = HashMap::new();
@@ -3231,7 +3231,7 @@ pub async fn remove_channel(
         }
     };
 
-    let home = openfang_kernel::config::openfang_home();
+    let home = openfang_kernel::config::freeco_ai_home();
     let secrets_path = home.join("secrets.env");
     let config_path = home.join("config.toml");
 
@@ -3675,7 +3675,7 @@ fn gateway_authorization_header() -> String {
 
 /// GET /api/templates — List available agent templates.
 pub async fn list_templates() -> impl IntoResponse {
-    let agents_dir = openfang_kernel::config::openfang_home().join("agents");
+    let agents_dir = openfang_kernel::config::freeco_ai_home().join("agents");
     let mut templates = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(&agents_dir) {
@@ -3769,7 +3769,7 @@ fn get_template_category(name: &str) -> &str {
 /// templates serve as the fallback so new releases' templates work
 /// without re-running `openfang init`.
 pub async fn get_template(Path(name): Path<String>) -> impl IntoResponse {
-    let agents_dir = openfang_kernel::config::openfang_home().join("agents");
+    let agents_dir = openfang_kernel::config::freeco_ai_home().join("agents");
     let manifest_path = agents_dir.join(&name).join("agent.toml");
 
     if !manifest_path.exists() {
