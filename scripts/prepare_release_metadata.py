@@ -60,7 +60,7 @@ def main() -> None:
     )
 
     roadmap_match = re.search(
-        r"(?ms)^## Unreleased\n(?P<body>.*?)(?=^## Planned\n)", roadmap
+        r"(?ms)^## Unreleased\n(?P<body>.*?)(?=^## |\Z)", roadmap
     )
     if roadmap_match is None or not roadmap_match.group("body").strip():
         raise SystemExit("ROADMAP.md must contain Unreleased roadmap items.")

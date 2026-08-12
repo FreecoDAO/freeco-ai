@@ -1,6 +1,6 @@
 # FreEco.ai Roadmap & verified status
 
-_Last verified: **2026-08-07** against this repository's `v0.9.2` tag, the
+_Last verified: **2026-08-08** against this repository's `v0.9.4` tag, the
 running daemon on this machine, and the live OpenRouter model list._
 
 Every claim below was checked against something that can disagree with it — a
