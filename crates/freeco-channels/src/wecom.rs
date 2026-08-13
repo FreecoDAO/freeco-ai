@@ -664,7 +664,12 @@ mod tests {
         )
         .expect("echostr should decrypt");
 
-        assert_eq!(plain, "freeco-wecom-check");
+        // Deliberately not renamed. The base64 above is a fixed WeCom
+        // ciphertext, and this is the plaintext inside it — renaming the
+        // expectation without re-encrypting simply asserts the decrypt is
+        // wrong, which is what broke the test suite on every platform.
+        // The string is opaque test data; it names nothing a user sees.
+        assert_eq!(plain, "openfang-wecom-check");
     }
 
     #[test]
