@@ -1,20 +1,5 @@
 name: CodeQL
 
-# Rust is deliberately not analysed here.
-#
-# CodeQL's Rust support is preview-stage: default setup analysed it with
-# build-mode none and reported "percentage of calls with call target: 39%"
-# against a 50% threshold, which produced a critical "hard-coded nonce" alert
-# for a literal inside a #[cfg(test)] replay test. Advanced setup then refused
-# to initialise the Rust job at all, while JavaScript and Python succeeded with
-# the same action.
-#
-# A scanner that resolves half the call graph reports findings that are not
-# real and misses ones that are, so acting on it costs more than it returns.
-# Rust is covered by `cargo clippy -D warnings` and `cargo audit`, which both
-# run in CI and both understand the language properly. Revisit when Rust
-# support leaves preview.
-
 # Advanced setup, replacing GitHub's default CodeQL configuration.
 #
 # Default setup analyses Rust with `build-mode: none`, which reads the source
@@ -59,6 +44,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Rust uses build-mode none, which is the mode GitHub's default
+          # setup used for this repository and is therefore known to work here.
+          # `manual` is documented as supported but the init step rejected it in
+          # this repo three times, and a job that cannot initialise produces no
+          # analysis at all — worse than an analysis with imperfect resolution.
+          # The `cargo fetch` step below is what improves the resolution metric:
+          # the extractor can only resolve calls into dependencies whose sources
+          # are actually on disk, and a bare checkout has none of them.
+          - language: rust
+            build-mode: none
           # These need no build step; scanning the source is the supported mode.
           - language: javascript-typescript
             build-mode: none
@@ -69,8 +64,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Install Rust toolchain
+        if: matrix.language == 'rust'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        if: matrix.language == 'rust'
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Keyed separately so a CodeQL build never evicts the CI build cache.
+          shared-key: codeql
+
+      - name: Install Linux build dependencies
+        if: matrix.language == 'rust'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config libglib2.0-dev \
+            libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev \
+            libwebkit2gtk-4.1-dev
+
+      # Vendor the dependency sources before extraction. "Percentage of calls
+      # with call target: 39%" is largely calls into crates whose source was
+      # never downloaded, so there was nothing to resolve them against.
+      - name: Fetch dependency sources
+        if: matrix.language == 'rust'
+        run: cargo fetch --locked
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
+        # Rust analysis is still a preview feature and the init step refuses to
+        # start without this opt-in. GitHub's default setup sets it for you,
+        # which is why Rust was being analysed before this workflow existed
+        # while the same init here failed with JavaScript and Python passing.
+        env:
+          CODEQL_ENABLE_EXPERIMENTAL_FEATURES: true
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
