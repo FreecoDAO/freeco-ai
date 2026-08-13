@@ -583,13 +583,33 @@ pub fn validate_bind_mount(path: &str, blocked: &[String]) -> Result<(), String>
         }
     }
 
-    // Check for symlink escape (best-effort — canonicalize if path exists)
+    // Check for symlink escape (best-effort — canonicalize if path exists).
+    //
+    // Both sides are canonicalized. Comparing a resolved candidate against an
+    // unresolved blocked path is the bug this replaces: on macOS a temporary
+    // directory is `/var/folders/...`, which resolves to `/private/var/...`,
+    // so the resolved candidate never shares a prefix with the configured
+    // blocked path and a symlink aliasing a blocked directory was accepted.
+    // The same hole opens on any system where the blocked path is itself
+    // reached through a symlink — macOS just makes it the default case, which
+    // is why only that platform's tests caught it.
     if p.exists() {
         match p.canonicalize() {
             Ok(canonical) => {
                 let canonical_str = canonical.to_string_lossy();
+                // Resolve a blocked path for comparison, falling back to the
+                // literal value when it does not exist on this machine — a
+                // blocked path that is not present still has to be honoured.
+                let resolved_blocked = |bp: &str| -> String {
+                    std::path::Path::new(bp)
+                        .canonicalize()
+                        .map(|c| c.to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| bp.to_string())
+                };
                 for blocked_path in BLOCKED_MOUNT_PATHS {
-                    if canonical_str.starts_with(blocked_path) {
+                    if canonical_str.starts_with(blocked_path)
+                        || canonical_str.starts_with(&resolved_blocked(blocked_path))
+                    {
                         return Err(format!(
                             "Bind mount resolves to blocked path via symlink: {} → {}",
                             path, canonical_str
@@ -597,7 +617,9 @@ pub fn validate_bind_mount(path: &str, blocked: &[String]) -> Result<(), String>
                     }
                 }
                 for blocked_path in blocked {
-                    if canonical_str.starts_with(blocked_path) {
+                    if canonical_str.starts_with(blocked_path.as_str())
+                        || canonical_str.starts_with(&resolved_blocked(blocked_path))
+                    {
                         return Err(format!(
                             "Bind mount resolves to configured blocked path via symlink: {} → {}",
                             path, canonical_str
