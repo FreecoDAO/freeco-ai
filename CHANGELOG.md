@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   portable launchers, WhatsApp gateway integration, and environment variables.
 
 ### Fixed
+- Blocked bind mounts could be bypassed with a symlink. `validate_bind_mount`
+  resolved the candidate path but compared it against the unresolved blocked
+  path, so on any system where a blocked directory is reached through a symlink
+  the mount was accepted. Both sides are now resolved before comparison.
 
 - Reusable Docker sandboxes now preserve their maximum lifetime, avoid
   cross-workspace container-name collisions, safely retire incompatible
