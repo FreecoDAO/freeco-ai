@@ -78,6 +78,12 @@ jobs:
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
+        # Rust analysis is still a preview feature and the init step refuses to
+        # start without this opt-in. GitHub's default setup sets it for you,
+        # which is why Rust was being analysed before this workflow existed
+        # while the same init here failed with JavaScript and Python passing.
+        env:
+          CODEQL_ENABLE_EXPERIMENTAL_FEATURES: true
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
