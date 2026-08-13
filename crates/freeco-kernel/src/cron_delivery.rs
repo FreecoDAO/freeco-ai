@@ -9,9 +9,9 @@
 //! This is the Freeco port of the Hermes Agent multi-destination cron
 //! pattern: one job → N destinations (channels / webhooks / files / email).
 
-use futures::future::join_all;
 use freeco_channels::bridge::ChannelBridgeHandle;
 use freeco_types::scheduler::CronDeliveryTarget;
+use futures::future::join_all;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;

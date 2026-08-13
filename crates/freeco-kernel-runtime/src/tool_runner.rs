@@ -339,8 +339,8 @@ pub async fn execute_tool(
                 }
             }
             // Skip heuristic taint patterns for Full exec policy (e.g. hand agents that need curl)
-            let is_full_exec = exec_policy
-                .is_some_and(|p| p.mode == freeco_types::config::ExecSecurityMode::Full);
+            let is_full_exec =
+                exec_policy.is_some_and(|p| p.mode == freeco_types::config::ExecSecurityMode::Full);
             if !is_full_exec {
                 if let Some(violation) = check_taint_shell_exec(command) {
                     return ToolResult {

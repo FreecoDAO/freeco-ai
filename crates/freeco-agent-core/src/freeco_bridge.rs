@@ -4,10 +4,7 @@ use crate::{
 };
 
 /// Convert an Freeco message into a Freeco agent-core message.
-pub fn from_freeco_message(
-    msg: &freeco_types::message::Message,
-    to: impl Into<String>,
-) -> Message {
+pub fn from_freeco_message(msg: &freeco_types::message::Message, to: impl Into<String>) -> Message {
     let role = match msg.role {
         freeco_types::message::Role::System => MessageRole::System,
         freeco_types::message::Role::User => MessageRole::User,

@@ -11,12 +11,12 @@ use crate::types::{
 };
 use async_trait::async_trait;
 use dashmap::DashMap;
-use futures::StreamExt;
 use freeco_types::agent::AgentId;
 use freeco_types::approval::ApprovalRequest;
 use freeco_types::commands::{self as slash_commands, Surfaces};
 use freeco_types::config::{ChannelOverrides, DmPolicy, GroupPolicy, OutputFormat, PrefixStyle};
 use freeco_types::message::ContentBlock;
+use futures::StreamExt;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::watch;
@@ -1950,8 +1950,8 @@ async fn handle_command(
     match canonical {
         "start" => {
             let agents = handle.list_agents().await.unwrap_or_default();
-            let mut msg = "Welcome to Freeco! I connect you to AI agents.\n\nAvailable agents:\n"
-                .to_string();
+            let mut msg =
+                "Welcome to Freeco! I connect you to AI agents.\n\nAvailable agents:\n".to_string();
             if agents.is_empty() {
                 msg.push_str("  (none running)\n");
             } else {

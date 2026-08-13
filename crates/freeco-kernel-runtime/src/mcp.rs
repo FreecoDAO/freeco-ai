@@ -7,8 +7,8 @@
 //!
 //! All MCP tools are namespaced with `mcp_{server}_{tool}` to prevent collisions.
 
-use http::{HeaderName, HeaderValue};
 use freeco_types::tool::ToolDefinition;
+use http::{HeaderName, HeaderValue};
 use rmcp::model::{CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation};
 use rmcp::service::RunningService;
 use rmcp::{RoleClient, ServiceExt};

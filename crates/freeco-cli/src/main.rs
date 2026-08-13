@@ -2665,8 +2665,7 @@ decay_rate = 0.05
                             // Validate transport config
                             match &server.transport {
                                 freeco_types::config::McpTransportEntry::Stdio {
-                                    command,
-                                    ..
+                                    command, ..
                                 } => {
                                     if command.is_empty() {
                                         if !json {
@@ -2751,10 +2750,7 @@ decay_rate = 0.05
             if let Some(ref prompt) = skill.manifest.prompt_context {
                 let warnings = freeco_skills::verify::SkillVerifier::scan_prompt_content(prompt);
                 let has_critical = warnings.iter().any(|w| {
-                    matches!(
-                        w.severity,
-                        freeco_skills::verify::WarningSeverity::Critical
-                    )
+                    matches!(w.severity, freeco_skills::verify::WarningSeverity::Critical)
                 });
                 if has_critical {
                     injection_warnings += 1;
@@ -2790,8 +2786,7 @@ decay_rate = 0.05
             println!("\n  Extensions:");
         }
         let freeco_dir = cli_freeco_home();
-        let mut ext_registry =
-            freeco_extensions::registry::IntegrationRegistry::new(&freeco_dir);
+        let mut ext_registry = freeco_extensions::registry::IntegrationRegistry::new(&freeco_dir);
         ext_registry.load_bundled();
         let _ = ext_registry.load_installed();
         let template_count = ext_registry.template_count();
@@ -3586,9 +3581,9 @@ fn cmd_skill_install(source: &str) {
                         let dest = skills_dir.join(&manifest.skill.name);
                         // Copy skill directory
                         copy_dir_recursive(&source_path, &dest);
-                        if let Err(e) = freeco_skills::openclaw_compat::write_freeco_manifest(
-                            &dest, &manifest,
-                        ) {
+                        if let Err(e) =
+                            freeco_skills::openclaw_compat::write_freeco_manifest(&dest, &manifest)
+                        {
                             eprintln!("Failed to write manifest: {e}");
                             std::process::exit(1);
                         }
@@ -3666,9 +3661,9 @@ fn cmd_skill_install(source: &str) {
                     Ok(manifest) => {
                         let dest = skills_dir.join(&manifest.skill.name);
                         copy_dir_recursive(&clone_path, &dest);
-                        if let Err(e) = freeco_skills::openclaw_compat::write_freeco_manifest(
-                            &dest, &manifest,
-                        ) {
+                        if let Err(e) =
+                            freeco_skills::openclaw_compat::write_freeco_manifest(&dest, &manifest)
+                        {
                             eprintln!("Failed to write manifest: {e}");
                             std::process::exit(1);
                         }
@@ -4147,7 +4142,9 @@ fn cmd_channel_setup(channel: Option<&str>) {
                     Err(_) => println!("    export EMAIL_PASSWORD=your_app_password"),
                 }
             } else {
-                ui::hint("Set later: freeco-ai config set-key email (or export EMAIL_PASSWORD=...)");
+                ui::hint(
+                    "Set later: freeco-ai config set-key email (or export EMAIL_PASSWORD=...)",
+                );
             }
 
             ui::blank();
@@ -5547,9 +5544,7 @@ fn cmd_integrations_list(query: Option<&str>) {
                 freeco_extensions::IntegrationStatus::Error(msg) => {
                     format!("[Error: {msg}]").red().to_string()
                 }
-                freeco_extensions::IntegrationStatus::Disabled => {
-                    "[Disabled]".dimmed().to_string()
-                }
+                freeco_extensions::IntegrationStatus::Disabled => "[Disabled]".dimmed().to_string(),
             };
             println!(
                 "    {} {:<20} {:<12} {}",
@@ -5680,9 +5675,7 @@ fn cmd_vault_remove(key: &str) {
 fn cmd_scaffold(kind: ScaffoldKind) {
     let cwd = std::env::current_dir().unwrap_or_default();
     let result = match kind {
-        ScaffoldKind::Skill => {
-            freeco_extensions::installer::scaffold_skill(&cwd.join("my-skill"))
-        }
+        ScaffoldKind::Skill => freeco_extensions::installer::scaffold_skill(&cwd.join("my-skill")),
         ScaffoldKind::Integration => {
             freeco_extensions::installer::scaffold_integration(&cwd.join("my-integration"))
         }

@@ -43,7 +43,6 @@ use freeco_channels::twist::TwistAdapter;
 use freeco_channels::webex::WebexAdapter;
 // Wave 5
 use async_trait::async_trait;
-use freeco_kernel_runtime::kernel_handle::KernelHandle;
 use freeco_channels::dingtalk::DingTalkAdapter;
 use freeco_channels::dingtalk_stream::DingTalkStreamAdapter;
 use freeco_channels::discourse::DiscourseAdapter;
@@ -56,6 +55,7 @@ use freeco_channels::ntfy::NtfyAdapter;
 use freeco_channels::webhook::WebhookAdapter;
 use freeco_channels::wecom::WeComAdapter;
 use freeco_kernel::FreecoKernel;
+use freeco_kernel_runtime::kernel_handle::KernelHandle;
 use freeco_types::agent::AgentId;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -167,11 +167,7 @@ impl ChannelBridgeHandle for KernelBridgeAdapter {
                 agents.len()
             )
         } else {
-            format!(
-                "Freeco status: {}m uptime, {} agent(s)",
-                mins,
-                agents.len()
-            )
+            format!("Freeco status: {}m uptime, {} agent(s)", mins, agents.len())
         }
     }
 
@@ -583,9 +579,9 @@ impl ChannelBridgeHandle for KernelBridgeAdapter {
                     1 => {
                         let j = matched[0];
                         let message = match &j.action {
-                            freeco_types::scheduler::CronAction::AgentTurn {
-                                message, ..
-                            } => message.clone(),
+                            freeco_types::scheduler::CronAction::AgentTurn { message, .. } => {
+                                message.clone()
+                            }
                             freeco_types::scheduler::CronAction::SystemEvent { text } => {
                                 text.clone()
                             }

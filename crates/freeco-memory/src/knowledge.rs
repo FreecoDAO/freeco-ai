@@ -4,9 +4,7 @@
 
 use chrono::Utc;
 use freeco_types::error::{FreecoError, FreecoResult};
-use freeco_types::memory::{
-    Entity, EntityType, GraphMatch, GraphPattern, Relation, RelationType,
-};
+use freeco_types::memory::{Entity, EntityType, GraphMatch, GraphPattern, Relation, RelationType};
 use rusqlite::Connection;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

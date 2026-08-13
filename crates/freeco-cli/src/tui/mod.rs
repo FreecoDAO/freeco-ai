@@ -8,8 +8,8 @@ pub mod screens;
 pub mod theme;
 
 use event::{AppEvent, BackendRef};
-use freeco_kernel_runtime::llm_driver::StreamEvent;
 use freeco_kernel::FreecoKernel;
+use freeco_kernel_runtime::llm_driver::StreamEvent;
 use freeco_types::agent::AgentId;
 use freeco_types::commands::{self, Surfaces};
 use screens::{

@@ -6,13 +6,11 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use dashmap::DashMap;
+use freeco_kernel::triggers::{TriggerId, TriggerPattern};
+use freeco_kernel::workflow::{ErrorMode, StepAgent, StepMode, Workflow, WorkflowId, WorkflowStep};
+use freeco_kernel::FreecoKernel;
 use freeco_kernel_runtime::kernel_handle::KernelHandle;
 use freeco_kernel_runtime::tool_runner::builtin_tool_definitions;
-use freeco_kernel::triggers::{TriggerId, TriggerPattern};
-use freeco_kernel::workflow::{
-    ErrorMode, StepAgent, StepMode, Workflow, WorkflowId, WorkflowStep,
-};
-use freeco_kernel::FreecoKernel;
 use freeco_types::agent::{AgentId, AgentIdentity, AgentManifest};
 use std::collections::HashMap;
 use std::path::Path as FsPath;
@@ -578,10 +576,7 @@ pub async fn get_agent_session(
                                 freeco_types::message::ContentBlock::Text { text, .. } => {
                                     texts.push(text.clone());
                                 }
-                                freeco_types::message::ContentBlock::Image {
-                                    media_type,
-                                    data,
-                                } => {
+                                freeco_types::message::ContentBlock::Image { media_type, data } => {
                                     texts.push("[Image]".to_string());
                                     // Persist image to upload dir so it can be
                                     // served back when loading session history.
@@ -10297,8 +10292,7 @@ pub async fn update_schedule(
         let mut parsed: Vec<freeco_types::scheduler::CronDeliveryTarget> =
             Vec::with_capacity(arr.len());
         for (idx, t) in arr.iter().enumerate() {
-            match serde_json::from_value::<freeco_types::scheduler::CronDeliveryTarget>(t.clone())
-            {
+            match serde_json::from_value::<freeco_types::scheduler::CronDeliveryTarget>(t.clone()) {
                 Ok(dt) => parsed.push(dt),
                 Err(e) => {
                     return (

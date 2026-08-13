@@ -6,9 +6,7 @@
 //! LLM tests require GROQ_API_KEY. Non-LLM tests verify the kernel-level
 //! workflow wiring without making real API calls.
 
-use freeco_kernel::workflow::{
-    ErrorMode, StepAgent, StepMode, Workflow, WorkflowId, WorkflowStep,
-};
+use freeco_kernel::workflow::{ErrorMode, StepAgent, StepMode, Workflow, WorkflowId, WorkflowStep};
 use freeco_kernel::FreecoKernel;
 use freeco_types::agent::AgentManifest;
 use freeco_types::config::{DefaultModelConfig, KernelConfig};

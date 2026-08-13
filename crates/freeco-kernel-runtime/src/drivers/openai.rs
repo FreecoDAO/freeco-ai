@@ -5,10 +5,10 @@
 use crate::llm_driver::{CompletionRequest, CompletionResponse, LlmDriver, LlmError, StreamEvent};
 use crate::think_filter::{FilterAction, StreamingThinkFilter};
 use async_trait::async_trait;
-use futures::StreamExt;
 use freeco_types::message::{ContentBlock, MessageContent, Role, StopReason, TokenUsage};
 use freeco_types::model_catalog::MOONSHOT_KIMI_BASE_URL;
 use freeco_types::tool::ToolCall;
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 use zeroize::Zeroizing;

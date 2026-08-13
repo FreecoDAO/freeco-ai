@@ -131,9 +131,8 @@ impl CronScheduler {
         std::fs::write(&tmp_path, data.as_bytes()).map_err(|e| {
             FreecoError::Internal(format!("Failed to write cron jobs temp file: {e}"))
         })?;
-        std::fs::rename(&tmp_path, &self.persist_path).map_err(|e| {
-            FreecoError::Internal(format!("Failed to rename cron jobs file: {e}"))
-        })?;
+        std::fs::rename(&tmp_path, &self.persist_path)
+            .map_err(|e| FreecoError::Internal(format!("Failed to rename cron jobs file: {e}")))?;
         debug!(count = metas.len(), "Persisted cron jobs");
         Ok(())
     }

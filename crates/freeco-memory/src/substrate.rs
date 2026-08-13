@@ -114,8 +114,7 @@ impl MemorySubstrate {
 
     /// Create an in-memory substrate (for testing). Always uses SQLite backend.
     pub fn open_in_memory(decay_rate: f32) -> FreecoResult<Self> {
-        let conn =
-            Connection::open_in_memory().map_err(|e| FreecoError::Memory(e.to_string()))?;
+        let conn = Connection::open_in_memory().map_err(|e| FreecoError::Memory(e.to_string()))?;
         run_migrations(&conn).map_err(|e| FreecoError::Memory(e.to_string()))?;
         let shared = Arc::new(Mutex::new(conn));
 

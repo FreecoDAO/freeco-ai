@@ -8,13 +8,13 @@
 //! via real tokio channels and tasks.
 
 use async_trait::async_trait;
-use futures::Stream;
 use freeco_channels::bridge::{BridgeManager, ChannelBridgeHandle};
 use freeco_channels::router::AgentRouter;
 use freeco_channels::types::{
     ChannelAdapter, ChannelContent, ChannelMessage, ChannelType, ChannelUser,
 };
 use freeco_types::agent::AgentId;
+use futures::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};

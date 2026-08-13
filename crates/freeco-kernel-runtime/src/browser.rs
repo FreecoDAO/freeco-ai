@@ -11,9 +11,9 @@
 //! - No subprocess bridge, no env leakage, no Python code execution
 
 use dashmap::DashMap;
+use freeco_types::config::BrowserConfig;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use freeco_types::config::BrowserConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};

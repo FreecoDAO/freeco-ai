@@ -7,8 +7,8 @@
 use super::event::{self, AppEvent};
 use super::screens::chat::{self, ChatAction, ChatState, Role};
 use super::theme;
-use freeco_kernel_runtime::llm_driver::StreamEvent;
 use freeco_kernel::FreecoKernel;
+use freeco_kernel_runtime::llm_driver::StreamEvent;
 use freeco_types::agent::AgentId;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::Style;
@@ -650,15 +650,14 @@ impl StandaloneChat {
 
         match template {
             Some(t) => {
-                let manifest: freeco_types::agent::AgentManifest =
-                    match toml::from_str(&t.content) {
-                        Ok(m) => m,
-                        Err(e) => {
-                            self.chat.status_msg =
-                                Some(format!("Invalid template '{}': {e}", t.name));
-                            return;
-                        }
-                    };
+                let manifest: freeco_types::agent::AgentManifest = match toml::from_str(&t.content)
+                {
+                    Ok(m) => m,
+                    Err(e) => {
+                        self.chat.status_msg = Some(format!("Invalid template '{}': {e}", t.name));
+                        return;
+                    }
+                };
                 let name = manifest.name.clone();
                 match kernel.spawn_agent(manifest) {
                     Ok(id) => {

@@ -1,8 +1,8 @@
 //! Event system: crossterm polling, tick timer, streaming bridges.
 
+use freeco_kernel::FreecoKernel;
 use freeco_kernel_runtime::agent_loop::AgentLoopResult;
 use freeco_kernel_runtime::llm_driver::StreamEvent;
-use freeco_kernel::FreecoKernel;
 use freeco_types::agent::AgentId;
 use ratatui::crossterm::event::{self, Event as CtEvent, KeyEvent, KeyEventKind};
 use std::sync::{mpsc, Arc};

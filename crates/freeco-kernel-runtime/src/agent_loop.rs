@@ -20,9 +20,7 @@ use freeco_skills::registry::SkillRegistry;
 use freeco_types::agent::{AgentManifest, FallbackModel};
 use freeco_types::error::{FreecoError, FreecoResult};
 use freeco_types::memory::{Memory, MemoryFilter, MemorySource};
-use freeco_types::message::{
-    ContentBlock, Message, MessageContent, Role, StopReason, TokenUsage,
-};
+use freeco_types::message::{ContentBlock, Message, MessageContent, Role, StopReason, TokenUsage};
 use freeco_types::tool::{ToolCall, ToolDefinition};
 use std::collections::HashMap;
 use std::path::Path;
@@ -72,13 +70,11 @@ fn env_timeout_secs_with_legacy(current: &str, legacy: &str) -> Option<u64> {
 /// delegation (issue #1125).
 fn tool_timeout_for(tool_name: &str) -> Option<Duration> {
     let secs = match tool_name {
-        "agent_send" | "agent_spawn" => {
-            env_timeout_secs_with_legacy(
-                "FREECO_AI_AGENT_TOOL_TIMEOUT_SECS",
-                "OPENFANG_AGENT_TOOL_TIMEOUT_SECS",
-            )
-            .unwrap_or(AGENT_TOOL_TIMEOUT_SECS)
-        }
+        "agent_send" | "agent_spawn" => env_timeout_secs_with_legacy(
+            "FREECO_AI_AGENT_TOOL_TIMEOUT_SECS",
+            "OPENFANG_AGENT_TOOL_TIMEOUT_SECS",
+        )
+        .unwrap_or(AGENT_TOOL_TIMEOUT_SECS),
         _ => env_timeout_secs_with_legacy(
             "FREECO_AI_TOOL_TIMEOUT_SECS",
             "OPENFANG_TOOL_TIMEOUT_SECS",

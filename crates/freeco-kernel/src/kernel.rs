@@ -159,11 +159,9 @@ pub struct FreecoKernel {
     /// WhatsApp Web gateway child process PID (for shutdown cleanup).
     pub whatsapp_gateway_pid: Arc<std::sync::Mutex<Option<u32>>>,
     /// Channel adapters registered at bridge startup (for proactive `channel_send` tool).
-    pub channel_adapters:
-        dashmap::DashMap<String, Arc<dyn freeco_channels::types::ChannelAdapter>>,
+    pub channel_adapters: dashmap::DashMap<String, Arc<dyn freeco_channels::types::ChannelAdapter>>,
     /// Hot-reloadable default model override (set via config hot-reload, read at agent spawn).
-    pub default_model_override:
-        std::sync::RwLock<Option<freeco_types::config::DefaultModelConfig>>,
+    pub default_model_override: std::sync::RwLock<Option<freeco_types::config::DefaultModelConfig>>,
     /// Hot-reloadable fallback provider chain override.
     ///
     /// Set by `apply_hot_actions(ReloadFallbackProviders)` when
@@ -240,10 +238,7 @@ impl DeliveryTracker {
     }
 
     /// Create a receipt for a successful send.
-    pub fn sent_receipt(
-        channel: &str,
-        recipient: &str,
-    ) -> freeco_channels::types::DeliveryReceipt {
+    pub fn sent_receipt(channel: &str, recipient: &str) -> freeco_channels::types::DeliveryReceipt {
         freeco_channels::types::DeliveryReceipt {
             message_id: uuid::Uuid::new_v4().to_string(),
             channel: channel.to_string(),
@@ -1951,9 +1946,10 @@ impl FreecoKernel {
             .check_quota(agent_id)
             .map_err(KernelError::Freeco)?;
 
-        let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         // Dispatch based on module type
         let result = if entry.manifest.module.starts_with("wasm:") {
@@ -2056,9 +2052,10 @@ impl FreecoKernel {
             .check_quota(agent_id)
             .map_err(KernelError::Freeco)?;
 
-        let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         let is_wasm = entry.manifest.module.starts_with("wasm:");
         let is_python = entry.manifest.module.starts_with("python:");
@@ -2592,9 +2589,7 @@ impl FreecoKernel {
             )
             .await
             .map_err(|e| {
-                KernelError::Freeco(FreecoError::Internal(format!(
-                    "WASM execution failed: {e}"
-                )))
+                KernelError::Freeco(FreecoError::Internal(format!("WASM execution failed: {e}")))
             })?;
 
         // Extract response text from WASM output JSON
@@ -3138,9 +3133,10 @@ impl FreecoKernel {
     /// Reset an agent's session — auto-saves a summary to memory, then clears messages
     /// and creates a fresh session ID.
     pub fn reset_session(&self, agent_id: AgentId) -> KernelResult<()> {
-        let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         // Auto-save session context to workspace memory before clearing
         if let Ok(Some(old_session)) = self.memory.get_session(entry.session_id) {
@@ -3174,9 +3170,10 @@ impl FreecoKernel {
     ///
     /// Creates a fresh empty session afterward so the agent is still usable.
     pub fn clear_agent_history(&self, agent_id: AgentId) -> KernelResult<()> {
-        let _entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let _entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         // Delete all regular sessions
         let _ = self.memory.delete_agent_sessions(agent_id);
@@ -3202,9 +3199,10 @@ impl FreecoKernel {
     /// List all sessions for a specific agent.
     pub fn list_agent_sessions(&self, agent_id: AgentId) -> KernelResult<Vec<serde_json::Value>> {
         // Verify agent exists
-        let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         let mut sessions = self
             .memory
@@ -3233,9 +3231,10 @@ impl FreecoKernel {
         label: Option<&str>,
     ) -> KernelResult<serde_json::Value> {
         // Verify agent exists
-        let _entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let _entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         let session = self
             .memory
@@ -3262,9 +3261,10 @@ impl FreecoKernel {
         session_id: SessionId,
     ) -> KernelResult<()> {
         // Verify agent exists
-        let _entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let _entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         // Verify session exists and belongs to this agent
         let session = self
@@ -3614,9 +3614,10 @@ impl FreecoKernel {
 
     /// Get session token usage and estimated cost for an agent.
     pub fn session_usage_cost(&self, agent_id: AgentId) -> KernelResult<(u64, u64, f64)> {
-        let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         let session = self
             .memory
@@ -3672,9 +3673,10 @@ impl FreecoKernel {
             compact_session, needs_compaction, CompactionConfig,
         };
 
-        let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         let session = self
             .memory
@@ -3764,9 +3766,10 @@ impl FreecoKernel {
     ) -> KernelResult<freeco_kernel_runtime::compactor::ContextReport> {
         use freeco_kernel_runtime::compactor::generate_context_report;
 
-        let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         let session = self
             .memory
@@ -3807,9 +3810,10 @@ impl FreecoKernel {
     ///
     /// See issue #890 — allows an orchestrator agent to wake other agents.
     pub fn activate_agent(&self, agent_id: AgentId) -> KernelResult<String> {
-        let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
-        })?;
+        let entry = self
+            .registry
+            .get(agent_id)
+            .ok_or_else(|| KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string())))?;
 
         if entry.state == AgentState::Terminated {
             return Err(KernelError::Freeco(FreecoError::Internal(format!(
@@ -3897,9 +3901,9 @@ impl FreecoKernel {
             .hand_registry
             .activate(hand_id, config, instance_name.clone())
             .map_err(|e| match e {
-                HandError::AlreadyActive(id) => KernelError::Freeco(FreecoError::Internal(
-                    format!("Hand already active: {id}"),
-                )),
+                HandError::AlreadyActive(id) => {
+                    KernelError::Freeco(FreecoError::Internal(format!("Hand already active: {id}")))
+                }
                 other => KernelError::Freeco(FreecoError::Internal(other.to_string())),
             })?;
 
@@ -3998,8 +4002,7 @@ impl FreecoKernel {
         let mut allowed_env = resolved.env_vars;
         for req in &def.requires {
             match req.requirement_type {
-                freeco_hands::RequirementType::ApiKey
-                | freeco_hands::RequirementType::EnvVar
+                freeco_hands::RequirementType::ApiKey | freeco_hands::RequirementType::EnvVar
                     if !req.check_value.is_empty() && !allowed_env.contains(&req.check_value) =>
                 {
                     allowed_env.push(req.check_value.clone());
@@ -4455,9 +4458,7 @@ impl FreecoKernel {
                 "Workflow timed out after {MAX_WORKFLOW_SECS}s"
             )))
         })?
-        .map_err(|e| {
-            KernelError::Freeco(FreecoError::Internal(format!("Workflow failed: {e}")))
-        })?;
+        .map_err(|e| KernelError::Freeco(FreecoError::Internal(format!("Workflow failed: {e}"))))?;
 
         Ok((run_id, output))
     }
@@ -5260,9 +5261,7 @@ impl FreecoKernel {
     /// the cron scheduler. Returns `Err` with a human-readable reason when
     /// the entry cannot be migrated (so the caller can log and skip).
     fn migrate_single_schedule_entry(&self, entry: &serde_json::Value) -> Result<(), String> {
-        use freeco_types::scheduler::{
-            CronAction, CronDelivery, CronJob, CronJobId, CronSchedule,
-        };
+        use freeco_types::scheduler::{CronAction, CronDelivery, CronJob, CronJobId, CronSchedule};
 
         let cron_expr = entry["cron"]
             .as_str()

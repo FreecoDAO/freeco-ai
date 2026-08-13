@@ -43,12 +43,7 @@ impl StructuredStore {
     }
 
     /// Set a value in the key-value store.
-    pub fn set(
-        &self,
-        agent_id: AgentId,
-        key: &str,
-        value: serde_json::Value,
-    ) -> FreecoResult<()> {
+    pub fn set(&self, agent_id: AgentId, key: &str, value: serde_json::Value) -> FreecoResult<()> {
         let conn = self
             .conn
             .lock()
@@ -329,8 +324,7 @@ impl StructuredStore {
                 continue;
             }
 
-            let agent_id = match uuid::Uuid::parse_str(&id_str).map(freeco_types::agent::AgentId)
-            {
+            let agent_id = match uuid::Uuid::parse_str(&id_str).map(freeco_types::agent::AgentId) {
                 Ok(id) => id,
                 Err(e) => {
                     tracing::warn!(agent = %name, "Skipping agent with bad UUID '{id_str}': {e}");

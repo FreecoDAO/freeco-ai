@@ -17,14 +17,14 @@ use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, Path, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use dashmap::DashMap;
+use freeco_kernel::FreecoKernel;
 use freeco_kernel_runtime::kernel_handle::KernelHandle;
 use freeco_kernel_runtime::llm_driver::StreamEvent;
 use freeco_kernel_runtime::llm_errors;
-use futures::stream::SplitSink;
-use futures::{SinkExt, StreamExt};
-use freeco_kernel::FreecoKernel;
 use freeco_types::agent::AgentId;
 use freeco_types::commands::{self, Surfaces};
+use futures::stream::SplitSink;
+use futures::{SinkExt, StreamExt};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::net::{IpAddr, SocketAddr};
@@ -1801,10 +1801,7 @@ mod tests {
         let secret = "shared-secret";
         let token = crate::session_auth::create_session_token("alice", secret, 1);
         let mut headers = axum::http::HeaderMap::new();
-        headers.insert(
-            "cookie",
-            format!("freeco_session={token}").parse().unwrap(),
-        );
+        headers.insert("cookie", format!("freeco_session={token}").parse().unwrap());
         let uri = empty_uri();
         let ctx = WsAuthCtx {
             api_key: secret,
@@ -1941,10 +1938,7 @@ mod tests {
         let secret = "password-hash-style-secret";
         let token = crate::session_auth::create_session_token("admin", secret, 1);
         let mut headers = axum::http::HeaderMap::new();
-        headers.insert(
-            "cookie",
-            format!("freeco_session={token}").parse().unwrap(),
-        );
+        headers.insert("cookie", format!("freeco_session={token}").parse().unwrap());
         let uri = empty_uri();
         let ctx = WsAuthCtx {
             api_key: "",
@@ -1995,10 +1989,7 @@ mod tests {
         let secret = "password-hash-style-secret";
         let token = crate::session_auth::create_session_token("admin", secret, 1);
         let mut headers = axum::http::HeaderMap::new();
-        headers.insert(
-            "cookie",
-            format!("freeco_session={token}").parse().unwrap(),
-        );
+        headers.insert("cookie", format!("freeco_session={token}").parse().unwrap());
         let uri = empty_uri();
         let ctx = WsAuthCtx {
             api_key: "",
