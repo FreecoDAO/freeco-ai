@@ -15,7 +15,7 @@ pub struct AgentTemplate {
 /// Discover template directories. Checks:
 /// 1. The repo `agents/` dir (for dev builds)
 /// 2. `~/.freeco-ai/agents/` (installed templates)
-/// 3. `FREECO_AI_AGENTS_DIR` env var
+/// 3. `FREECO_AI_AGENTS_DIR` env var (or legacy `OPENFANG_AGENTS_DIR`)
 pub fn discover_template_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
 
@@ -45,7 +45,9 @@ pub fn discover_template_dirs() -> Vec<PathBuf> {
     }
 
     // Environment override
-    if let Ok(env_dir) = std::env::var("FREECO_AI_AGENTS_DIR") {
+    if let Ok(env_dir) =
+        std::env::var("FREECO_AI_AGENTS_DIR").or_else(|_| std::env::var("OPENFANG_AGENTS_DIR"))
+    {
         let p = PathBuf::from(env_dir);
         if p.is_dir() && !dirs.contains(&p) {
             dirs.push(p);

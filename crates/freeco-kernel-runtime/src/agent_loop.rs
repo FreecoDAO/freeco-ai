@@ -59,6 +59,10 @@ fn env_timeout_secs(var: &str) -> Option<u64> {
     std::env::var(var).ok().and_then(|s| s.trim().parse().ok())
 }
 
+fn env_timeout_secs_with_legacy(current: &str, legacy: &str) -> Option<u64> {
+    env_timeout_secs(current).or_else(|| env_timeout_secs(legacy))
+}
+
 /// Returns the appropriate timeout duration for a given tool name.
 /// Inter-agent calls get a longer timeout since they may trigger full agent loops.
 ///
@@ -69,9 +73,17 @@ fn env_timeout_secs(var: &str) -> Option<u64> {
 fn tool_timeout_for(tool_name: &str) -> Option<Duration> {
     let secs = match tool_name {
         "agent_send" | "agent_spawn" => {
-            env_timeout_secs("FREECO_AI_AGENT_TOOL_TIMEOUT_SECS").unwrap_or(AGENT_TOOL_TIMEOUT_SECS)
+            env_timeout_secs_with_legacy(
+                "FREECO_AI_AGENT_TOOL_TIMEOUT_SECS",
+                "OPENFANG_AGENT_TOOL_TIMEOUT_SECS",
+            )
+            .unwrap_or(AGENT_TOOL_TIMEOUT_SECS)
         }
-        _ => env_timeout_secs("FREECO_AI_TOOL_TIMEOUT_SECS").unwrap_or(TOOL_TIMEOUT_SECS),
+        _ => env_timeout_secs_with_legacy(
+            "FREECO_AI_TOOL_TIMEOUT_SECS",
+            "OPENFANG_TOOL_TIMEOUT_SECS",
+        )
+        .unwrap_or(TOOL_TIMEOUT_SECS),
     };
     if secs == 0 {
         None

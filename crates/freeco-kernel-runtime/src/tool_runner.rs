@@ -3785,7 +3785,7 @@ fn tool_skill_list(skill_registry: Option<&SkillRegistry>) -> Result<String, Str
     };
     let skills = registry.list();
     if skills.is_empty() {
-        return Ok("No skills installed. Install skills via the dashboard or `freeco skill install <name>`.".to_string());
+        return Ok("No skills installed. Install skills via the dashboard or `freeco-ai skill install <name>`.".to_string());
     }
     let entries: Vec<serde_json::Value> = skills
         .iter()

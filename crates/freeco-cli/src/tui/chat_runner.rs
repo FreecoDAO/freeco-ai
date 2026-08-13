@@ -1,4 +1,4 @@
-//! Standalone chat TUI for `freeco chat`.
+//! Standalone chat TUI for `freeco-ai chat`.
 //!
 //! Launches a focused ratatui chat screen — same beautiful rendering as the
 //! full TUI's Chat tab, but without the 17-tab chrome. Reuses 100% of
@@ -613,7 +613,7 @@ impl StandaloneChat {
             }
             None => {
                 self.boot_error =
-                    Some("No agent templates found. Run `freeco init`.".to_string());
+                    Some("No agent templates found. Run `freeco-ai init`.".to_string());
             }
         }
     }
@@ -671,7 +671,7 @@ impl StandaloneChat {
             }
             None => {
                 self.chat.status_msg =
-                    Some("No agent templates found. Run `freeco init`.".to_string());
+                    Some("No agent templates found. Run `freeco-ai init`.".to_string());
             }
         }
     }

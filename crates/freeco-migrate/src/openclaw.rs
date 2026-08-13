@@ -2492,7 +2492,7 @@ fn report_skipped_features(root: &OpenClawRoot, source: &Path, report: &mut Migr
                 report.skipped.push(SkippedItem {
                     kind: ItemKind::Skill,
                     name: format!("{} skill entries", entries.len()),
-                    reason: "Skills must be reinstalled via `freeco skill install`".to_string(),
+                    reason: "Skills must be reinstalled via `freeco-ai skill install`".to_string(),
                 });
             }
         }
@@ -3234,7 +3234,7 @@ fn scan_legacy_skills(source: &Path, report: &mut MigrationReport) {
                     report.skipped.push(SkippedItem {
                         kind: ItemKind::Skill,
                         name: name.clone(),
-                        reason: "Node.js skill — run with `freeco skill install` after migration"
+                        reason: "Node.js skill — run with `freeco-ai skill install` after migration"
                             .to_string(),
                     });
                 } else {

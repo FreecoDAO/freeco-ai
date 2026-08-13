@@ -31,12 +31,12 @@ use std::sync::Arc;
 /// `freeco-shopping` edition template name.
 const SHOPPING_AGENT_ID: &str = "freeco-shopping";
 
-/// Returns true when the manifest module names a native freeco agent.
+/// Returns true when the manifest module names a native freeco-ai agent.
 pub fn is_freeco_module(module: &str) -> bool {
     module.starts_with("freeco:")
 }
 
-/// Result of a native freeco agent invocation.
+/// Result of a native freeco-ai agent invocation.
 #[derive(Debug)]
 pub struct FreecoAgentOutput {
     /// Final text rendered from the typed agent response.
@@ -116,7 +116,7 @@ fn render_response(content: &ResponseContent) -> String {
     }
 }
 
-/// Execute one message against a native freeco agent.
+/// Execute one message against a native freeco-ai agent.
 pub async fn execute(
     module: &str,
     agent_name: &str,
@@ -139,7 +139,7 @@ pub async fn execute(
     let resp = agent
         .handle(&ctx, msg)
         .await
-        .map_err(|e| format!("freeco agent error: {e}"))?;
+        .map_err(|e| format!("freeco-ai agent error: {e}"))?;
 
     Ok(FreecoAgentOutput {
         response: render_response(&resp.content),

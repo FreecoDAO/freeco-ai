@@ -1,7 +1,7 @@
 //! Compile-time embedded agent templates.
 //!
 //! All 30 bundled agent templates are embedded into the binary via `include_str!`.
-//! This ensures `freeco agent new` works immediately after install — no filesystem
+//! This ensures `freeco-ai agent new` works immediately after install — no filesystem
 //! discovery needed.
 
 /// Returns all bundled agent templates as `(name, toml_content)` pairs.

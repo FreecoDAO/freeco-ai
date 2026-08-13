@@ -214,7 +214,7 @@ You are a specialized agent that...
 4. Test by spawning:
 
 ```bash
-freeco agent spawn agents/my-agent/agent.toml
+freeco-ai agent spawn agents/my-agent/agent.toml
 ```
 
 5. Submit a PR with the new template.

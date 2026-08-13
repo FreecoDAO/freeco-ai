@@ -22,7 +22,7 @@ Common issues, diagnostics, and answers to frequently asked questions about FreE
 Run the built-in diagnostic tool:
 
 ```bash
-freeco doctor
+freeco-ai doctor
 ```
 
 This checks:
@@ -36,7 +36,7 @@ This checks:
 ### Check Daemon Status
 
 ```bash
-freeco status
+freeco-ai status
 ```
 
 ### Check Health via API
@@ -51,9 +51,9 @@ curl http://127.0.0.1:4200/api/health/detail  # Requires auth
 FreEco.ai uses `tracing` for structured logging. Set the log level via environment:
 
 ```bash
-RUST_LOG=info freeco start          # Default
-RUST_LOG=debug freeco start         # Verbose
-RUST_LOG=freeco=debug freeco start  # Only FreEco.ai debug, deps at info
+RUST_LOG=info freeco-ai start          # Default
+RUST_LOG=debug freeco-ai start         # Verbose
+RUST_LOG=freeco=debug freeco-ai start  # Only FreEco.ai debug, deps at info
 ```
 
 ---
@@ -185,9 +185,9 @@ diagnostics. The base image stays slim by default.
 
 ### "Config file not found"
 
-**Fix**: Run `freeco init` to create the default config:
+**Fix**: Run `freeco-ai init` to create the default config:
 ```bash
-freeco init
+freeco-ai init
 ```
 
 This creates `~/.freeco-ai/config.toml` with sensible defaults.
@@ -211,7 +211,7 @@ Add to your shell profile to persist across sessions.
 
 Run validation manually:
 ```bash
-freeco config show
+freeco-ai config show
 ```
 
 Common issues:
@@ -356,7 +356,7 @@ python -m vllm.entrypoints.openai.api_server --model ...
 
 Check logs for the specific error:
 ```bash
-RUST_LOG=freeco_channels=debug freeco start
+RUST_LOG=freeco_channels=debug freeco-ai start
 ```
 
 ---
@@ -417,7 +417,7 @@ tools = ["file_read", "web_fetch", "shell_exec"]  # Must list each tool
 ### Agent spawning fails
 
 **Check**:
-1. TOML manifest is valid: `freeco agent spawn --dry-run manifest.toml`
+1. TOML manifest is valid: `freeco-ai agent spawn --dry-run manifest.toml`
 2. LLM provider is configured and has a valid key
 3. Model specified in manifest exists in the catalog
 
@@ -576,7 +576,7 @@ Back up these files:
 
 ```bash
 rm -rf ~/.freeco-ai
-freeco init  # Start fresh
+freeco-ai init  # Start fresh
 ```
 
 ### Can I run FreEco.ai without an internet connection?
@@ -605,7 +605,7 @@ model = "llama3.2"
 | Binary size | ~30 MB | ~200 MB |
 | Startup | <200 ms | ~3 s |
 
-FreEco.ai can import OpenClaw configs: `freeco migrate --from openclaw`
+FreEco.ai can import OpenClaw configs: `freeco-ai migrate --from openclaw`
 
 ### How do I report a bug or request a feature?
 
@@ -626,7 +626,7 @@ FreEco.ai can import OpenClaw configs: `freeco migrate --from openclaw`
 ### How do I enable debug logging for a specific crate?
 
 ```bash
-RUST_LOG=freeco_kernel_runtime=debug,freeco_channels=info freeco start
+RUST_LOG=freeco_kernel_runtime=debug,freeco_channels=info freeco-ai start
 ```
 
 ### Can I use FreEco.ai as a library?

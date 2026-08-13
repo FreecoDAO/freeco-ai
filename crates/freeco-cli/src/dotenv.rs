@@ -162,7 +162,7 @@ fn read_env_file(path: &PathBuf) -> BTreeMap<String, String> {
 /// Write key-value pairs back to the .env file with a header comment.
 fn write_env_file(path: &PathBuf, entries: &BTreeMap<String, String>) -> Result<(), String> {
     let mut content =
-        String::from("# Freeco environment — managed by `freeco config set-key`\n");
+        String::from("# Freeco environment — managed by `freeco-ai config set-key`\n");
     content.push_str("# Do not edit while the daemon is running.\n\n");
 
     for (key, value) in entries {

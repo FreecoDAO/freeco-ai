@@ -1,7 +1,7 @@
-//! Renaming Freeco to FreEco.ai without losing anybody's data.
+//! Migrating OpenFang installs to FreEco.ai without losing anybody's data.
 //!
-//! The product is called FreEco.ai, but it shipped as Freeco and every
-//! install in the world has a `~/.freeco-ai` directory and `FREECO_AI_*`
+//! The product is called FreEco.ai, but it shipped as OpenFang and existing
+//! installs may have a `~/.openfang` directory and `OPENFANG_*`
 //! variables in its environment. A rename that simply changes the strings
 //! points a working install at an empty directory: the agents, the database
 //! and every conversation stay exactly where they were, and the app starts as
@@ -20,37 +20,37 @@ use std::path::PathBuf;
 
 /// Read a setting that may be spelled with either prefix.
 ///
-/// `FREECO_*` wins so new installs and new docs are canonical, but an existing
-/// `FREECO_AI_*` still works — someone with the old variable in their shell
+/// `FREECO_AI_*` wins so new installs and new docs are canonical, but an existing
+/// `OPENFANG_*` still works — someone with the old variable in their shell
 /// profile, systemd unit or CI config must not have to discover a rename to
 /// get their setup running again.
 pub fn env_var(suffix: &str) -> Option<String> {
-    std::env::var(format!("FREECO_{suffix}"))
+    std::env::var(format!("FREECO_AI_{suffix}"))
         .ok()
         .filter(|v| !v.is_empty())
         .or_else(|| {
-            std::env::var(format!("FREECO_AI_{suffix}"))
+            std::env::var(format!("OPENFANG_{suffix}"))
                 .ok()
                 .filter(|v| !v.is_empty())
         })
 }
 
 /// Legacy home directory name.
-const LEGACY_DIR: &str = ".freeco-ai";
+const LEGACY_DIR: &str = ".openfang";
 /// Home directory name for installs that have no history to preserve.
-const CURRENT_DIR: &str = ".freeco";
+const CURRENT_DIR: &str = ".freeco-ai";
 
 /// Where this install keeps its data.
 ///
 /// Resolution order, and the reasoning for it:
 ///
-/// 1. An explicit `FREECO_HOME` / `FREECO_AI_HOME` — the user said where.
-/// 2. An existing `~/.freeco-ai` — **this is the important case.** Every current
+/// 1. An explicit `FREECO_AI_HOME` / `OPENFANG_HOME` — the user said where.
+/// 2. An existing `~/.openfang` — **this is the important case.** Every legacy
 ///    install has one. It holds the database, the agents and the conversations,
 ///    and it keeps being used. Moving the data would be a migration that can
 ///    fail halfway; not moving it cannot.
-/// 3. An existing `~/.freeco`.
-/// 4. Otherwise `~/.freeco`, for genuinely new installs.
+/// 3. An existing `~/.freeco-ai`.
+/// 4. Otherwise `~/.freeco-ai`, for genuinely new installs.
 ///
 /// The consequence is that the directory on disk may not match the product
 /// name for a long time. That is the correct trade: a name is cosmetic, and
@@ -76,7 +76,7 @@ pub fn home_dir() -> PathBuf {
 /// Both names are accepted for the same reason as the directory: the file that
 /// exists is the file that has the data in it.
 pub fn database_path(data_dir: &std::path::Path) -> PathBuf {
-    let legacy = data_dir.join("freeco.db");
+    let legacy = data_dir.join("openfang.db");
     if legacy.is_file() {
         return legacy;
     }
@@ -125,8 +125,8 @@ mod tests {
     fn a_database_that_exists_is_the_one_used() {
         let tmp = std::env::temp_dir().join(format!("fx-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&tmp).unwrap();
-        std::fs::write(tmp.join("freeco.db"), b"x").unwrap();
-        assert_eq!(database_path(&tmp), tmp.join("freeco.db"));
+        std::fs::write(tmp.join("openfang.db"), b"x").unwrap();
+        assert_eq!(database_path(&tmp), tmp.join("openfang.db"));
         std::fs::remove_dir_all(&tmp).ok();
     }
 
@@ -142,7 +142,7 @@ mod tests {
     /// have to discover that a rename happened.
     #[test]
     fn the_old_variable_still_works() {
-        let key = "FREECO_AI_TEST_NAMING_COMPAT";
+        let key = "OPENFANG_TEST_NAMING_COMPAT";
         unsafe { std::env::set_var(key, "legacy-value") };
         assert_eq!(
             env_var("TEST_NAMING_COMPAT").as_deref(),
@@ -153,8 +153,8 @@ mod tests {
 
     #[test]
     fn the_new_variable_wins_when_both_are_set() {
-        let old = "FREECO_AI_TEST_NAMING_BOTH";
-        let new = "FREECO_TEST_NAMING_BOTH";
+        let old = "OPENFANG_TEST_NAMING_BOTH";
+        let new = "FREECO_AI_TEST_NAMING_BOTH";
         unsafe {
             std::env::set_var(old, "old");
             std::env::set_var(new, "new");
@@ -166,13 +166,13 @@ mod tests {
         }
     }
 
-    /// An empty value is not a value. Without this, `FREECO_X=""` would shadow
-    /// a perfectly good `FREECO_AI_X`, which is the sort of thing that only
+    /// An empty value is not a value. Without this, `FREECO_AI_X=""` would shadow
+    /// a perfectly good `OPENFANG_X`, which is the sort of thing that only
     /// shows up in someone's CI.
     #[test]
     fn an_empty_new_variable_does_not_shadow_the_old_one() {
-        let old = "FREECO_AI_TEST_NAMING_EMPTY";
-        let new = "FREECO_TEST_NAMING_EMPTY";
+        let old = "OPENFANG_TEST_NAMING_EMPTY";
+        let new = "FREECO_AI_TEST_NAMING_EMPTY";
         unsafe {
             std::env::set_var(old, "real");
             std::env::set_var(new, "");

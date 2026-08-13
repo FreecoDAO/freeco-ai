@@ -1215,17 +1215,17 @@ pub(crate) fn daemon_json(
             if msg.contains("timed out") || msg.contains("Timeout") {
                 ui::error_with_fix(
                     "Request timed out",
-                    "The agent may be processing a complex request. Try again, or check `freeco status`",
+                    "The agent may be processing a complex request. Try again, or check `freeco-ai status`",
                 );
             } else if msg.contains("Connection refused") || msg.contains("connect") {
                 ui::error_with_fix(
                     "Cannot connect to daemon",
-                    "Is the daemon running? Start it with: freeco start",
+                    "Is the daemon running? Start it with: freeco-ai start",
                 );
             } else {
                 ui::error_with_fix(
                     &format!("Daemon communication error: {msg}"),
-                    "Check `freeco status` or restart: freeco start",
+                    "Check `freeco-ai status` or restart: freeco-ai start",
                 );
             }
             std::process::exit(1);
@@ -1280,7 +1280,7 @@ fn cmd_init(quick: bool) {
         || !std::io::IsTerminal::is_terminal(&std::io::stdout())
     {
         ui::hint("Non-interactive terminal detected — running in quick mode");
-        ui::hint("For the interactive wizard, run: freeco init (in a terminal)");
+        ui::hint("For the interactive wizard, run: freeco-ai init (in a terminal)");
         cmd_init_quick(&freeco_dir);
     } else {
         cmd_init_interactive(&freeco_dir);
@@ -1302,8 +1302,8 @@ fn cmd_init_quick(freeco_dir: &std::path::Path) {
     ui::kv("Model", model);
     ui::blank();
     ui::next_steps(&[
-        "Start the daemon:  freeco start",
-        "Chat:              freeco chat",
+        "Start the daemon:  freeco-ai start",
+        "Chat:              freeco-ai chat",
     ]);
 }
 
@@ -1342,7 +1342,7 @@ fn cmd_init_interactive(freeco_dir: &std::path::Path) {
                             ui::hint(&format!("Could not open browser. Visit: {url}"));
                         }
                     } else {
-                        ui::error("Daemon is not running. Start it with: freeco start");
+                        ui::error("Daemon is not running. Start it with: freeco-ai start");
                     }
                 }
                 LaunchChoice::Chat => {
@@ -1370,9 +1370,9 @@ fn launch_desktop_app(_freeco_dir: &std::path::Path) {
         let dir = exe.as_ref().and_then(|e| e.parent());
 
         #[cfg(windows)]
-        let name = "freeco-desktop.exe";
+        let name = "freeco-ai-desktop.exe";
         #[cfg(not(windows))]
-        let name = "freeco-desktop";
+        let name = "freeco-ai-desktop";
 
         dir.map(|d| d.join(name))
     };
@@ -1391,7 +1391,7 @@ fn launch_desktop_app(_freeco_dir: &std::path::Path) {
                 }
                 Err(e) => {
                     ui::error(&format!("Failed to launch desktop app: {e}"));
-                    ui::hint("Try: freeco dashboard");
+                    ui::hint("Try: freeco-ai dashboard");
                 }
             }
         }
@@ -1412,7 +1412,7 @@ fn launch_desktop_app(_freeco_dir: &std::path::Path) {
                 // opener may still fail asynchronously.
                 ui::hint(&format!("Dashboard: {url}"));
             } else {
-                ui::hint("Daemon is not running. Start it with: freeco start");
+                ui::hint("Daemon is not running. Start it with: freeco-ai start");
                 ui::hint("Then open: http://127.0.0.1:4200");
             }
         }
@@ -1551,7 +1551,7 @@ fn cmd_start(config: Option<PathBuf>, yolo: bool) {
     if let Some(base) = find_daemon() {
         ui::error_with_fix(
             &format!("Daemon already running at {base}"),
-            "Use `freeco status` to check it, or stop it first",
+            "Use `freeco-ai status` to check it, or stop it first",
         );
         std::process::exit(1);
     }
@@ -1600,7 +1600,7 @@ fn cmd_start(config: Option<PathBuf>, yolo: bool) {
         ui::kv("Provider", &provider);
         ui::kv("Model", &model);
         ui::blank();
-        ui::hint("Open the dashboard in your browser, or run `freeco chat`");
+        ui::hint("Open the dashboard in your browser, or run `freeco-ai chat`");
         ui::hint("Press Ctrl+C to stop the daemon");
         ui::blank();
 
@@ -1633,8 +1633,10 @@ fn read_api_key() -> Option<String> {
             }
         }
     }
-    // 2. Fall back to FREECO_AI_API_KEY env var
-    if let Ok(key) = std::env::var("FREECO_AI_API_KEY") {
+    // 2. Fall back to the canonical or legacy API-key environment variable.
+    if let Ok(key) =
+        std::env::var("FREECO_AI_API_KEY").or_else(|_| std::env::var("OPENFANG_API_KEY"))
+    {
         let key = key.trim().to_string();
         if !key.is_empty() {
             return Some(key);
@@ -1678,7 +1680,7 @@ fn cmd_stop() {
         None => {
             ui::warn_with_fix(
                 "No running daemon found",
-                "Is it running? Check with: freeco status",
+                "Is it running? Check with: freeco-ai status",
             );
         }
     }
@@ -1705,22 +1707,22 @@ fn boot_kernel_error(e: &freeco_kernel::error::KernelError) {
     if msg.contains("parse") || msg.contains("toml") || msg.contains("config") {
         ui::error_with_fix(
             "Failed to parse configuration",
-            "Check your config.toml syntax: freeco config show",
+            "Check your config.toml syntax: freeco-ai config show",
         );
     } else if msg.contains("database") || msg.contains("locked") || msg.contains("sqlite") {
         ui::error_with_fix(
             "Database error (file may be locked)",
-            "Check if another FreEco.ai process is running: freeco status",
+            "Check if another FreEco.ai process is running: freeco-ai status",
         );
     } else if msg.contains("key") || msg.contains("API") || msg.contains("auth") {
         ui::error_with_fix(
             "LLM provider authentication failed",
-            "Run `freeco doctor` to check your API key configuration",
+            "Run `freeco-ai doctor` to check your API key configuration",
         );
     } else {
         ui::error_with_fix(
             &format!("Failed to boot kernel: {msg}"),
-            "Run `freeco doctor` to diagnose the issue",
+            "Run `freeco-ai doctor` to diagnose the issue",
         );
     }
 }
@@ -1729,7 +1731,7 @@ fn cmd_agent_spawn(config: Option<PathBuf>, manifest_path: PathBuf) {
     if !manifest_path.exists() {
         ui::error_with_fix(
             &format!("Manifest file not found: {}", manifest_path.display()),
-            "Use `freeco agent new` to spawn from a template instead",
+            "Use `freeco-ai agent new` to spawn from a template instead",
         );
         std::process::exit(1);
     }
@@ -1769,7 +1771,7 @@ fn cmd_agent_spawn(config: Option<PathBuf>, manifest_path: PathBuf) {
                 println!("Agent spawned (in-process mode).");
                 println!("  ID: {id}");
                 println!("\n  Note: Agent will be lost when this process exits.");
-                println!("  For persistent agents, use `freeco start` first.");
+                println!("  For persistent agents, use `freeco-ai start` first.");
             }
             Err(e) => {
                 eprintln!("Failed to spawn agent: {e}");
@@ -1915,7 +1917,7 @@ fn cmd_agent_set(agent_id_str: &str, field: &str, value: &str) {
                     std::process::exit(1);
                 }
             } else {
-                eprintln!("No running daemon found. Start one with: freeco start");
+                eprintln!("No running daemon found. Start one with: freeco-ai start");
                 std::process::exit(1);
             }
         }
@@ -1931,7 +1933,7 @@ fn cmd_agent_new(config: Option<PathBuf>, template_name: Option<String>) {
     if all_templates.is_empty() {
         ui::error_with_fix(
             "No agent templates found",
-            "Run `freeco init` to set up the agents directory",
+            "Run `freeco-ai init` to set up the agents directory",
         );
         std::process::exit(1);
     }
@@ -1943,7 +1945,7 @@ fn cmd_agent_new(config: Option<PathBuf>, template_name: Option<String>) {
             None => {
                 ui::error_with_fix(
                     &format!("Template '{name}' not found"),
-                    "Run `freeco agent new` to see available templates",
+                    "Run `freeco-ai agent new` to see available templates",
                 );
                 std::process::exit(1);
             }
@@ -2002,7 +2004,7 @@ fn spawn_template_agent(config: Option<PathBuf>, template: &templates::AgentTemp
                 ui::kv("Model", &format!("{provider}/{model}"));
             }
             ui::blank();
-            ui::hint(&format!("Chat: freeco chat {}", template.name));
+            ui::hint(&format!("Chat: freeco-ai chat {}", template.name));
         } else {
             ui::error(&format!(
                 "Failed to spawn: {}",
@@ -2025,9 +2027,9 @@ fn spawn_template_agent(config: Option<PathBuf>, template: &templates::AgentTemp
                 ui::success(&format!("Agent '{}' spawned (in-process)", template.name));
                 ui::kv("ID", &id.to_string());
                 ui::blank();
-                ui::hint(&format!("Chat: freeco chat {}", template.name));
+                ui::hint(&format!("Chat: freeco-ai chat {}", template.name));
                 ui::hint("Note: Agent will be lost when this process exits");
-                ui::hint("For persistent agents, use `freeco start` first");
+                ui::hint("For persistent agents, use `freeco-ai start` first");
             }
             Err(e) => {
                 ui::error(&format!("Failed to spawn agent: {e}"));
@@ -2111,7 +2113,7 @@ fn cmd_status(config: Option<PathBuf>, json: bool) {
         ui::kv("Data dir", &kernel.config.data_dir.display().to_string());
         ui::kv_warn("Daemon", "NOT RUNNING");
         ui::blank();
-        ui::hint("Run `freeco start` to launch the daemon");
+        ui::hint("Run `freeco-ai start` to launch the daemon");
 
         if agent_count > 0 {
             ui::blank();
@@ -2170,7 +2172,7 @@ fn cmd_doctor(json: bool, repair: bool) {
             checks.push(serde_json::json!({"check": "freeco_dir", "status": if repaired { "repaired" } else { "fail" }}));
         } else {
             if !json {
-                ui::check_fail("FreEco.ai directory not found. Run `freeco init` first.");
+                ui::check_fail("FreEco.ai directory not found. Run `freeco-ai init` first.");
             }
             checks.push(serde_json::json!({"check": "freeco_dir", "status": "fail"}));
             all_ok = false;
@@ -2217,7 +2219,7 @@ fn cmd_doctor(json: bool, repair: bool) {
         } else {
             if !json {
                 ui::check_warn(
-                    ".env file not found (create with: freeco config set-key <provider>)",
+                    ".env file not found (create with: freeco-ai config set-key <provider>)",
                 );
             }
             checks.push(serde_json::json!({"check": "env_file", "status": "warn"}));
@@ -2237,7 +2239,7 @@ fn cmd_doctor(json: bool, repair: bool) {
                 Err(e) => {
                     if !json {
                         ui::check_fail(&format!("Config file has syntax errors: {e}"));
-                        ui::hint("Fix with: freeco config edit");
+                        ui::hint("Fix with: freeco-ai config edit");
                     }
                     checks.push(serde_json::json!({"check": "config_syntax", "status": "fail", "error": e.to_string()}));
                     all_ok = false;
@@ -2316,7 +2318,7 @@ decay_rate = 0.05
             checks.push(serde_json::json!({"check": "daemon", "status": "ok", "url": base}));
         } else {
             if !json {
-                ui::check_warn("Daemon not running (start with `freeco start`)");
+                ui::check_warn("Daemon not running (start with `freeco-ai start`)");
             }
             checks.push(serde_json::json!({"check": "daemon", "status": "warn"}));
 
@@ -2533,7 +2535,7 @@ decay_rate = 0.05
             ui::suggest_cmd("Gemini:", "https://aistudio.google.com    (free tier)");
             ui::suggest_cmd("DeepSeek:", "https://platform.deepseek.com  (low cost)");
             ui::blank();
-            ui::hint("Or run: freeco config set-key groq");
+            ui::hint("Or run: freeco-ai config set-key groq");
         }
         all_ok = false;
     }
@@ -3023,14 +3025,14 @@ decay_rate = 0.05
         if all_ok {
             ui::success("All checks passed! FreEco.ai is ready.");
             if find_daemon().is_none() {
-                ui::hint("Start the daemon: freeco start");
+                ui::hint("Start the daemon: freeco-ai start");
             }
         } else if repaired {
-            ui::success("Repairs applied. Re-run `freeco doctor` to verify.");
+            ui::success("Repairs applied. Re-run `freeco-ai doctor` to verify.");
         } else {
             ui::error("Some checks failed.");
             if !repair {
-                ui::hint("Run `freeco doctor --repair` to attempt auto-fix");
+                ui::hint("Run `freeco-ai doctor --repair` to attempt auto-fix");
             }
         }
     }
@@ -3054,7 +3056,7 @@ fn cmd_dashboard() {
             Err(e) => {
                 ui::error_with_fix(
                     &format!("Could not start daemon: {e}"),
-                    "Start it manually: freeco start",
+                    "Start it manually: freeco-ai start",
                 );
                 std::process::exit(1);
             }
@@ -3197,7 +3199,7 @@ pub(crate) fn open_in_browser(url: &str) -> bool {
 fn cmd_completion(shell: clap_complete::Shell) {
     use clap::CommandFactory;
     let mut cmd = Cli::command();
-    clap_complete::generate(shell, &mut cmd, "freeco", &mut std::io::stdout());
+    clap_complete::generate(shell, &mut cmd, "freeco-ai", &mut std::io::stdout());
 }
 
 // ---------------------------------------------------------------------------
@@ -3484,9 +3486,9 @@ fn require_daemon(command: &str) -> String {
     find_daemon().unwrap_or_else(|| {
         ui::error_with_fix(
             &format!("`freeco {command}` requires a running daemon"),
-            "Start the daemon: freeco start",
+            "Start the daemon: freeco-ai start",
         );
-        ui::hint("Or try `freeco chat` which works without a daemon");
+        ui::hint("Or try `freeco-ai chat` which works without a daemon");
         std::process::exit(1);
     })
 }
@@ -3736,7 +3738,7 @@ fn notify_daemon_skill_reload() {
             }
         }
     } else {
-        ui::hint("Start the daemon to make this skill available to agents: freeco start");
+        ui::hint("Start the daemon to make this skill available to agents: freeco-ai start");
     }
 }
 
@@ -3893,9 +3895,9 @@ if __name__ == "__main__":
     println!("  {entry_path}");
     println!("\nNext steps:");
     println!("  1. Edit the entry point to implement your skill logic");
-    println!("  2. Test locally: freeco skill test");
+    println!("  2. Test locally: freeco-ai skill test");
     println!(
-        "  3. Install: freeco skill install {}",
+        "  3. Install: freeco-ai skill install {}",
         skill_dir.display()
     );
 }
@@ -3909,7 +3911,7 @@ fn cmd_channel_list() {
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        println!("No configuration found. Run `freeco init` first.");
+        println!("No configuration found. Run `freeco-ai init` first.");
         return;
     }
 
@@ -3952,7 +3954,7 @@ fn cmd_channel_list() {
         );
     }
 
-    println!("\nUse `freeco channel setup <channel>` to configure a channel.");
+    println!("\nUse `freeco-ai channel setup <channel>` to configure a channel.");
 }
 
 fn cmd_channel_setup(channel: Option<&str>) {
@@ -4145,7 +4147,7 @@ fn cmd_channel_setup(channel: Option<&str>) {
                     Err(_) => println!("    export EMAIL_PASSWORD=your_app_password"),
                 }
             } else {
-                ui::hint("Set later: freeco config set-key email (or export EMAIL_PASSWORD=...)");
+                ui::hint("Set later: freeco-ai config set-key email (or export EMAIL_PASSWORD=...)");
             }
 
             ui::blank();
@@ -4235,7 +4237,7 @@ fn maybe_write_channel_config(channel: &str, config_block: &str) {
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        ui::hint("No config.toml found. Run `freeco init` first.");
+        ui::hint("No config.toml found. Run `freeco-ai init` first.");
         return;
     }
 
@@ -4264,7 +4266,7 @@ fn notify_daemon_restart() {
     if find_daemon().is_some() {
         ui::check_warn("Restart the daemon to activate this channel");
     } else {
-        ui::hint("Start the daemon: freeco start");
+        ui::hint("Start the daemon: freeco-ai start");
     }
 }
 
@@ -4285,7 +4287,7 @@ fn cmd_channel_test(channel: &str) {
             );
         }
     } else {
-        eprintln!("Channel test requires a running daemon. Start with: freeco start");
+        eprintln!("Channel test requires a running daemon. Start with: freeco-ai start");
         std::process::exit(1);
     }
 }
@@ -4362,7 +4364,7 @@ fn cmd_hand_install(path: &str) {
         body["id"].as_str().unwrap_or("?"),
     );
     println!(
-        "Use `freeco hand activate {}` to start it.",
+        "Use `freeco-ai hand activate {}` to start it.",
         body["id"].as_str().unwrap_or("?")
     );
 }
@@ -4405,7 +4407,7 @@ fn cmd_hand_list() {
                     .collect::<String>(),
             );
         }
-        println!("\nUse `freeco hand activate <id>` to activate a hand.");
+        println!("\nUse `freeco-ai hand activate <id>` to activate a hand.");
     }
 }
 
@@ -4729,7 +4731,7 @@ fn cmd_hand_config(
         ui::error(&format!("Failed to update hand '{id}' settings: {err}"));
         if err.contains("No active instance") {
             ui::hint(&format!(
-                "Activate the hand first: freeco hand activate {id}"
+                "Activate the hand first: freeco-ai hand activate {id}"
             ));
         }
         std::process::exit(1);
@@ -4867,7 +4869,7 @@ pub(crate) fn test_api_key(provider: &str, env_var: &str) -> bool {
 // Background daemon start
 // ---------------------------------------------------------------------------
 
-/// Spawn `freeco start` as a detached background process.
+/// Spawn `freeco-ai start` as a detached background process.
 ///
 /// Polls for daemon health for up to 10 seconds. Returns the daemon URL on success.
 pub(crate) fn start_daemon_background() -> Result<String, String> {
@@ -4920,7 +4922,7 @@ fn cmd_config_show() {
 
     if !config_path.exists() {
         println!("No configuration found at: {}", config_path.display());
-        println!("Run `freeco init` to create one.");
+        println!("Run `freeco-ai init` to create one.");
         return;
     }
 
@@ -5000,7 +5002,7 @@ fn cmd_config_get(key: &str) {
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        ui::error_with_fix("No config file found", "Run `freeco init` first");
+        ui::error_with_fix("No config file found", "Run `freeco-ai init` first");
         std::process::exit(1);
     }
 
@@ -5012,7 +5014,7 @@ fn cmd_config_get(key: &str) {
     let table: toml::Value = toml::from_str(&content).unwrap_or_else(|e| {
         ui::error_with_fix(
             &format!("Config parse error: {e}"),
-            "Fix your config.toml syntax, or run `freeco config edit`",
+            "Fix your config.toml syntax, or run `freeco-ai config edit`",
         );
         std::process::exit(1);
     });
@@ -5038,7 +5040,7 @@ fn cmd_config_set(key: &str, value: &str) {
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        ui::error_with_fix("No config file found", "Run `freeco init` first");
+        ui::error_with_fix("No config file found", "Run `freeco-ai init` first");
         std::process::exit(1);
     }
 
@@ -5161,7 +5163,7 @@ fn cmd_config_unset(key: &str) {
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        ui::error_with_fix("No config file found", "Run `freeco init` first");
+        ui::error_with_fix("No config file found", "Run `freeco-ai init` first");
         std::process::exit(1);
     }
 
@@ -5237,7 +5239,7 @@ fn cmd_config_set_key(provider: &str) {
         {
             Ok(_) => {
                 ui::success("GitHub Copilot configured successfully");
-                ui::hint("Restart the daemon: freeco stop && freeco start");
+                ui::hint("Restart the daemon: freeco-ai stop && freeco-ai start");
             }
             Err(e) => {
                 ui::error(&format!("Copilot setup failed: {e}"));
@@ -5308,7 +5310,7 @@ fn cmd_config_test_key(provider: &str) {
 
     if std::env::var(&env_var).is_err() {
         ui::error(&format!("{env_var} not set"));
-        ui::hint(&format!("Set it: freeco config set-key {provider}"));
+        ui::hint(&format!("Set it: freeco-ai config set-key {provider}"));
         std::process::exit(1);
     }
 
@@ -5318,7 +5320,7 @@ fn cmd_config_test_key(provider: &str) {
         println!("{}", "OK".bright_green());
     } else {
         println!("{}", "FAILED (401/403)".bright_red());
-        ui::hint(&format!("Update key: freeco config set-key {provider}"));
+        ui::hint(&format!("Update key: freeco-ai config set-key {provider}"));
         std::process::exit(1);
     }
 }
@@ -6279,7 +6281,7 @@ fn cmd_health(json: bool) {
                 std::process::exit(1);
             }
             ui::error("Daemon is not running.");
-            ui::hint("Start it with: freeco start");
+            ui::hint("Start it with: freeco-ai start");
             std::process::exit(1);
         }
     }
@@ -6737,7 +6739,7 @@ fn cmd_system_info(json: bool) {
         ui::blank();
         ui::kv("Version", env!("CARGO_PKG_VERSION"));
         ui::kv_warn("Daemon", "NOT RUNNING");
-        ui::hint("Start with: freeco start");
+        ui::hint("Start with: freeco-ai start");
     }
 }
 
@@ -7466,7 +7468,7 @@ enabled = true
         ));
 
         // Should NOT match: freeco lines that aren't PATH-related
-        assert!(!is_freeco_path_line("# freeco config", dir));
+        assert!(!is_freeco_path_line("# freeco-ai config", dir));
         assert!(!is_freeco_path_line("alias of=freeco", dir));
     }
 }

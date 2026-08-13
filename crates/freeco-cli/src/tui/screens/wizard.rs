@@ -377,7 +377,9 @@ impl WizardState {
             }
         };
 
-        let freeco_dir = if let Ok(h) = std::env::var("FREECO_AI_HOME") {
+        let freeco_dir = if let Ok(h) =
+            std::env::var("FREECO_AI_HOME").or_else(|_| std::env::var("OPENFANG_HOME"))
+        {
             std::path::PathBuf::from(h)
         } else {
             match dirs::home_dir() {

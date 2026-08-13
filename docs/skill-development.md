@@ -374,7 +374,7 @@ capabilities = ["NetConnect(*)", "ShellExec(python3)"]
 ### From a Local Directory
 
 ```bash
-freeco skill install /path/to/my-skill
+freeco-ai skill install /path/to/my-skill
 ```
 
 This reads the `skill.toml`, validates the manifest, and copies the skill to `~/.freeco-ai/skills/my-skill/`.
@@ -382,7 +382,7 @@ This reads the `skill.toml`, validates the manifest, and copies the skill to `~/
 ### From FangHub
 
 ```bash
-freeco skill install web-summarizer
+freeco-ai skill install web-summarizer
 ```
 
 This downloads the skill from the FangHub marketplace registry.
@@ -390,13 +390,13 @@ This downloads the skill from the FangHub marketplace registry.
 ### From a Git Repository
 
 ```bash
-freeco skill install https://github.com/user/freeco-skill-example.git
+freeco-ai skill install https://github.com/user/freeco-skill-example.git
 ```
 
 ### Listing Installed Skills
 
 ```bash
-freeco skill list
+freeco-ai skill list
 ```
 
 Output:
@@ -414,7 +414,7 @@ code-formatter       1.0.0      1        Format code in 20+ languages
 ### Removing Skills
 
 ```bash
-freeco skill remove web-summarizer
+freeco-ai skill remove web-summarizer
 ```
 
 ---
@@ -431,14 +431,14 @@ FangHub is the community skill marketplace for FreEco.ai.
 3. Test your skill locally:
 
 ```bash
-freeco skill install /path/to/my-skill
+freeco-ai skill install /path/to/my-skill
 # Spawn an agent with the skill's tools and test them
 ```
 
 ### Searching FangHub
 
 ```bash
-freeco skill search "web scraping"
+freeco-ai skill search "web scraping"
 ```
 
 Output:
@@ -460,7 +460,7 @@ Skills matching "web scraping":
 Publishing to FangHub will be available via:
 
 ```bash
-freeco skill publish
+freeco-ai skill publish
 ```
 
 This validates the manifest, packages the skill, and uploads it to the FangHub registry.
@@ -473,25 +473,25 @@ This validates the manifest, packages the skill, and uploads it to the FangHub r
 
 ```bash
 # Install a skill (local directory, FangHub name, or git URL)
-freeco skill install <source>
+freeco-ai skill install <source>
 
 # List all installed skills
-freeco skill list
+freeco-ai skill list
 
 # Remove an installed skill
-freeco skill remove <name>
+freeco-ai skill remove <name>
 
 # Search FangHub for skills
-freeco skill search <query>
+freeco-ai skill search <query>
 
 # Create a new skill scaffold (interactive)
-freeco skill create
+freeco-ai skill create
 ```
 
 ### Creating a Skill Scaffold
 
 ```bash
-freeco skill create
+freeco-ai skill create
 ```
 
 This interactive command prompts for:
@@ -543,7 +543,7 @@ FreEco.ai can install and run OpenClaw-format skills. The skill installer auto-d
 ### Automatic Conversion
 
 ```bash
-freeco skill install /path/to/openclaw-skill
+freeco-ai skill install /path/to/openclaw-skill
 ```
 
 If the directory contains an OpenClaw-style skill (Node.js package), FreEco.ai:
@@ -576,10 +576,10 @@ input_schema = { type = "object", properties = { input = { type = "string" } }, 
 Place this alongside the existing `index.js`/`index.ts` and install:
 
 ```bash
-freeco skill install /path/to/skill-directory
+freeco-ai skill install /path/to/skill-directory
 ```
 
-Skills imported via `freeco migrate --from openclaw` are also scanned and reported in the migration report, with instructions for manual reinstallation.
+Skills imported via `freeco-ai migrate --from openclaw` are also scanned and reported in the migration report, with instructions for manual reinstallation.
 
 ---
 

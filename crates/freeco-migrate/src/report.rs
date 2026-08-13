@@ -126,8 +126,8 @@ impl MigrationReport {
             "2. Review `~/.freeco-ai/secrets.env` — verify tokens were migrated correctly\n",
         );
         out.push_str("3. Set any remaining API keys referenced in `~/.freeco-ai/config.toml`\n");
-        out.push_str("4. Start the daemon: `freeco start`\n");
-        out.push_str("5. Test your agents: `freeco agent list`\n");
+        out.push_str("4. Start the daemon: `freeco-ai start`\n");
+        out.push_str("5. Test your agents: `freeco-ai agent list`\n");
 
         out
     }
@@ -163,8 +163,8 @@ impl MigrationReport {
 
         if !self.dry_run {
             println!("\n  Next steps:");
-            println!("    freeco start");
-            println!("    freeco agent list");
+            println!("    freeco-ai start");
+            println!("    freeco-ai agent list");
         }
     }
 }

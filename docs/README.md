@@ -61,7 +61,7 @@ Welcome to the FreEco.ai documentation. FreEco.ai is the open-source Agent Opera
 
 ```bash
 export GROQ_API_KEY="your-key"
-freeco init && freeco start
+freeco-ai init && freeco-ai start
 # Open http://127.0.0.1:4200
 ```
 

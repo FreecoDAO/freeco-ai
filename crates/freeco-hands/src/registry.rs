@@ -184,9 +184,9 @@ impl HandRegistry {
     ///
     /// Returns the number of hands successfully loaded. A non-existent
     /// `hands_dir` returns `Ok(0)` — this is the normal case on a fresh
-    /// install where the user has not run `freeco hand install` yet.
+    /// install where the user has not run `freeco-ai hand install` yet.
     ///
-    /// Added for issue #984 — custom hands installed via `freeco hand
+    /// Added for issue #984 — custom hands installed via `freeco-ai hand
     /// install <path>` were only held in memory and lost on daemon restart.
     pub fn load_workspace_hands(&self, hands_dir: &std::path::Path) -> HandResult<usize> {
         if !hands_dir.exists() {
@@ -269,7 +269,7 @@ impl HandRegistry {
             let dest_dir = home.join(".freeco-ai").join("hands").join(&def.id);
             // Canonicalize both paths before comparing so we don't re-copy a
             // hand that is already being installed from its persistent
-            // location (e.g. `freeco hand install ~/.freeco-ai/hands/foo`).
+            // location (e.g. `freeco-ai hand install ~/.freeco-ai/hands/foo`).
             let same_path = match (path.canonicalize(), dest_dir.canonicalize()) {
                 (Ok(a), Ok(b)) => a == b,
                 _ => path == dest_dir,
@@ -1327,7 +1327,7 @@ system_prompt = "v2 — schedule changed."
 
     /// Integration test for issue #809: `hand config` round-trip.
     ///
-    /// Simulates what `freeco hand config <id> --set KEY=VAL` does against
+    /// Simulates what `freeco-ai hand config <id> --set KEY=VAL` does against
     /// the registry: read current config, merge updates, write back, read
     /// again. Persists to a tempdir so the restart path also sees the change.
     #[test]

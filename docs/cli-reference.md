@@ -6,7 +6,7 @@ Complete command-line reference for `freeco`, the CLI tool for the FreEco.ai Age
 
 The `freeco` binary is the primary interface for managing the FreEco.ai Agent OS. It supports two modes of operation:
 
-- **Daemon mode** -- When a daemon is running (`freeco start`), CLI commands communicate with it over HTTP. This is the recommended mode for production use.
+- **Daemon mode** -- When a daemon is running (`freeco-ai start`), CLI commands communicate with it over HTTP. This is the recommended mode for production use.
 - **In-process mode** -- When no daemon is detected, commands that support it will boot an ephemeral in-process kernel. Agents spawned in this mode are not persisted and will be lost when the process exits.
 
 Running `freeco` with no subcommand launches the interactive TUI (terminal user interface) built with ratatui, which provides a full dashboard experience in the terminal.
@@ -54,7 +54,7 @@ These options apply to all commands.
 |---|---|
 | `RUST_LOG` | Controls log verbosity (e.g. `info`, `debug`, `freeco_kernel=trace`). |
 | `FREECO_AI_AGENTS_DIR` | Override the agent templates directory. |
-| `EDITOR` / `VISUAL` | Editor used by `freeco config edit`. Falls back to `notepad` (Windows) or `vi` (Unix). |
+| `EDITOR` / `VISUAL` | Editor used by `freeco-ai config edit`. Falls back to `notepad` (Windows) or `vi` (Unix). |
 
 ---
 
@@ -74,12 +74,12 @@ Press `Ctrl+C` to exit. A second `Ctrl+C` force-exits the process.
 
 ---
 
-### freeco init
+### freeco-ai init
 
 Initialize the FreEco.ai workspace. Creates `~/.freeco-ai/` with subdirectories (`data/`, `agents/`) and a default `config.toml`.
 
 ```
-freeco init [--quick]
+freeco-ai init [--quick]
 ```
 
 **Options:**
@@ -98,21 +98,21 @@ freeco init [--quick]
 
 ```bash
 # Interactive setup
-freeco init
+freeco-ai init
 
 # Non-interactive (CI/scripts)
 export GROQ_API_KEY="gsk_..."
-freeco init --quick
+freeco-ai init --quick
 ```
 
 ---
 
-### freeco start
+### freeco-ai start
 
 Start the FreEco.ai daemon (kernel + API server).
 
 ```
-freeco start [--config <PATH>]
+freeco-ai start [--config <PATH>]
 ```
 
 **Behavior:**
@@ -139,7 +139,7 @@ freeco start [--config <PATH>]
   Provider:   groq
   Model:      llama-3.3-70b-versatile
 
-  hint: Open the dashboard in your browser, or run `freeco chat`
+  hint: Open the dashboard in your browser, or run `freeco-ai chat`
   hint: Press Ctrl+C to stop the daemon
 ```
 
@@ -147,20 +147,20 @@ freeco start [--config <PATH>]
 
 ```bash
 # Start with default config
-freeco start
+freeco-ai start
 
 # Start with custom config
-freeco start --config /path/to/config.toml
+freeco-ai start --config /path/to/config.toml
 ```
 
 ---
 
-### freeco status
+### freeco-ai status
 
 Show the current kernel/daemon status.
 
 ```
-freeco status [--json]
+freeco-ai status [--json]
 ```
 
 **Options:**
@@ -177,19 +177,19 @@ freeco status [--json]
 **Example:**
 
 ```bash
-freeco status
+freeco-ai status
 
-freeco status --json | jq '.agent_count'
+freeco-ai status --json | jq '.agent_count'
 ```
 
 ---
 
-### freeco doctor
+### freeco-ai doctor
 
 Run diagnostic checks on the FreEco.ai installation.
 
 ```
-freeco doctor [--json] [--repair]
+freeco-ai doctor [--json] [--repair]
 ```
 
 **Options:**
@@ -218,21 +218,21 @@ freeco doctor [--json] [--repair]
 **Example:**
 
 ```bash
-freeco doctor
+freeco-ai doctor
 
-freeco doctor --repair
+freeco-ai doctor --repair
 
-freeco doctor --json
+freeco-ai doctor --json
 ```
 
 ---
 
-### freeco dashboard
+### freeco-ai dashboard
 
 Open the web dashboard in the default browser.
 
 ```
-freeco dashboard
+freeco-ai dashboard
 ```
 
 **Behavior:**
@@ -244,17 +244,17 @@ freeco dashboard
 **Example:**
 
 ```bash
-freeco dashboard
+freeco-ai dashboard
 ```
 
 ---
 
-### freeco completion
+### freeco-ai completion
 
 Generate shell completion scripts.
 
 ```
-freeco completion <SHELL>
+freeco-ai completion <SHELL>
 ```
 
 **Arguments:**
@@ -267,28 +267,28 @@ freeco completion <SHELL>
 
 ```bash
 # Bash
-freeco completion bash > ~/.bash_completion.d/freeco
+freeco-ai completion bash > ~/.bash_completion.d/freeco
 
 # Zsh
-freeco completion zsh > ~/.zfunc/_freeco
+freeco-ai completion zsh > ~/.zfunc/_freeco
 
 # Fish
-freeco completion fish > ~/.config/fish/completions/freeco.fish
+freeco-ai completion fish > ~/.config/fish/completions/freeco.fish
 
 # PowerShell
-freeco completion powershell > freeco.ps1
+freeco-ai completion powershell > freeco.ps1
 ```
 
 ---
 
 ## Agent Commands
 
-### freeco agent new
+### freeco-ai agent new
 
 Spawn an agent from a built-in template.
 
 ```
-freeco agent new [<TEMPLATE>]
+freeco-ai agent new [<TEMPLATE>]
 ```
 
 **Arguments:**
@@ -308,23 +308,23 @@ freeco agent new [<TEMPLATE>]
 
 ```bash
 # Interactive picker
-freeco agent new
+freeco-ai agent new
 
 # Spawn by name
-freeco agent new coder
+freeco-ai agent new coder
 
 # Spawn the assistant template
-freeco agent new assistant
+freeco-ai agent new assistant
 ```
 
 ---
 
-### freeco agent spawn
+### freeco-ai agent spawn
 
 Spawn an agent from a custom manifest file.
 
 ```
-freeco agent spawn <MANIFEST>
+freeco-ai agent spawn <MANIFEST>
 ```
 
 **Arguments:**
@@ -342,17 +342,17 @@ freeco agent spawn <MANIFEST>
 **Example:**
 
 ```bash
-freeco agent spawn ./my-agent/agent.toml
+freeco-ai agent spawn ./my-agent/agent.toml
 ```
 
 ---
 
-### freeco agent list
+### freeco-ai agent list
 
 List all running agents.
 
 ```
-freeco agent list [--json]
+freeco-ai agent list [--json]
 ```
 
 **Options:**
@@ -366,26 +366,26 @@ freeco agent list [--json]
 **Example:**
 
 ```bash
-freeco agent list
+freeco-ai agent list
 
-freeco agent list --json | jq '.[].name'
+freeco-ai agent list --json | jq '.[].name'
 ```
 
 ---
 
-### freeco agent chat
+### freeco-ai agent chat
 
 Start an interactive chat session with a specific agent.
 
 ```
-freeco agent chat <AGENT_ID>
+freeco-ai agent chat <AGENT_ID>
 ```
 
 **Arguments:**
 
 | Argument | Description |
 |---|---|
-| `<AGENT_ID>` | Agent UUID. Obtain from `freeco agent list`. |
+| `<AGENT_ID>` | Agent UUID. Obtain from `freeco-ai agent list`. |
 
 **Behavior:**
 
@@ -397,17 +397,17 @@ freeco agent chat <AGENT_ID>
 **Example:**
 
 ```bash
-freeco agent chat a1b2c3d4-e5f6-7890-abcd-ef1234567890
+freeco-ai agent chat a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 ---
 
-### freeco agent kill
+### freeco-ai agent kill
 
 Terminate a running agent.
 
 ```
-freeco agent kill <AGENT_ID>
+freeco-ai agent kill <AGENT_ID>
 ```
 
 **Arguments:**
@@ -419,7 +419,7 @@ freeco agent kill <AGENT_ID>
 **Example:**
 
 ```bash
-freeco agent kill a1b2c3d4-e5f6-7890-abcd-ef1234567890
+freeco-ai agent kill a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 ---
@@ -565,12 +565,12 @@ freeco trigger delete <TRIGGER_ID>
 
 ## Skill Commands
 
-### freeco skill list
+### freeco-ai skill list
 
 List all installed skills.
 
 ```
-freeco skill list
+freeco-ai skill list
 ```
 
 **Output columns:** NAME, VERSION, TOOLS, DESCRIPTION.
@@ -579,12 +579,12 @@ Loads skills from `~/.freeco-ai/skills/` plus bundled skills compiled into the b
 
 ---
 
-### freeco skill install
+### freeco-ai skill install
 
 Install a skill from a local directory, git URL, or FangHub marketplace.
 
 ```
-freeco skill install <SOURCE>
+freeco-ai skill install <SOURCE>
 ```
 
 **Arguments:**
@@ -602,23 +602,23 @@ freeco skill install <SOURCE>
 
 ```bash
 # Install from local directory
-freeco skill install ./my-skill/
+freeco-ai skill install ./my-skill/
 
 # Install from FangHub
-freeco skill install web-search
+freeco-ai skill install web-search
 
 # Install an OpenClaw-format skill
-freeco skill install ./openclaw-skill/
+freeco-ai skill install ./openclaw-skill/
 ```
 
 ---
 
-### freeco skill remove
+### freeco-ai skill remove
 
 Remove an installed skill.
 
 ```
-freeco skill remove <NAME>
+freeco-ai skill remove <NAME>
 ```
 
 **Arguments:**
@@ -630,17 +630,17 @@ freeco skill remove <NAME>
 **Example:**
 
 ```bash
-freeco skill remove web-search
+freeco-ai skill remove web-search
 ```
 
 ---
 
-### freeco skill search
+### freeco-ai skill search
 
 Search the FangHub marketplace for skills.
 
 ```
-freeco skill search <QUERY>
+freeco-ai skill search <QUERY>
 ```
 
 **Arguments:**
@@ -652,17 +652,17 @@ freeco skill search <QUERY>
 **Example:**
 
 ```bash
-freeco skill search "docker kubernetes"
+freeco-ai skill search "docker kubernetes"
 ```
 
 ---
 
-### freeco skill create
+### freeco-ai skill create
 
 Interactively scaffold a new skill project.
 
 ```
-freeco skill create
+freeco-ai skill create
 ```
 
 **Behavior:**
@@ -679,7 +679,7 @@ Creates a directory under `~/.freeco-ai/skills/<name>/` with:
 **Example:**
 
 ```bash
-freeco skill create
+freeco-ai skill create
 # Skill name: my-tool
 # Description: A custom analysis tool
 # Runtime (python/node/wasm) [python]: python
@@ -689,12 +689,12 @@ freeco skill create
 
 ## Channel Commands
 
-### freeco channel list
+### freeco-ai channel list
 
 List configured channels and their status.
 
 ```
-freeco channel list
+freeco-ai channel list
 ```
 
 **Output columns:** CHANNEL, ENV VAR, STATUS.
@@ -705,12 +705,12 @@ Checks `config.toml` for channel configuration sections and environment variable
 
 ---
 
-### freeco channel setup
+### freeco-ai channel setup
 
 Interactive setup wizard for a channel integration.
 
 ```
-freeco channel setup [<CHANNEL>]
+freeco-ai channel setup [<CHANNEL>]
 ```
 
 **Arguments:**
@@ -732,22 +732,22 @@ Each wizard:
 
 ```bash
 # Interactive picker
-freeco channel setup
+freeco-ai channel setup
 
 # Direct setup
-freeco channel setup telegram
-freeco channel setup discord
-freeco channel setup slack
+freeco-ai channel setup telegram
+freeco-ai channel setup discord
+freeco-ai channel setup slack
 ```
 
 ---
 
-### freeco channel test
+### freeco-ai channel test
 
 Send a test message through a configured channel.
 
 ```
-freeco channel test <CHANNEL>
+freeco-ai channel test <CHANNEL>
 ```
 
 **Arguments:**
@@ -761,17 +761,17 @@ Requires a running daemon. Sends `POST /api/channels/<channel>/test`.
 **Example:**
 
 ```bash
-freeco channel test telegram
+freeco-ai channel test telegram
 ```
 
 ---
 
-### freeco channel enable
+### freeco-ai channel enable
 
 Enable a channel integration.
 
 ```
-freeco channel enable <CHANNEL>
+freeco-ai channel enable <CHANNEL>
 ```
 
 **Arguments:**
@@ -784,12 +784,12 @@ In daemon mode: sends `POST /api/channels/<channel>/enable`. Without a daemon: p
 
 ---
 
-### freeco channel disable
+### freeco-ai channel disable
 
 Disable a channel without removing its configuration.
 
 ```
-freeco channel disable <CHANNEL>
+freeco-ai channel disable <CHANNEL>
 ```
 
 **Arguments:**
@@ -804,36 +804,36 @@ In daemon mode: sends `POST /api/channels/<channel>/disable`. Without a daemon: 
 
 ## Config Commands
 
-### freeco config show
+### freeco-ai config show
 
 Display the current configuration file.
 
 ```
-freeco config show
+freeco-ai config show
 ```
 
 Prints the contents of `~/.freeco-ai/config.toml` with the file path as a header comment.
 
 ---
 
-### freeco config edit
+### freeco-ai config edit
 
 Open the configuration file in your editor.
 
 ```
-freeco config edit
+freeco-ai config edit
 ```
 
 Uses `$EDITOR`, then `$VISUAL`, then falls back to `notepad` (Windows) or `vi` (Unix).
 
 ---
 
-### freeco config get
+### freeco-ai config get
 
 Get a single configuration value by dotted key path.
 
 ```
-freeco config get <KEY>
+freeco-ai config get <KEY>
 ```
 
 **Arguments:**
@@ -845,24 +845,24 @@ freeco config get <KEY>
 **Example:**
 
 ```bash
-freeco config get default_model.provider
+freeco-ai config get default_model.provider
 # groq
 
-freeco config get api_listen
+freeco-ai config get api_listen
 # 127.0.0.1:4200
 
-freeco config get memory.decay_rate
+freeco-ai config get memory.decay_rate
 # 0.05
 ```
 
 ---
 
-### freeco config set
+### freeco-ai config set
 
 Set a configuration value by dotted key path.
 
 ```
-freeco config set <KEY> <VALUE>
+freeco-ai config set <KEY> <VALUE>
 ```
 
 **Arguments:**
@@ -877,19 +877,19 @@ freeco config set <KEY> <VALUE>
 **Example:**
 
 ```bash
-freeco config set default_model.provider anthropic
-freeco config set default_model.model claude-sonnet-4-20250514
-freeco config set api_listen "0.0.0.0:4200"
+freeco-ai config set default_model.provider anthropic
+freeco-ai config set default_model.model claude-sonnet-4-20250514
+freeco-ai config set api_listen "0.0.0.0:4200"
 ```
 
 ---
 
-### freeco config set-key
+### freeco-ai config set-key
 
 Save an LLM provider API key to `~/.freeco-ai/.env`.
 
 ```
-freeco config set-key <PROVIDER>
+freeco-ai config set-key <PROVIDER>
 ```
 
 **Arguments:**
@@ -908,7 +908,7 @@ freeco config set-key <PROVIDER>
 **Example:**
 
 ```bash
-freeco config set-key groq
+freeco-ai config set-key groq
 # Paste your groq API key: gsk_...
 # [ok] Saved GROQ_API_KEY to ~/.freeco-ai/.env
 # Testing key... OK
@@ -916,12 +916,12 @@ freeco config set-key groq
 
 ---
 
-### freeco config delete-key
+### freeco-ai config delete-key
 
 Remove an API key from `~/.freeco-ai/.env`.
 
 ```
-freeco config delete-key <PROVIDER>
+freeco-ai config delete-key <PROVIDER>
 ```
 
 **Arguments:**
@@ -933,17 +933,17 @@ freeco config delete-key <PROVIDER>
 **Example:**
 
 ```bash
-freeco config delete-key openai
+freeco-ai config delete-key openai
 ```
 
 ---
 
-### freeco config test-key
+### freeco-ai config test-key
 
 Test provider connectivity with the stored API key.
 
 ```
-freeco config test-key <PROVIDER>
+freeco-ai config test-key <PROVIDER>
 ```
 
 **Arguments:**
@@ -962,7 +962,7 @@ freeco config test-key <PROVIDER>
 **Example:**
 
 ```bash
-freeco config test-key groq
+freeco-ai config test-key groq
 # Testing groq (GROQ_API_KEY)... OK
 ```
 
@@ -970,12 +970,12 @@ freeco config test-key groq
 
 ## Quick Chat
 
-### freeco chat
+### freeco-ai chat
 
 Quick alias for starting a chat session.
 
 ```
-freeco chat [<AGENT>]
+freeco-ai chat [<AGENT>]
 ```
 
 **Arguments:**
@@ -986,7 +986,7 @@ freeco chat [<AGENT>]
 
 **Behavior:**
 
-- **Daemon mode:** Finds the agent by name or ID among running agents. If no agent name is given, uses the first available agent. If no agents exist, suggests `freeco agent new`.
+- **Daemon mode:** Finds the agent by name or ID among running agents. If no agent name is given, uses the first available agent. If no agents exist, suggests `freeco-ai agent new`.
 - **Standalone mode (no daemon):** Boots an in-process kernel and auto-spawns an agent from templates. Searches for an agent matching the given name, then falls back to `assistant`, then to the first available template.
 
 This is the simplest way to start chatting -- it works with or without a daemon.
@@ -995,25 +995,25 @@ This is the simplest way to start chatting -- it works with or without a daemon.
 
 ```bash
 # Chat with the default agent
-freeco chat
+freeco-ai chat
 
 # Chat with a specific agent by name
-freeco chat coder
+freeco-ai chat coder
 
 # Chat with a specific agent by UUID
-freeco chat a1b2c3d4-e5f6-7890-abcd-ef1234567890
+freeco-ai chat a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 ---
 
 ## Migration
 
-### freeco migrate
+### freeco-ai migrate
 
 Migrate configuration and agents from another agent framework.
 
 ```
-freeco migrate --from <FRAMEWORK> [--source-dir <PATH>] [--dry-run]
+freeco-ai migrate --from <FRAMEWORK> [--source-dir <PATH>] [--dry-run]
 ```
 
 **Options:**
@@ -1034,16 +1034,16 @@ freeco migrate --from <FRAMEWORK> [--source-dir <PATH>] [--dry-run]
 
 ```bash
 # Dry run migration from OpenClaw
-freeco migrate --from openclaw --dry-run
+freeco-ai migrate --from openclaw --dry-run
 
 # Migrate from OpenClaw (auto-detect source)
-freeco migrate --from openclaw
+freeco-ai migrate --from openclaw
 
 # Migrate from LangChain with explicit source
-freeco migrate --from langchain --source-dir /home/user/.langchain
+freeco-ai migrate --from langchain --source-dir /home/user/.langchain
 
 # Migrate from AutoGPT
-freeco migrate --from autogpt
+freeco-ai migrate --from autogpt
 ```
 
 ---
@@ -1108,12 +1108,12 @@ If either step fails (no `daemon.json`, stale file, health check timeout), the C
 **Daemon lifecycle:**
 
 ```
-freeco start          # Starts daemon, writes daemon.json
+freeco-ai start          # Starts daemon, writes daemon.json
                         # Other CLI instances detect daemon.json
-freeco status         # Connects to daemon via HTTP
+freeco-ai status         # Connects to daemon via HTTP
 Ctrl+C                  # Daemon shuts down, daemon.json removed
 
-freeco doctor --repair  # Cleans up stale daemon.json from crashes
+freeco-ai doctor --repair  # Cleans up stale daemon.json from crashes
 ```
 
 ---
@@ -1154,45 +1154,45 @@ Manage keys with the `config set-key` / `config delete-key` commands rather than
 export GROQ_API_KEY="gsk_your_key_here"
 
 # 2. Initialize FreEco.ai
-freeco init --quick
+freeco-ai init --quick
 
 # 3. Start the daemon
-freeco start
+freeco-ai start
 ```
 
 ### Daily usage
 
 ```bash
 # Quick chat (auto-spawns agent if needed)
-freeco chat
+freeco-ai chat
 
 # Chat with a specific agent
-freeco chat coder
+freeco-ai chat coder
 
 # Check what's running
-freeco status
+freeco-ai status
 
 # Open the web dashboard
-freeco dashboard
+freeco-ai dashboard
 ```
 
 ### Agent management
 
 ```bash
 # Spawn from a template
-freeco agent new assistant
+freeco-ai agent new assistant
 
 # Spawn from a custom manifest
-freeco agent spawn ./agents/custom-agent/agent.toml
+freeco-ai agent spawn ./agents/custom-agent/agent.toml
 
 # List running agents
-freeco agent list
+freeco-ai agent list
 
 # Chat with an agent by UUID
-freeco agent chat <UUID>
+freeco-ai agent chat <UUID>
 
 # Kill an agent
-freeco agent kill <UUID>
+freeco-ai agent kill <UUID>
 ```
 
 ### Workflow automation
@@ -1230,75 +1230,75 @@ freeco trigger delete <TRIGGER_ID>
 
 ```bash
 # Search FangHub
-freeco skill search "code review"
+freeco-ai skill search "code review"
 
 # Install a skill
-freeco skill install code-reviewer
+freeco-ai skill install code-reviewer
 
 # List installed skills
-freeco skill list
+freeco-ai skill list
 
 # Create a new skill
-freeco skill create
+freeco-ai skill create
 
 # Remove a skill
-freeco skill remove code-reviewer
+freeco-ai skill remove code-reviewer
 ```
 
 ### Channel setup
 
 ```bash
 # Interactive channel picker
-freeco channel setup
+freeco-ai channel setup
 
 # Direct channel setup
-freeco channel setup telegram
+freeco-ai channel setup telegram
 
 # Check channel status
-freeco channel list
+freeco-ai channel list
 
 # Test a channel
-freeco channel test telegram
+freeco-ai channel test telegram
 
 # Enable/disable channels
-freeco channel enable discord
-freeco channel disable slack
+freeco-ai channel enable discord
+freeco-ai channel disable slack
 ```
 
 ### Configuration
 
 ```bash
 # View config
-freeco config show
+freeco-ai config show
 
 # Get a specific value
-freeco config get default_model.provider
+freeco-ai config get default_model.provider
 
 # Change provider
-freeco config set default_model.provider anthropic
-freeco config set default_model.model claude-sonnet-4-20250514
-freeco config set default_model.api_key_env ANTHROPIC_API_KEY
+freeco-ai config set default_model.provider anthropic
+freeco-ai config set default_model.model claude-sonnet-4-20250514
+freeco-ai config set default_model.api_key_env ANTHROPIC_API_KEY
 
 # Manage API keys
-freeco config set-key anthropic
-freeco config test-key anthropic
-freeco config delete-key openai
+freeco-ai config set-key anthropic
+freeco-ai config test-key anthropic
+freeco-ai config delete-key openai
 
 # Open in editor
-freeco config edit
+freeco-ai config edit
 ```
 
 ### Migration from other frameworks
 
 ```bash
 # Preview migration
-freeco migrate --from openclaw --dry-run
+freeco-ai migrate --from openclaw --dry-run
 
 # Run migration
-freeco migrate --from openclaw
+freeco-ai migrate --from openclaw
 
 # Migrate from LangChain
-freeco migrate --from langchain --source-dir ~/.langchain
+freeco-ai migrate --from langchain --source-dir ~/.langchain
 ```
 
 ### MCP integration
@@ -1312,29 +1312,29 @@ freeco mcp
 
 ```bash
 # Run all diagnostic checks
-freeco doctor
+freeco-ai doctor
 
 # Auto-repair issues
-freeco doctor --repair
+freeco-ai doctor --repair
 
 # Machine-readable diagnostics
-freeco doctor --json
+freeco-ai doctor --json
 ```
 
 ### Shell completions
 
 ```bash
 # Generate and install completions for your shell
-freeco completion bash >> ~/.bashrc
-freeco completion zsh > "${fpath[1]}/_freeco"
-freeco completion fish > ~/.config/fish/completions/freeco.fish
+freeco-ai completion bash >> ~/.bashrc
+freeco-ai completion zsh > "${fpath[1]}/_freeco"
+freeco-ai completion fish > ~/.config/fish/completions/freeco.fish
 ```
 
 ---
 
 ## Supported LLM Providers
 
-The following providers are recognized by `freeco config set-key` and `freeco doctor`:
+The following providers are recognized by `freeco-ai config set-key` and `freeco-ai doctor`:
 
 | Provider | Environment Variable | Default Model |
 |---|---|---|

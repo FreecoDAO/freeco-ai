@@ -275,7 +275,7 @@ default_agent = "assistant"
 6. Restart the daemon:
 
 ```bash
-freeco start
+freeco-ai start
 ```
 
 ### How It Works
@@ -301,7 +301,7 @@ Agents can read the raw metadata field via tool calls that expose `ChannelMessag
 ### Interactive Setup
 
 ```bash
-freeco channel setup telegram
+freeco-ai channel setup telegram
 ```
 
 This walks you through the setup interactively.

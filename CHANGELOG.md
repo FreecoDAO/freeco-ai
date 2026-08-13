@@ -422,13 +422,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Non-loopback requests with no `api_key` configured now return 401 by default. Opt out with `FREECO_AI_ALLOW_NO_AUTH=1`. Fixes the B1/B2 authentication bypass from #1034.
 - Agent `context.md` is re-read on every turn so external updates take effect mid-session. Opt out per agent with `cache_context = true` on the manifest. Fixes #843.
-- `freeco config get default_model.base_url` now prints the configured URL instead of an empty string. Missing keys return a clear "not found" error. Fixes #905.
+- `freeco-ai config get default_model.base_url` now prints the configured URL instead of an empty string. Missing keys return a clear "not found" error. Fixes #905.
 - `schedule_create`, `schedule_list`, and `schedule_delete` tools plus the `/api/schedules` routes now use the kernel cron scheduler, so scheduled jobs actually fire. One-shot idempotent migration imports legacy shared-memory entries at startup. Fixes #1069.
 - Multimodal user messages now combine text and image blocks into a single message so the LLM sees both. Fixes #1043.
 
 ### Added
 
-- `freeco hand config <id>` subcommand: get, set, unset, and list settings on an active hand instance. Fixes #809.
+- `freeco-ai hand config <id>` subcommand: get, set, unset, and list settings on an active hand instance. Fixes #809.
 - Optional per-channel `prefix_agent_name` setting (`off` / `bracket` / `bold_bracket`). Wraps outbound agent responses so users in multi-agent channels can see which agent replied. Default is off, byte-identical to prior behavior. Fixes #980.
 
 ### Closed as invalid

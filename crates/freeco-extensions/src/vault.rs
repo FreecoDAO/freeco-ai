@@ -2,7 +2,8 @@
 //!
 //! Stores secrets in `~/.freeco-ai/vault.enc`, with the master key sourced from
 //! the OS keyring (Windows Credential Manager / macOS Keychain / Linux Secret Service)
-//! or the `FREECO_AI_VAULT_KEY` env var for headless/CI environments.
+//! or the `FREECO_AI_VAULT_KEY` env var for headless/CI environments. The
+//! legacy `OPENFANG_VAULT_KEY` remains a fallback for existing deployments.
 
 use crate::{ExtensionError, ExtensionResult};
 use aes_gcm::aead::{rand_core::RngCore, Aead, KeyInit, OsRng};
@@ -25,6 +26,7 @@ const KEYRING_SERVICE: &str = "freeco-vault";
 const KEYRING_USER: &str = "master-key";
 /// Env var fallback for vault key.
 const VAULT_KEY_ENV: &str = "FREECO_AI_VAULT_KEY";
+const LEGACY_VAULT_KEY_ENV: &str = "OPENFANG_VAULT_KEY";
 /// Salt length for Argon2.
 const SALT_LEN: usize = 16;
 /// Nonce length for AES-256-GCM.
@@ -83,7 +85,9 @@ impl CredentialVault {
         }
 
         // Check if a master key is already available (env var or keyring)
-        let key_bytes = if let Ok(existing_b64) = std::env::var(VAULT_KEY_ENV) {
+        let key_bytes = if let Ok(existing_b64) =
+            std::env::var(VAULT_KEY_ENV).or_else(|_| std::env::var(LEGACY_VAULT_KEY_ENV))
+        {
             // Use the existing key from env var
             info!("Using existing vault key from {}", VAULT_KEY_ENV);
             decode_master_key(&existing_b64)?
@@ -254,7 +258,9 @@ impl CredentialVault {
         }
 
         // Fallback to env var
-        if let Ok(key_b64) = std::env::var(VAULT_KEY_ENV) {
+        if let Ok(key_b64) =
+            std::env::var(VAULT_KEY_ENV).or_else(|_| std::env::var(LEGACY_VAULT_KEY_ENV))
+        {
             let key_b64 = Zeroizing::new(key_b64);
             return decode_master_key(&key_b64);
         }

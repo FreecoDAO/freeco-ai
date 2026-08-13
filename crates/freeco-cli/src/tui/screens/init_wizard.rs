@@ -1,6 +1,6 @@
 //! Standalone ratatui init wizard: 6-step onboarding flow.
 //!
-//! Launched by `freeco init` (without `--quick`). Takes over the terminal,
+//! Launched by `freeco-ai init` (without `--quick`). Takes over the terminal,
 //! runs its own event loop, and returns an `InitResult`.
 
 use ratatui::crossterm::event::{self, Event as CtEvent, KeyCode, KeyEventKind};
@@ -286,7 +286,7 @@ mod tests {
         let minimax = PROVIDERS.iter().find(|provider| provider.name == "minimax");
         assert!(
             minimax.is_some(),
-            "MiniMax should be selectable in freeco init"
+            "MiniMax should be selectable in freeco-ai init"
         );
         let minimax = minimax.unwrap();
         assert_eq!(minimax.env_var, "MINIMAX_API_KEY");
@@ -1315,7 +1315,9 @@ fn save_config(state: &mut State) {
         }
     };
 
-    let freeco_dir = if let Ok(h) = std::env::var("FREECO_AI_HOME") {
+    let freeco_dir = if let Ok(h) =
+        std::env::var("FREECO_AI_HOME").or_else(|_| std::env::var("OPENFANG_HOME"))
+    {
         PathBuf::from(h)
     } else {
         match dirs::home_dir() {
@@ -1408,9 +1410,9 @@ fn find_desktop_binary() -> Option<std::path::PathBuf> {
     let dir = exe.parent()?;
 
     #[cfg(windows)]
-    let name = "freeco-desktop.exe";
+    let name = "freeco-ai-desktop.exe";
     #[cfg(not(windows))]
-    let name = "freeco-desktop";
+    let name = "freeco-ai-desktop";
 
     let path = dir.join(name);
     if path.exists() {

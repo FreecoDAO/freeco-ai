@@ -542,9 +542,9 @@ pub fn launch_desktop_app() {
         let dir = exe.as_ref().and_then(|e| e.parent());
 
         #[cfg(windows)]
-        let name = "freeco-desktop.exe";
+        let name = "freeco-ai-desktop.exe";
         #[cfg(not(windows))]
-        let name = "freeco-desktop";
+        let name = "freeco-ai-desktop";
 
         // Check sibling of current exe first
         let sibling = dir.map(|d| d.join(name));

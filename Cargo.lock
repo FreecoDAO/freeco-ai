@@ -2047,8 +2047,8 @@ name = "freeco-agent-core"
 version = "0.9.5"
 dependencies = [
  "async-trait",
- "js-sys",
  "freeco-types",
+ "js-sys",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
@@ -2097,10 +2097,10 @@ dependencies = [
  "clap_complete",
  "colored",
  "dirs 6.0.0",
- "freeco-kernel-runtime",
  "freeco-api",
  "freeco-extensions",
  "freeco-kernel",
+ "freeco-kernel-runtime",
  "freeco-migrate",
  "freeco-skills",
  "freeco-types",
@@ -2113,6 +2113,51 @@ dependencies = [
  "toml 0.9.12+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "freeco-api"
+version = "0.9.5"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "dashmap",
+ "dirs 6.0.0",
+ "freeco-channels",
+ "freeco-extensions",
+ "freeco-hands",
+ "freeco-kernel",
+ "freeco-kernel-runtime",
+ "freeco-memory",
+ "freeco-migrate",
+ "freeco-skills",
+ "freeco-types",
+ "freeco-wire",
+ "futures",
+ "governor",
+ "hex",
+ "hmac",
+ "rand 0.9.5",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2",
+ "socket2 0.5.10",
+ "subtle",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tokio-test",
+ "toml 0.9.12+spec-1.1.0",
+ "tower",
+ "tower-http",
+ "tracing",
  "uuid",
  "zeroize",
 ]
@@ -2131,6 +2176,134 @@ dependencies = [
 ]
 
 [[package]]
+name = "freeco-channels"
+version = "0.9.5"
+dependencies = [
+ "aes",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "cbc",
+ "chrono",
+ "dashmap",
+ "freeco-types",
+ "futures",
+ "hex",
+ "hmac",
+ "html-escape",
+ "imap",
+ "lettre",
+ "mailparse",
+ "native-tls",
+ "prost",
+ "regex-lite",
+ "reqwest 0.12.28",
+ "roxmltree",
+ "rumqttc",
+ "serde",
+ "serde_json",
+ "sha1",
+ "sha2",
+ "tokio",
+ "tokio-stream",
+ "tokio-test",
+ "tokio-tungstenite 0.24.0",
+ "tracing",
+ "url",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "freeco-datagateway"
+version = "0.9.5"
+dependencies = [
+ "chrono",
+ "rand 0.9.5",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "freeco-desktop"
+version = "0.9.5"
+dependencies = [
+ "axum",
+ "freeco-api",
+ "freeco-kernel",
+ "freeco-types",
+ "open",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-dialog",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-notification",
+ "tauri-plugin-shell",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tokio",
+ "toml 0.9.12+spec-1.1.0",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "freeco-extensions"
+version = "0.9.5"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "dashmap",
+ "dirs 6.0.0",
+ "freeco-types",
+ "rand 0.9.5",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-test",
+ "toml 0.9.12+spec-1.1.0",
+ "tracing",
+ "url",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "freeco-hands"
+version = "0.9.5"
+dependencies = [
+ "chrono",
+ "dashmap",
+ "dirs 6.0.0",
+ "freeco-types",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio-test",
+ "toml 0.9.12+spec-1.1.0",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "freeco-input-parser"
 version = "0.9.5"
 dependencies = [
@@ -2145,6 +2318,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "freeco-kernel"
+version = "0.9.5"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "chrono-tz",
+ "cron",
+ "crossbeam",
+ "dashmap",
+ "dirs 6.0.0",
+ "freeco-agent-ceo",
+ "freeco-agent-core",
+ "freeco-agent-secretary",
+ "freeco-agent-shopping",
+ "freeco-channels",
+ "freeco-extensions",
+ "freeco-hands",
+ "freeco-kernel-runtime",
+ "freeco-memory",
+ "freeco-skills",
+ "freeco-tool-gateway",
+ "freeco-types",
+ "freeco-wire",
+ "futures",
+ "hex",
+ "libc",
+ "rand 0.9.5",
+ "reqwest 0.12.28",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2",
+ "subtle",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-test",
+ "toml 0.9.12+spec-1.1.0",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
 name = "freeco-kernel-runtime"
 version = "0.9.5"
 dependencies = [
@@ -2154,12 +2372,12 @@ dependencies = [
  "bytes",
  "chrono",
  "dashmap",
- "futures",
- "hex",
- "http",
  "freeco-memory",
  "freeco-skills",
  "freeco-types",
+ "futures",
+ "hex",
+ "http",
  "regex-lite",
  "reqwest 0.12.28",
  "rmcp",
@@ -2181,6 +2399,63 @@ dependencies = [
 ]
 
 [[package]]
+name = "freeco-learning"
+version = "0.9.5"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "freeco-memory",
+ "freeco-types",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "freeco-memory"
+version = "0.9.5"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "freeco-types",
+ "reqwest 0.12.28",
+ "rmp-serde",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "freeco-migrate"
+version = "0.9.5"
+dependencies = [
+ "chrono",
+ "dirs 6.0.0",
+ "freeco-types",
+ "json5",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.19",
+ "toml 0.9.12+spec-1.1.0",
+ "tracing",
+ "uuid",
+ "walkdir",
+]
+
+[[package]]
 name = "freeco-runtime"
 version = "0.9.5"
 dependencies = [
@@ -2198,6 +2473,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "freeco-skills"
+version = "0.9.5"
+dependencies = [
+ "chrono",
+ "ed25519-dalek",
+ "freeco-types",
+ "hex",
+ "rand_core 0.6.4",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-test",
+ "toml 0.9.12+spec-1.1.0",
+ "tracing",
+ "uuid",
+ "walkdir",
+ "zip",
+]
+
+[[package]]
 name = "freeco-tool-gateway"
 version = "0.9.5"
 dependencies = [
@@ -2210,6 +2510,48 @@ dependencies = [
  "tokio",
  "toml 0.9.12+spec-1.1.0",
  "tracing",
+]
+
+[[package]]
+name = "freeco-types"
+version = "0.9.5"
+dependencies = [
+ "async-trait",
+ "bitflags 2.13.1",
+ "chrono",
+ "dirs 6.0.0",
+ "ed25519-dalek",
+ "hex",
+ "rand_core 0.6.4",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.19",
+ "toml 0.9.12+spec-1.1.0",
+ "uuid",
+]
+
+[[package]]
+name = "freeco-wire"
+version = "0.9.5"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "dashmap",
+ "freeco-types",
+ "hex",
+ "hmac",
+ "rand 0.9.5",
+ "serde",
+ "serde_json",
+ "sha2",
+ "subtle",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -4206,348 +4548,6 @@ dependencies = [
  "dunce",
  "is-wsl",
  "libc",
-]
-
-[[package]]
-name = "freeco-api"
-version = "0.9.5"
-dependencies = [
- "aes-gcm",
- "argon2",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "dashmap",
- "dirs 6.0.0",
- "freeco-kernel-runtime",
- "futures",
- "governor",
- "hex",
- "hmac",
- "freeco-channels",
- "freeco-extensions",
- "freeco-hands",
- "freeco-kernel",
- "freeco-memory",
- "freeco-migrate",
- "freeco-skills",
- "freeco-types",
- "freeco-wire",
- "rand 0.9.5",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "socket2 0.5.10",
- "subtle",
- "tempfile",
- "tokio",
- "tokio-stream",
- "tokio-test",
- "toml 0.9.12+spec-1.1.0",
- "tower",
- "tower-http",
- "tracing",
- "uuid",
- "zeroize",
-]
-
-[[package]]
-name = "freeco-channels"
-version = "0.9.5"
-dependencies = [
- "aes",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "cbc",
- "chrono",
- "dashmap",
- "futures",
- "hex",
- "hmac",
- "html-escape",
- "imap",
- "lettre",
- "mailparse",
- "native-tls",
- "freeco-types",
- "prost",
- "regex-lite",
- "reqwest 0.12.28",
- "roxmltree",
- "rumqttc",
- "serde",
- "serde_json",
- "sha1",
- "sha2",
- "tokio",
- "tokio-stream",
- "tokio-test",
- "tokio-tungstenite 0.24.0",
- "tracing",
- "url",
- "uuid",
- "zeroize",
-]
-
-[[package]]
-name = "freeco-datagateway"
-version = "0.9.5"
-dependencies = [
- "chrono",
- "rand 0.9.5",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.19",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "freeco-desktop"
-version = "0.9.5"
-dependencies = [
- "axum",
- "open",
- "freeco-api",
- "freeco-kernel",
- "freeco-types",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-dialog",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-notification",
- "tauri-plugin-shell",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tokio",
- "toml 0.9.12+spec-1.1.0",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "freeco-extensions"
-version = "0.9.5"
-dependencies = [
- "aes-gcm",
- "argon2",
- "axum",
- "base64 0.22.1",
- "chrono",
- "dashmap",
- "dirs 6.0.0",
- "freeco-types",
- "rand 0.9.5",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tokio-test",
- "toml 0.9.12+spec-1.1.0",
- "tracing",
- "url",
- "uuid",
- "zeroize",
-]
-
-[[package]]
-name = "freeco-hands"
-version = "0.9.5"
-dependencies = [
- "chrono",
- "dashmap",
- "dirs 6.0.0",
- "hex",
- "freeco-types",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.19",
- "tokio-test",
- "toml 0.9.12+spec-1.1.0",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "freeco-kernel"
-version = "0.9.5"
-dependencies = [
- "async-trait",
- "chrono",
- "chrono-tz",
- "cron",
- "crossbeam",
- "dashmap",
- "dirs 6.0.0",
- "freeco-agent-ceo",
- "freeco-agent-core",
- "freeco-agent-secretary",
- "freeco-agent-shopping",
- "freeco-kernel-runtime",
- "freeco-tool-gateway",
- "futures",
- "hex",
- "libc",
- "freeco-channels",
- "freeco-extensions",
- "freeco-hands",
- "freeco-memory",
- "freeco-skills",
- "freeco-types",
- "freeco-wire",
- "rand 0.9.5",
- "reqwest 0.12.28",
- "rustls",
- "serde",
- "serde_json",
- "sha2",
- "subtle",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tokio-test",
- "toml 0.9.12+spec-1.1.0",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "zeroize",
-]
-
-[[package]]
-name = "freeco-learning"
-version = "0.9.5"
-dependencies = [
- "anyhow",
- "chrono",
- "freeco-memory",
- "freeco-types",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tokio-stream",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "freeco-memory"
-version = "0.9.5"
-dependencies = [
- "async-trait",
- "chrono",
- "freeco-types",
- "reqwest 0.12.28",
- "rmp-serde",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tokio-test",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "freeco-migrate"
-version = "0.9.5"
-dependencies = [
- "chrono",
- "dirs 6.0.0",
- "json5",
- "freeco-types",
- "serde",
- "serde_json",
- "serde_yaml",
- "tempfile",
- "thiserror 2.0.19",
- "toml 0.9.12+spec-1.1.0",
- "tracing",
- "uuid",
- "walkdir",
-]
-
-[[package]]
-name = "freeco-skills"
-version = "0.9.5"
-dependencies = [
- "chrono",
- "ed25519-dalek",
- "hex",
- "freeco-types",
- "rand_core 0.6.4",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "tempfile",
- "thiserror 2.0.19",
- "tokio",
- "tokio-test",
- "toml 0.9.12+spec-1.1.0",
- "tracing",
- "uuid",
- "walkdir",
- "zip",
-]
-
-[[package]]
-name = "freeco-types"
-version = "0.9.5"
-dependencies = [
- "async-trait",
- "bitflags 2.13.1",
- "chrono",
- "dirs 6.0.0",
- "ed25519-dalek",
- "hex",
- "rand_core 0.6.4",
- "rmp-serde",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.19",
- "toml 0.9.12+spec-1.1.0",
- "uuid",
-]
-
-[[package]]
-name = "freeco-wire"
-version = "0.9.5"
-dependencies = [
- "async-trait",
- "chrono",
- "dashmap",
- "hex",
- "hmac",
- "freeco-types",
- "rand 0.9.5",
- "serde",
- "serde_json",
- "sha2",
- "subtle",
- "thiserror 2.0.19",
- "tokio",
- "tokio-test",
- "tracing",
- "uuid",
 ]
 
 [[package]]

@@ -540,7 +540,7 @@ impl CopilotDriver {
         // No valid tokens and refresh failed — need device flow.
         // In daemon mode, we can't do interactive auth. Return a clear error.
         Err(crate::llm_driver::LlmError::AuthenticationFailed(
-            "Copilot OAuth tokens expired. Run `freeco config set-key github-copilot` to re-authenticate via device flow.".to_string(),
+            "Copilot OAuth tokens expired. Run `freeco-ai config set-key github-copilot` to re-authenticate via device flow.".to_string(),
         ))
     }
 
@@ -732,8 +732,8 @@ impl crate::llm_driver::LlmDriver for CopilotDriver {
 
 /// Run the interactive Copilot setup: execute the device flow.
 ///
-/// Called from `freeco config set-key github-copilot`, `freeco init`,
-/// `freeco onboard`, and `freeco configure`.
+/// Called from `freeco-ai config set-key github-copilot`, `freeco-ai init`,
+/// `freeco-ai onboard`, and `freeco-ai configure`.
 pub async fn run_interactive_setup(freeco_dir: &Path) -> Result<PersistedTokens, String> {
     run_device_flow(freeco_dir).await
 }

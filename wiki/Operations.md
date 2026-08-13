@@ -2,7 +2,7 @@
 
 ## Start and stop
 
-Use `freeco start` to run the daemon. The health endpoint is:
+Use `freeco-ai start` to run the daemon. The health endpoint is:
 
 ```text
 GET /api/health

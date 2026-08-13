@@ -341,7 +341,7 @@ fn lenient_extract_bindings(root_value: &mut toml::Value) {
 
 /// Get the default config file path.
 ///
-/// Respects `FREECO_AI_HOME` (or legacy `FRECO_AI_HOME` / `FREECO_AI_HOME`)
+/// Respects `FREECO_AI_HOME` (or legacy `FRECO_AI_HOME` / `OPENFANG_HOME`)
 /// environment variables.
 pub fn default_config_path() -> PathBuf {
     freeco_ai_home().join("config.toml")
@@ -350,9 +350,9 @@ pub fn default_config_path() -> PathBuf {
 /// Get the FreEco.ai home directory.
 ///
 /// Priority: `FREECO_AI_HOME` > legacy `FRECO_AI_HOME` > legacy
-/// `FREECO_AI_HOME` > `~/.freeco-ai`.
+/// `OPENFANG_HOME` > `~/.freeco-ai`.
 ///
-/// On first use, an existing legacy `~/.freeco-ai` directory is renamed to the
+/// On first use, an existing legacy `~/.openfang` directory is renamed to the
 /// new location. Renaming is atomic on a single filesystem and preserves
 /// credentials, databases, permissions, and daemon state. If it cannot be
 /// renamed, the legacy directory remains in use rather than risking data loss.
@@ -365,21 +365,21 @@ pub fn freeco_ai_home() -> PathBuf {
     if let Ok(home) = std::env::var("FRECO_AI_HOME") {
         return PathBuf::from(home);
     }
-    if let Ok(home) = std::env::var("FREECO_AI_HOME") {
+    if let Ok(home) = std::env::var("OPENFANG_HOME") {
         return PathBuf::from(home);
     }
     let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
     let freeco_home = home.join(".freeco-ai");
-    let legacy_home = home.join(".freeco-ai");
-    if !freeco_home.exists()
-        && legacy_home.exists()
-        && std::fs::rename(&legacy_home, &freeco_home).is_err()
-    {
-        return legacy_home;
+    let legacy_home = home.join(".openfang");
+    if !freeco_home.exists() && legacy_home.exists() {
+        if std::fs::rename(&legacy_home, &freeco_home).is_err() {
+            return legacy_home;
+        }
     }
     if freeco_home.is_dir() && legacy_home.is_dir() {
         migrate_legacy_home_contents(&legacy_home, &freeco_home);
     }
+    migrate_legacy_database(&freeco_home);
     freeco_home
 }
 
@@ -394,6 +394,7 @@ fn migrate_legacy_home_contents(legacy_home: &Path, freeco_home: &Path) {
         if destination.exists() {
             continue;
         }
+
         if let Err(error) = std::fs::rename(&source, &destination) {
             tracing::warn!(
                 source = %source.display(),
@@ -409,6 +410,21 @@ fn migrate_legacy_home_contents(legacy_home: &Path, freeco_home: &Path) {
         .is_some_and(|mut entries| entries.next().is_none())
     {
         let _ = std::fs::remove_dir(legacy_home);
+    }
+}
+
+fn migrate_legacy_database(freeco_home: &Path) {
+    let legacy_database = freeco_home.join("data").join("openfang.db");
+    let current_database = freeco_home.join("data").join("freeco.db");
+    if legacy_database.is_file() && !current_database.exists() {
+        if let Err(error) = std::fs::rename(&legacy_database, &current_database) {
+            tracing::warn!(
+                source = %legacy_database.display(),
+                destination = %current_database.display(),
+                %error,
+                "Could not rename legacy database during FreEco.ai migration"
+            );
+        }
     }
 }
 
@@ -432,7 +448,7 @@ mod tests {
     #[test]
     fn test_migrate_legacy_home_contents_preserves_existing_new_entries() {
         let temp = tempfile::tempdir().unwrap();
-        let legacy = temp.path().join(".freeco-ai");
+        let legacy = temp.path().join(".openfang");
         let current = temp.path().join(".freeco-ai");
         std::fs::create_dir_all(&legacy).unwrap();
         std::fs::create_dir_all(&current).unwrap();
@@ -456,7 +472,7 @@ mod tests {
     #[test]
     fn test_migrate_legacy_home_contents_moves_stranded_config() {
         let temp = tempfile::tempdir().unwrap();
-        let legacy = temp.path().join(".freeco-ai");
+        let legacy = temp.path().join(".openfang");
         let current = temp.path().join(".freeco-ai");
         std::fs::create_dir_all(&legacy).unwrap();
         std::fs::create_dir_all(&current).unwrap();
@@ -469,6 +485,22 @@ mod tests {
             "log_level = \"debug\"\n"
         );
         assert!(!legacy.exists());
+    }
+
+    #[test]
+    fn test_migrate_legacy_database_renames_only_when_needed() {
+        let temp = tempfile::tempdir().unwrap();
+        let data_dir = temp.path().join("data");
+        std::fs::create_dir_all(&data_dir).unwrap();
+        std::fs::write(data_dir.join("openfang.db"), "legacy").unwrap();
+
+        migrate_legacy_database(temp.path());
+
+        assert!(!data_dir.join("openfang.db").exists());
+        assert_eq!(
+            std::fs::read_to_string(data_dir.join("freeco.db")).unwrap(),
+            "legacy"
+        );
     }
 
     #[test]

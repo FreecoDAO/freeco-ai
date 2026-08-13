@@ -50,7 +50,7 @@ pub struct AuthState {
     pub auth_enabled: bool,
     pub session_secret: String,
     /// Set from `FREECO_AI_ALLOW_NO_AUTH=1` (or the legacy
-    /// `FREECO_AI_ALLOW_NO_AUTH=1`) to permit running without an api_key on a
+    /// `OPENFANG_ALLOW_NO_AUTH=1`) to permit running without an api_key on a
     /// non-loopback bind. Off by default so empty keys fail closed.
     pub allow_no_auth: bool,
 }
@@ -59,7 +59,7 @@ pub struct AuthState {
 /// access. The FreEco.ai variable takes precedence over the legacy name.
 pub fn allow_no_auth_from_env() -> bool {
     std::env::var("FREECO_AI_ALLOW_NO_AUTH")
-        .or_else(|_| std::env::var("FREECO_AI_ALLOW_NO_AUTH"))
+        .or_else(|_| std::env::var("OPENFANG_ALLOW_NO_AUTH"))
         .map(|v| is_true_env_flag(&v))
         .unwrap_or(false)
 }
@@ -78,7 +78,7 @@ fn is_true_env_flag(value: &str) -> bool {
 /// Loopback traffic (127.0.0.1 / ::1) is always allowed through with no
 /// key so single-user local setups keep zero-config UX. To explicitly
 /// run a no-auth server on a LAN/WAN address, set
-/// `FREECO_AI_ALLOW_NO_AUTH=1` (or the legacy `FREECO_AI_ALLOW_NO_AUTH=1`);
+/// `FREECO_AI_ALLOW_NO_AUTH=1` (or the legacy `OPENFANG_ALLOW_NO_AUTH=1`);
 /// this opts out of fail-closed and is reported loudly at startup.
 ///
 /// When dashboard auth is enabled, session cookies are also accepted.

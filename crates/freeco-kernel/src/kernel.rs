@@ -600,7 +600,7 @@ impl FreecoKernel {
         // Env var overrides — useful for Docker where config.toml is baked in.
         if let Ok(listen) = std::env::var("FREECO_AI_LISTEN")
             .or_else(|_| std::env::var("FRECO_AI_LISTEN"))
-            .or_else(|_| std::env::var("FREECO_AI_LISTEN"))
+            .or_else(|_| std::env::var("OPENFANG_LISTEN"))
         {
             config.api_listen = listen;
         }
@@ -610,7 +610,7 @@ impl FreecoKernel {
         // remain valid for existing installations.
         if config.api_key.trim().is_empty() {
             if let Ok(key) =
-                std::env::var("FREECO_AI_API_KEY").or_else(|_| std::env::var("FREECO_AI_API_KEY"))
+                std::env::var("FREECO_AI_API_KEY").or_else(|_| std::env::var("OPENFANG_API_KEY"))
             {
                 let key = key.trim().to_string();
                 if !key.is_empty() {
@@ -646,11 +646,15 @@ impl FreecoKernel {
             .map_err(|e| KernelError::BootFailed(format!("Failed to create data dir: {e}")))?;
 
         // Initialize memory substrate
-        let db_path = config
-            .memory
-            .sqlite_path
-            .clone()
-            .unwrap_or_else(|| config.data_dir.join("freeco.db"));
+        let db_path = config.memory.sqlite_path.clone().unwrap_or_else(|| {
+            let current = config.data_dir.join("freeco.db");
+            let legacy = config.data_dir.join("openfang.db");
+            if !current.exists() && legacy.is_file() {
+                legacy
+            } else {
+                current
+            }
+        });
         let memory = Arc::new(
             MemorySubstrate::open(&db_path, config.memory.decay_rate, &config.memory)
                 .map_err(|e| KernelError::BootFailed(format!("Memory init failed: {e}")))?,
@@ -909,7 +913,7 @@ impl FreecoKernel {
         }
 
         // Load custom hands from the user's workspace (issue #984).
-        // Hands installed via `freeco hand install <path>` are persisted to
+        // Hands installed via `freeco-ai hand install <path>` are persisted to
         // `<home>/hands/<hand_id>/` so they survive daemon restarts.
         let workspace_hands_dir = config.home_dir.join("hands");
         match hand_registry.load_workspace_hands(&workspace_hands_dir) {

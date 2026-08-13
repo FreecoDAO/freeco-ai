@@ -427,7 +427,7 @@ print(json.dumps({"text": result.text, "model": "mlx-community/parakeet-tdt-0.6b
 fn detect_audio_provider() -> Option<&'static str> {
     // Explicit opt-in for local Parakeet MLX transcription
     if std::env::var("FREECO_AI_ENABLE_PARAKEET_MLX").is_ok()
-        || std::env::var("FREECO_AI_ENABLE_PARAKEET_MLX").is_ok()
+        || std::env::var("OPENFANG_ENABLE_PARAKEET_MLX").is_ok()
     {
         return Some("parakeet-mlx");
     }

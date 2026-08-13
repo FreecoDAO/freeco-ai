@@ -3713,7 +3713,7 @@ pub async fn list_templates() -> impl IntoResponse {
 
     // Merge compiled-in bundled templates: without this, templates added in
     // a release are invisible to anyone whose data dir predates it (the disk
-    // copy only happens once, at `freeco init`). Disk versions win.
+    // copy only happens once, at `freeco-ai init`). Disk versions win.
     let on_disk: std::collections::HashSet<String> = templates
         .iter()
         .filter_map(|t| t.get("name").and_then(|n| n.as_str()).map(String::from))
@@ -3767,7 +3767,7 @@ fn get_template_category(name: &str) -> &str {
 ///
 /// Disk templates (`$FREECO_AI_HOME/agents/`) win; compiled-in bundled
 /// templates serve as the fallback so new releases' templates work
-/// without re-running `freeco init`.
+/// without re-running `freeco-ai init`.
 pub async fn get_template(Path(name): Path<String>) -> impl IntoResponse {
     let agents_dir = freeco_kernel::config::freeco_ai_home().join("agents");
     let manifest_path = agents_dir.join(&name).join("agent.toml");
@@ -4249,7 +4249,7 @@ pub async fn uninstall_skill(
 
 /// POST /api/skills/reload — Hot-reload the skill registry from disk.
 ///
-/// Called by the CLI after `freeco skill install` to notify the running
+/// Called by the CLI after `freeco-ai skill install` to notify the running
 /// daemon that new skill files were added to the skills directory (#752).
 pub async fn reload_skills(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     state.kernel.reload_skills();

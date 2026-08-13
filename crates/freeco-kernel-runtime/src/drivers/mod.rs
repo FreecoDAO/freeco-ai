@@ -426,7 +426,7 @@ pub fn create_driver(config: &DriverConfig) -> Result<Arc<dyn LlmDriver>, LlmErr
         // drivers accept the field silently (forward-compat); future subprocess
         // drivers (qwen-code, etc.) will opt in here individually.
         let timeout = std::env::var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS")
-            .or_else(|_| std::env::var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS"))
+            .or_else(|_| std::env::var("OPENFANG_SUBPROCESS_TIMEOUT_SECS"))
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
             .or(config.subprocess_timeout_secs);
@@ -449,7 +449,7 @@ pub fn create_driver(config: &DriverConfig) -> Result<Arc<dyn LlmDriver>, LlmErr
 
     // GitHub Copilot — OAuth device flow + OpenAI-compatible completions.
     // Authentication is handled automatically via persisted tokens from the device flow.
-    // Run `freeco config set-key github-copilot` to authenticate.
+    // Run `freeco-ai config set-key github-copilot` to authenticate.
     if provider == "github-copilot" || provider == "copilot" {
         let freeco_dir = std::env::var("HOME")
             .or_else(|_| std::env::var("USERPROFILE"))
@@ -458,7 +458,7 @@ pub fn create_driver(config: &DriverConfig) -> Result<Arc<dyn LlmDriver>, LlmErr
 
         if !copilot::copilot_auth_available(&freeco_dir) {
             return Err(LlmError::MissingApiKey(
-                "Copilot not authenticated. Run `freeco config set-key github-copilot` to sign in."
+                "Copilot not authenticated. Run `freeco-ai config set-key github-copilot` to sign in."
                     .to_string(),
             ));
         }

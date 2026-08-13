@@ -1,5 +1,5 @@
 {
-  description = "The OpenFang Agent OS";
+  description = "The FreEco.ai Agent OS";
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -33,11 +33,11 @@
           perl
           pkg-config
         ];
-        rust-project.crates.openfang-desktop.crane.args.nativeBuildInputs = with pkgs; [
+        rust-project.crates.freeco-desktop.crane.args.nativeBuildInputs = with pkgs; [
           pkg-config
           wrapGAppsHook3
         ];
-        rust-project.crates.openfang-desktop.crane.args.buildInputs = with pkgs; [
+        rust-project.crates.freeco-desktop.crane.args.buildInputs = with pkgs; [
           atk
           glib
           gtk3
@@ -46,23 +46,23 @@
           pkg-config
           webkitgtk_4_1
         ];
-        rust-project.crates.openfang-desktop.crane.args.preFixup = ''
+        rust-project.crates.freeco-desktop.crane.args.preFixup = ''
           gappsWrapperArgs+=(
             --prefix LD_LIBRARY_PATH : "${pkgs.libayatana-appindicator}/lib"
           )
         '';
 
-        packages.default = self'.packages.openfang-cli;
+        packages.default = self'.packages.freeco-cli;
         apps = {
-          openfang-cli = {
-            program = "${self'.packages.openfang-cli}/bin/openfang";
-            meta.description = "CLI tool for the OpenFang Agent OS";
+          freeco-cli = {
+            program = "${self'.packages.freeco-cli}/bin/freeco-ai";
+            meta.description = "CLI tool for the FreEco.ai Agent OS";
           };
-          openfang-desktop = {
-            program = "${self'.packages.openfang-desktop}/bin/openfang-desktop";
-            meta.description = "Native desktop application for the OpenFang Agent OS (Tauri 2.0)";
+          freeco-desktop = {
+            program = "${self'.packages.freeco-desktop}/bin/freeco-ai-desktop";
+            meta.description = "Native desktop application for the FreEco.ai Agent OS (Tauri 2.0)";
           };
-          default = self'.apps.openfang-cli;
+          default = self'.apps.freeco-cli;
         };
       };
       flake = {

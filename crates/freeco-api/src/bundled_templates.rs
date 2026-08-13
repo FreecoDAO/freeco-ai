@@ -4,7 +4,7 @@
 //! The templates API merges these with `$FREECO_AI_HOME/agents/` so that
 //! templates added in a new release are visible immediately after updating —
 //! without them, users only ever saw the set copied to disk by their first
-//! `freeco init`.
+//! `freeco-ai init`.
 
 /// All bundled templates as `(name, toml_content)` pairs.
 pub fn bundled_templates() -> Vec<(&'static str, &'static str)> {

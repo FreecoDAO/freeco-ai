@@ -1786,17 +1786,17 @@ impl std::fmt::Debug for KernelConfig {
 /// Resolve the FreEco.ai home directory.
 ///
 /// Priority: `FREECO_AI_HOME` env var > legacy `FRECO_AI_HOME` >
-/// legacy `FREECO_AI_HOME` > `~/.freeco-ai`.
+/// legacy `OPENFANG_HOME` > `~/.freeco-ai`.
 fn freeco_home_dir() -> PathBuf {
     if let Ok(home) = std::env::var("FREECO_AI_HOME")
         .or_else(|_| std::env::var("FRECO_AI_HOME"))
-        .or_else(|_| std::env::var("FREECO_AI_HOME"))
+        .or_else(|_| std::env::var("OPENFANG_HOME"))
     {
         return PathBuf::from(home);
     }
     let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
     let freeco_home = home.join(".freeco-ai");
-    let legacy_home = home.join(".freeco-ai");
+    let legacy_home = home.join(".openfang");
     if !freeco_home.exists() && legacy_home.exists() {
         legacy_home
     } else {
