@@ -3,7 +3,7 @@
 //! Provides a comprehensive catalog of 130+ builtin models across 28 providers,
 //! with alias resolution, auth status detection, and pricing lookups.
 
-use openfang_types::model_catalog::{
+use freeco_types::model_catalog::{
     AuthStatus, ModelCatalogEntry, ModelTier, ProviderInfo, AI21_BASE_URL, ANTHROPIC_BASE_URL,
     AZURE_OPENAI_BASE_URL, BEDROCK_BASE_URL, CEREBRAS_BASE_URL, CHUTES_BASE_URL, COHERE_BASE_URL,
     DEEPSEEK_BASE_URL, FIREWORKS_BASE_URL, GEMINI_BASE_URL, GITHUB_COPILOT_BASE_URL, GROQ_BASE_URL,
@@ -77,12 +77,12 @@ impl ModelCatalog {
 
             // GitHub Copilot: check for persisted OAuth tokens
             if provider.id == "github-copilot" || provider.id == "copilot" {
-                let openfang_dir = std::env::var("HOME")
+                let freeco_dir = std::env::var("HOME")
                     .or_else(|_| std::env::var("USERPROFILE"))
-                    .map(|h| std::path::PathBuf::from(h).join(".openfang"))
-                    .unwrap_or_else(|_| std::path::PathBuf::from(".openfang"));
+                    .map(|h| std::path::PathBuf::from(h).join(".freeco-ai"))
+                    .unwrap_or_else(|_| std::path::PathBuf::from(".freeco-ai"));
                 provider.auth_status =
-                    if crate::drivers::copilot::copilot_auth_available(&openfang_dir) {
+                    if crate::drivers::copilot::copilot_auth_available(&freeco_dir) {
                         AuthStatus::Configured
                     } else {
                         AuthStatus::Missing

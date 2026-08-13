@@ -1,12 +1,12 @@
 [package]
-name = "openfang-channels"
+name = "freeco-channels"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Channel Bridge Layer — pluggable messaging integrations for OpenFang"
+description = "Channel Bridge Layer — pluggable messaging integrations for Freeco"
 
 [dependencies]
-openfang-types = { path = "../openfang-types" }
+freeco-types = { path = "../freeco-types" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

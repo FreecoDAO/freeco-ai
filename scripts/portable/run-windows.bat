@@ -9,7 +9,7 @@ set "ROOT=%~dp0"
 set "FREECO_AI_HOME=%ROOT%data"
 if "%FREECO_AI_LISTEN%"=="" set "FREECO_AI_LISTEN=127.0.0.1:4200"
 REM Keep legacy interactive-setup home resolution inside the portable bundle.
-set "OPENFANG_HOME=%FREECO_AI_HOME%"
+set "FREECO_AI_HOME=%FREECO_AI_HOME%"
 
 REM ── Bundled local AI (fully offline) ────────────────────────────────────
 REM If this drive carries Ollama + a model, use them from the drive: nothing

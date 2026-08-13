@@ -1,7 +1,7 @@
 //! Tauri IPC command handlers.
 
 use crate::{KernelState, PortState};
-use openfang_kernel::config::freeco_ai_home;
+use freeco_kernel::config::freeco_ai_home;
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_dialog::DialogExt;
 use tracing::info;
@@ -38,7 +38,7 @@ pub fn get_agent_count(kernel_state: tauri::State<'_, KernelState>) -> usize {
 /// Open a native file picker to import an agent TOML manifest.
 ///
 /// Validates the TOML as a valid `AgentManifest`, copies it to
-/// `~/.openfang/agents/{name}/agent.toml`, then spawns the agent.
+/// `~/.freeco-ai/agents/{name}/agent.toml`, then spawns the agent.
 #[tauri::command]
 pub fn import_agent_toml(
     app: tauri::AppHandle,
@@ -59,7 +59,7 @@ pub fn import_agent_toml(
     let content = std::fs::read_to_string(file_path.as_path().ok_or("Invalid file path")?)
         .map_err(|e| format!("Failed to read file: {e}"))?;
 
-    let manifest: openfang_types::agent::AgentManifest =
+    let manifest: freeco_types::agent::AgentManifest =
         toml::from_str(&content).map_err(|e| format!("Invalid agent manifest: {e}"))?;
 
     let agent_name = manifest.name.clone();
@@ -81,7 +81,7 @@ pub fn import_agent_toml(
 
 /// Open a native file picker to import a skill file.
 ///
-/// Copies the selected file to `~/.openfang/skills/` and triggers a
+/// Copies the selected file to `~/.freeco-ai/skills/` and triggers a
 /// hot-reload of the skill registry.
 #[tauri::command]
 pub fn import_skill_file(

@@ -68,7 +68,7 @@ the automation does — see "What you lose" below.
 2. **Runs `scripts/prepare_release_metadata.py`**, which updates all four
    version locations together:
    - `Cargo.toml`
-   - `crates/openfang-desktop/tauri.conf.json` — this one sets the **installer
+   - `crates/freeco-desktop/tauri.conf.json` — this one sets the **installer
      filename**, not `Cargo.toml` (PR #54). Every release between v0.7.5 and
      v0.7.7 shipped installers named with a stale version because the script
      did not yet touch it.
@@ -109,7 +109,7 @@ Check the gate locally with the same commands CI uses:
 version=X.Y.Z
 grep -q "^version = \"$version\"$" Cargo.toml
 grep -q "^## \[$version\]" CHANGELOG.md
-python3 -c 'import json; print(json.load(open("crates/openfang-desktop/tauri.conf.json"))["version"])'
+python3 -c 'import json; print(json.load(open("crates/freeco-desktop/tauri.conf.json"))["version"])'
 ```
 
 ## `auto-tag.yml` is a fallback, not the path

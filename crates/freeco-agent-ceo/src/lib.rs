@@ -1,6 +1,6 @@
 //! # agent-ceo
 //!
-//! Freeco.AI CEO Agent — native executive routing using OpenFang kernel handles.
+//! Freeco.AI CEO Agent — native executive routing using Freeco kernel handles.
 //!
 //! Implements [`agent_core::Agent`] and compiles to both native and `wasm32`.
 

@@ -154,7 +154,7 @@
 
     // Save preference
     if (persist) {
-      localStorage.setItem('openfang_language', lang);
+      localStorage.setItem('freeco_language', lang);
     }
 
     // Apply to DOM
@@ -184,7 +184,7 @@
     // 2. Browser language
     // 3. Default to English
 
-    let lang = localStorage.getItem('openfang_language');
+    let lang = localStorage.getItem('freeco_language');
     
     if (!lang) {
       // Try to detect browser language

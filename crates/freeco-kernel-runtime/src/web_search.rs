@@ -9,7 +9,7 @@
 
 use crate::web_cache::WebCache;
 use crate::web_content::wrap_external_content;
-use openfang_types::config::{SearchProvider, WebConfig};
+use freeco_types::config::{SearchProvider, WebConfig};
 use std::sync::Arc;
 use tracing::{debug, warn};
 use zeroize::Zeroizing;

@@ -7,13 +7,13 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 /// Get the FreEco.ai home directory, including the legacy data migration.
-fn dotenv_openfang_home() -> Option<PathBuf> {
-    Some(openfang_kernel::config::freeco_ai_home())
+fn dotenv_freeco_home() -> Option<PathBuf> {
+    Some(freeco_kernel::config::freeco_ai_home())
 }
 
 /// Return the path to `~/.freeco-ai/.env`.
 pub fn env_file_path() -> Option<PathBuf> {
-    dotenv_openfang_home().map(|h| h.join(".env"))
+    dotenv_freeco_home().map(|h| h.join(".env"))
 }
 
 /// Load `~/.freeco-ai/.env` and `~/.freeco-ai/secrets.env` into `std::env`.
@@ -30,7 +30,7 @@ pub fn load_dotenv() {
 
 /// Return the path to `~/.freeco-ai/secrets.env`.
 pub fn secrets_env_path() -> Option<PathBuf> {
-    dotenv_openfang_home().map(|h| h.join("secrets.env"))
+    dotenv_freeco_home().map(|h| h.join("secrets.env"))
 }
 
 fn load_env_file(path: Option<PathBuf>) {
@@ -162,7 +162,7 @@ fn read_env_file(path: &PathBuf) -> BTreeMap<String, String> {
 /// Write key-value pairs back to the .env file with a header comment.
 fn write_env_file(path: &PathBuf, entries: &BTreeMap<String, String>) -> Result<(), String> {
     let mut content =
-        String::from("# OpenFang environment — managed by `openfang config set-key`\n");
+        String::from("# Freeco environment — managed by `freeco config set-key`\n");
     content.push_str("# Do not edit while the daemon is running.\n\n");
 
     for (key, value) in entries {

@@ -1,21 +1,21 @@
 [package]
-name = "openfang-api"
+name = "freeco-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "HTTP/WebSocket API server for the FreEco.ai daemon"
 
 [dependencies]
-openfang-types = { path = "../openfang-types" }
-openfang-kernel = { path = "../openfang-kernel" }
+freeco-types = { path = "../freeco-types" }
+freeco-kernel = { path = "../freeco-kernel" }
 freeco-kernel-runtime = { path = "../freeco-kernel-runtime" }
-openfang-memory = { path = "../openfang-memory" }
-openfang-channels = { path = "../openfang-channels" }
-openfang-wire = { path = "../openfang-wire" }
-openfang-skills = { path = "../openfang-skills" }
-openfang-hands = { path = "../openfang-hands" }
-openfang-extensions = { path = "../openfang-extensions" }
-openfang-migrate = { path = "../openfang-migrate" }
+freeco-memory = { path = "../freeco-memory" }
+freeco-channels = { path = "../freeco-channels" }
+freeco-wire = { path = "../freeco-wire" }
+freeco-skills = { path = "../freeco-skills" }
+freeco-hands = { path = "../freeco-hands" }
+freeco-extensions = { path = "../freeco-extensions" }
+freeco-migrate = { path = "../freeco-migrate" }
 dashmap = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

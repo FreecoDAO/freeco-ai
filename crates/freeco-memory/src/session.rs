@@ -1,9 +1,9 @@
 //! Session management — load/save conversation history.
 
 use chrono::Utc;
-use openfang_types::agent::{AgentId, SessionId};
-use openfang_types::error::{OpenFangError, OpenFangResult};
-use openfang_types::message::{ContentBlock, Message, MessageContent, Role};
+use freeco_types::agent::{AgentId, SessionId};
+use freeco_types::error::{FreecoError, FreecoResult};
+use freeco_types::message::{ContentBlock, Message, MessageContent, Role};
 use rusqlite::Connection;
 use std::io::Write;
 use std::path::Path;
@@ -120,14 +120,14 @@ impl SessionStore {
     }
 
     /// Load a session from the database.
-    pub fn get_session(&self, session_id: SessionId) -> OpenFangResult<Option<Session>> {
+    pub fn get_session(&self, session_id: SessionId) -> FreecoResult<Option<Session>> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let mut stmt = conn
             .prepare("SELECT agent_id, messages, context_window_tokens, label FROM sessions WHERE id = ?1")
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
 
         let result = stmt.query_row(rusqlite::params![session_id.0.to_string()], |row| {
             let agent_str: String = row.get(0)?;
@@ -141,9 +141,9 @@ impl SessionStore {
             Ok((agent_str, messages_blob, tokens, label)) => {
                 let agent_id = uuid::Uuid::parse_str(&agent_str)
                     .map(AgentId)
-                    .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+                    .map_err(|e| FreecoError::Memory(e.to_string()))?;
                 let messages: Vec<Message> = rmp_serde::from_slice(&messages_blob)
-                    .map_err(|e| OpenFangError::Serialization(e.to_string()))?;
+                    .map_err(|e| FreecoError::Serialization(e.to_string()))?;
                 Ok(Some(Session {
                     id: session_id,
                     agent_id,
@@ -153,18 +153,18 @@ impl SessionStore {
                 }))
             }
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(OpenFangError::Memory(e.to_string())),
+            Err(e) => Err(FreecoError::Memory(e.to_string())),
         }
     }
 
     /// Save a session to the database.
-    pub fn save_session(&self, session: &Session) -> OpenFangResult<()> {
+    pub fn save_session(&self, session: &Session) -> FreecoResult<()> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let messages_blob = rmp_serde::to_vec_named(&session.messages)
-            .map_err(|e| OpenFangError::Serialization(e.to_string()))?;
+            .map_err(|e| FreecoError::Serialization(e.to_string()))?;
         let now = Utc::now().to_rfc3339();
 
         // Name the conversation from its first user message the first time it
@@ -189,49 +189,49 @@ impl SessionStore {
                 now,
             ],
         )
-        .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
         Ok(())
     }
 
     /// Delete a session from the database.
-    pub fn delete_session(&self, session_id: SessionId) -> OpenFangResult<()> {
+    pub fn delete_session(&self, session_id: SessionId) -> FreecoResult<()> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         conn.execute(
             "DELETE FROM sessions WHERE id = ?1",
             rusqlite::params![session_id.0.to_string()],
         )
-        .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
         Ok(())
     }
 
     /// Delete all sessions belonging to an agent.
-    pub fn delete_agent_sessions(&self, agent_id: AgentId) -> OpenFangResult<()> {
+    pub fn delete_agent_sessions(&self, agent_id: AgentId) -> FreecoResult<()> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         conn.execute(
             "DELETE FROM sessions WHERE agent_id = ?1",
             rusqlite::params![agent_id.0.to_string()],
         )
-        .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
         Ok(())
     }
 
     /// Delete the canonical (cross-channel) session for an agent.
-    pub fn delete_canonical_session(&self, agent_id: AgentId) -> OpenFangResult<()> {
+    pub fn delete_canonical_session(&self, agent_id: AgentId) -> FreecoResult<()> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         conn.execute(
             "DELETE FROM canonical_sessions WHERE agent_id = ?1",
             rusqlite::params![agent_id.0.to_string()],
         )
-        .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
         Ok(())
     }
 
@@ -247,11 +247,11 @@ impl SessionStore {
     /// Nothing detected this, which is why it was only ever found by opening
     /// the database by hand. Returning it makes the loss recoverable in the
     /// product instead.
-    pub fn list_orphaned_sessions(&self) -> OpenFangResult<Vec<serde_json::Value>> {
+    pub fn list_orphaned_sessions(&self) -> FreecoResult<Vec<serde_json::Value>> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, agent_id, messages, created_at, updated_at, label FROM sessions \
@@ -259,7 +259,7 @@ impl SessionStore {
                  AND length(messages) > 1 \
                  ORDER BY updated_at DESC",
             )
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
         let rows = stmt
             .query_map([], |row| {
                 let blob: Vec<u8> = row.get(2)?;
@@ -275,10 +275,10 @@ impl SessionStore {
                     "label": row.get::<_, Option<String>>(5)?,
                 }))
             })
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
         let mut out = Vec::new();
         for row in rows {
-            out.push(row.map_err(|e| OpenFangError::Memory(e.to_string()))?);
+            out.push(row.map_err(|e| FreecoError::Memory(e.to_string()))?);
         }
         Ok(out)
     }
@@ -288,32 +288,32 @@ impl SessionStore {
     /// This only re-points ownership. No message is rewritten and nothing is
     /// deleted, so running it twice is harmless and running it by mistake
     /// costs the user nothing but a tidy-up.
-    pub fn adopt_orphaned_sessions(&self, agent_id: &str) -> OpenFangResult<usize> {
+    pub fn adopt_orphaned_sessions(&self, agent_id: &str) -> FreecoResult<usize> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let n = conn
             .execute(
                 "UPDATE sessions SET agent_id = ?1 \
                  WHERE agent_id NOT IN (SELECT id FROM agents)",
                 [agent_id],
             )
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
         Ok(n)
     }
 
     /// List all sessions with metadata (session_id, agent_id, message_count, created_at).
-    pub fn list_sessions(&self) -> OpenFangResult<Vec<serde_json::Value>> {
+    pub fn list_sessions(&self) -> FreecoResult<Vec<serde_json::Value>> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, agent_id, messages, created_at, label FROM sessions ORDER BY created_at DESC",
             )
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
 
         let rows = stmt
             .query_map([], |row| {
@@ -334,17 +334,17 @@ impl SessionStore {
                     "label": label,
                 }))
             })
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
 
         let mut sessions = Vec::new();
         for row in rows {
-            sessions.push(row.map_err(|e| OpenFangError::Memory(e.to_string()))?);
+            sessions.push(row.map_err(|e| FreecoError::Memory(e.to_string()))?);
         }
         Ok(sessions)
     }
 
     /// Create a new empty session for an agent.
-    pub fn create_session(&self, agent_id: AgentId) -> OpenFangResult<Session> {
+    pub fn create_session(&self, agent_id: AgentId) -> FreecoResult<Session> {
         let session = Session {
             id: SessionId::new(),
             agent_id,
@@ -361,16 +361,16 @@ impl SessionStore {
         &self,
         session_id: SessionId,
         label: Option<&str>,
-    ) -> OpenFangResult<()> {
+    ) -> FreecoResult<()> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         conn.execute(
             "UPDATE sessions SET label = ?1, updated_at = ?2 WHERE id = ?3",
             rusqlite::params![label, Utc::now().to_rfc3339(), session_id.0.to_string()],
         )
-        .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
         Ok(())
     }
 
@@ -379,7 +379,7 @@ impl SessionStore {
     /// The canonical log is the one written on every turn, so it holds the
     /// conversations a user is most likely to open. Without a reader the
     /// Sessions panel could count these messages but never show them.
-    pub fn get_canonical_as_session(&self, agent_id: AgentId) -> OpenFangResult<Option<Session>> {
+    pub fn get_canonical_as_session(&self, agent_id: AgentId) -> FreecoResult<Option<Session>> {
         let canonical = self.load_canonical(agent_id)?;
         if canonical.messages.is_empty() {
             return Ok(None);
@@ -400,17 +400,17 @@ impl SessionStore {
         &self,
         agent_id: AgentId,
         label: &str,
-    ) -> OpenFangResult<Option<Session>> {
+    ) -> FreecoResult<Option<Session>> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, messages, context_window_tokens, label FROM sessions \
                  WHERE agent_id = ?1 AND label = ?2 LIMIT 1",
             )
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
 
         let result = stmt.query_row(rusqlite::params![agent_id.0.to_string(), label], |row| {
             let id_str: String = row.get(0)?;
@@ -424,9 +424,9 @@ impl SessionStore {
             Ok((id_str, messages_blob, tokens, lbl)) => {
                 let session_id = uuid::Uuid::parse_str(&id_str)
                     .map(SessionId)
-                    .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+                    .map_err(|e| FreecoError::Memory(e.to_string()))?;
                 let messages: Vec<Message> = rmp_serde::from_slice(&messages_blob)
-                    .map_err(|e| OpenFangError::Serialization(e.to_string()))?;
+                    .map_err(|e| FreecoError::Serialization(e.to_string()))?;
                 Ok(Some(Session {
                     id: session_id,
                     agent_id,
@@ -436,23 +436,23 @@ impl SessionStore {
                 }))
             }
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(OpenFangError::Memory(e.to_string())),
+            Err(e) => Err(FreecoError::Memory(e.to_string())),
         }
     }
 }
 
 impl SessionStore {
     /// List all sessions for a specific agent.
-    pub fn list_agent_sessions(&self, agent_id: AgentId) -> OpenFangResult<Vec<serde_json::Value>> {
+    pub fn list_agent_sessions(&self, agent_id: AgentId) -> FreecoResult<Vec<serde_json::Value>> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, messages, created_at, label FROM sessions WHERE agent_id = ?1 ORDER BY created_at DESC",
             )
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
 
         let rows = stmt
             .query_map(rusqlite::params![agent_id.0.to_string()], |row| {
@@ -470,11 +470,11 @@ impl SessionStore {
                     "label": label,
                 }))
             })
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
 
         let mut sessions = Vec::new();
         for row in rows {
-            sessions.push(row.map_err(|e| OpenFangError::Memory(e.to_string()))?);
+            sessions.push(row.map_err(|e| FreecoError::Memory(e.to_string()))?);
         }
         Ok(sessions)
     }
@@ -484,7 +484,7 @@ impl SessionStore {
         &self,
         agent_id: AgentId,
         label: Option<&str>,
-    ) -> OpenFangResult<Session> {
+    ) -> FreecoResult<Session> {
         let session = Session {
             id: SessionId::new(),
             agent_id,
@@ -506,7 +506,7 @@ impl SessionStore {
         agent_id: AgentId,
         summary: &str,
         kept_messages: Vec<Message>,
-    ) -> OpenFangResult<()> {
+    ) -> FreecoResult<()> {
         let mut canonical = self.load_canonical(agent_id)?;
         canonical.compacted_summary = Some(summary.to_string());
 
@@ -558,17 +558,17 @@ pub struct CanonicalSession {
 
 impl SessionStore {
     /// Load the canonical session for an agent, creating one if it doesn't exist.
-    pub fn load_canonical(&self, agent_id: AgentId) -> OpenFangResult<CanonicalSession> {
+    pub fn load_canonical(&self, agent_id: AgentId) -> FreecoResult<CanonicalSession> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let mut stmt = conn
             .prepare(
                 "SELECT messages, compaction_cursor, compacted_summary, updated_at, label \
                  FROM canonical_sessions WHERE agent_id = ?1",
             )
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
 
         let result = stmt.query_row(rusqlite::params![agent_id.0.to_string()], |row| {
             let messages_blob: Vec<u8> = row.get(0)?;
@@ -582,7 +582,7 @@ impl SessionStore {
         match result {
             Ok((messages_blob, cursor, summary, updated_at, label)) => {
                 let messages: Vec<Message> = rmp_serde::from_slice(&messages_blob)
-                    .map_err(|e| OpenFangError::Serialization(e.to_string()))?;
+                    .map_err(|e| FreecoError::Serialization(e.to_string()))?;
                 Ok(CanonicalSession {
                     agent_id,
                     messages,
@@ -603,7 +603,7 @@ impl SessionStore {
                     label: None,
                 })
             }
-            Err(e) => Err(OpenFangError::Memory(e.to_string())),
+            Err(e) => Err(FreecoError::Memory(e.to_string())),
         }
     }
 
@@ -613,16 +613,16 @@ impl SessionStore {
     /// compaction and is therefore almost always empty. Agent conversations
     /// live in `canonical_sessions`, so without this the UI shows an empty or
     /// stale list no matter how much the user has actually talked to an agent.
-    pub fn list_canonical_sessions(&self) -> OpenFangResult<Vec<serde_json::Value>> {
+    pub fn list_canonical_sessions(&self) -> FreecoResult<Vec<serde_json::Value>> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let mut stmt = conn
             .prepare(
                 "SELECT agent_id, messages, updated_at, label                  FROM canonical_sessions ORDER BY updated_at DESC",
             )
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
 
         let rows = stmt
             .query_map([], |row| {
@@ -647,10 +647,10 @@ impl SessionStore {
                     "kind": "canonical",
                 }))
             })
-            .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
 
         rows.collect::<Result<Vec<_>, _>>()
-            .map_err(|e| OpenFangError::Memory(e.to_string()))
+            .map_err(|e| FreecoError::Memory(e.to_string()))
     }
 
     /// Append new messages to the canonical session and compact if over threshold.
@@ -663,7 +663,7 @@ impl SessionStore {
         agent_id: AgentId,
         new_messages: &[Message],
         compaction_threshold: Option<usize>,
-    ) -> OpenFangResult<CanonicalSession> {
+    ) -> FreecoResult<CanonicalSession> {
         let mut canonical = self.load_canonical(agent_id)?;
         canonical.messages.extend(new_messages.iter().cloned());
 
@@ -682,15 +682,15 @@ impl SessionStore {
                 }
                 for msg in compacting {
                     let role = match msg.role {
-                        openfang_types::message::Role::User => "User",
-                        openfang_types::message::Role::Assistant => "Assistant",
-                        openfang_types::message::Role::System => "System",
+                        freeco_types::message::Role::User => "User",
+                        freeco_types::message::Role::Assistant => "Assistant",
+                        freeco_types::message::Role::System => "System",
                     };
                     let text = msg.content.text_content();
                     if !text.is_empty() {
                         // Truncate individual messages in summary to keep it compact (UTF-8 safe)
                         let truncated = if text.len() > 200 {
-                            format!("{}...", openfang_types::truncate_str(&text, 200))
+                            format!("{}...", freeco_types::truncate_str(&text, 200))
                         } else {
                             text
                         };
@@ -736,7 +736,7 @@ impl SessionStore {
         &self,
         agent_id: AgentId,
         window_size: Option<usize>,
-    ) -> OpenFangResult<(Option<String>, Vec<Message>)> {
+    ) -> FreecoResult<(Option<String>, Vec<Message>)> {
         let canonical = self.load_canonical(agent_id)?;
         let window = window_size.unwrap_or(DEFAULT_CANONICAL_WINDOW);
         let start = canonical.messages.len().saturating_sub(window);
@@ -745,13 +745,13 @@ impl SessionStore {
     }
 
     /// Persist a canonical session to SQLite.
-    fn save_canonical(&self, canonical: &CanonicalSession) -> OpenFangResult<()> {
+    fn save_canonical(&self, canonical: &CanonicalSession) -> FreecoResult<()> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| OpenFangError::Internal(e.to_string()))?;
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
         let messages_blob = rmp_serde::to_vec_named(&canonical.messages)
-            .map_err(|e| OpenFangError::Serialization(e.to_string()))?;
+            .map_err(|e| FreecoError::Serialization(e.to_string()))?;
         // Name the conversation from its first user message. This is where
         // agent conversations actually live, so labelling anywhere else leaves
         // the list of them unnamed. A name the user set is never overwritten.
@@ -772,7 +772,7 @@ impl SessionStore {
                 label.as_deref(),
             ],
         )
-        .map_err(|e| OpenFangError::Memory(e.to_string()))?;
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
         Ok(())
     }
 }
@@ -851,7 +851,7 @@ impl SessionStore {
                             ContentBlock::Thinking { thinking, .. } => {
                                 text_parts.push(format!(
                                     "[thinking: {}]",
-                                    openfang_types::truncate_str(thinking, 200)
+                                    freeco_types::truncate_str(thinking, 200)
                                 ));
                             }
                             ContentBlock::RedactedThinking { .. } => {
@@ -1143,10 +1143,10 @@ mod tests {
         let mut session = store.create_session(agent_id).unwrap();
         session
             .messages
-            .push(openfang_types::message::Message::user("Hello"));
+            .push(freeco_types::message::Message::user("Hello"));
         session
             .messages
-            .push(openfang_types::message::Message::assistant("Hi there!"));
+            .push(freeco_types::message::Message::assistant("Hi there!"));
         store.save_session(&session).unwrap();
 
         let dir = tempfile::TempDir::new().unwrap();

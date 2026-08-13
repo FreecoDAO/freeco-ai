@@ -3,12 +3,12 @@ name = "freeco-kernel-runtime"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Agent runtime and execution environment for OpenFang"
+description = "Agent runtime and execution environment for Freeco"
 
 [dependencies]
-openfang-types = { path = "../openfang-types" }
-openfang-memory = { path = "../openfang-memory" }
-openfang-skills = { path = "../openfang-skills" }
+freeco-types = { path = "../freeco-types" }
+freeco-memory = { path = "../freeco-memory" }
+freeco-skills = { path = "../freeco-skills" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

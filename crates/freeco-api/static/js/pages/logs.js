@@ -33,7 +33,7 @@ function logsPage() {
 
       var url = '/api/logs/stream';
       var sep = '?';
-      var token = OpenFangAPI.getToken();
+      var token = FreecoAPI.getToken();
       if (token) { url += sep + 'token=' + encodeURIComponent(token); sep = '&'; }
 
       try {
@@ -105,7 +105,7 @@ function logsPage() {
     async fetchLogs() {
       if (this.loading) this.loadError = '';
       try {
-        var data = await OpenFangAPI.get('/api/audit/recent?n=200');
+        var data = await FreecoAPI.get('/api/audit/recent?n=200');
         this.entries = data.entries || [];
         if (this.autoRefresh && !this.hovering) {
           this.$nextTick(function() {
@@ -187,7 +187,7 @@ function logsPage() {
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = 'openfang-logs-' + new Date().toISOString().slice(0, 10) + '.txt';
+      a.download = 'freeco-logs-' + new Date().toISOString().slice(0, 10) + '.txt';
       a.click();
       URL.revokeObjectURL(url);
     },
@@ -203,7 +203,7 @@ function logsPage() {
       this.auditLoading = true;
       this.auditLoadError = '';
       try {
-        var data = await OpenFangAPI.get('/api/audit/recent?n=200');
+        var data = await FreecoAPI.get('/api/audit/recent?n=200');
         this.auditEntries = data.entries || [];
         this.tipHash = data.tip_hash || '';
       } catch(e) {
@@ -234,16 +234,16 @@ function logsPage() {
 
     async verifyChain() {
       try {
-        var data = await OpenFangAPI.get('/api/audit/verify');
+        var data = await FreecoAPI.get('/api/audit/verify');
         this.chainValid = data.valid === true;
         if (this.chainValid) {
-          OpenFangToast.success('Audit chain verified — ' + (data.entries || 0) + ' entries valid');
+          FreecoToast.success('Audit chain verified — ' + (data.entries || 0) + ' entries valid');
         } else {
-          OpenFangToast.error('Audit chain broken!');
+          FreecoToast.error('Audit chain broken!');
         }
       } catch(e) {
         this.chainValid = false;
-        OpenFangToast.error('Chain verification failed: ' + e.message);
+        FreecoToast.error('Chain verification failed: ' + e.message);
       }
     },
 

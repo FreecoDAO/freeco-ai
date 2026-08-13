@@ -25,7 +25,7 @@ cargo clippy --workspace --all-targets -- -D warnings  # Zero warnings
 
 #### Step 1: Stop any running daemon
 ```bash
-tasklist | grep -i openfang
+tasklist | grep -i freeco
 taskkill //PID <pid> //F
 # Wait 2-3 seconds for port to release
 sleep 3
@@ -86,7 +86,7 @@ curl -s http://127.0.0.1:4200/ | grep -c "newComponentName"
 
 #### Step 8: Cleanup
 ```bash
-tasklist | grep -i openfang
+tasklist | grep -i freeco
 taskkill //PID <pid> //F
 ```
 
@@ -150,7 +150,7 @@ curl -s "https://api.github.com/repos/FreecoDAO/freeco-ai/actions/workflows/rele
 Full details, guards, and what breaks: `RELEASING.md`.
 
 ## Architecture Notes
-- **Don't touch `openfang-cli`** — user is actively building the interactive CLI
+- **Don't touch `freeco-cli`** — user is actively building the interactive CLI
 - `KernelHandle` trait avoids circular deps between runtime and kernel
 - `AppState` in `server.rs` bridges kernel to API routes
 - New routes must be registered in `server.rs` router AND implemented in `routes.rs`
@@ -158,7 +158,7 @@ Full details, guards, and what breaks: `RELEASING.md`.
 - Config fields need: struct field + `#[serde(default)]` + Default impl entry + Serialize/Deserialize derives
 
 ## Common Gotchas
-- `openfang.exe` may be locked if daemon is running — use `--lib` flag or kill daemon first
+- `freeco.exe` may be locked if daemon is running — use `--lib` flag or kill daemon first
 - `PeerRegistry` is `Option<PeerRegistry>` on kernel but `Option<Arc<PeerRegistry>>` on `AppState` — wrap with `.as_ref().map(|r| Arc::new(r.clone()))`
 - Config fields added to `KernelConfig` struct MUST also be added to the `Default` impl or build fails
 - `AgentLoopResult` field is `.response` not `.response_text`

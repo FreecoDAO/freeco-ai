@@ -9,12 +9,12 @@
 
 use async_trait::async_trait;
 use futures::Stream;
-use openfang_channels::bridge::{BridgeManager, ChannelBridgeHandle};
-use openfang_channels::router::AgentRouter;
-use openfang_channels::types::{
+use freeco_channels::bridge::{BridgeManager, ChannelBridgeHandle};
+use freeco_channels::router::AgentRouter;
+use freeco_channels::types::{
     ChannelAdapter, ChannelContent, ChannelMessage, ChannelType, ChannelUser,
 };
-use openfang_types::agent::AgentId;
+use freeco_types::agent::AgentId;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -155,7 +155,7 @@ fn make_text_msg(channel: ChannelType, user_id: &str, text: &str) -> ChannelMess
         sender: ChannelUser {
             platform_id: user_id.to_string(),
             display_name: "TestUser".to_string(),
-            openfang_user: None,
+            freeco_user: None,
         },
         content: ChannelContent::Text(text.to_string()),
         target_agent: None,
@@ -178,7 +178,7 @@ fn make_command_msg(
         sender: ChannelUser {
             platform_id: user_id.to_string(),
             display_name: "TestUser".to_string(),
-            openfang_user: None,
+            freeco_user: None,
         },
         content: ChannelContent::Command {
             name: cmd.to_string(),

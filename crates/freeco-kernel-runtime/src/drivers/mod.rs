@@ -15,7 +15,7 @@ pub mod qwen_code;
 pub mod vertex;
 
 use crate::llm_driver::{DriverConfig, LlmDriver, LlmError};
-use openfang_types::model_catalog::{
+use freeco_types::model_catalog::{
     AI21_BASE_URL, ANTHROPIC_BASE_URL, AZURE_OPENAI_BASE_URL, CEREBRAS_BASE_URL, CHUTES_BASE_URL,
     COHERE_BASE_URL, DEEPSEEK_BASE_URL, FIREWORKS_BASE_URL, GEMINI_BASE_URL, GROQ_BASE_URL,
     HUGGINGFACE_BASE_URL, KIMI_CODING_BASE_URL, LEMONADE_BASE_URL, LMSTUDIO_BASE_URL,
@@ -426,7 +426,7 @@ pub fn create_driver(config: &DriverConfig) -> Result<Arc<dyn LlmDriver>, LlmErr
         // drivers accept the field silently (forward-compat); future subprocess
         // drivers (qwen-code, etc.) will opt in here individually.
         let timeout = std::env::var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS")
-            .or_else(|_| std::env::var("OPENFANG_SUBPROCESS_TIMEOUT_SECS"))
+            .or_else(|_| std::env::var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS"))
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
             .or(config.subprocess_timeout_secs);
@@ -449,21 +449,21 @@ pub fn create_driver(config: &DriverConfig) -> Result<Arc<dyn LlmDriver>, LlmErr
 
     // GitHub Copilot — OAuth device flow + OpenAI-compatible completions.
     // Authentication is handled automatically via persisted tokens from the device flow.
-    // Run `openfang config set-key github-copilot` to authenticate.
+    // Run `freeco config set-key github-copilot` to authenticate.
     if provider == "github-copilot" || provider == "copilot" {
-        let openfang_dir = std::env::var("HOME")
+        let freeco_dir = std::env::var("HOME")
             .or_else(|_| std::env::var("USERPROFILE"))
-            .map(|h| std::path::PathBuf::from(h).join(".openfang"))
-            .unwrap_or_else(|_| std::path::PathBuf::from(".openfang"));
+            .map(|h| std::path::PathBuf::from(h).join(".freeco-ai"))
+            .unwrap_or_else(|_| std::path::PathBuf::from(".freeco-ai"));
 
-        if !copilot::copilot_auth_available(&openfang_dir) {
+        if !copilot::copilot_auth_available(&freeco_dir) {
             return Err(LlmError::MissingApiKey(
-                "Copilot not authenticated. Run `openfang config set-key github-copilot` to sign in."
+                "Copilot not authenticated. Run `freeco config set-key github-copilot` to sign in."
                     .to_string(),
             ));
         }
 
-        return Ok(Arc::new(copilot::CopilotDriver::new(openfang_dir)));
+        return Ok(Arc::new(copilot::CopilotDriver::new(freeco_dir)));
     }
 
     // Azure OpenAI — deployment-based URL with `api-key` header
@@ -1163,7 +1163,7 @@ mod tests {
     #[test]
     fn test_claude_code_driver_constructs_with_default_timeout() {
         // No timeout in config and no env override → driver uses its built-in default.
-        std::env::remove_var("OPENFANG_SUBPROCESS_TIMEOUT_SECS");
+        std::env::remove_var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS");
         let config = DriverConfig {
             provider: "claude-code".to_string(),
             api_key: None,
@@ -1178,7 +1178,7 @@ mod tests {
     #[test]
     fn test_claude_code_driver_constructs_with_config_timeout() {
         // Timeout set via config field → with_timeout path is exercised.
-        std::env::remove_var("OPENFANG_SUBPROCESS_TIMEOUT_SECS");
+        std::env::remove_var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS");
         let config = DriverConfig {
             provider: "claude-code".to_string(),
             api_key: None,
@@ -1198,7 +1198,7 @@ mod tests {
         // Env var present → wins over config field. We can't read the timeout off the
         // trait object here, but at minimum the construction path must not panic
         // when both are set and the env var parses cleanly.
-        std::env::set_var("OPENFANG_SUBPROCESS_TIMEOUT_SECS", "600");
+        std::env::set_var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS", "600");
         let config = DriverConfig {
             provider: "claude-code".to_string(),
             api_key: None,
@@ -1207,7 +1207,7 @@ mod tests {
             subprocess_timeout_secs: Some(120),
         };
         let driver = create_driver(&config);
-        std::env::remove_var("OPENFANG_SUBPROCESS_TIMEOUT_SECS");
+        std::env::remove_var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS");
         assert!(
             driver.is_ok(),
             "claude-code driver should construct when env override is set"
@@ -1217,7 +1217,7 @@ mod tests {
     #[test]
     fn test_claude_code_driver_ignores_unparseable_env_timeout() {
         // Garbage env var → falls through to config field, doesn't error.
-        std::env::set_var("OPENFANG_SUBPROCESS_TIMEOUT_SECS", "not-a-number");
+        std::env::set_var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS", "not-a-number");
         let config = DriverConfig {
             provider: "claude-code".to_string(),
             api_key: None,
@@ -1226,7 +1226,7 @@ mod tests {
             subprocess_timeout_secs: Some(420),
         };
         let driver = create_driver(&config);
-        std::env::remove_var("OPENFANG_SUBPROCESS_TIMEOUT_SECS");
+        std::env::remove_var("FREECO_AI_SUBPROCESS_TIMEOUT_SECS");
         assert!(
             driver.is_ok(),
             "unparseable env override should fall through to config field"

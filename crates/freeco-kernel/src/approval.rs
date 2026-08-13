@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use dashmap::DashMap;
-use openfang_types::approval::{
+use freeco_types::approval::{
     ApprovalDecision, ApprovalPolicy, ApprovalRequest, ApprovalResponse, RiskLevel,
 };
 use std::collections::VecDeque;
@@ -194,7 +194,7 @@ impl ApprovalManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openfang_types::approval::ApprovalPolicy;
+    use freeco_types::approval::ApprovalPolicy;
     use std::sync::Arc;
 
     fn default_manager() -> ApprovalManager {
@@ -471,7 +471,7 @@ mod tests {
         // back to a value measured in seconds, that is a regression.
         assert_eq!(
             policy.timeout_secs,
-            openfang_types::assistant_rights::ASSISTANT_APPROVAL_TIMEOUT_SECS
+            freeco_types::assistant_rights::ASSISTANT_APPROVAL_TIMEOUT_SECS
         );
         assert!(
             policy.timeout_secs >= 3600,

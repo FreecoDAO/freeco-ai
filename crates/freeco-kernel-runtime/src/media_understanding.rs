@@ -2,7 +2,7 @@
 //!
 //! Auto-cascades through available providers based on configured API keys.
 
-use openfang_types::media::{
+use freeco_types::media::{
     MediaAttachment, MediaConfig, MediaSource, MediaType, MediaUnderstanding,
 };
 use std::sync::Arc;
@@ -349,7 +349,7 @@ async fn transcribe_with_parakeet_mlx(
                 _ => "wav",
             };
             let path = std::env::temp_dir().join(format!(
-                "openfang_parakeet_{}.{}",
+                "freeco_parakeet_{}.{}",
                 uuid::Uuid::new_v4(),
                 ext
             ));
@@ -427,7 +427,7 @@ print(json.dumps({"text": result.text, "model": "mlx-community/parakeet-tdt-0.6b
 fn detect_audio_provider() -> Option<&'static str> {
     // Explicit opt-in for local Parakeet MLX transcription
     if std::env::var("FREECO_AI_ENABLE_PARAKEET_MLX").is_ok()
-        || std::env::var("OPENFANG_ENABLE_PARAKEET_MLX").is_ok()
+        || std::env::var("FREECO_AI_ENABLE_PARAKEET_MLX").is_ok()
     {
         return Some("parakeet-mlx");
     }
@@ -504,7 +504,7 @@ fn default_audio_model(provider: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openfang_types::media::{MediaSource, MAX_IMAGE_BYTES};
+    use freeco_types::media::{MediaSource, MAX_IMAGE_BYTES};
 
     #[test]
     fn test_engine_creation() {

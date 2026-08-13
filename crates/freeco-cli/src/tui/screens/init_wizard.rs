@@ -1,6 +1,6 @@
 //! Standalone ratatui init wizard: 6-step onboarding flow.
 //!
-//! Launched by `openfang init` (without `--quick`). Takes over the terminal,
+//! Launched by `freeco init` (without `--quick`). Takes over the terminal,
 //! runs its own event loop, and returns an `InitResult`.
 
 use ratatui::crossterm::event::{self, Event as CtEvent, KeyCode, KeyEventKind};
@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use crate::tui::theme;
 use freeco_kernel_runtime::model_catalog::ModelCatalog;
-use openfang_types::model_catalog::ModelTier;
+use freeco_types::model_catalog::ModelTier;
 
 // ── Provider metadata ──────────────────────────────────────────────────────
 
@@ -286,7 +286,7 @@ mod tests {
         let minimax = PROVIDERS.iter().find(|provider| provider.name == "minimax");
         assert!(
             minimax.is_some(),
-            "MiniMax should be selectable in openfang init"
+            "MiniMax should be selectable in freeco init"
         );
         let minimax = minimax.unwrap();
         assert_eq!(minimax.env_var, "MINIMAX_API_KEY");
@@ -379,8 +379,8 @@ struct State {
     migration_phase: MigrationPhase,
     migration_choice_list: ListState,
     openclaw_path: Option<PathBuf>,
-    openclaw_scan: Option<openfang_migrate::openclaw::ScanResult>,
-    migration_report: Option<openfang_migrate::report::MigrationReport>,
+    openclaw_scan: Option<freeco_migrate::openclaw::ScanResult>,
+    migration_report: Option<freeco_migrate::report::MigrationReport>,
     migration_error: Option<String>,
     migration_done_at: Option<Instant>,
     migrated_provider: Option<String>,
@@ -686,7 +686,7 @@ pub fn run() -> InitResult {
 
     let (test_tx, test_rx) = std::sync::mpsc::channel::<bool>();
     let (migrate_tx, migrate_rx) =
-        std::sync::mpsc::channel::<Result<openfang_migrate::report::MigrationReport, String>>();
+        std::sync::mpsc::channel::<Result<freeco_migrate::report::MigrationReport, String>>();
     let (copilot_tx, copilot_rx) = std::sync::mpsc::channel::<Result<CopilotAuthEvent, String>>();
 
     let result = loop {
@@ -759,13 +759,13 @@ pub fn run() -> InitResult {
 
         // ── Migration detection (resolves in 1 frame) ──
         if state.step == Step::Migration && state.migration_phase == MigrationPhase::Detecting {
-            match openfang_migrate::openclaw::detect_openclaw_home() {
+            match freeco_migrate::openclaw::detect_openclaw_home() {
                 None => {
                     // No OpenClaw found — skip migration entirely
                     state.advance_to_provider();
                 }
                 Some(path) => {
-                    let scan = openfang_migrate::openclaw::scan_openclaw_workspace(&path);
+                    let scan = freeco_migrate::openclaw::scan_openclaw_workspace(&path);
                     let has_content = scan.has_config
                         || !scan.agents.is_empty()
                         || !scan.channels.is_empty()
@@ -876,7 +876,7 @@ pub fn run() -> InitResult {
                                     // Kick off background auth
                                     let copilot_tx = copilot_tx.clone();
                                     std::thread::spawn(move || {
-                                        let openfang_dir = crate::cli_openfang_home();
+                                        let freeco_dir = crate::cli_freeco_home();
                                         let rt = match tokio::runtime::Runtime::new() {
                                             Ok(rt) => rt,
                                             Err(e) => {
@@ -937,7 +937,7 @@ pub fn run() -> InitResult {
                                             };
 
                                             // Save tokens
-                                            if let Err(e) = tokens.save(&openfang_dir) {
+                                            if let Err(e) = tokens.save(&freeco_dir) {
                                                 let _ = copilot_tx.send(Err(e));
                                                 return;
                                             }
@@ -1171,7 +1171,7 @@ pub fn run() -> InitResult {
 fn handle_migration_key(
     state: &mut State,
     code: KeyCode,
-    migrate_tx: &std::sync::mpsc::Sender<Result<openfang_migrate::report::MigrationReport, String>>,
+    migrate_tx: &std::sync::mpsc::Sender<Result<freeco_migrate::report::MigrationReport, String>>,
 ) {
     match state.migration_phase {
         MigrationPhase::Detecting => {} // auto-resolves, no keys
@@ -1196,17 +1196,17 @@ fn handle_migration_key(
                 if yes {
                     state.migration_phase = MigrationPhase::Running;
                     let source_dir = state.openclaw_path.clone().unwrap_or_default();
-                    let target_dir = openfang_kernel::config::freeco_ai_home();
+                    let target_dir = freeco_kernel::config::freeco_ai_home();
                     let tx = migrate_tx.clone();
                     std::thread::spawn(move || {
-                        let options = openfang_migrate::MigrateOptions {
-                            source: openfang_migrate::MigrateSource::OpenClaw,
+                        let options = freeco_migrate::MigrateOptions {
+                            source: freeco_migrate::MigrateSource::OpenClaw,
                             source_dir,
                             target_dir,
                             dry_run: false,
                         };
                         let result =
-                            openfang_migrate::run_migration(&options).map_err(|e| format!("{e}"));
+                            freeco_migrate::run_migration(&options).map_err(|e| format!("{e}"));
                         let _ = tx.send(result);
                     });
                 } else {
@@ -1315,20 +1315,20 @@ fn save_config(state: &mut State) {
         }
     };
 
-    let openfang_dir = if let Ok(h) = std::env::var("OPENFANG_HOME") {
+    let freeco_dir = if let Ok(h) = std::env::var("FREECO_AI_HOME") {
         PathBuf::from(h)
     } else {
         match dirs::home_dir() {
-            Some(h) => h.join(".openfang"),
+            Some(h) => h.join(".freeco-ai"),
             None => {
                 state.save_error = "Could not determine home directory".to_string();
                 return;
             }
         }
     };
-    let _ = std::fs::create_dir_all(openfang_dir.join("agents"));
-    let _ = std::fs::create_dir_all(openfang_dir.join("data"));
-    crate::restrict_dir_permissions(&openfang_dir);
+    let _ = std::fs::create_dir_all(freeco_dir.join("agents"));
+    let _ = std::fs::create_dir_all(freeco_dir.join("data"));
+    crate::restrict_dir_permissions(&freeco_dir);
 
     let model = if state.model_input.is_empty() {
         p.default_model
@@ -1354,7 +1354,7 @@ complex_threshold = 500
         String::new()
     };
 
-    let config_path = openfang_dir.join("config.toml");
+    let config_path = freeco_dir.join("config.toml");
     let api_key_line = if p.env_var.is_empty() {
         String::new()
     } else {
@@ -1362,8 +1362,8 @@ complex_threshold = 500
     };
 
     let config = format!(
-        r#"# OpenFang Agent OS configuration
-# See https://github.com/RightNow-AI/openfang for documentation
+        r#"# Freeco Agent OS configuration
+# See https://github.com/FreecoDAO/freeco-ai for documentation
 
 api_listen = "127.0.0.1:4200"
 
@@ -1402,15 +1402,15 @@ decay_rate = 0.05
     }
 }
 
-/// Check if the `openfang-desktop` binary exists next to the current exe.
+/// Check if the `freeco-desktop` binary exists next to the current exe.
 fn find_desktop_binary() -> Option<std::path::PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
 
     #[cfg(windows)]
-    let name = "openfang-desktop.exe";
+    let name = "freeco-desktop.exe";
     #[cfg(not(windows))]
-    let name = "openfang-desktop";
+    let name = "freeco-desktop";
 
     let path = dir.join(name);
     if path.exists() {
@@ -1451,10 +1451,10 @@ fn draw(f: &mut Frame, area: Rect, state: &mut State) {
     ])
     .split(content);
 
-    // Header: "OpenFang Init  Step X of 7"
+    // Header: "Freeco Init  Step X of 7"
     let header = Line::from(vec![
         Span::styled(
-            "OpenFang",
+            "Freeco",
             Style::default()
                 .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
@@ -1810,7 +1810,7 @@ fn draw_migration_done(f: &mut Frame, area: Rect, state: &State) {
         ]));
     } else if let Some(ref report) = state.migration_report {
         // Group imported items by kind
-        use openfang_migrate::report::ItemKind;
+        use freeco_migrate::report::ItemKind;
         let config_count = report
             .imported
             .iter()
@@ -2179,7 +2179,7 @@ fn draw_api_key(f: &mut Frame, area: Rect, state: &mut State) {
             );
             f.render_widget(
                 Paragraph::new(Line::from(vec![Span::styled(
-                    "    Saved to ~/.openfang/.env",
+                    "    Saved to ~/.freeco-ai/.env",
                     theme::dim_style(),
                 )])),
                 chunks[3],
@@ -2195,7 +2195,7 @@ fn draw_api_key(f: &mut Frame, area: Rect, state: &mut State) {
             );
             f.render_widget(
                 Paragraph::new(Line::from(vec![Span::styled(
-                    "    Saved to ~/.openfang/.env",
+                    "    Saved to ~/.freeco-ai/.env",
                     theme::dim_style(),
                 )])),
                 chunks[3],
@@ -2407,7 +2407,7 @@ fn draw_routing_pick(f: &mut Frame, area: Rect, state: &mut State, tier: usize) 
                 .split('/')
                 .next_back()
                 .unwrap_or(&state.routing_models[t]);
-            let display = openfang_types::truncate_str(short, 14);
+            let display = freeco_types::truncate_str(short, 14);
             summary_spans.push(Span::styled(
                 format!("{name}:{display}"),
                 Style::default().fg(*c),
@@ -2614,7 +2614,7 @@ fn draw_complete(f: &mut Frame, area: Rect, state: &mut State) {
     // ── Question ──
     f.render_widget(
         Paragraph::new(Line::from(vec![Span::styled(
-            "  How do you want to use OpenFang?",
+            "  How do you want to use Freeco?",
             Style::default()
                 .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),

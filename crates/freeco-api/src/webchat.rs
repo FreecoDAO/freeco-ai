@@ -22,7 +22,7 @@ const NONCE_PLACEHOLDER: &str = "__NONCE__";
 /// Not used for the dashboard page (nonce prevents caching) but retained
 /// for potential future use by static asset handlers.
 #[allow(dead_code)]
-const ETAG: &str = concat!("\"openfang-", env!("CARGO_PKG_VERSION"), "\"");
+const ETAG: &str = concat!("\"freeco-", env!("CARGO_PKG_VERSION"), "\"");
 
 /// Embedded logo PNG for single-binary deployment.
 const LOGO_PNG: &[u8] = include_bytes!("../static/logo.png");
@@ -30,7 +30,7 @@ const LOGO_PNG: &[u8] = include_bytes!("../static/logo.png");
 /// Embedded favicon ICO for browser tabs.
 const FAVICON_ICO: &[u8] = include_bytes!("../static/favicon.ico");
 
-/// GET /logo.png — Serve the OpenFang logo.
+/// GET /logo.png — Serve the Freeco logo.
 pub async fn logo_png() -> impl IntoResponse {
     (
         [
@@ -41,7 +41,7 @@ pub async fn logo_png() -> impl IntoResponse {
     )
 }
 
-/// GET /favicon.ico — Serve the OpenFang favicon.
+/// GET /favicon.ico — Serve the Freeco favicon.
 pub async fn favicon_ico() -> impl IntoResponse {
     (
         [
@@ -80,7 +80,7 @@ pub async fn sw_js() -> impl IntoResponse {
     )
 }
 
-/// GET / — Serve the OpenFang Dashboard single-page application.
+/// GET / — Serve the Freeco Dashboard single-page application.
 ///
 /// Generates a unique CSP nonce on every request and injects it into both
 /// the `<script>` tags and the `Content-Security-Policy` header. This
@@ -114,7 +114,7 @@ pub async fn webchat_page() -> impl IntoResponse {
     )
 }
 
-/// The embedded HTML/CSS/JS for the OpenFang Dashboard.
+/// The embedded HTML/CSS/JS for the Freeco Dashboard.
 ///
 /// Assembled at compile time from organized static files.
 /// All vendor libraries (Alpine.js, marked.js, highlight.js) are bundled

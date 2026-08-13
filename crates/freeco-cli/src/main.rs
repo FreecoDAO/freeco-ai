@@ -15,9 +15,9 @@ mod ui;
 
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use openfang_api::server::read_daemon_info;
-use openfang_kernel::OpenFangKernel;
-use openfang_types::agent::{AgentId, AgentManifest};
+use freeco_api::server::read_daemon_info;
+use freeco_kernel::FreecoKernel;
+use freeco_types::agent::{AgentId, AgentManifest};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -129,7 +129,7 @@ enum Commands {
     /// Manage event triggers (list, create, delete) [*].
     #[command(subcommand)]
     Trigger(TriggerCommands),
-    /// Migrate from another agent framework to OpenFang.
+    /// Migrate from another agent framework to Freeco.
     Migrate(MigrateArgs),
     /// Manage skills (install, list, search, create, remove) [*].
     #[command(subcommand)]
@@ -486,12 +486,12 @@ enum ConfigCommands {
         /// Dotted key path to remove (e.g. "api.cors_origin").
         key: String,
     },
-    /// Save an API key to ~/.openfang/.env (prompts interactively).
+    /// Save an API key to ~/.freeco-ai/.env (prompts interactively).
     SetKey {
         /// Provider name (groq, anthropic, openai, gemini, deepseek, etc.).
         provider: String,
     },
-    /// Remove an API key from ~/.openfang/.env.
+    /// Remove an API key from ~/.freeco-ai/.env.
     DeleteKey {
         /// Provider name.
         provider: String,
@@ -832,7 +832,7 @@ enum SystemCommands {
 }
 
 fn config_log_level() -> String {
-    let config_path = openfang_kernel::config::default_config_path();
+    let config_path = freeco_kernel::config::default_config_path();
     if let Ok(content) = std::fs::read_to_string(config_path) {
         for line in content.lines() {
             let trimmed = line.trim();
@@ -860,13 +860,13 @@ fn init_tracing_stderr() {
 }
 
 /// Get the FreEco.ai home directory, including the legacy data migration.
-fn cli_openfang_home() -> std::path::PathBuf {
-    openfang_kernel::config::freeco_ai_home()
+fn cli_freeco_home() -> std::path::PathBuf {
+    freeco_kernel::config::freeco_ai_home()
 }
 
 /// Redirect tracing to a log file so it doesn't corrupt the ratatui TUI.
 fn init_tracing_file() {
-    let log_dir = cli_openfang_home();
+    let log_dir = cli_freeco_home();
     let _ = std::fs::create_dir_all(&log_dir);
     let log_path = log_dir.join("tui.log");
 
@@ -907,7 +907,7 @@ fn write_stdout_safe(msg: &str) {
 }
 
 fn main() {
-    // Load ~/.openfang/.env into process environment (system env takes priority).
+    // Load ~/.freeco-ai/.env into process environment (system env takes priority).
     dotenv::load_dotenv();
 
     let cli = Cli::parse();
@@ -1152,7 +1152,7 @@ pub(crate) fn restrict_dir_permissions(path: &std::path::Path) {
 pub(crate) fn restrict_dir_permissions(_path: &std::path::Path) {}
 
 pub(crate) fn find_daemon() -> Option<String> {
-    let home_dir = cli_openfang_home();
+    let home_dir = cli_freeco_home();
     let info = read_daemon_info(&home_dir)?;
 
     // Normalize listen address: replace 0.0.0.0 with 127.0.0.1 to avoid
@@ -1205,7 +1205,7 @@ pub(crate) fn daemon_json(
             if status.is_server_error() {
                 ui::error_with_fix(
                     &format!("Daemon returned error ({})", status),
-                    "Check daemon logs: ~/.openfang/tui.log",
+                    "Check daemon logs: ~/.freeco-ai/tui.log",
                 );
             }
             body
@@ -1215,17 +1215,17 @@ pub(crate) fn daemon_json(
             if msg.contains("timed out") || msg.contains("Timeout") {
                 ui::error_with_fix(
                     "Request timed out",
-                    "The agent may be processing a complex request. Try again, or check `openfang status`",
+                    "The agent may be processing a complex request. Try again, or check `freeco status`",
                 );
             } else if msg.contains("Connection refused") || msg.contains("connect") {
                 ui::error_with_fix(
                     "Cannot connect to daemon",
-                    "Is the daemon running? Start it with: openfang start",
+                    "Is the daemon running? Start it with: freeco start",
                 );
             } else {
                 ui::error_with_fix(
                     &format!("Daemon communication error: {msg}"),
-                    "Check `openfang status` or restart: openfang start",
+                    "Check `freeco status` or restart: freeco start",
                 );
             }
             std::process::exit(1);
@@ -1246,23 +1246,23 @@ fn cmd_init(quick: bool) {
         }
     };
 
-    let openfang_dir = cli_openfang_home();
+    let freeco_dir = cli_freeco_home();
 
     // --- Ensure directories exist ---
-    if !openfang_dir.exists() {
-        std::fs::create_dir_all(&openfang_dir).unwrap_or_else(|e| {
+    if !freeco_dir.exists() {
+        std::fs::create_dir_all(&freeco_dir).unwrap_or_else(|e| {
             ui::error_with_fix(
-                &format!("Failed to create {}", openfang_dir.display()),
+                &format!("Failed to create {}", freeco_dir.display()),
                 &format!("Check permissions on {}", home.display()),
             );
             eprintln!("  {e}");
             std::process::exit(1);
         });
-        restrict_dir_permissions(&openfang_dir);
+        restrict_dir_permissions(&freeco_dir);
     }
 
     for sub in ["data", "agents"] {
-        let dir = openfang_dir.join(sub);
+        let dir = freeco_dir.join(sub);
         if !dir.exists() {
             std::fs::create_dir_all(&dir).unwrap_or_else(|e| {
                 eprintln!("Error creating {sub} dir: {e}");
@@ -1272,29 +1272,29 @@ fn cmd_init(quick: bool) {
     }
 
     // Install bundled agent templates (skips existing ones to preserve user edits)
-    bundled_agents::install_bundled_agents(&openfang_dir.join("agents"));
+    bundled_agents::install_bundled_agents(&freeco_dir.join("agents"));
 
     if quick {
-        cmd_init_quick(&openfang_dir);
+        cmd_init_quick(&freeco_dir);
     } else if !std::io::IsTerminal::is_terminal(&std::io::stdin())
         || !std::io::IsTerminal::is_terminal(&std::io::stdout())
     {
         ui::hint("Non-interactive terminal detected — running in quick mode");
-        ui::hint("For the interactive wizard, run: openfang init (in a terminal)");
-        cmd_init_quick(&openfang_dir);
+        ui::hint("For the interactive wizard, run: freeco init (in a terminal)");
+        cmd_init_quick(&freeco_dir);
     } else {
-        cmd_init_interactive(&openfang_dir);
+        cmd_init_interactive(&freeco_dir);
     }
 }
 
 /// Quick init: no prompts, auto-detect, write config + .env, print next steps.
-fn cmd_init_quick(openfang_dir: &std::path::Path) {
+fn cmd_init_quick(freeco_dir: &std::path::Path) {
     ui::banner();
     ui::blank();
 
     let (provider, api_key_env, model) = detect_best_provider();
 
-    write_config_if_missing(openfang_dir, provider, model, api_key_env);
+    write_config_if_missing(freeco_dir, provider, model, api_key_env);
 
     ui::blank();
     ui::success("FreEco.ai initialized (quick mode)");
@@ -1302,13 +1302,13 @@ fn cmd_init_quick(openfang_dir: &std::path::Path) {
     ui::kv("Model", model);
     ui::blank();
     ui::next_steps(&[
-        "Start the daemon:  openfang start",
-        "Chat:              openfang chat",
+        "Start the daemon:  freeco start",
+        "Chat:              freeco chat",
     ]);
 }
 
 /// Interactive 5-step onboarding wizard (ratatui TUI).
-fn cmd_init_interactive(openfang_dir: &std::path::Path) {
+fn cmd_init_interactive(freeco_dir: &std::path::Path) {
     use tui::screens::init_wizard::{self, InitResult, LaunchChoice};
 
     match init_wizard::run() {
@@ -1332,7 +1332,7 @@ fn cmd_init_interactive(openfang_dir: &std::path::Path) {
             // Execute the user's chosen launch action.
             match launch {
                 LaunchChoice::Desktop => {
-                    launch_desktop_app(openfang_dir);
+                    launch_desktop_app(freeco_dir);
                 }
                 LaunchChoice::Dashboard => {
                     if let Some(base) = find_daemon() {
@@ -1342,7 +1342,7 @@ fn cmd_init_interactive(openfang_dir: &std::path::Path) {
                             ui::hint(&format!("Could not open browser. Visit: {url}"));
                         }
                     } else {
-                        ui::error("Daemon is not running. Start it with: openfang start");
+                        ui::error("Daemon is not running. Start it with: freeco start");
                     }
                 }
                 LaunchChoice::Chat => {
@@ -1362,17 +1362,17 @@ fn cmd_init_interactive(openfang_dir: &std::path::Path) {
     }
 }
 
-/// Launch the openfang-desktop Tauri app, connecting to the running daemon.
-fn launch_desktop_app(_openfang_dir: &std::path::Path) {
+/// Launch the freeco-desktop Tauri app, connecting to the running daemon.
+fn launch_desktop_app(_freeco_dir: &std::path::Path) {
     // Look for the desktop binary next to our own executable.
     let desktop_bin = {
         let exe = std::env::current_exe().ok();
         let dir = exe.as_ref().and_then(|e| e.parent());
 
         #[cfg(windows)]
-        let name = "openfang-desktop.exe";
+        let name = "freeco-desktop.exe";
         #[cfg(not(windows))]
-        let name = "openfang-desktop";
+        let name = "freeco-desktop";
 
         dir.map(|d| d.join(name))
     };
@@ -1391,13 +1391,13 @@ fn launch_desktop_app(_openfang_dir: &std::path::Path) {
                 }
                 Err(e) => {
                     ui::error(&format!("Failed to launch desktop app: {e}"));
-                    ui::hint("Try: openfang dashboard");
+                    ui::hint("Try: freeco dashboard");
                 }
             }
         }
         _ => {
             ui::error("Desktop app not found.");
-            ui::hint("Install it with: cargo install openfang-desktop");
+            ui::hint("Install it with: cargo install freeco-desktop");
             ui::hint("Falling back to web dashboard...");
             ui::blank();
             if let Some(base) = find_daemon() {
@@ -1412,7 +1412,7 @@ fn launch_desktop_app(_openfang_dir: &std::path::Path) {
                 // opener may still fail asynchronously.
                 ui::hint(&format!("Dashboard: {url}"));
             } else {
-                ui::hint("Daemon is not running. Start it with: openfang start");
+                ui::hint("Daemon is not running. Start it with: freeco start");
                 ui::hint("Then open: http://127.0.0.1:4200");
             }
         }
@@ -1513,20 +1513,20 @@ fn check_ollama_available() -> bool {
 
 /// Write config.toml if it doesn't already exist.
 fn write_config_if_missing(
-    openfang_dir: &std::path::Path,
+    freeco_dir: &std::path::Path,
     provider: &str,
     model: &str,
     api_key_env: &str,
 ) {
-    let config_path = openfang_dir.join("config.toml");
+    let config_path = freeco_dir.join("config.toml");
     if config_path.exists() {
         ui::check_ok(&format!("Config already exists: {}", config_path.display()));
     } else {
         let default_config = format!(
             r#"# FreEco.ai Agent OS configuration
-# See https://github.com/RightNow-AI/openfang for documentation
+# See https://github.com/FreecoDAO/freeco-ai for documentation
 
-# For Docker, change to "0.0.0.0:4200" or set OPENFANG_LISTEN env var.
+# For Docker, change to "0.0.0.0:4200" or set FREECO_AI_LISTEN env var.
 api_listen = "127.0.0.1:4200"
 
 [default_model]
@@ -1551,7 +1551,7 @@ fn cmd_start(config: Option<PathBuf>, yolo: bool) {
     if let Some(base) = find_daemon() {
         ui::error_with_fix(
             &format!("Daemon already running at {base}"),
-            "Use `openfang status` to check it, or stop it first",
+            "Use `freeco status` to check it, or stop it first",
         );
         std::process::exit(1);
     }
@@ -1563,12 +1563,12 @@ fn cmd_start(config: Option<PathBuf>, yolo: bool) {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        let mut kernel_config = openfang_kernel::config::load_config(config.as_deref());
+        let mut kernel_config = freeco_kernel::config::load_config(config.as_deref());
         if yolo {
             kernel_config.approval.auto_approve = true;
             kernel_config.approval.apply_shorthands();
         }
-        let kernel = match OpenFangKernel::boot_with_config(kernel_config) {
+        let kernel = match FreecoKernel::boot_with_config(kernel_config) {
             Ok(k) => k,
             Err(e) => {
                 boot_kernel_error(&e);
@@ -1600,12 +1600,12 @@ fn cmd_start(config: Option<PathBuf>, yolo: bool) {
         ui::kv("Provider", &provider);
         ui::kv("Model", &model);
         ui::blank();
-        ui::hint("Open the dashboard in your browser, or run `openfang chat`");
+        ui::hint("Open the dashboard in your browser, or run `freeco chat`");
         ui::hint("Press Ctrl+C to stop the daemon");
         ui::blank();
 
         if let Err(e) =
-            openfang_api::server::run_daemon(kernel, &listen_addr, Some(&daemon_info_path)).await
+            freeco_api::server::run_daemon(kernel, &listen_addr, Some(&daemon_info_path)).await
         {
             ui::error(&format!("Daemon error: {e}"));
             std::process::exit(1);
@@ -1616,13 +1616,13 @@ fn cmd_start(config: Option<PathBuf>, yolo: bool) {
     });
 }
 
-/// Read the api_key from ~/.openfang/config.toml (if any).
+/// Read the api_key from ~/.freeco-ai/config.toml (if any).
 ///
 /// Returns `None` when the key is missing, empty, or whitespace-only —
 /// meaning the daemon is running in public (unauthenticated) mode.
 fn read_api_key() -> Option<String> {
     // 1. Config file takes precedence
-    let config_path = cli_openfang_home().join("config.toml");
+    let config_path = cli_freeco_home().join("config.toml");
     if let Ok(text) = std::fs::read_to_string(config_path) {
         if let Ok(table) = text.parse::<toml::Value>() {
             if let Some(key) = table.get("api_key").and_then(|v| v.as_str()) {
@@ -1633,8 +1633,8 @@ fn read_api_key() -> Option<String> {
             }
         }
     }
-    // 2. Fall back to OPENFANG_API_KEY env var
-    if let Ok(key) = std::env::var("OPENFANG_API_KEY") {
+    // 2. Fall back to FREECO_AI_API_KEY env var
+    if let Ok(key) = std::env::var("FREECO_AI_API_KEY") {
         let key = key.trim().to_string();
         if !key.is_empty() {
             return Some(key);
@@ -1659,7 +1659,7 @@ fn cmd_stop() {
                     }
                     // Still alive — force kill via PID
                     {
-                        let of_dir = cli_openfang_home();
+                        let of_dir = cli_freeco_home();
                         if let Some(info) = read_daemon_info(&of_dir) {
                             force_kill_pid(info.pid);
                             let _ = std::fs::remove_file(of_dir.join("daemon.json"));
@@ -1678,7 +1678,7 @@ fn cmd_stop() {
         None => {
             ui::warn_with_fix(
                 "No running daemon found",
-                "Is it running? Check with: openfang status",
+                "Is it running? Check with: freeco status",
             );
         }
     }
@@ -1700,27 +1700,27 @@ fn force_kill_pid(pid: u32) {
 }
 
 /// Show context-aware error for kernel boot failures.
-fn boot_kernel_error(e: &openfang_kernel::error::KernelError) {
+fn boot_kernel_error(e: &freeco_kernel::error::KernelError) {
     let msg = e.to_string();
     if msg.contains("parse") || msg.contains("toml") || msg.contains("config") {
         ui::error_with_fix(
             "Failed to parse configuration",
-            "Check your config.toml syntax: openfang config show",
+            "Check your config.toml syntax: freeco config show",
         );
     } else if msg.contains("database") || msg.contains("locked") || msg.contains("sqlite") {
         ui::error_with_fix(
             "Database error (file may be locked)",
-            "Check if another FreEco.ai process is running: openfang status",
+            "Check if another FreEco.ai process is running: freeco status",
         );
     } else if msg.contains("key") || msg.contains("API") || msg.contains("auth") {
         ui::error_with_fix(
             "LLM provider authentication failed",
-            "Run `openfang doctor` to check your API key configuration",
+            "Run `freeco doctor` to check your API key configuration",
         );
     } else {
         ui::error_with_fix(
             &format!("Failed to boot kernel: {msg}"),
-            "Run `openfang doctor` to diagnose the issue",
+            "Run `freeco doctor` to diagnose the issue",
         );
     }
 }
@@ -1729,7 +1729,7 @@ fn cmd_agent_spawn(config: Option<PathBuf>, manifest_path: PathBuf) {
     if !manifest_path.exists() {
         ui::error_with_fix(
             &format!("Manifest file not found: {}", manifest_path.display()),
-            "Use `openfang agent new` to spawn from a template instead",
+            "Use `freeco agent new` to spawn from a template instead",
         );
         std::process::exit(1);
     }
@@ -1769,7 +1769,7 @@ fn cmd_agent_spawn(config: Option<PathBuf>, manifest_path: PathBuf) {
                 println!("Agent spawned (in-process mode).");
                 println!("  ID: {id}");
                 println!("\n  Note: Agent will be lost when this process exits.");
-                println!("  For persistent agents, use `openfang start` first.");
+                println!("  For persistent agents, use `freeco start` first.");
             }
             Err(e) => {
                 eprintln!("Failed to spawn agent: {e}");
@@ -1915,7 +1915,7 @@ fn cmd_agent_set(agent_id_str: &str, field: &str, value: &str) {
                     std::process::exit(1);
                 }
             } else {
-                eprintln!("No running daemon found. Start one with: openfang start");
+                eprintln!("No running daemon found. Start one with: freeco start");
                 std::process::exit(1);
             }
         }
@@ -1931,7 +1931,7 @@ fn cmd_agent_new(config: Option<PathBuf>, template_name: Option<String>) {
     if all_templates.is_empty() {
         ui::error_with_fix(
             "No agent templates found",
-            "Run `openfang init` to set up the agents directory",
+            "Run `freeco init` to set up the agents directory",
         );
         std::process::exit(1);
     }
@@ -1943,7 +1943,7 @@ fn cmd_agent_new(config: Option<PathBuf>, template_name: Option<String>) {
             None => {
                 ui::error_with_fix(
                     &format!("Template '{name}' not found"),
-                    "Run `openfang agent new` to see available templates",
+                    "Run `freeco agent new` to see available templates",
                 );
                 std::process::exit(1);
             }
@@ -2002,7 +2002,7 @@ fn spawn_template_agent(config: Option<PathBuf>, template: &templates::AgentTemp
                 ui::kv("Model", &format!("{provider}/{model}"));
             }
             ui::blank();
-            ui::hint(&format!("Chat: openfang chat {}", template.name));
+            ui::hint(&format!("Chat: freeco chat {}", template.name));
         } else {
             ui::error(&format!(
                 "Failed to spawn: {}",
@@ -2025,9 +2025,9 @@ fn spawn_template_agent(config: Option<PathBuf>, template: &templates::AgentTemp
                 ui::success(&format!("Agent '{}' spawned (in-process)", template.name));
                 ui::kv("ID", &id.to_string());
                 ui::blank();
-                ui::hint(&format!("Chat: openfang chat {}", template.name));
+                ui::hint(&format!("Chat: freeco chat {}", template.name));
                 ui::hint("Note: Agent will be lost when this process exits");
-                ui::hint("For persistent agents, use `openfang start` first");
+                ui::hint("For persistent agents, use `freeco start` first");
             }
             Err(e) => {
                 ui::error(&format!("Failed to spawn agent: {e}"));
@@ -2111,7 +2111,7 @@ fn cmd_status(config: Option<PathBuf>, json: bool) {
         ui::kv("Data dir", &kernel.config.data_dir.display().to_string());
         ui::kv_warn("Daemon", "NOT RUNNING");
         ui::blank();
-        ui::hint("Run `openfang start` to launch the daemon");
+        ui::hint("Run `freeco start` to launch the daemon");
 
         if agent_count > 0 {
             ui::blank();
@@ -2135,24 +2135,24 @@ fn cmd_doctor(json: bool, repair: bool) {
 
     let home = dirs::home_dir();
     if let Some(_h) = &home {
-        let openfang_dir = cli_openfang_home();
+        let freeco_dir = cli_freeco_home();
 
-        // --- Check 1: OpenFang directory ---
-        if openfang_dir.exists() {
+        // --- Check 1: Freeco directory ---
+        if freeco_dir.exists() {
             if !json {
-                ui::check_ok(&format!("FreEco.ai directory: {}", openfang_dir.display()));
+                ui::check_ok(&format!("FreEco.ai directory: {}", freeco_dir.display()));
             }
-            checks.push(serde_json::json!({"check": "openfang_dir", "status": "ok", "path": openfang_dir.display().to_string()}));
+            checks.push(serde_json::json!({"check": "freeco_dir", "status": "ok", "path": freeco_dir.display().to_string()}));
         } else if repair {
             if !json {
                 ui::check_fail("FreEco.ai directory not found.");
             }
             let answer = prompt_input("    Create it now? [Y/n] ");
             if answer.is_empty() || answer.starts_with('y') || answer.starts_with('Y') {
-                if std::fs::create_dir_all(&openfang_dir).is_ok() {
-                    restrict_dir_permissions(&openfang_dir);
+                if std::fs::create_dir_all(&freeco_dir).is_ok() {
+                    restrict_dir_permissions(&freeco_dir);
                     for sub in ["data", "agents"] {
-                        let _ = std::fs::create_dir_all(openfang_dir.join(sub));
+                        let _ = std::fs::create_dir_all(freeco_dir.join(sub));
                     }
                     if !json {
                         ui::check_ok("Created FreEco.ai directory");
@@ -2167,17 +2167,17 @@ fn cmd_doctor(json: bool, repair: bool) {
             } else {
                 all_ok = false;
             }
-            checks.push(serde_json::json!({"check": "openfang_dir", "status": if repaired { "repaired" } else { "fail" }}));
+            checks.push(serde_json::json!({"check": "freeco_dir", "status": if repaired { "repaired" } else { "fail" }}));
         } else {
             if !json {
-                ui::check_fail("FreEco.ai directory not found. Run `openfang init` first.");
+                ui::check_fail("FreEco.ai directory not found. Run `freeco init` first.");
             }
-            checks.push(serde_json::json!({"check": "openfang_dir", "status": "fail"}));
+            checks.push(serde_json::json!({"check": "freeco_dir", "status": "fail"}));
             all_ok = false;
         }
 
         // --- Check 2: .env file exists + permissions ---
-        let env_path = openfang_dir.join(".env");
+        let env_path = freeco_dir.join(".env");
         if env_path.exists() {
             #[cfg(unix)]
             {
@@ -2217,14 +2217,14 @@ fn cmd_doctor(json: bool, repair: bool) {
         } else {
             if !json {
                 ui::check_warn(
-                    ".env file not found (create with: openfang config set-key <provider>)",
+                    ".env file not found (create with: freeco config set-key <provider>)",
                 );
             }
             checks.push(serde_json::json!({"check": "env_file", "status": "warn"}));
         }
 
         // --- Check 3: Config TOML syntax validation ---
-        let config_path = openfang_dir.join("config.toml");
+        let config_path = freeco_dir.join("config.toml");
         if config_path.exists() {
             let config_content = std::fs::read_to_string(&config_path).unwrap_or_default();
             match toml::from_str::<toml::Value>(&config_content) {
@@ -2237,7 +2237,7 @@ fn cmd_doctor(json: bool, repair: bool) {
                 Err(e) => {
                     if !json {
                         ui::check_fail(&format!("Config file has syntax errors: {e}"));
-                        ui::hint("Fix with: openfang config edit");
+                        ui::hint("Fix with: freeco config edit");
                     }
                     checks.push(serde_json::json!({"check": "config_syntax", "status": "fail", "error": e.to_string()}));
                     all_ok = false;
@@ -2252,9 +2252,9 @@ fn cmd_doctor(json: bool, repair: bool) {
                 let (provider, api_key_env, model) = detect_best_provider();
                 let default_config = format!(
                     r#"# FreEco.ai Agent OS configuration
-# See https://github.com/RightNow-AI/openfang for documentation
+# See https://github.com/FreecoDAO/freeco-ai for documentation
 
-# For Docker, change to "0.0.0.0:4200" or set OPENFANG_LISTEN env var.
+# For Docker, change to "0.0.0.0:4200" or set FREECO_AI_LISTEN env var.
 api_listen = "127.0.0.1:4200"
 
 [default_model]
@@ -2266,7 +2266,7 @@ api_key_env = "{api_key_env}"
 decay_rate = 0.05
 "#
                 );
-                let _ = std::fs::create_dir_all(&openfang_dir);
+                let _ = std::fs::create_dir_all(&freeco_dir);
                 if std::fs::write(&config_path, default_config).is_ok() {
                     restrict_file_permissions(&config_path);
                     if !json {
@@ -2294,11 +2294,11 @@ decay_rate = 0.05
         // --- Check 4: Port availability ---
         // Read api_listen from config (default: 127.0.0.1:4200)
         let api_listen = {
-            let cfg_path = openfang_dir.join("config.toml");
+            let cfg_path = freeco_dir.join("config.toml");
             if cfg_path.exists() {
                 std::fs::read_to_string(&cfg_path)
                     .ok()
-                    .and_then(|s| toml::from_str::<openfang_types::config::KernelConfig>(&s).ok())
+                    .and_then(|s| toml::from_str::<freeco_types::config::KernelConfig>(&s).ok())
                     .map(|c| c.api_listen)
                     .unwrap_or_else(|| "127.0.0.1:4200".to_string())
             } else {
@@ -2316,7 +2316,7 @@ decay_rate = 0.05
             checks.push(serde_json::json!({"check": "daemon", "status": "ok", "url": base}));
         } else {
             if !json {
-                ui::check_warn("Daemon not running (start with `openfang start`)");
+                ui::check_warn("Daemon not running (start with `freeco start`)");
             }
             checks.push(serde_json::json!({"check": "daemon", "status": "warn"}));
 
@@ -2345,7 +2345,7 @@ decay_rate = 0.05
         }
 
         // --- Check 5: Stale daemon.json ---
-        let daemon_json_path = openfang_dir.join("daemon.json");
+        let daemon_json_path = freeco_dir.join("daemon.json");
         if daemon_json_path.exists() && daemon_running.is_none() {
             if repair {
                 let _ = std::fs::remove_file(&daemon_json_path);
@@ -2362,7 +2362,7 @@ decay_rate = 0.05
         }
 
         // --- Check 6: Database file ---
-        let db_path = openfang_dir.join("data").join("openfang.db");
+        let db_path = freeco_dir.join("data").join("freeco.db");
         if db_path.exists() {
             // Quick SQLite magic bytes check
             if let Ok(bytes) = std::fs::read(&db_path) {
@@ -2390,7 +2390,7 @@ decay_rate = 0.05
         #[cfg(unix)]
         {
             if let Ok(output) = std::process::Command::new("df")
-                .args(["-m", &openfang_dir.display().to_string()])
+                .args(["-m", &freeco_dir.display().to_string()])
                 .output()
             {
                 let stdout = String::from_utf8_lossy(&output.stdout);
@@ -2421,7 +2421,7 @@ decay_rate = 0.05
         }
 
         // --- Check 8: Agent manifests parse correctly ---
-        let agents_dir = openfang_dir.join("agents");
+        let agents_dir = freeco_dir.join("agents");
         if agents_dir.exists() {
             let mut agent_errors = Vec::new();
             if let Ok(entries) = std::fs::read_dir(&agents_dir) {
@@ -2511,8 +2511,8 @@ decay_rate = 0.05
 
     // Check GitHub Copilot auth (separate from env var checks)
     {
-        let openfang_dir = cli_openfang_home();
-        if freeco_kernel_runtime::drivers::copilot::copilot_auth_available(&openfang_dir) {
+        let freeco_dir = cli_freeco_home();
+        if freeco_kernel_runtime::drivers::copilot::copilot_auth_available(&freeco_dir) {
             any_key_set = true;
             if !json {
                 ui::check_ok("GitHub Copilot (authenticated via device flow)");
@@ -2533,7 +2533,7 @@ decay_rate = 0.05
             ui::suggest_cmd("Gemini:", "https://aistudio.google.com    (free tier)");
             ui::suggest_cmd("DeepSeek:", "https://platform.deepseek.com  (low cost)");
             ui::blank();
-            ui::hint("Or run: openfang config set-key groq");
+            ui::hint("Or run: freeco config set-key groq");
         }
         all_ok = false;
     }
@@ -2578,8 +2578,8 @@ decay_rate = 0.05
 
     // --- Check 11: .env keys vs config api_key_env consistency ---
     {
-        let openfang_dir = cli_openfang_home();
-        let config_path = openfang_dir.join("config.toml");
+        let freeco_dir = cli_freeco_home();
+        let config_path = freeco_dir.join("config.toml");
         if config_path.exists() {
             let config_str = std::fs::read_to_string(&config_path).unwrap_or_default();
             // Look for api_key_env references in config
@@ -2604,14 +2604,14 @@ decay_rate = 0.05
 
     // --- Check 12: Config deserialization into KernelConfig ---
     {
-        let openfang_dir = cli_openfang_home();
-        let config_path = openfang_dir.join("config.toml");
+        let freeco_dir = cli_freeco_home();
+        let config_path = freeco_dir.join("config.toml");
         if config_path.exists() {
             if !json {
                 println!("\n  Config Validation:");
             }
             let config_content = std::fs::read_to_string(&config_path).unwrap_or_default();
-            match toml::from_str::<openfang_types::config::KernelConfig>(&config_content) {
+            match toml::from_str::<freeco_types::config::KernelConfig>(&config_content) {
                 Ok(cfg) => {
                     if !json {
                         ui::check_ok("Config deserializes into KernelConfig");
@@ -2632,7 +2632,7 @@ decay_rate = 0.05
                     if !cfg.include.is_empty() {
                         let mut include_ok = true;
                         for inc in &cfg.include {
-                            let inc_path = openfang_dir.join(inc);
+                            let inc_path = freeco_dir.join(inc);
                             if inc_path.exists() {
                                 if !json {
                                     ui::check_ok(&format!("Include file: {inc}"));
@@ -2662,7 +2662,7 @@ decay_rate = 0.05
                         for server in &cfg.mcp_servers {
                             // Validate transport config
                             match &server.transport {
-                                openfang_types::config::McpTransportEntry::Stdio {
+                                freeco_types::config::McpTransportEntry::Stdio {
                                     command,
                                     ..
                                 } => {
@@ -2676,8 +2676,8 @@ decay_rate = 0.05
                                         checks.push(serde_json::json!({"check": "mcp_server_config", "status": "warn", "name": server.name}));
                                     }
                                 }
-                                openfang_types::config::McpTransportEntry::Sse { url }
-                                | openfang_types::config::McpTransportEntry::Http { url } => {
+                                freeco_types::config::McpTransportEntry::Sse { url }
+                                | freeco_types::config::McpTransportEntry::Http { url } => {
                                     if url.is_empty() {
                                         if !json {
                                             ui::check_warn(&format!(
@@ -2709,8 +2709,8 @@ decay_rate = 0.05
         if !json {
             println!("\n  Skills:");
         }
-        let skills_dir = cli_openfang_home().join("skills");
-        let mut skill_reg = openfang_skills::registry::SkillRegistry::new(skills_dir.clone());
+        let skills_dir = cli_freeco_home().join("skills");
+        let mut skill_reg = freeco_skills::registry::SkillRegistry::new(skills_dir.clone());
         skill_reg.load_bundled();
         let bundled_count = skill_reg.count();
         if !json {
@@ -2747,11 +2747,11 @@ decay_rate = 0.05
         let mut injection_warnings = 0;
         for skill in &skills {
             if let Some(ref prompt) = skill.manifest.prompt_context {
-                let warnings = openfang_skills::verify::SkillVerifier::scan_prompt_content(prompt);
+                let warnings = freeco_skills::verify::SkillVerifier::scan_prompt_content(prompt);
                 let has_critical = warnings.iter().any(|w| {
                     matches!(
                         w.severity,
-                        openfang_skills::verify::WarningSeverity::Critical
+                        freeco_skills::verify::WarningSeverity::Critical
                     )
                 });
                 if has_critical {
@@ -2787,9 +2787,9 @@ decay_rate = 0.05
         if !json {
             println!("\n  Extensions:");
         }
-        let openfang_dir = cli_openfang_home();
+        let freeco_dir = cli_freeco_home();
         let mut ext_registry =
-            openfang_extensions::registry::IntegrationRegistry::new(&openfang_dir);
+            freeco_extensions::registry::IntegrationRegistry::new(&freeco_dir);
         ext_registry.load_bundled();
         let _ = ext_registry.load_installed();
         let template_count = ext_registry.template_count();
@@ -3023,14 +3023,14 @@ decay_rate = 0.05
         if all_ok {
             ui::success("All checks passed! FreEco.ai is ready.");
             if find_daemon().is_none() {
-                ui::hint("Start the daemon: openfang start");
+                ui::hint("Start the daemon: freeco start");
             }
         } else if repaired {
-            ui::success("Repairs applied. Re-run `openfang doctor` to verify.");
+            ui::success("Repairs applied. Re-run `freeco doctor` to verify.");
         } else {
             ui::error("Some checks failed.");
             if !repair {
-                ui::hint("Run `openfang doctor --repair` to attempt auto-fix");
+                ui::hint("Run `freeco doctor --repair` to attempt auto-fix");
             }
         }
     }
@@ -3054,7 +3054,7 @@ fn cmd_dashboard() {
             Err(e) => {
                 ui::error_with_fix(
                     &format!("Could not start daemon: {e}"),
-                    "Start it manually: openfang start",
+                    "Start it manually: freeco start",
                 );
                 std::process::exit(1);
             }
@@ -3197,7 +3197,7 @@ pub(crate) fn open_in_browser(url: &str) -> bool {
 fn cmd_completion(shell: clap_complete::Shell) {
     use clap::CommandFactory;
     let mut cmd = Cli::command();
-    clap_complete::generate(shell, &mut cmd, "openfang", &mut std::io::stdout());
+    clap_complete::generate(shell, &mut cmd, "freeco", &mut std::io::stdout());
 }
 
 // ---------------------------------------------------------------------------
@@ -3483,16 +3483,16 @@ fn cmd_trigger_delete(trigger_id: &str) {
 fn require_daemon(command: &str) -> String {
     find_daemon().unwrap_or_else(|| {
         ui::error_with_fix(
-            &format!("`openfang {command}` requires a running daemon"),
-            "Start the daemon: openfang start",
+            &format!("`freeco {command}` requires a running daemon"),
+            "Start the daemon: freeco start",
         );
-        ui::hint("Or try `openfang chat` which works without a daemon");
+        ui::hint("Or try `freeco chat` which works without a daemon");
         std::process::exit(1);
     })
 }
 
-fn boot_kernel(config: Option<PathBuf>) -> OpenFangKernel {
-    match OpenFangKernel::boot(config.as_deref()) {
+fn boot_kernel(config: Option<PathBuf>) -> FreecoKernel {
+    match FreecoKernel::boot(config.as_deref()) {
         Ok(k) => k,
         Err(e) => {
             boot_kernel_error(&e);
@@ -3507,9 +3507,9 @@ fn boot_kernel(config: Option<PathBuf>) -> OpenFangKernel {
 
 fn cmd_migrate(args: MigrateArgs) {
     let source = match args.from {
-        MigrateSourceArg::Openclaw => openfang_migrate::MigrateSource::OpenClaw,
-        MigrateSourceArg::Langchain => openfang_migrate::MigrateSource::LangChain,
-        MigrateSourceArg::Autogpt => openfang_migrate::MigrateSource::AutoGpt,
+        MigrateSourceArg::Openclaw => freeco_migrate::MigrateSource::OpenClaw,
+        MigrateSourceArg::Langchain => freeco_migrate::MigrateSource::LangChain,
+        MigrateSourceArg::Autogpt => freeco_migrate::MigrateSource::AutoGpt,
     };
 
     let source_dir = args.source_dir.unwrap_or_else(|| {
@@ -3518,27 +3518,27 @@ fn cmd_migrate(args: MigrateArgs) {
             std::process::exit(1);
         });
         match source {
-            openfang_migrate::MigrateSource::OpenClaw => home.join(".openclaw"),
-            openfang_migrate::MigrateSource::LangChain => home.join(".langchain"),
-            openfang_migrate::MigrateSource::AutoGpt => home.join("Auto-GPT"),
+            freeco_migrate::MigrateSource::OpenClaw => home.join(".openclaw"),
+            freeco_migrate::MigrateSource::LangChain => home.join(".langchain"),
+            freeco_migrate::MigrateSource::AutoGpt => home.join("Auto-GPT"),
         }
     });
 
-    let target_dir = cli_openfang_home();
+    let target_dir = cli_freeco_home();
 
     println!("Migrating from {} ({})...", source, source_dir.display());
     if args.dry_run {
         println!("  (dry run — no changes will be made)\n");
     }
 
-    let options = openfang_migrate::MigrateOptions {
+    let options = freeco_migrate::MigrateOptions {
         source,
         source_dir,
         target_dir,
         dry_run: args.dry_run,
     };
 
-    match openfang_migrate::run_migration(&options) {
+    match freeco_migrate::run_migration(&options) {
         Ok(report) => {
             report.print_summary();
 
@@ -3564,7 +3564,7 @@ fn cmd_migrate(args: MigrateArgs) {
 // ---------------------------------------------------------------------------
 
 fn cmd_skill_install(source: &str) {
-    let home = openfang_home();
+    let home = freeco_home();
     let skills_dir = home.join("skills");
     std::fs::create_dir_all(&skills_dir).unwrap_or_else(|e| {
         eprintln!("Error creating skills directory: {e}");
@@ -3577,14 +3577,14 @@ fn cmd_skill_install(source: &str) {
         let manifest_path = source_path.join("skill.toml");
         if !manifest_path.exists() {
             // Check if it's an OpenClaw skill
-            if openfang_skills::openclaw_compat::detect_openclaw_skill(&source_path) {
+            if freeco_skills::openclaw_compat::detect_openclaw_skill(&source_path) {
                 println!("Detected OpenClaw skill format. Converting...");
-                match openfang_skills::openclaw_compat::convert_openclaw_skill(&source_path) {
+                match freeco_skills::openclaw_compat::convert_openclaw_skill(&source_path) {
                     Ok(manifest) => {
                         let dest = skills_dir.join(&manifest.skill.name);
                         // Copy skill directory
                         copy_dir_recursive(&source_path, &dest);
-                        if let Err(e) = openfang_skills::openclaw_compat::write_openfang_manifest(
+                        if let Err(e) = freeco_skills::openclaw_compat::write_freeco_manifest(
                             &dest, &manifest,
                         ) {
                             eprintln!("Failed to write manifest: {e}");
@@ -3609,7 +3609,7 @@ fn cmd_skill_install(source: &str) {
             eprintln!("Error reading skill.toml: {e}");
             std::process::exit(1);
         });
-        let manifest: openfang_skills::SkillManifest =
+        let manifest: freeco_skills::SkillManifest =
             toml::from_str(&toml_str).unwrap_or_else(|e| {
                 eprintln!("Error parsing skill.toml: {e}");
                 std::process::exit(1);
@@ -3658,13 +3658,13 @@ fn cmd_skill_install(source: &str) {
         // Reuse the local directory install logic on the cloned repo
         let manifest_path = clone_path.join("skill.toml");
         if !manifest_path.exists() {
-            if openfang_skills::openclaw_compat::detect_openclaw_skill(&clone_path) {
+            if freeco_skills::openclaw_compat::detect_openclaw_skill(&clone_path) {
                 println!("Detected OpenClaw skill format. Converting...");
-                match openfang_skills::openclaw_compat::convert_openclaw_skill(&clone_path) {
+                match freeco_skills::openclaw_compat::convert_openclaw_skill(&clone_path) {
                     Ok(manifest) => {
                         let dest = skills_dir.join(&manifest.skill.name);
                         copy_dir_recursive(&clone_path, &dest);
-                        if let Err(e) = openfang_skills::openclaw_compat::write_openfang_manifest(
+                        if let Err(e) = freeco_skills::openclaw_compat::write_freeco_manifest(
                             &dest, &manifest,
                         ) {
                             eprintln!("Failed to write manifest: {e}");
@@ -3688,7 +3688,7 @@ fn cmd_skill_install(source: &str) {
             eprintln!("Error reading skill.toml: {e}");
             std::process::exit(1);
         });
-        let manifest: openfang_skills::SkillManifest =
+        let manifest: freeco_skills::SkillManifest =
             toml::from_str(&toml_str).unwrap_or_else(|e| {
                 eprintln!("Error parsing skill.toml: {e}");
                 std::process::exit(1);
@@ -3705,8 +3705,8 @@ fn cmd_skill_install(source: &str) {
         // Remote install from FangHub
         println!("Installing {source} from FangHub...");
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let client = openfang_skills::marketplace::MarketplaceClient::new(
-            openfang_skills::marketplace::MarketplaceConfig::default(),
+        let client = freeco_skills::marketplace::MarketplaceClient::new(
+            freeco_skills::marketplace::MarketplaceConfig::default(),
         );
         match rt.block_on(client.install(source, &skills_dir)) {
             Ok(version) => {
@@ -3732,19 +3732,19 @@ fn notify_daemon_skill_reload() {
                 ui::step("Daemon notified — skill registry reloaded.");
             }
             _ => {
-                ui::check_warn("Could not notify daemon. Restart with: openfang restart");
+                ui::check_warn("Could not notify daemon. Restart with: freeco restart");
             }
         }
     } else {
-        ui::hint("Start the daemon to make this skill available to agents: openfang start");
+        ui::hint("Start the daemon to make this skill available to agents: freeco start");
     }
 }
 
 fn cmd_skill_list() {
-    let home = openfang_home();
+    let home = freeco_home();
     let skills_dir = home.join("skills");
 
-    let mut registry = openfang_skills::registry::SkillRegistry::new(skills_dir);
+    let mut registry = freeco_skills::registry::SkillRegistry::new(skills_dir);
     match registry.load_all() {
         Ok(0) => println!("No skills installed."),
         Ok(count) => {
@@ -3772,10 +3772,10 @@ fn cmd_skill_list() {
 }
 
 fn cmd_skill_remove(name: &str) {
-    let home = openfang_home();
+    let home = freeco_home();
     let skills_dir = home.join("skills");
 
-    let mut registry = openfang_skills::registry::SkillRegistry::new(skills_dir);
+    let mut registry = freeco_skills::registry::SkillRegistry::new(skills_dir);
     let _ = registry.load_all();
     match registry.remove(name) {
         Ok(()) => println!("Removed skill: {name}"),
@@ -3788,8 +3788,8 @@ fn cmd_skill_remove(name: &str) {
 
 fn cmd_skill_search(query: &str) {
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let client = openfang_skills::marketplace::MarketplaceClient::new(
-        openfang_skills::marketplace::MarketplaceConfig::default(),
+    let client = freeco_skills::marketplace::MarketplaceClient::new(
+        freeco_skills::marketplace::MarketplaceConfig::default(),
     );
     match rt.block_on(client.search(query)) {
         Ok(results) if results.is_empty() => println!("No skills found for \"{query}\"."),
@@ -3821,7 +3821,7 @@ fn cmd_skill_create() {
         runtime
     };
 
-    let home = openfang_home();
+    let home = freeco_home();
     let skill_dir = home.join("skills").join(&name);
     std::fs::create_dir_all(skill_dir.join("src")).unwrap_or_else(|e| {
         eprintln!("Error creating skill directory: {e}");
@@ -3893,9 +3893,9 @@ if __name__ == "__main__":
     println!("  {entry_path}");
     println!("\nNext steps:");
     println!("  1. Edit the entry point to implement your skill logic");
-    println!("  2. Test locally: openfang skill test");
+    println!("  2. Test locally: freeco skill test");
     println!(
-        "  3. Install: openfang skill install {}",
+        "  3. Install: freeco skill install {}",
         skill_dir.display()
     );
 }
@@ -3905,11 +3905,11 @@ if __name__ == "__main__":
 // ---------------------------------------------------------------------------
 
 fn cmd_channel_list() {
-    let home = openfang_home();
+    let home = freeco_home();
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        println!("No configuration found. Run `openfang init` first.");
+        println!("No configuration found. Run `freeco init` first.");
         return;
     }
 
@@ -3952,7 +3952,7 @@ fn cmd_channel_list() {
         );
     }
 
-    println!("\nUse `openfang channel setup <channel>` to configure a channel.");
+    println!("\nUse `freeco channel setup <channel>` to configure a channel.");
 }
 
 fn cmd_channel_setup(channel: Option<&str>) {
@@ -4011,7 +4011,7 @@ fn cmd_channel_setup(channel: Option<&str>) {
 
             // Save token to .env
             match dotenv::save_env_key("TELEGRAM_BOT_TOKEN", &token) {
-                Ok(()) => ui::success("Token saved to ~/.openfang/.env"),
+                Ok(()) => ui::success("Token saved to ~/.freeco-ai/.env"),
                 Err(_) => println!("    export TELEGRAM_BOT_TOKEN={token}"),
             }
 
@@ -4041,7 +4041,7 @@ fn cmd_channel_setup(channel: Option<&str>) {
             maybe_write_channel_config("discord", config_block);
 
             match dotenv::save_env_key("DISCORD_BOT_TOKEN", &token) {
-                Ok(()) => ui::success("Token saved to ~/.openfang/.env"),
+                Ok(()) => ui::success("Token saved to ~/.freeco-ai/.env"),
                 Err(_) => println!("    export DISCORD_BOT_TOKEN={token}"),
             }
 
@@ -4069,13 +4069,13 @@ fn cmd_channel_setup(channel: Option<&str>) {
 
             if !app_token.is_empty() {
                 match dotenv::save_env_key("SLACK_APP_TOKEN", &app_token) {
-                    Ok(()) => ui::success("App token saved to ~/.openfang/.env"),
+                    Ok(()) => ui::success("App token saved to ~/.freeco-ai/.env"),
                     Err(_) => println!("    export SLACK_APP_TOKEN={app_token}"),
                 }
             }
             if !bot_token.is_empty() {
                 match dotenv::save_env_key("SLACK_BOT_TOKEN", &bot_token) {
-                    Ok(()) => ui::success("Bot token saved to ~/.openfang/.env"),
+                    Ok(()) => ui::success("Bot token saved to ~/.freeco-ai/.env"),
                     Err(_) => println!("    export SLACK_BOT_TOKEN={bot_token}"),
                 }
             }
@@ -4109,7 +4109,7 @@ fn cmd_channel_setup(channel: Option<&str>) {
             ] {
                 if !val.is_empty() {
                     match dotenv::save_env_key(key, val) {
-                        Ok(()) => ui::success(&format!("{key} saved to ~/.openfang/.env")),
+                        Ok(()) => ui::success(&format!("{key} saved to ~/.freeco-ai/.env")),
                         Err(_) => println!("    export {key}={val}"),
                     }
                 }
@@ -4141,11 +4141,11 @@ fn cmd_channel_setup(channel: Option<&str>) {
 
             if !password.is_empty() {
                 match dotenv::save_env_key("EMAIL_PASSWORD", &password) {
-                    Ok(()) => ui::success("Password saved to ~/.openfang/.env"),
+                    Ok(()) => ui::success("Password saved to ~/.freeco-ai/.env"),
                     Err(_) => println!("    export EMAIL_PASSWORD=your_app_password"),
                 }
             } else {
-                ui::hint("Set later: openfang config set-key email (or export EMAIL_PASSWORD=...)");
+                ui::hint("Set later: freeco config set-key email (or export EMAIL_PASSWORD=...)");
             }
 
             ui::blank();
@@ -4175,7 +4175,7 @@ fn cmd_channel_setup(channel: Option<&str>) {
 
             if !phone.is_empty() {
                 match dotenv::save_env_key("SIGNAL_PHONE", &phone) {
-                    Ok(()) => ui::success("Phone saved to ~/.openfang/.env"),
+                    Ok(()) => ui::success("Phone saved to ~/.freeco-ai/.env"),
                     Err(_) => println!("    export SIGNAL_PHONE={phone}"),
                 }
             }
@@ -4188,10 +4188,10 @@ fn cmd_channel_setup(channel: Option<&str>) {
             ui::section("Setting up Matrix");
             ui::blank();
             println!("  1. Create a bot account on your Matrix homeserver");
-            println!("     (e.g., register @openfang-bot:matrix.org)");
+            println!("     (e.g., register @freeco-bot:matrix.org)");
             println!("  2. Obtain an access token:");
             println!("     curl -X POST https://matrix.org/_matrix/client/r0/login \\");
-            println!("       -d '{{\"type\":\"m.login.password\",\"user\":\"openfang-bot\",\"password\":\"...\"}}'");
+            println!("       -d '{{\"type\":\"m.login.password\",\"user\":\"freeco-bot\",\"password\":\"...\"}}'");
             println!("     Copy the access_token from the response.");
             println!("  3. Invite the bot to rooms you want it to monitor.");
             ui::blank();
@@ -4210,7 +4210,7 @@ fn cmd_channel_setup(channel: Option<&str>) {
             let _ = dotenv::save_env_key("MATRIX_HOMESERVER", &homeserver);
             if !token.is_empty() {
                 match dotenv::save_env_key("MATRIX_ACCESS_TOKEN", &token) {
-                    Ok(()) => ui::success("Token saved to ~/.openfang/.env"),
+                    Ok(()) => ui::success("Token saved to ~/.freeco-ai/.env"),
                     Err(_) => println!("    export MATRIX_ACCESS_TOKEN={token}"),
                 }
             }
@@ -4231,11 +4231,11 @@ fn cmd_channel_setup(channel: Option<&str>) {
 
 /// Offer to append a channel config block to config.toml if it doesn't already exist.
 fn maybe_write_channel_config(channel: &str, config_block: &str) {
-    let home = openfang_home();
+    let home = freeco_home();
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        ui::hint("No config.toml found. Run `openfang init` first.");
+        ui::hint("No config.toml found. Run `freeco init` first.");
         return;
     }
 
@@ -4264,7 +4264,7 @@ fn notify_daemon_restart() {
     if find_daemon().is_some() {
         ui::check_warn("Restart the daemon to activate this channel");
     } else {
-        ui::hint("Start the daemon: openfang start");
+        ui::hint("Start the daemon: freeco start");
     }
 }
 
@@ -4285,7 +4285,7 @@ fn cmd_channel_test(channel: &str) {
             );
         }
     } else {
-        eprintln!("Channel test requires a running daemon. Start with: openfang start");
+        eprintln!("Channel test requires a running daemon. Start with: freeco start");
         std::process::exit(1);
     }
 }
@@ -4310,7 +4310,7 @@ fn cmd_channel_toggle(channel: &str, enable: bool) {
         }
     } else {
         println!("Note: Channel {channel} will be {action} when the daemon starts.");
-        println!("Edit ~/.openfang/config.toml to persist this change.");
+        println!("Edit ~/.freeco-ai/config.toml to persist this change.");
     }
 }
 
@@ -4362,7 +4362,7 @@ fn cmd_hand_install(path: &str) {
         body["id"].as_str().unwrap_or("?"),
     );
     println!(
-        "Use `openfang hand activate {}` to start it.",
+        "Use `freeco hand activate {}` to start it.",
         body["id"].as_str().unwrap_or("?")
     );
 }
@@ -4405,7 +4405,7 @@ fn cmd_hand_list() {
                     .collect::<String>(),
             );
         }
-        println!("\nUse `openfang hand activate <id>` to activate a hand.");
+        println!("\nUse `freeco hand activate <id>` to activate a hand.");
     }
 }
 
@@ -4729,7 +4729,7 @@ fn cmd_hand_config(
         ui::error(&format!("Failed to update hand '{id}' settings: {err}"));
         if err.contains("No active instance") {
             ui::hint(&format!(
-                "Activate the hand first: openfang hand activate {id}"
+                "Activate the hand first: freeco hand activate {id}"
             ));
         }
         std::process::exit(1);
@@ -4867,7 +4867,7 @@ pub(crate) fn test_api_key(provider: &str, env_var: &str) -> bool {
 // Background daemon start
 // ---------------------------------------------------------------------------
 
-/// Spawn `openfang start` as a detached background process.
+/// Spawn `freeco start` as a detached background process.
 ///
 /// Polls for daemon health for up to 10 seconds. Returns the daemon URL on success.
 pub(crate) fn start_daemon_background() -> Result<String, String> {
@@ -4915,12 +4915,12 @@ pub(crate) fn start_daemon_background() -> Result<String, String> {
 // ---------------------------------------------------------------------------
 
 fn cmd_config_show() {
-    let home = openfang_home();
+    let home = freeco_home();
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
         println!("No configuration found at: {}", config_path.display());
-        println!("Run `openfang init` to create one.");
+        println!("Run `freeco init` to create one.");
         return;
     }
 
@@ -4934,7 +4934,7 @@ fn cmd_config_show() {
 }
 
 fn cmd_config_edit() {
-    let home = openfang_home();
+    let home = freeco_home();
     let config_path = home.join("config.toml");
 
     let editor = std::env::var("EDITOR")
@@ -4996,11 +4996,11 @@ fn lookup_config_value(table: &toml::Value, key: &str) -> ConfigGetOutcome {
 }
 
 fn cmd_config_get(key: &str) {
-    let home = openfang_home();
+    let home = freeco_home();
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        ui::error_with_fix("No config file found", "Run `openfang init` first");
+        ui::error_with_fix("No config file found", "Run `freeco init` first");
         std::process::exit(1);
     }
 
@@ -5012,7 +5012,7 @@ fn cmd_config_get(key: &str) {
     let table: toml::Value = toml::from_str(&content).unwrap_or_else(|e| {
         ui::error_with_fix(
             &format!("Config parse error: {e}"),
-            "Fix your config.toml syntax, or run `openfang config edit`",
+            "Fix your config.toml syntax, or run `freeco config edit`",
         );
         std::process::exit(1);
     });
@@ -5034,11 +5034,11 @@ fn cmd_config_get(key: &str) {
 }
 
 fn cmd_config_set(key: &str, value: &str) {
-    let home = openfang_home();
+    let home = freeco_home();
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        ui::error_with_fix("No config file found", "Run `openfang init` first");
+        ui::error_with_fix("No config file found", "Run `freeco init` first");
         std::process::exit(1);
     }
 
@@ -5157,11 +5157,11 @@ fn cmd_config_set(key: &str, value: &str) {
 }
 
 fn cmd_config_unset(key: &str) {
-    let home = openfang_home();
+    let home = freeco_home();
     let config_path = home.join("config.toml");
 
     if !config_path.exists() {
-        ui::error_with_fix("No config file found", "Run `openfang init` first");
+        ui::error_with_fix("No config file found", "Run `freeco init` first");
         std::process::exit(1);
     }
 
@@ -5227,17 +5227,17 @@ fn cmd_config_unset(key: &str) {
 fn cmd_config_set_key(provider: &str) {
     // GitHub Copilot uses OAuth device flow, not a simple API key paste.
     if provider == "github-copilot" || provider == "copilot" {
-        let openfang_dir = cli_openfang_home();
+        let freeco_dir = cli_freeco_home();
         let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
             ui::error(&format!("Failed to create async runtime: {e}"));
             std::process::exit(1);
         });
         match rt
-            .block_on(freeco_kernel_runtime::drivers::copilot::run_interactive_setup(&openfang_dir))
+            .block_on(freeco_kernel_runtime::drivers::copilot::run_interactive_setup(&freeco_dir))
         {
             Ok(_) => {
                 ui::success("GitHub Copilot configured successfully");
-                ui::hint("Restart the daemon: openfang stop && openfang start");
+                ui::hint("Restart the daemon: freeco stop && freeco start");
             }
             Err(e) => {
                 ui::error(&format!("Copilot setup failed: {e}"));
@@ -5262,7 +5262,7 @@ fn cmd_config_set_key(provider: &str) {
     // Always save to dotenv as fallback
     match dotenv::save_env_key(&env_var, &key) {
         Ok(()) => {
-            ui::success(&format!("Saved {env_var} to ~/.openfang/.env"));
+            ui::success(&format!("Saved {env_var} to ~/.freeco-ai/.env"));
             // Test the key
             print!("  Testing key... ");
             io::stdout().flush().unwrap();
@@ -5284,10 +5284,10 @@ fn cmd_config_delete_key(provider: &str) {
 
     // Remove from vault (best-effort)
     {
-        let home = openfang_home();
+        let home = freeco_home();
         let vault_path = home.join("vault.enc");
         if vault_path.exists() {
-            let mut vault = openfang_extensions::vault::CredentialVault::new(vault_path);
+            let mut vault = freeco_extensions::vault::CredentialVault::new(vault_path);
             if vault.unlock().is_ok() {
                 let _ = vault.remove(&env_var);
             }
@@ -5295,7 +5295,7 @@ fn cmd_config_delete_key(provider: &str) {
     }
 
     match dotenv::remove_env_key(&env_var) {
-        Ok(()) => ui::success(&format!("Removed {env_var} from ~/.openfang/.env")),
+        Ok(()) => ui::success(&format!("Removed {env_var} from ~/.freeco-ai/.env")),
         Err(e) => {
             ui::error(&format!("Failed to remove key: {e}"));
             std::process::exit(1);
@@ -5308,7 +5308,7 @@ fn cmd_config_test_key(provider: &str) {
 
     if std::env::var(&env_var).is_err() {
         ui::error(&format!("{env_var} not set"));
-        ui::hint(&format!("Set it: openfang config set-key {provider}"));
+        ui::hint(&format!("Set it: freeco config set-key {provider}"));
         std::process::exit(1);
     }
 
@@ -5318,7 +5318,7 @@ fn cmd_config_test_key(provider: &str) {
         println!("{}", "OK".bright_green());
     } else {
         println!("{}", "FAILED (401/403)".bright_red());
-        ui::hint(&format!("Update key: openfang config set-key {provider}"));
+        ui::hint(&format!("Update key: freeco config set-key {provider}"));
         std::process::exit(1);
     }
 }
@@ -5329,12 +5329,12 @@ fn cmd_config_test_key(provider: &str) {
 fn save_credential_prefer_vault(env_var: &str, value: &str) {
     use zeroize::Zeroizing;
 
-    let home = openfang_home();
+    let home = freeco_home();
     let vault_path = home.join("vault.enc");
     if !vault_path.exists() {
         return;
     }
-    let mut vault = openfang_extensions::vault::CredentialVault::new(vault_path);
+    let mut vault = freeco_extensions::vault::CredentialVault::new(vault_path);
     if vault.unlock().is_err() {
         return;
     }
@@ -5355,8 +5355,8 @@ fn cmd_quick_chat(config: Option<PathBuf>, agent: Option<String>) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-pub(crate) fn openfang_home() -> PathBuf {
-    openfang_kernel::config::freeco_ai_home()
+pub(crate) fn freeco_home() -> PathBuf {
+    freeco_kernel::config::freeco_ai_home()
 }
 
 fn prompt_input(prompt: &str) -> String {
@@ -5383,12 +5383,12 @@ pub(crate) fn copy_dir_recursive(src: &PathBuf, dst: &PathBuf) {
 }
 
 // ---------------------------------------------------------------------------
-// Integration commands (openfang add/remove/integrations)
+// Integration commands (freeco add/remove/integrations)
 // ---------------------------------------------------------------------------
 
 fn cmd_integration_add(name: &str, key: Option<&str>) {
-    let home = openfang_home();
-    let mut registry = openfang_extensions::registry::IntegrationRegistry::new(&home);
+    let home = freeco_home();
+    let mut registry = freeco_extensions::registry::IntegrationRegistry::new(&home);
     registry.load_bundled();
     let _ = registry.load_installed();
 
@@ -5409,7 +5409,7 @@ fn cmd_integration_add(name: &str, key: Option<&str>) {
     let dotenv_path = home.join(".env");
     let vault_path = home.join("vault.enc");
     let vault = if vault_path.exists() {
-        let mut v = openfang_extensions::vault::CredentialVault::new(vault_path);
+        let mut v = freeco_extensions::vault::CredentialVault::new(vault_path);
         if v.unlock().is_ok() {
             Some(v)
         } else {
@@ -5419,7 +5419,7 @@ fn cmd_integration_add(name: &str, key: Option<&str>) {
         None
     };
     let mut resolver =
-        openfang_extensions::credentials::CredentialResolver::new(vault, Some(&dotenv_path))
+        freeco_extensions::credentials::CredentialResolver::new(vault, Some(&dotenv_path))
             .with_interactive(true);
 
     // Build provided keys map
@@ -5431,7 +5431,7 @@ fn cmd_integration_add(name: &str, key: Option<&str>) {
         }
     }
 
-    match openfang_extensions::installer::install_integration(
+    match freeco_extensions::installer::install_integration(
         &mut registry,
         &mut resolver,
         name,
@@ -5439,15 +5439,15 @@ fn cmd_integration_add(name: &str, key: Option<&str>) {
     ) {
         Ok(result) => {
             match &result.status {
-                openfang_extensions::IntegrationStatus::Ready => {
+                freeco_extensions::IntegrationStatus::Ready => {
                     ui::success(&result.message);
                 }
-                openfang_extensions::IntegrationStatus::Setup => {
+                freeco_extensions::IntegrationStatus::Setup => {
                     println!("{}", result.message.yellow());
                     println!("\nTo add credentials:");
                     for env in &template.required_env {
                         if env.is_secret {
-                            println!("  openfang vault set {}  # {}", env.name, env.help);
+                            println!("  freeco vault set {}  # {}", env.name, env.help);
                             if let Some(ref url) = env.get_url {
                                 println!("  Get it here: {url}");
                             }
@@ -5473,12 +5473,12 @@ fn cmd_integration_add(name: &str, key: Option<&str>) {
 }
 
 fn cmd_integration_remove(name: &str) {
-    let home = openfang_home();
-    let mut registry = openfang_extensions::registry::IntegrationRegistry::new(&home);
+    let home = freeco_home();
+    let mut registry = freeco_extensions::registry::IntegrationRegistry::new(&home);
     registry.load_bundled();
     let _ = registry.load_installed();
 
-    match openfang_extensions::installer::remove_integration(&mut registry, name) {
+    match freeco_extensions::installer::remove_integration(&mut registry, name) {
         Ok(msg) => {
             ui::success(&msg);
             // Hot-reload daemon
@@ -5497,19 +5497,19 @@ fn cmd_integration_remove(name: &str) {
 }
 
 fn cmd_integrations_list(query: Option<&str>) {
-    let home = openfang_home();
-    let mut registry = openfang_extensions::registry::IntegrationRegistry::new(&home);
+    let home = freeco_home();
+    let mut registry = freeco_extensions::registry::IntegrationRegistry::new(&home);
     registry.load_bundled();
     let _ = registry.load_installed();
 
     let dotenv_path = home.join(".env");
     let resolver =
-        openfang_extensions::credentials::CredentialResolver::new(None, Some(&dotenv_path));
+        freeco_extensions::credentials::CredentialResolver::new(None, Some(&dotenv_path));
 
     let entries = if let Some(q) = query {
-        openfang_extensions::installer::search_integrations(&registry, q)
+        freeco_extensions::installer::search_integrations(&registry, q)
     } else {
-        openfang_extensions::installer::list_integrations(&registry, &resolver)
+        freeco_extensions::installer::list_integrations(&registry, &resolver)
     };
 
     if entries.is_empty() {
@@ -5524,7 +5524,7 @@ fn cmd_integrations_list(query: Option<&str>) {
     // Group by category
     let mut by_category: std::collections::BTreeMap<
         String,
-        Vec<&openfang_extensions::installer::IntegrationListEntry>,
+        Vec<&freeco_extensions::installer::IntegrationListEntry>,
     > = std::collections::BTreeMap::new();
     for entry in &entries {
         by_category
@@ -5537,15 +5537,15 @@ fn cmd_integrations_list(query: Option<&str>) {
         println!("\n{}", format!("  {category}").bold());
         for item in items {
             let status_badge = match &item.status {
-                openfang_extensions::IntegrationStatus::Ready => "[Ready]".green().to_string(),
-                openfang_extensions::IntegrationStatus::Setup => "[Setup]".yellow().to_string(),
-                openfang_extensions::IntegrationStatus::Available => {
+                freeco_extensions::IntegrationStatus::Ready => "[Ready]".green().to_string(),
+                freeco_extensions::IntegrationStatus::Setup => "[Setup]".yellow().to_string(),
+                freeco_extensions::IntegrationStatus::Available => {
                     "[Available]".dimmed().to_string()
                 }
-                openfang_extensions::IntegrationStatus::Error(msg) => {
+                freeco_extensions::IntegrationStatus::Error(msg) => {
                     format!("[Error: {msg}]").red().to_string()
                 }
-                openfang_extensions::IntegrationStatus::Disabled => {
+                freeco_extensions::IntegrationStatus::Disabled => {
                     "[Disabled]".dimmed().to_string()
                 }
             };
@@ -5563,22 +5563,22 @@ fn cmd_integrations_list(query: Option<&str>) {
             .iter()
             .filter(|e| matches!(
                 e.status,
-                openfang_extensions::IntegrationStatus::Ready
-                    | openfang_extensions::IntegrationStatus::Setup
+                freeco_extensions::IntegrationStatus::Ready
+                    | freeco_extensions::IntegrationStatus::Setup
             ))
             .count()
     );
-    println!("  Use `openfang add <name>` to install an integration.");
+    println!("  Use `freeco add <name>` to install an integration.");
 }
 
 // ---------------------------------------------------------------------------
-// Vault commands (openfang vault init/set/list/remove)
+// Vault commands (freeco vault init/set/list/remove)
 // ---------------------------------------------------------------------------
 
 fn cmd_vault_init() {
-    let home = openfang_home();
+    let home = freeco_home();
     let vault_path = home.join("vault.enc");
-    let mut vault = openfang_extensions::vault::CredentialVault::new(vault_path);
+    let mut vault = freeco_extensions::vault::CredentialVault::new(vault_path);
 
     match vault.init() {
         Ok(()) => ui::success("Credential vault initialized."),
@@ -5592,12 +5592,12 @@ fn cmd_vault_init() {
 fn cmd_vault_set(key: &str) {
     use zeroize::Zeroizing;
 
-    let home = openfang_home();
+    let home = freeco_home();
     let vault_path = home.join("vault.enc");
-    let mut vault = openfang_extensions::vault::CredentialVault::new(vault_path);
+    let mut vault = freeco_extensions::vault::CredentialVault::new(vault_path);
 
     if !vault.exists() {
-        ui::error("Vault not initialized. Run: openfang vault init");
+        ui::error("Vault not initialized. Run: freeco vault init");
         std::process::exit(1);
     }
 
@@ -5622,12 +5622,12 @@ fn cmd_vault_set(key: &str) {
 }
 
 fn cmd_vault_list() {
-    let home = openfang_home();
+    let home = freeco_home();
     let vault_path = home.join("vault.enc");
-    let mut vault = openfang_extensions::vault::CredentialVault::new(vault_path);
+    let mut vault = freeco_extensions::vault::CredentialVault::new(vault_path);
 
     if !vault.exists() {
-        println!("Vault not initialized. Run: openfang vault init");
+        println!("Vault not initialized. Run: freeco vault init");
         return;
     }
 
@@ -5648,9 +5648,9 @@ fn cmd_vault_list() {
 }
 
 fn cmd_vault_remove(key: &str) {
-    let home = openfang_home();
+    let home = freeco_home();
     let vault_path = home.join("vault.enc");
-    let mut vault = openfang_extensions::vault::CredentialVault::new(vault_path);
+    let mut vault = freeco_extensions::vault::CredentialVault::new(vault_path);
 
     if !vault.exists() {
         ui::error("Vault not initialized.");
@@ -5672,17 +5672,17 @@ fn cmd_vault_remove(key: &str) {
 }
 
 // ---------------------------------------------------------------------------
-// Scaffold commands (openfang new skill/integration)
+// Scaffold commands (freeco new skill/integration)
 // ---------------------------------------------------------------------------
 
 fn cmd_scaffold(kind: ScaffoldKind) {
     let cwd = std::env::current_dir().unwrap_or_default();
     let result = match kind {
         ScaffoldKind::Skill => {
-            openfang_extensions::installer::scaffold_skill(&cwd.join("my-skill"))
+            freeco_extensions::installer::scaffold_skill(&cwd.join("my-skill"))
         }
         ScaffoldKind::Integration => {
-            openfang_extensions::installer::scaffold_integration(&cwd.join("my-integration"))
+            freeco_extensions::installer::scaffold_integration(&cwd.join("my-integration"))
         }
     };
     match result {
@@ -5924,7 +5924,7 @@ fn pick_model() -> String {
     // Group by provider for display
     let mut by_provider: std::collections::BTreeMap<
         String,
-        Vec<&openfang_types::model_catalog::ModelCatalogEntry>,
+        Vec<&freeco_types::model_catalog::ModelCatalogEntry>,
     > = std::collections::BTreeMap::new();
     for m in models {
         by_provider.entry(m.provider.clone()).or_default().push(m);
@@ -6201,7 +6201,7 @@ fn cmd_sessions(agent: Option<&str>, json: bool) {
 }
 
 fn cmd_logs(lines: usize, follow: bool) {
-    let log_path = cli_openfang_home().join("tui.log");
+    let log_path = cli_freeco_home().join("tui.log");
 
     if !log_path.exists() {
         ui::error_with_fix(
@@ -6279,7 +6279,7 @@ fn cmd_health(json: bool) {
                 std::process::exit(1);
             }
             ui::error("Daemon is not running.");
-            ui::hint("Start it with: openfang start");
+            ui::hint("Start it with: freeco start");
             std::process::exit(1);
         }
     }
@@ -6296,7 +6296,7 @@ fn cmd_auth_hash_password() {
         ui::error("Passwords do not match.");
         std::process::exit(1);
     }
-    let hash = openfang_api::session_auth::hash_password(&password);
+    let hash = freeco_api::session_auth::hash_password(&password);
     println!();
     ui::success("Argon2id hash generated. Add this to your config.toml:");
     println!();
@@ -6737,7 +6737,7 @@ fn cmd_system_info(json: bool) {
         ui::blank();
         ui::kv("Version", env!("CARGO_PKG_VERSION"));
         ui::kv_warn("Daemon", "NOT RUNNING");
-        ui::hint("Start with: openfang start");
+        ui::hint("Start with: freeco start");
     }
 }
 
@@ -6749,22 +6749,22 @@ fn cmd_system_version(json: bool) {
         );
         return;
     }
-    println!("openfang {}", env!("CARGO_PKG_VERSION"));
+    println!("freeco {}", env!("CARGO_PKG_VERSION"));
 }
 
 fn cmd_reset(confirm: bool) {
-    let openfang_dir = cli_openfang_home();
+    let freeco_dir = cli_freeco_home();
 
-    if !openfang_dir.exists() {
+    if !freeco_dir.exists() {
         println!(
             "Nothing to reset — {} does not exist.",
-            openfang_dir.display()
+            freeco_dir.display()
         );
         return;
     }
 
     if !confirm {
-        println!("  This will delete all data in {}", openfang_dir.display());
+        println!("  This will delete all data in {}", freeco_dir.display());
         println!("  Including: config, database, agent manifests, credentials.");
         println!();
         let answer = prompt_input("  Are you sure? Type 'yes' to confirm: ");
@@ -6774,10 +6774,10 @@ fn cmd_reset(confirm: bool) {
         }
     }
 
-    match std::fs::remove_dir_all(&openfang_dir) {
-        Ok(()) => ui::success(&format!("Removed {}", openfang_dir.display())),
+    match std::fs::remove_dir_all(&freeco_dir) {
+        Ok(()) => ui::success(&format!("Removed {}", freeco_dir.display())),
         Err(e) => {
-            ui::error(&format!("Failed to remove {}: {e}", openfang_dir.display()));
+            ui::error(&format!("Failed to remove {}: {e}", freeco_dir.display()));
             std::process::exit(1);
         }
     }
@@ -6788,7 +6788,7 @@ fn cmd_reset(confirm: bool) {
 // ---------------------------------------------------------------------------
 
 fn cmd_uninstall(confirm: bool, keep_config: bool) {
-    let openfang_dir = cli_openfang_home();
+    let freeco_dir = cli_freeco_home();
     let exe_path = std::env::current_exe().ok();
 
     // Step 1: Show what will be removed
@@ -6800,14 +6800,14 @@ fn cmd_uninstall(confirm: bool, keep_config: bool) {
             .red()
     );
     println!();
-    if openfang_dir.exists() {
+    if freeco_dir.exists() {
         if keep_config {
             println!(
                 "  • Remove data in {} (keeping config files)",
-                openfang_dir.display()
+                freeco_dir.display()
             );
         } else {
-            println!("  • Remove {}", openfang_dir.display());
+            println!("  • Remove {}", freeco_dir.display());
         }
     }
     if let Some(ref exe) = exe_path {
@@ -6819,9 +6819,9 @@ fn cmd_uninstall(confirm: bool, keep_config: bool) {
         .join(".cargo")
         .join("bin")
         .join(if cfg!(windows) {
-            "openfang.exe"
+            "freeco.exe"
         } else {
-            "openfang"
+            "freeco"
         });
     if cargo_bin.exists() && exe_path.as_ref().is_none_or(|e| *e != cargo_bin) {
         println!("  • Remove cargo binary: {}", cargo_bin.display());
@@ -6848,9 +6848,9 @@ fn cmd_uninstall(confirm: bool, keep_config: bool) {
         std::thread::sleep(std::time::Duration::from_secs(1));
         // Force kill if still alive
         if find_daemon().is_some() {
-            if let Some(info) = read_daemon_info(&openfang_dir) {
+            if let Some(info) = read_daemon_info(&freeco_dir) {
                 force_kill_pid(info.pid);
-                let _ = std::fs::remove_file(openfang_dir.join("daemon.json"));
+                let _ = std::fs::remove_file(freeco_dir.join("daemon.json"));
             }
         }
     }
@@ -6866,15 +6866,15 @@ fn cmd_uninstall(confirm: bool, keep_config: bool) {
         }
     }
 
-    // Step 6: Remove ~/.openfang/ data
-    if openfang_dir.exists() {
+    // Step 6: Remove ~/.freeco-ai/ data
+    if freeco_dir.exists() {
         if keep_config {
-            remove_dir_except_config(&openfang_dir);
+            remove_dir_except_config(&freeco_dir);
             ui::success("Removed data (kept config files)");
         } else {
-            match std::fs::remove_dir_all(&openfang_dir) {
-                Ok(()) => ui::success(&format!("Removed {}", openfang_dir.display())),
-                Err(e) => ui::error(&format!("Failed to remove {}: {e}", openfang_dir.display())),
+            match std::fs::remove_dir_all(&freeco_dir) {
+                Ok(()) => ui::success(&format!("Removed {}", freeco_dir.display())),
+                Err(e) => ui::error(&format!("Failed to remove {}: {e}", freeco_dir.display())),
             }
         }
     }
@@ -6907,7 +6907,7 @@ fn remove_autostart_entries(home: &std::path::Path) {
                 "delete",
                 r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
                 "/v",
-                "OpenFang",
+                "Freeco",
                 "/f",
             ])
             .output();
@@ -6921,7 +6921,7 @@ fn remove_autostart_entries(home: &std::path::Path) {
 
     #[cfg(target_os = "macos")]
     {
-        let plist = home.join("Library/LaunchAgents/ai.openfang.desktop.plist");
+        let plist = home.join("Library/LaunchAgents/ai.freeco-ai.desktop.plist");
         if plist.exists() {
             // Unload first
             let _ = std::process::Command::new("launchctl")
@@ -6936,7 +6936,7 @@ fn remove_autostart_entries(home: &std::path::Path) {
 
     #[cfg(target_os = "linux")]
     {
-        let desktop_file = home.join(".config/autostart/OpenFang.desktop");
+        let desktop_file = home.join(".config/autostart/Freeco.desktop");
         if desktop_file.exists() {
             match std::fs::remove_file(&desktop_file) {
                 Ok(()) => ui::success("Removed Linux autostart entry"),
@@ -6945,10 +6945,10 @@ fn remove_autostart_entries(home: &std::path::Path) {
         }
 
         // Also check for systemd user service
-        let service_file = home.join(".config/systemd/user/openfang.service");
+        let service_file = home.join(".config/systemd/user/freeco.service");
         if service_file.exists() {
             let _ = std::process::Command::new("systemctl")
-                .args(["--user", "disable", "--now", "openfang.service"])
+                .args(["--user", "disable", "--now", "freeco.service"])
                 .output();
             match std::fs::remove_file(&service_file) {
                 Ok(()) => {
@@ -6963,9 +6963,9 @@ fn remove_autostart_entries(home: &std::path::Path) {
     }
 }
 
-/// Remove lines from shell config files that add openfang to PATH.
+/// Remove lines from shell config files that add freeco to PATH.
 #[allow(unused_variables)]
-fn clean_path_entries(home: &std::path::Path, openfang_dir: &str) {
+fn clean_path_entries(home: &std::path::Path, freeco_dir: &str) {
     #[cfg(not(windows))]
     {
         let shell_files = [
@@ -6985,7 +6985,7 @@ fn clean_path_entries(home: &std::path::Path, openfang_dir: &str) {
             };
             let filtered: Vec<&str> = content
                 .lines()
-                .filter(|line| !is_openfang_path_line(line, openfang_dir))
+                .filter(|line| !is_freeco_path_line(line, freeco_dir))
                 .collect();
             if filtered.len() < content.lines().count() {
                 let new_content = filtered.join("\n");
@@ -7004,7 +7004,7 @@ fn clean_path_entries(home: &std::path::Path, openfang_dir: &str) {
 
     #[cfg(windows)]
     {
-        // Read User PATH via PowerShell, filter out openfang entries, write back
+        // Read User PATH via PowerShell, filter out freeco entries, write back
         let output = std::process::Command::new("powershell")
             .args([
                 "-NoProfile",
@@ -7017,12 +7017,12 @@ fn clean_path_entries(home: &std::path::Path, openfang_dir: &str) {
                 let current = String::from_utf8_lossy(&out.stdout);
                 let current = current.trim();
                 if !current.is_empty() {
-                    let dir_lower = openfang_dir.to_lowercase();
+                    let dir_lower = freeco_dir.to_lowercase();
                     let filtered: Vec<&str> = current
                         .split(';')
                         .filter(|entry| {
                             let e = entry.trim().to_lowercase();
-                            !e.is_empty() && !e.contains("openfang") && !e.contains(&dir_lower)
+                            !e.is_empty() && !e.contains("freeco") && !e.contains(&dir_lower)
                         })
                         .collect();
                     if filtered.len() < current.split(';').count() {
@@ -7044,13 +7044,13 @@ fn clean_path_entries(home: &std::path::Path, openfang_dir: &str) {
     }
 }
 
-/// Returns true if a shell config line is an openfang PATH export.
-/// Must match BOTH an openfang reference AND a PATH-setting pattern.
+/// Returns true if a shell config line is an freeco PATH export.
+/// Must match BOTH an freeco reference AND a PATH-setting pattern.
 #[cfg(any(not(windows), test))]
-fn is_openfang_path_line(line: &str, openfang_dir: &str) -> bool {
+fn is_freeco_path_line(line: &str, freeco_dir: &str) -> bool {
     let lower = line.to_lowercase();
-    let has_openfang = lower.contains("openfang") || lower.contains(&openfang_dir.to_lowercase());
-    if !has_openfang {
+    let has_freeco = lower.contains("freeco") || lower.contains(&freeco_dir.to_lowercase());
+    if !has_freeco {
         return false;
     }
     // Match common PATH-setting patterns
@@ -7061,10 +7061,10 @@ fn is_openfang_path_line(line: &str, openfang_dir: &str) -> bool {
         || lower.contains("fish_add_path")
 }
 
-/// Remove everything in ~/.openfang/ except config files.
-fn remove_dir_except_config(openfang_dir: &std::path::Path) {
+/// Remove everything in ~/.freeco-ai/ except config files.
+fn remove_dir_except_config(freeco_dir: &std::path::Path) {
     let keep = ["config.toml", ".env", "secrets.env"];
-    let Ok(entries) = std::fs::read_dir(openfang_dir) else {
+    let Ok(entries) = std::fs::read_dir(freeco_dir) else {
         return;
     };
     for entry in entries.flatten() {
@@ -7137,8 +7137,8 @@ mod tests {
 
     #[test]
     fn test_doctor_skill_registry_loads_bundled() {
-        let skills_dir = std::env::temp_dir().join("openfang-doctor-test-skills");
-        let mut skill_reg = openfang_skills::registry::SkillRegistry::new(skills_dir);
+        let skills_dir = std::env::temp_dir().join("freeco-doctor-test-skills");
+        let mut skill_reg = freeco_skills::registry::SkillRegistry::new(skills_dir);
         let count = skill_reg.load_bundled();
         assert!(count > 0, "Should load bundled skills");
         assert_eq!(skill_reg.count(), count);
@@ -7146,9 +7146,9 @@ mod tests {
 
     #[test]
     fn test_doctor_extension_registry_loads_bundled() {
-        let tmp = std::env::temp_dir().join("openfang-doctor-test-ext");
+        let tmp = std::env::temp_dir().join("freeco-doctor-test-ext");
         let _ = std::fs::create_dir_all(&tmp);
-        let mut ext_reg = openfang_extensions::registry::IntegrationRegistry::new(&tmp);
+        let mut ext_reg = freeco_extensions::registry::IntegrationRegistry::new(&tmp);
         let count = ext_reg.load_bundled();
         assert!(count > 0, "Should load bundled integration templates");
         assert_eq!(ext_reg.template_count(), count);
@@ -7157,9 +7157,9 @@ mod tests {
     #[test]
     fn test_doctor_config_deser_default() {
         // Default KernelConfig should serialize/deserialize round-trip
-        let config = openfang_types::config::KernelConfig::default();
+        let config = freeco_types::config::KernelConfig::default();
         let toml_str = toml::to_string_pretty(&config).unwrap();
-        let parsed: openfang_types::config::KernelConfig = toml::from_str(&toml_str).unwrap();
+        let parsed: freeco_types::config::KernelConfig = toml::from_str(&toml_str).unwrap();
         assert_eq!(parsed.api_listen, config.api_listen);
     }
 
@@ -7174,7 +7174,7 @@ provider = "groq"
 model = "llama-3.3-70b-versatile"
 api_key_env = "GROQ_API_KEY"
 "#;
-        let config: openfang_types::config::KernelConfig = toml::from_str(config_toml).unwrap();
+        let config: freeco_types::config::KernelConfig = toml::from_str(config_toml).unwrap();
         assert_eq!(config.include.len(), 2);
         assert_eq!(config.include[0], "providers.toml");
         assert_eq!(config.include[1], "agents.toml");
@@ -7195,10 +7195,10 @@ provider = "groq"
 model = "llama-3.3-70b-versatile"
 api_key_env = "GROQ_API_KEY"
 "#;
-        let config: openfang_types::config::KernelConfig = toml::from_str(config_toml).unwrap();
+        let config: freeco_types::config::KernelConfig = toml::from_str(config_toml).unwrap();
         assert_eq!(
             config.exec_policy.mode,
-            openfang_types::config::ExecSecurityMode::Allowlist
+            freeco_types::config::ExecSecurityMode::Allowlist
         );
         assert_eq!(config.exec_policy.safe_bins.len(), 3);
         assert_eq!(config.exec_policy.timeout_secs, 30);
@@ -7223,11 +7223,11 @@ type = "stdio"
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-github"]
 "#;
-        let config: openfang_types::config::KernelConfig = toml::from_str(config_toml).unwrap();
+        let config: freeco_types::config::KernelConfig = toml::from_str(config_toml).unwrap();
         assert_eq!(config.mcp_servers.len(), 1);
         assert_eq!(config.mcp_servers[0].name, "github");
         match &config.mcp_servers[0].transport {
-            openfang_types::config::McpTransportEntry::Stdio { command, args } => {
+            freeco_types::config::McpTransportEntry::Stdio { command, args } => {
                 assert_eq!(command, "npx");
                 assert_eq!(args.len(), 2);
             }
@@ -7238,14 +7238,14 @@ args = ["-y", "@modelcontextprotocol/server-github"]
     #[test]
     fn test_doctor_skill_injection_scan_clean() {
         let clean_content = "This is a normal skill prompt with helpful instructions.";
-        let warnings = openfang_skills::verify::SkillVerifier::scan_prompt_content(clean_content);
+        let warnings = freeco_skills::verify::SkillVerifier::scan_prompt_content(clean_content);
         assert!(warnings.is_empty(), "Clean content should have no warnings");
     }
 
     #[test]
     fn test_doctor_hook_event_variants() {
         // Verify all 4 hook event types are constructable
-        use openfang_types::agent::HookEvent;
+        use freeco_types::agent::HookEvent;
         let events = [
             HookEvent::BeforeToolCall,
             HookEvent::AfterToolCall,
@@ -7434,39 +7434,39 @@ enabled = true
 
     #[test]
     fn test_uninstall_path_line_filter() {
-        use super::is_openfang_path_line;
-        let dir = "/home/user/.openfang/bin";
+        use super::is_freeco_path_line;
+        let dir = "/home/user/.freeco-ai/bin";
 
-        // Should match: openfang PATH exports
-        assert!(is_openfang_path_line(
-            r#"export PATH="$HOME/.openfang/bin:$PATH""#,
+        // Should match: freeco PATH exports
+        assert!(is_freeco_path_line(
+            r#"export PATH="$HOME/.freeco-ai/bin:$PATH""#,
             dir
         ));
-        assert!(is_openfang_path_line(
-            r#"export PATH="/home/user/.openfang/bin:$PATH""#,
+        assert!(is_freeco_path_line(
+            r#"export PATH="/home/user/.freeco-ai/bin:$PATH""#,
             dir
         ));
-        assert!(is_openfang_path_line(
-            "set -gx PATH $HOME/.openfang/bin $PATH",
+        assert!(is_freeco_path_line(
+            "set -gx PATH $HOME/.freeco-ai/bin $PATH",
             dir
         ));
-        assert!(is_openfang_path_line(
-            "fish_add_path $HOME/.openfang/bin",
+        assert!(is_freeco_path_line(
+            "fish_add_path $HOME/.freeco-ai/bin",
             dir
         ));
 
         // Should NOT match: unrelated PATH exports
-        assert!(!is_openfang_path_line(
+        assert!(!is_freeco_path_line(
             r#"export PATH="$HOME/.cargo/bin:$PATH""#,
             dir
         ));
-        assert!(!is_openfang_path_line(
+        assert!(!is_freeco_path_line(
             r#"export PATH="/usr/local/bin:$PATH""#,
             dir
         ));
 
-        // Should NOT match: openfang lines that aren't PATH-related
-        assert!(!is_openfang_path_line("# openfang config", dir));
-        assert!(!is_openfang_path_line("alias of=openfang", dir));
+        // Should NOT match: freeco lines that aren't PATH-related
+        assert!(!is_freeco_path_line("# freeco config", dir));
+        assert!(!is_freeco_path_line("alias of=freeco", dir));
     }
 }

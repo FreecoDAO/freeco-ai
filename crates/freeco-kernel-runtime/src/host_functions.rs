@@ -8,7 +8,7 @@
 
 use crate::sandbox::GuestState;
 use crate::web_fetch;
-use openfang_types::capability::{capability_matches, Capability};
+use freeco_types::capability::{capability_matches, Capability};
 use serde_json::json;
 use std::path::{Component, Path};
 use tracing::debug;

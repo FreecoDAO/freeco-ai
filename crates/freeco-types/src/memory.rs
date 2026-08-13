@@ -268,7 +268,7 @@ pub trait Memory: Send + Sync {
         &self,
         agent_id: AgentId,
         key: &str,
-    ) -> crate::error::OpenFangResult<Option<serde_json::Value>>;
+    ) -> crate::error::FreecoResult<Option<serde_json::Value>>;
 
     /// Set a key-value pair for a specific agent.
     async fn set(
@@ -276,10 +276,10 @@ pub trait Memory: Send + Sync {
         agent_id: AgentId,
         key: &str,
         value: serde_json::Value,
-    ) -> crate::error::OpenFangResult<()>;
+    ) -> crate::error::FreecoResult<()>;
 
     /// Delete a key-value pair for a specific agent.
-    async fn delete(&self, agent_id: AgentId, key: &str) -> crate::error::OpenFangResult<()>;
+    async fn delete(&self, agent_id: AgentId, key: &str) -> crate::error::FreecoResult<()>;
 
     // -- Semantic operations --
 
@@ -291,7 +291,7 @@ pub trait Memory: Send + Sync {
         source: MemorySource,
         scope: &str,
         metadata: HashMap<String, serde_json::Value>,
-    ) -> crate::error::OpenFangResult<MemoryId>;
+    ) -> crate::error::FreecoResult<MemoryId>;
 
     /// Semantic search for relevant memories.
     async fn recall(
@@ -299,39 +299,39 @@ pub trait Memory: Send + Sync {
         query: &str,
         limit: usize,
         filter: Option<MemoryFilter>,
-    ) -> crate::error::OpenFangResult<Vec<MemoryFragment>>;
+    ) -> crate::error::FreecoResult<Vec<MemoryFragment>>;
 
     /// Soft-delete a memory fragment.
-    async fn forget(&self, id: MemoryId) -> crate::error::OpenFangResult<()>;
+    async fn forget(&self, id: MemoryId) -> crate::error::FreecoResult<()>;
 
     // -- Knowledge graph operations --
 
     /// Add an entity to the knowledge graph.
-    async fn add_entity(&self, entity: Entity) -> crate::error::OpenFangResult<String>;
+    async fn add_entity(&self, entity: Entity) -> crate::error::FreecoResult<String>;
 
     /// Add a relation between entities.
-    async fn add_relation(&self, relation: Relation) -> crate::error::OpenFangResult<String>;
+    async fn add_relation(&self, relation: Relation) -> crate::error::FreecoResult<String>;
 
     /// Query the knowledge graph.
     async fn query_graph(
         &self,
         pattern: GraphPattern,
-    ) -> crate::error::OpenFangResult<Vec<GraphMatch>>;
+    ) -> crate::error::FreecoResult<Vec<GraphMatch>>;
 
     // -- Maintenance --
 
     /// Consolidate and optimize memory.
-    async fn consolidate(&self) -> crate::error::OpenFangResult<ConsolidationReport>;
+    async fn consolidate(&self) -> crate::error::FreecoResult<ConsolidationReport>;
 
     /// Export all memory data.
-    async fn export(&self, format: ExportFormat) -> crate::error::OpenFangResult<Vec<u8>>;
+    async fn export(&self, format: ExportFormat) -> crate::error::FreecoResult<Vec<u8>>;
 
     /// Import memory data.
     async fn import(
         &self,
         data: &[u8],
         format: ExportFormat,
-    ) -> crate::error::OpenFangResult<ImportReport>;
+    ) -> crate::error::FreecoResult<ImportReport>;
 }
 
 #[cfg(test)]

@@ -55,7 +55,7 @@ Or build from source:
 ```bash
 git clone https://github.com/FreecoDAO/freeco-ai.git
 cd freeco-ai
-cargo install --path crates/openfang-cli --bin freeco-ai
+cargo install --path crates/freeco-cli --bin freeco-ai
 ```
 
 ### Option 5: Docker

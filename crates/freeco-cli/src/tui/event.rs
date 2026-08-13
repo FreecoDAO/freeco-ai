@@ -2,8 +2,8 @@
 
 use freeco_kernel_runtime::agent_loop::AgentLoopResult;
 use freeco_kernel_runtime::llm_driver::StreamEvent;
-use openfang_kernel::OpenFangKernel;
-use openfang_types::agent::AgentId;
+use freeco_kernel::FreecoKernel;
+use freeco_types::agent::AgentId;
 use ratatui::crossterm::event::{self, Event as CtEvent, KeyEvent, KeyEventKind};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
@@ -33,7 +33,7 @@ use super::screens::{
 #[derive(Clone)]
 pub enum BackendRef {
     Daemon(String),
-    InProcess(Arc<OpenFangKernel>),
+    InProcess(Arc<FreecoKernel>),
 }
 
 // ── AppEvent ────────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ pub enum AppEvent {
     /// The streaming agent loop finished.
     StreamDone(Result<AgentLoopResult, String>),
     /// The kernel finished booting in the background.
-    KernelReady(Arc<OpenFangKernel>),
+    KernelReady(Arc<FreecoKernel>),
     /// The kernel failed to boot.
     KernelError(String),
     /// An agent was successfully spawned (daemon mode).
@@ -275,7 +275,7 @@ pub fn spawn_kernel_boot(config: Option<std::path::PathBuf>, tx: mpsc::Sender<Ap
         let rt = tokio::runtime::Runtime::new().unwrap();
         let _guard = rt.enter();
 
-        match OpenFangKernel::boot(config.as_deref()) {
+        match FreecoKernel::boot(config.as_deref()) {
             Ok(k) => {
                 let k = Arc::new(k);
                 k.set_self_handle();
@@ -290,7 +290,7 @@ pub fn spawn_kernel_boot(config: Option<std::path::PathBuf>, tx: mpsc::Sender<Ap
 
 /// Spawn a background thread for in-process streaming.
 pub fn spawn_inprocess_stream(
-    kernel: Arc<OpenFangKernel>,
+    kernel: Arc<FreecoKernel>,
     agent_id: AgentId,
     message: String,
     tx: mpsc::Sender<AppEvent>,
@@ -422,8 +422,8 @@ pub fn spawn_daemon_stream(
                         // token display, but do NOT terminate — the agent
                         // loop may continue with tool results.
                         let _ = tx.send(AppEvent::Stream(StreamEvent::ContentComplete {
-                            stop_reason: openfang_types::message::StopReason::EndTurn,
-                            usage: openfang_types::message::TokenUsage {
+                            stop_reason: freeco_types::message::StopReason::EndTurn,
+                            usage: freeco_types::message::TokenUsage {
                                 input_tokens: total_input_tokens,
                                 output_tokens: total_output_tokens,
                             },
@@ -436,7 +436,7 @@ pub fn spawn_daemon_stream(
         // Connection closed — agent loop is truly done.
         let _ = tx.send(AppEvent::StreamDone(Ok(AgentLoopResult {
             response: String::new(),
-            total_usage: openfang_types::message::TokenUsage {
+            total_usage: freeco_types::message::TokenUsage {
                 input_tokens: total_input_tokens,
                 output_tokens: total_output_tokens,
             },
@@ -472,7 +472,7 @@ fn daemon_fallback(
         let output_tokens = body["output_tokens"].as_u64().unwrap_or(0);
         Ok(AgentLoopResult {
             response: response.to_string(),
-            total_usage: openfang_types::message::TokenUsage {
+            total_usage: freeco_types::message::TokenUsage {
                 input_tokens,
                 output_tokens,
             },
@@ -1040,7 +1040,7 @@ pub fn spawn_fetch_agent_skills(backend: BackendRef, agent_id: String, tx: mpsc:
         }
         BackendRef::InProcess(kernel) => {
             if let Ok(uuid) = uuid::Uuid::parse_str(&agent_id) {
-                let aid = openfang_types::agent::AgentId(uuid);
+                let aid = freeco_types::agent::AgentId(uuid);
                 let assigned = kernel
                     .registry
                     .get(aid)
@@ -1106,7 +1106,7 @@ pub fn spawn_fetch_agent_mcp_servers(
         }
         BackendRef::InProcess(kernel) => {
             if let Ok(uuid) = uuid::Uuid::parse_str(&agent_id) {
-                let aid = openfang_types::agent::AgentId(uuid);
+                let aid = freeco_types::agent::AgentId(uuid);
                 let assigned = kernel
                     .registry
                     .get(aid)
@@ -1162,7 +1162,7 @@ pub fn spawn_update_agent_skills(
         }
         BackendRef::InProcess(kernel) => {
             if let Ok(uuid) = uuid::Uuid::parse_str(&agent_id) {
-                let aid = openfang_types::agent::AgentId(uuid);
+                let aid = freeco_types::agent::AgentId(uuid);
                 match kernel.set_agent_skills(aid, skills) {
                     Ok(()) => {
                         let _ = tx.send(AppEvent::AgentSkillsUpdated(agent_id));
@@ -1206,7 +1206,7 @@ pub fn spawn_update_agent_mcp_servers(
         }
         BackendRef::InProcess(kernel) => {
             if let Ok(uuid) = uuid::Uuid::parse_str(&agent_id) {
-                let aid = openfang_types::agent::AgentId(uuid);
+                let aid = freeco_types::agent::AgentId(uuid);
                 match kernel.set_agent_mcp_servers(aid, servers) {
                     Ok(()) => {
                         let _ = tx.send(AppEvent::AgentMcpServersUpdated(agent_id));

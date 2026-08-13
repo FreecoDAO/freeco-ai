@@ -2,6 +2,8 @@
 /target
 **/*.rs.bk
 *.pdb
+__pycache__/
+*.py[cod]
 
 # Environment & secrets
 .env

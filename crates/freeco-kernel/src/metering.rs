@@ -1,8 +1,8 @@
 //! Metering engine — tracks LLM cost and enforces spending quotas.
 
-use openfang_memory::usage::{ModelUsage, UsageRecord, UsageStore, UsageSummary};
-use openfang_types::agent::{AgentId, ResourceQuota};
-use openfang_types::error::{OpenFangError, OpenFangResult};
+use freeco_memory::usage::{ModelUsage, UsageRecord, UsageStore, UsageSummary};
+use freeco_types::agent::{AgentId, ResourceQuota};
+use freeco_types::error::{FreecoError, FreecoResult};
 use std::sync::Arc;
 
 /// The metering engine tracks usage cost and enforces quota limits.
@@ -18,18 +18,18 @@ impl MeteringEngine {
     }
 
     /// Record a usage event (persists to SQLite).
-    pub fn record(&self, record: &UsageRecord) -> OpenFangResult<()> {
+    pub fn record(&self, record: &UsageRecord) -> FreecoResult<()> {
         self.store.record(record)
     }
 
     /// Check if an agent is within its spending quotas (hourly, daily, monthly).
     /// Returns Ok(()) if under all quotas, or QuotaExceeded error if over any.
-    pub fn check_quota(&self, agent_id: AgentId, quota: &ResourceQuota) -> OpenFangResult<()> {
+    pub fn check_quota(&self, agent_id: AgentId, quota: &ResourceQuota) -> FreecoResult<()> {
         // Hourly check
         if quota.max_cost_per_hour_usd > 0.0 {
             let hourly_cost = self.store.query_hourly(agent_id)?;
             if hourly_cost >= quota.max_cost_per_hour_usd {
-                return Err(OpenFangError::QuotaExceeded(format!(
+                return Err(FreecoError::QuotaExceeded(format!(
                     "Agent {} exceeded hourly cost quota: ${:.4} / ${:.4}",
                     agent_id, hourly_cost, quota.max_cost_per_hour_usd
                 )));
@@ -40,7 +40,7 @@ impl MeteringEngine {
         if quota.max_cost_per_day_usd > 0.0 {
             let daily_cost = self.store.query_daily(agent_id)?;
             if daily_cost >= quota.max_cost_per_day_usd {
-                return Err(OpenFangError::QuotaExceeded(format!(
+                return Err(FreecoError::QuotaExceeded(format!(
                     "Agent {} exceeded daily cost quota: ${:.4} / ${:.4}",
                     agent_id, daily_cost, quota.max_cost_per_day_usd
                 )));
@@ -51,7 +51,7 @@ impl MeteringEngine {
         if quota.max_cost_per_month_usd > 0.0 {
             let monthly_cost = self.store.query_monthly(agent_id)?;
             if monthly_cost >= quota.max_cost_per_month_usd {
-                return Err(OpenFangError::QuotaExceeded(format!(
+                return Err(FreecoError::QuotaExceeded(format!(
                     "Agent {} exceeded monthly cost quota: ${:.4} / ${:.4}",
                     agent_id, monthly_cost, quota.max_cost_per_month_usd
                 )));
@@ -64,12 +64,12 @@ impl MeteringEngine {
     /// Check global budget limits (across all agents).
     pub fn check_global_budget(
         &self,
-        budget: &openfang_types::config::BudgetConfig,
-    ) -> OpenFangResult<()> {
+        budget: &freeco_types::config::BudgetConfig,
+    ) -> FreecoResult<()> {
         if budget.max_hourly_usd > 0.0 {
             let cost = self.store.query_global_hourly()?;
             if cost >= budget.max_hourly_usd {
-                return Err(OpenFangError::QuotaExceeded(format!(
+                return Err(FreecoError::QuotaExceeded(format!(
                     "Global hourly budget exceeded: ${:.4} / ${:.4}",
                     cost, budget.max_hourly_usd
                 )));
@@ -79,7 +79,7 @@ impl MeteringEngine {
         if budget.max_daily_usd > 0.0 {
             let cost = self.store.query_today_cost()?;
             if cost >= budget.max_daily_usd {
-                return Err(OpenFangError::QuotaExceeded(format!(
+                return Err(FreecoError::QuotaExceeded(format!(
                     "Global daily budget exceeded: ${:.4} / ${:.4}",
                     cost, budget.max_daily_usd
                 )));
@@ -89,7 +89,7 @@ impl MeteringEngine {
         if budget.max_monthly_usd > 0.0 {
             let cost = self.store.query_global_monthly()?;
             if cost >= budget.max_monthly_usd {
-                return Err(OpenFangError::QuotaExceeded(format!(
+                return Err(FreecoError::QuotaExceeded(format!(
                     "Global monthly budget exceeded: ${:.4} / ${:.4}",
                     cost, budget.max_monthly_usd
                 )));
@@ -100,7 +100,7 @@ impl MeteringEngine {
     }
 
     /// Get budget status — current spend vs limits for all time windows.
-    pub fn budget_status(&self, budget: &openfang_types::config::BudgetConfig) -> BudgetStatus {
+    pub fn budget_status(&self, budget: &freeco_types::config::BudgetConfig) -> BudgetStatus {
         let hourly = self.store.query_global_hourly().unwrap_or(0.0);
         let daily = self.store.query_today_cost().unwrap_or(0.0);
         let monthly = self.store.query_global_monthly().unwrap_or(0.0);
@@ -133,12 +133,12 @@ impl MeteringEngine {
     }
 
     /// Get a usage summary, optionally filtered by agent.
-    pub fn get_summary(&self, agent_id: Option<AgentId>) -> OpenFangResult<UsageSummary> {
+    pub fn get_summary(&self, agent_id: Option<AgentId>) -> FreecoResult<UsageSummary> {
         self.store.query_summary(agent_id)
     }
 
     /// Get usage grouped by model.
-    pub fn get_by_model(&self) -> OpenFangResult<Vec<ModelUsage>> {
+    pub fn get_by_model(&self) -> FreecoResult<Vec<ModelUsage>> {
         self.store.query_by_model()
     }
 
@@ -207,7 +207,7 @@ impl MeteringEngine {
     }
 
     /// Clean up old usage records.
-    pub fn cleanup(&self, days: u32) -> OpenFangResult<usize> {
+    pub fn cleanup(&self, days: u32) -> FreecoResult<usize> {
         self.store.cleanup_old(days)
     }
 }
@@ -520,7 +520,7 @@ fn estimate_cost_rates(model: &str) -> (f64, f64) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openfang_memory::MemorySubstrate;
+    use freeco_memory::MemorySubstrate;
 
     fn setup() -> MeteringEngine {
         let substrate = MemorySubstrate::open_in_memory(0.1).unwrap();

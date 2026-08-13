@@ -55,31 +55,31 @@ function settingsPage() {
 
     async loadServices() {
       try {
-        var data = await OpenFangAPI.get('/api/services');
+        var data = await FreecoAPI.get('/api/services');
         this.services = data.services || [];
         this.dockerReady = !!data.docker_ready;
         this.servicesLoaded = true;
       } catch(e) {
         this.servicesLoaded = true;
-        OpenFangToast.error('Could not load services: ' + (e.message || 'error'));
+        FreecoToast.error('Could not load services: ' + (e.message || 'error'));
       }
       // If an install is already running (e.g. after a page reload), resume polling.
       try {
-        var st = await OpenFangAPI.get('/api/services/status');
+        var st = await FreecoAPI.get('/api/services/status');
         this.svc = st;
         if (st.running) this.pollServices();
       } catch(e) { /* silent */ }
     },
 
     async installService(id) {
-      if (this.svc.running) { OpenFangToast.info('Another install is already running.'); return; }
+      if (this.svc.running) { FreecoToast.info('Another install is already running.'); return; }
       try {
-        await OpenFangAPI.post('/api/services/' + encodeURIComponent(id) + '/install', {});
+        await FreecoAPI.post('/api/services/' + encodeURIComponent(id) + '/install', {});
         this.svc = { phase: 'checking', detail: 'Starting…', percent: -1, service: id, running: true };
-        OpenFangToast.success('Install started — this downloads a few GB, keep the app open.');
+        FreecoToast.success('Install started — this downloads a few GB, keep the app open.');
         this.pollServices();
       } catch(e) {
-        OpenFangToast.error('Install failed to start: ' + (e.message || 'error'));
+        FreecoToast.error('Install failed to start: ' + (e.message || 'error'));
       }
     },
 
@@ -87,16 +87,16 @@ function settingsPage() {
       var self = this;
       if (this.svcPoll) clearInterval(this.svcPoll);
       this.svcPoll = setInterval(async function() {
-        try { self.svc = await OpenFangAPI.get('/api/services/status'); } catch(e) { return; }
+        try { self.svc = await FreecoAPI.get('/api/services/status'); } catch(e) { return; }
         if (!self.svc.running) {
           clearInterval(self.svcPoll);
           self.svcPoll = null;
           if (self.svc.phase === 'done') {
-            OpenFangToast.success(self.svc.detail || 'Service is ready.');
+            FreecoToast.success(self.svc.detail || 'Service is ready.');
           } else if (self.svc.phase === 'error') {
-            OpenFangToast.error(self.svc.detail || 'Service install failed.');
+            FreecoToast.error(self.svc.detail || 'Service install failed.');
           } else if (self.svc.phase === 'needs-docker') {
-            OpenFangToast.warn ? OpenFangToast.warn(self.svc.detail) : OpenFangToast.error(self.svc.detail);
+            FreecoToast.warn ? FreecoToast.warn(self.svc.detail) : FreecoToast.error(self.svc.detail);
           }
           await self.loadServices(); // refresh running/connected badges
         }
@@ -112,40 +112,40 @@ function settingsPage() {
     async loadIntegrations() {
       try {
         var results = await Promise.all([
-          OpenFangAPI.get('/api/integrations'),
-          OpenFangAPI.get('/api/integrations/available')
+          FreecoAPI.get('/api/integrations'),
+          FreecoAPI.get('/api/integrations/available')
         ]);
         this.installedIntegrations = (results[0] && results[0].installed) || [];
         this.availableIntegrations = (results[1] && results[1].integrations) || [];
         this.integrationsLoaded = true;
       } catch (e) {
         this.integrationsLoaded = true;
-        OpenFangToast.error('Could not load integrations: ' + (e.message || 'error'));
+        FreecoToast.error('Could not load integrations: ' + (e.message || 'error'));
       }
     },
 
     async addIntegration(id) {
       this.intBusy = true;
       try {
-        var r = await OpenFangAPI.post('/api/integrations/add', { id: id });
-        OpenFangToast.success((r && r.message) || 'Integration installed.');
+        var r = await FreecoAPI.post('/api/integrations/add', { id: id });
+        FreecoToast.success((r && r.message) || 'Integration installed.');
         await this.loadIntegrations();
       } catch (e) {
-        OpenFangToast.error('Install failed: ' + (e.message || 'error'));
+        FreecoToast.error('Install failed: ' + (e.message || 'error'));
       }
       this.intBusy = false;
     },
 
     removeIntegration(id) {
       var self = this;
-      OpenFangToast.confirm('Remove integration', 'Remove "' + id + '"? Its tools will no longer be available to agents.', async function() {
+      FreecoToast.confirm('Remove integration', 'Remove "' + id + '"? Its tools will no longer be available to agents.', async function() {
         self.intBusy = true;
         try {
-          await OpenFangAPI.del('/api/integrations/' + encodeURIComponent(id));
-          OpenFangToast.success('Removed.');
+          await FreecoAPI.del('/api/integrations/' + encodeURIComponent(id));
+          FreecoToast.success('Removed.');
           await self.loadIntegrations();
         } catch (e) {
-          OpenFangToast.error('Remove failed: ' + (e.message || 'error'));
+          FreecoToast.error('Remove failed: ' + (e.message || 'error'));
         }
         self.intBusy = false;
       });
@@ -154,11 +154,11 @@ function settingsPage() {
     async reconnectIntegration(id) {
       this.intBusy = true;
       try {
-        await OpenFangAPI.post('/api/integrations/' + encodeURIComponent(id) + '/reconnect', {});
-        OpenFangToast.success('Reconnected.');
+        await FreecoAPI.post('/api/integrations/' + encodeURIComponent(id) + '/reconnect', {});
+        FreecoToast.success('Reconnected.');
         await this.loadIntegrations();
       } catch (e) {
-        OpenFangToast.error('Reconnect failed: ' + (e.message || 'error'));
+        FreecoToast.error('Reconnect failed: ' + (e.message || 'error'));
       }
       this.intBusy = false;
     },
@@ -172,7 +172,7 @@ function settingsPage() {
     async loadDevices() {
       this.devicesError = '';
       try {
-        var data = await OpenFangAPI.get('/api/pairing/devices');
+        var data = await FreecoAPI.get('/api/pairing/devices');
         this.devices = (data && data.devices) || [];
       } catch (e) {
         this.devices = [];
@@ -186,7 +186,7 @@ function settingsPage() {
       if (this.pairingBusy) return;
       this.pairingBusy = true;
       try {
-        var res = await OpenFangAPI.post('/api/pairing/request', {});
+        var res = await FreecoAPI.post('/api/pairing/request', {});
         this.pairing = {
           token: res.token || '',
           qr_uri: res.qr_uri || '',
@@ -195,7 +195,7 @@ function settingsPage() {
           expires_at: res.expires_at || ''
         };
       } catch (e) {
-        OpenFangToast.error((e.message && e.message.indexOf('not enabled') >= 0)
+        FreecoToast.error((e.message && e.message.indexOf('not enabled') >= 0)
           ? 'Device pairing is not enabled on this server.'
           : ('Could not start pairing: ' + (e.message || 'error')));
       }
@@ -204,11 +204,11 @@ function settingsPage() {
 
     unpairDevice(id) {
       var self = this;
-      OpenFangToast.confirm('Unpair device', 'Remove this device? It will lose access to your agents.', async function() {
+      FreecoToast.confirm('Unpair device', 'Remove this device? It will lose access to your agents.', async function() {
         try {
-          await OpenFangAPI.del('/api/pairing/devices/' + encodeURIComponent(id));
+          await FreecoAPI.del('/api/pairing/devices/' + encodeURIComponent(id));
           await self.loadDevices();
-        } catch (e) { OpenFangToast.error(e.message || 'Could not unpair'); }
+        } catch (e) { FreecoToast.error(e.message || 'Could not unpair'); }
       });
     },
 
@@ -218,7 +218,7 @@ function settingsPage() {
     localAiPoll: null,
 
     async refreshLocalAi() {
-      try { this.localAi = await OpenFangAPI.get('/api/local-ai/status'); } catch(e) { /* silent */ }
+      try { this.localAi = await FreecoAPI.get('/api/local-ai/status'); } catch(e) { /* silent */ }
     },
 
     // -- MCP / voice AI (dograh) connectors --
@@ -229,7 +229,7 @@ function settingsPage() {
 
     async loadMcpServers() {
       try {
-        var data = await OpenFangAPI.get('/api/mcp/servers');
+        var data = await FreecoAPI.get('/api/mcp/servers');
         var configured = (data && data.configured) || [];
         var connected = (data && data.connected) || [];
         var byName = {};
@@ -253,7 +253,7 @@ function settingsPage() {
       var m = this.newMcp;
       var name = (m.name || '').trim();
       var value = (m.value || '').trim();
-      if (!name || !value) { OpenFangToast.error('Enter a name and a URL/command'); return; }
+      if (!name || !value) { FreecoToast.error('Enter a name and a URL/command'); return; }
       var transport;
       if (m.type === 'http') {
         transport = { type: 'http', url: value };
@@ -263,12 +263,12 @@ function settingsPage() {
       }
       this.mcpBusy = true; this.mcpMsg = '';
       try {
-        var res = await OpenFangAPI.post('/api/mcp/servers', { name: name, transport: transport });
+        var res = await FreecoAPI.post('/api/mcp/servers', { name: name, transport: transport });
         this.mcpMsg = res.message || ('Connected "' + name + '". Restart to activate.');
         this.newMcp = { name: '', type: 'stdio', value: '' };
         await this.loadMcpServers();
       } catch (e) {
-        OpenFangToast.error('Could not connect: ' + (e.message || 'error'));
+        FreecoToast.error('Could not connect: ' + (e.message || 'error'));
       }
       this.mcpBusy = false;
     },
@@ -276,28 +276,28 @@ function settingsPage() {
     async connectDograh() {
       if (this.mcpBusy) return;
       var url = (this.dographUrl || '').trim();
-      if (!url) { OpenFangToast.error('Enter the dograh MCP URL'); return; }
+      if (!url) { FreecoToast.error('Enter the dograh MCP URL'); return; }
       this.mcpBusy = true; this.mcpMsg = '';
       try {
-        var res = await OpenFangAPI.post('/api/mcp/servers', {
+        var res = await FreecoAPI.post('/api/mcp/servers', {
           name: 'dograh', transport: { type: 'http', url: url }
         });
         this.mcpMsg = res.message || 'Connected. Restart FreEco.ai to activate dograh voice tools.';
         await this.loadMcpServers();
       } catch (e) {
-        OpenFangToast.error('Could not connect dograh: ' + (e.message || 'error'));
+        FreecoToast.error('Could not connect dograh: ' + (e.message || 'error'));
       }
       this.mcpBusy = false;
     },
 
     removeMcpServer(name) {
       var self = this;
-      OpenFangToast.confirm('Remove server', 'Disconnect MCP server "' + name + '"? Takes effect after a restart.', async function() {
+      FreecoToast.confirm('Remove server', 'Disconnect MCP server "' + name + '"? Takes effect after a restart.', async function() {
         try {
-          await OpenFangAPI.del('/api/mcp/servers/' + encodeURIComponent(name));
+          await FreecoAPI.del('/api/mcp/servers/' + encodeURIComponent(name));
           self.mcpMsg = 'Removed "' + name + '". Restart to apply.';
           await self.loadMcpServers();
-        } catch (e) { OpenFangToast.error(e.message || 'Could not remove'); }
+        } catch (e) { FreecoToast.error(e.message || 'Could not remove'); }
       });
     },
 
@@ -310,11 +310,11 @@ function settingsPage() {
       if (this.autoConfigBusy) return;
       this.autoConfigBusy = true;
       try {
-        var res = await OpenFangAPI.post('/api/models/autoconfig', {});
+        var res = await FreecoAPI.post('/api/models/autoconfig', {});
         this.autoConfigResult = res;
-        OpenFangToast.success(res.message || 'Models configured.');
+        FreecoToast.success(res.message || 'Models configured.');
       } catch(e) {
-        OpenFangToast.error('Auto-configure failed: ' + (e.message || 'unknown error'));
+        FreecoToast.error('Auto-configure failed: ' + (e.message || 'unknown error'));
       }
       this.autoConfigBusy = false;
     },
@@ -327,15 +327,15 @@ function settingsPage() {
       await this.refreshLocalAi();
       if (!this.localAiRecommendation) {
         try {
-          this.localAiRecommendation = await OpenFangAPI.get('/api/local-ai/recommendation?purpose=general');
+          this.localAiRecommendation = await FreecoAPI.get('/api/local-ai/recommendation?purpose=general');
         } catch(e) { /* card still works without it */ }
       }
     },
 
     async loadLocalAiRecommendation(purpose) {
       try {
-        this.localAiRecommendation = await OpenFangAPI.get('/api/local-ai/recommendation?purpose=' + (purpose || 'general'));
-      } catch(e) { OpenFangToast.error('Could not inspect local AI hardware: ' + e.message); }
+        this.localAiRecommendation = await FreecoAPI.get('/api/local-ai/recommendation?purpose=' + (purpose || 'general'));
+      } catch(e) { FreecoToast.error('Could not inspect local AI hardware: ' + e.message); }
     },
 
     // Gemma 4 GGUF catalog served by llama.cpp (no Ollama).
@@ -347,21 +347,21 @@ function settingsPage() {
     // survives a successful local-AI install.
     async switchAllAgentsToLocal() {
       var status = null;
-      try { status = await OpenFangAPI.get('/api/status'); } catch (e) { return 0; }
+      try { status = await FreecoAPI.get('/api/status'); } catch (e) { return 0; }
       var target = status && status.default_model;
       if (!target) return 0;
       var agents = [];
-      try { agents = await OpenFangAPI.get('/api/agents'); } catch (e) { return 0; }
+      try { agents = await FreecoAPI.get('/api/agents'); } catch (e) { return 0; }
       var switched = 0;
       for (var i = 0; i < agents.length; i++) {
         if (agents[i].model_name === target) continue;
         try {
-          await OpenFangAPI.put('/api/agents/' + agents[i].id + '/model', { model: target });
+          await FreecoAPI.put('/api/agents/' + agents[i].id + '/model', { model: target });
           switched++;
         } catch (e) { /* keep going; report the total */ }
       }
       if (switched) {
-        OpenFangToast.success(switched + ' agent(s) now use ' + target + '.');
+        FreecoToast.success(switched + ' agent(s) now use ' + target + '.');
         try { await Alpine.store('app').refreshAgents(); } catch (e) { /* optional */ }
       }
       return switched;
@@ -374,7 +374,7 @@ function settingsPage() {
     async loadSandbox(force) {
       if (this.sandbox.loaded && !force) return this.sandbox;
       try {
-        var s = await OpenFangAPI.get('/api/sandbox/status');
+        var s = await FreecoAPI.get('/api/sandbox/status');
         s.loaded = true;
         s.pulling = false;
         this.sandbox = s;
@@ -393,14 +393,14 @@ function settingsPage() {
     async pullSandboxImage() {
       this.sandbox.pulling = true;
       try {
-        var res = await OpenFangAPI.post('/api/sandbox/pull', {});
+        var res = await FreecoAPI.post('/api/sandbox/pull', {});
         if (res && res.ok) {
-          OpenFangToast.success(res.message || 'Sandbox image downloaded.');
+          FreecoToast.success(res.message || 'Sandbox image downloaded.');
         } else {
-          OpenFangToast.error((res && res.error) || 'Could not download the sandbox image.');
+          FreecoToast.error((res && res.error) || 'Could not download the sandbox image.');
         }
       } catch (e) {
-        OpenFangToast.error('Sandbox image: ' + e.message);
+        FreecoToast.error('Sandbox image: ' + e.message);
       }
       this.sandbox.pulling = false;
       await this.loadSandbox(true);
@@ -408,7 +408,7 @@ function settingsPage() {
 
     async loadLlamaCatalog() {
       try {
-        this.llamaCatalog = await OpenFangAPI.get('/api/local-ai/llama/catalog');
+        this.llamaCatalog = await FreecoAPI.get('/api/local-ai/llama/catalog');
       } catch (e) { this.llamaCatalog = null; }
       return this.llamaCatalog;
     },
@@ -460,15 +460,15 @@ function settingsPage() {
 
     async startLocalAiSetup(modelId) {
       if (!await this.confirmWeakHardware()) {
-        OpenFangToast.info('Local AI left off. Your current model stays the default.');
+        FreecoToast.info('Local AI left off. Your current model stays the default.');
         return;
       }
       try {
-        await OpenFangAPI.post('/api/local-ai/llama/setup', { model_id: modelId });
-        OpenFangToast.success('Setting up ' + (modelId || 'local AI') + ' - this downloads a few GB and resumes if interrupted. Keep the app open.');
+        await FreecoAPI.post('/api/local-ai/llama/setup', { model_id: modelId });
+        FreecoToast.success('Setting up ' + (modelId || 'local AI') + ' - this downloads a few GB and resumes if interrupted. Keep the app open.');
         this.pollLocalAi();
       } catch(e) {
-        OpenFangToast.error('Local AI setup: ' + e.message);
+        FreecoToast.error('Local AI setup: ' + e.message);
       }
     },
 
@@ -486,12 +486,12 @@ function settingsPage() {
             // (often a model that was never installed). Switch them over too,
             // otherwise "set up local AI" appears to do nothing.
             try { await self.switchAllAgentsToLocal(); } catch(e) { /* non-fatal */ }
-            try { await OpenFangAPI.post('/api/config/reload', {}); } catch(e) { /* restart applies it */ }
-            OpenFangToast.success('Local AI is ready — restart FreEco.ai if agents still show the old model.');
+            try { await FreecoAPI.post('/api/config/reload', {}); } catch(e) { /* restart applies it */ }
+            FreecoToast.success('Local AI is ready — restart FreEco.ai if agents still show the old model.');
           } else if (self.localAi.phase === 'error') {
-            OpenFangToast.error('Local AI setup failed: ' + self.localAi.detail);
+            FreecoToast.error('Local AI setup failed: ' + self.localAi.detail);
           } else if (self.localAi.phase === 'needs-manual-install') {
-            OpenFangToast.info(self.localAi.detail || 'Follow the on-screen step to finish installing Ollama.');
+            FreecoToast.info(self.localAi.detail || 'Follow the on-screen step to finish installing Ollama.');
           }
         }
       }, 2500);
@@ -599,7 +599,7 @@ function settingsPage() {
       {
         name: 'Bearer Token Authentication', key: 'auth',
         description: 'All non-health endpoints require Authorization: Bearer header. When no API key is configured, all requests are restricted to localhost only.',
-        configHint: 'Set api_key in ~/.openfang/config.toml for remote access. Empty = localhost only.',
+        configHint: 'Set api_key in ~/.freeco-ai/config.toml for remote access. Empty = localhost only.',
         valueKey: 'auth'
       }
     ],
@@ -745,14 +745,14 @@ function settingsPage() {
           var update = await invoke('check_for_updates');
           if (!update || !update.available) {
             this.updateStatus = 'You are already on the latest version.';
-            OpenFangToast.success('You are on the latest version.');
+            FreecoToast.success('You are on the latest version.');
             return;
           }
           this.updateStatus = 'Downloading v' + (update.version || this.updateLatest) + '...';
-          OpenFangToast.info('Downloading the update — this can take a minute. Your data stays where it is.');
+          FreecoToast.info('Downloading the update — this can take a minute. Your data stays where it is.');
           await invoke('install_update');
           this.updateStatus = 'Update installed. Restarting FreEco.ai...';
-          OpenFangToast.success('Update installed — restarting.');
+          FreecoToast.success('Update installed — restarting.');
           return;
         }
         // Browser / portable / CLI: send them to the download page.
@@ -765,11 +765,11 @@ function settingsPage() {
         this.updateStatus = 'Download the installer, run it, and your data is kept where it is.';
         var win = window.open(url, '_blank', 'noopener');
         if (!win) {
-          OpenFangToast.warn('Your browser blocked the popup — use the download link shown above.');
+          FreecoToast.warn('Your browser blocked the popup — use the download link shown above.');
         }
       } catch (e) {
         this.updateStatus = 'Update failed: ' + (e.message || 'unknown error');
-        OpenFangToast.error('Update failed: ' + (e.message || 'unknown error'));
+        FreecoToast.error('Update failed: ' + (e.message || 'unknown error'));
       } finally {
         this.updateBusy = false;
       }
@@ -777,8 +777,8 @@ function settingsPage() {
 
     async loadSysInfo() {
       try {
-        var ver = await OpenFangAPI.get('/api/version');
-        var status = await OpenFangAPI.get('/api/status');
+        var ver = await FreecoAPI.get('/api/version');
+        var status = await FreecoAPI.get('/api/status');
         this.sysInfo = {
           version: ver.version || '-',
           platform: ver.platform || '-',
@@ -793,27 +793,27 @@ function settingsPage() {
 
     async loadUsage() {
       try {
-        var data = await OpenFangAPI.get('/api/usage');
+        var data = await FreecoAPI.get('/api/usage');
         this.usageData = data.agents || [];
       } catch(e) { this.usageData = []; }
     },
 
     async loadTools() {
       try {
-        var data = await OpenFangAPI.get('/api/tools');
+        var data = await FreecoAPI.get('/api/tools');
         this.tools = data.tools || [];
       } catch(e) { this.tools = []; }
     },
 
     async loadConfig() {
       try {
-        this.config = await OpenFangAPI.get('/api/config');
+        this.config = await FreecoAPI.get('/api/config');
       } catch(e) { this.config = {}; }
     },
 
     async loadProviders() {
       try {
-        var data = await OpenFangAPI.get('/api/providers');
+        var data = await FreecoAPI.get('/api/providers');
         this.providers = data.providers || [];
         for (var i = 0; i < this.providers.length; i++) {
           var p = this.providers[i];
@@ -831,20 +831,20 @@ function settingsPage() {
 
     async loadModels() {
       try {
-        var data = await OpenFangAPI.get('/api/models');
+        var data = await FreecoAPI.get('/api/models');
         this.models = data.models || [];
       } catch(e) { this.models = []; }
     },
 
     async loadAgents() {
       try {
-        this.settingAgents = await OpenFangAPI.get('/api/agents');
+        this.settingAgents = await FreecoAPI.get('/api/agents');
       } catch(e) { this.settingAgents = []; }
     },
 
     async loadWorkflows() {
       try {
-        this.settingWorkflows = await OpenFangAPI.get('/api/workflows');
+        this.settingWorkflows = await FreecoAPI.get('/api/workflows');
       } catch(e) { this.settingWorkflows = []; }
     },
 
@@ -853,7 +853,7 @@ function settingsPage() {
       if (!id) return;
       this.customModelStatus = 'Adding...';
       try {
-        await OpenFangAPI.post('/api/models/custom', {
+        await FreecoAPI.post('/api/models/custom', {
           id: id,
           provider: this.customModelProvider || 'openrouter',
           context_window: this.customModelContext || 128000,
@@ -871,19 +871,19 @@ function settingsPage() {
     async deleteCustomModel(modelId) {
       if (!confirm('Delete custom model "' + modelId + '"?')) return;
       try {
-        await OpenFangAPI.del('/api/models/custom/' + encodeURIComponent(modelId));
-        OpenFangToast.success('Model deleted');
+        await FreecoAPI.del('/api/models/custom/' + encodeURIComponent(modelId));
+        FreecoToast.success('Model deleted');
         await this.loadModels();
       } catch(e) {
-        OpenFangToast.error('Failed to delete: ' + (e.message || 'Unknown error'));
+        FreecoToast.error('Failed to delete: ' + (e.message || 'Unknown error'));
       }
     },
 
     async loadConfigSchema() {
       try {
         var results = await Promise.all([
-          OpenFangAPI.get('/api/config/schema').catch(function() { return {}; }),
-          OpenFangAPI.get('/api/config')
+          FreecoAPI.get('/api/config/schema').catch(function() { return {}; }),
+          FreecoAPI.get('/api/config')
         ]);
         this.configSchema = results[0].sections || null;
         this.configValues = results[1] || {};
@@ -905,11 +905,11 @@ function settingsPage() {
       var path = (sectionMeta && sectionMeta.root_level) ? field : key;
       this.configSaving[key] = true;
       try {
-        await OpenFangAPI.post('/api/config/set', { path: path, value: value });
+        await FreecoAPI.post('/api/config/set', { path: path, value: value });
         this.configDirty[key] = false;
-        OpenFangToast.success('Saved ' + field);
+        FreecoToast.success('Saved ' + field);
       } catch(e) {
-        OpenFangToast.error('Failed to save: ' + e.message);
+        FreecoToast.error('Failed to save: ' + e.message);
       }
       this.configSaving[key] = false;
     },
@@ -1092,7 +1092,7 @@ function settingsPage() {
 
     async saveProviderKey(provider) {
       var key = this.providerKeyInputs[provider.id];
-      if (!key || !key.trim()) { OpenFangToast.error('Please enter an API key'); return; }
+      if (!key || !key.trim()) { FreecoToast.error('Please enter an API key'); return; }
       // PRIVACY RED-FLAG: connecting a cloud provider means every message the
       // agents send is transmitted to that company. Non-technical users must
       // understand this before it happens. Local providers never leave the
@@ -1109,31 +1109,31 @@ function settingsPage() {
           '“Free local AI”) — it runs on this device and never sends your data out.\n\n' +
           'Connect ' + name + ' anyway?'
         );
-        if (!confirmed) { OpenFangToast.info('Cloud provider not connected — your data stays local.'); return; }
+        if (!confirmed) { FreecoToast.info('Cloud provider not connected — your data stays local.'); return; }
       }
       try {
-        var resp = await OpenFangAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/key', { key: key.trim() });
+        var resp = await FreecoAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/key', { key: key.trim() });
         if (resp && resp.switched_default) {
-          OpenFangToast.warning(resp.message || 'Default provider was switched to ' + provider.display_name);
+          FreecoToast.warning(resp.message || 'Default provider was switched to ' + provider.display_name);
         } else {
-          OpenFangToast.success('API key saved for ' + provider.display_name);
+          FreecoToast.success('API key saved for ' + provider.display_name);
         }
         this.providerKeyInputs[provider.id] = '';
         await this.loadProviders();
         await this.loadModels();
       } catch(e) {
-        OpenFangToast.error('Failed to save key: ' + e.message);
+        FreecoToast.error('Failed to save key: ' + e.message);
       }
     },
 
     async removeProviderKey(provider) {
       try {
-        await OpenFangAPI.del('/api/providers/' + encodeURIComponent(provider.id) + '/key');
-        OpenFangToast.success('API key removed for ' + provider.display_name);
+        await FreecoAPI.del('/api/providers/' + encodeURIComponent(provider.id) + '/key');
+        FreecoToast.success('API key removed for ' + provider.display_name);
         await this.loadProviders();
         await this.loadModels();
       } catch(e) {
-        OpenFangToast.error('Failed to remove key: ' + e.message);
+        FreecoToast.error('Failed to remove key: ' + e.message);
       }
     },
 
@@ -1141,7 +1141,7 @@ function settingsPage() {
       this.copilotOAuth.polling = true;
       this.copilotOAuth.userCode = '';
       try {
-        var resp = await OpenFangAPI.post('/api/providers/github-copilot/oauth/start', {});
+        var resp = await FreecoAPI.post('/api/providers/github-copilot/oauth/start', {});
         this.copilotOAuth.userCode = resp.user_code;
         this.copilotOAuth.verificationUri = resp.verification_uri;
         this.copilotOAuth.pollId = resp.poll_id;
@@ -1149,7 +1149,7 @@ function settingsPage() {
         window.open(resp.verification_uri, '_blank');
         this.pollCopilotOAuth();
       } catch(e) {
-        OpenFangToast.error('Failed to start Copilot login: ' + e.message);
+        FreecoToast.error('Failed to start Copilot login: ' + e.message);
         this.copilotOAuth.polling = false;
       }
     },
@@ -1159,9 +1159,9 @@ function settingsPage() {
       setTimeout(async function() {
         if (!self.copilotOAuth.pollId) return;
         try {
-          var resp = await OpenFangAPI.get('/api/providers/github-copilot/oauth/poll/' + self.copilotOAuth.pollId);
+          var resp = await FreecoAPI.get('/api/providers/github-copilot/oauth/poll/' + self.copilotOAuth.pollId);
           if (resp.status === 'complete') {
-            OpenFangToast.success('GitHub Copilot authenticated successfully!');
+            FreecoToast.success('GitHub Copilot authenticated successfully!');
             self.copilotOAuth = { polling: false, userCode: '', verificationUri: '', pollId: '', interval: 5 };
             await self.loadProviders();
             await self.loadModels();
@@ -1169,17 +1169,17 @@ function settingsPage() {
             if (resp.interval) self.copilotOAuth.interval = resp.interval;
             self.pollCopilotOAuth();
           } else if (resp.status === 'expired') {
-            OpenFangToast.error('Device code expired. Please try again.');
+            FreecoToast.error('Device code expired. Please try again.');
             self.copilotOAuth = { polling: false, userCode: '', verificationUri: '', pollId: '', interval: 5 };
           } else if (resp.status === 'denied') {
-            OpenFangToast.error('Access denied by user.');
+            FreecoToast.error('Access denied by user.');
             self.copilotOAuth = { polling: false, userCode: '', verificationUri: '', pollId: '', interval: 5 };
           } else {
-            OpenFangToast.error('OAuth error: ' + (resp.error || resp.status));
+            FreecoToast.error('OAuth error: ' + (resp.error || resp.status));
             self.copilotOAuth = { polling: false, userCode: '', verificationUri: '', pollId: '', interval: 5 };
           }
         } catch(e) {
-          OpenFangToast.error('Poll error: ' + e.message);
+          FreecoToast.error('Poll error: ' + e.message);
           self.copilotOAuth = { polling: false, userCode: '', verificationUri: '', pollId: '', interval: 5 };
         }
       }, self.copilotOAuth.interval * 1000);
@@ -1189,66 +1189,66 @@ function settingsPage() {
       this.providerTesting[provider.id] = true;
       this.providerTestResults[provider.id] = null;
       try {
-        var result = await OpenFangAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/test', {});
+        var result = await FreecoAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/test', {});
         this.providerTestResults[provider.id] = result;
         if (result.status === 'ok') {
-          OpenFangToast.success(provider.display_name + ' connected (' + (result.latency_ms || '?') + 'ms)');
+          FreecoToast.success(provider.display_name + ' connected (' + (result.latency_ms || '?') + 'ms)');
         } else {
-          OpenFangToast.error(provider.display_name + ': ' + (result.error || 'Connection failed'));
+          FreecoToast.error(provider.display_name + ': ' + (result.error || 'Connection failed'));
         }
       } catch(e) {
         this.providerTestResults[provider.id] = { status: 'error', error: e.message };
-        OpenFangToast.error('Test failed: ' + e.message);
+        FreecoToast.error('Test failed: ' + e.message);
       }
       this.providerTesting[provider.id] = false;
     },
 
     async saveProviderUrl(provider) {
       var url = this.providerUrlInputs[provider.id];
-      if (!url || !url.trim()) { OpenFangToast.error('Please enter a base URL'); return; }
+      if (!url || !url.trim()) { FreecoToast.error('Please enter a base URL'); return; }
       url = url.trim();
       if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) {
-        OpenFangToast.error('URL must start with http:// or https://'); return;
+        FreecoToast.error('URL must start with http:// or https://'); return;
       }
       this.providerUrlSaving[provider.id] = true;
       try {
-        var result = await OpenFangAPI.put('/api/providers/' + encodeURIComponent(provider.id) + '/url', { base_url: url });
+        var result = await FreecoAPI.put('/api/providers/' + encodeURIComponent(provider.id) + '/url', { base_url: url });
         if (result.reachable) {
-          OpenFangToast.success(provider.display_name + ' URL saved &mdash; reachable (' + (result.latency_ms || '?') + 'ms)');
+          FreecoToast.success(provider.display_name + ' URL saved &mdash; reachable (' + (result.latency_ms || '?') + 'ms)');
         } else {
-          OpenFangToast.warning(provider.display_name + ' URL saved but not reachable');
+          FreecoToast.warning(provider.display_name + ' URL saved but not reachable');
         }
         await this.loadProviders();
       } catch(e) {
-        OpenFangToast.error('Failed to save URL: ' + e.message);
+        FreecoToast.error('Failed to save URL: ' + e.message);
       }
       this.providerUrlSaving[provider.id] = false;
     },
 
     async addCustomProvider() {
       var name = this.customProviderName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
-      if (!name) { OpenFangToast.error('Please enter a provider name'); return; }
+      if (!name) { FreecoToast.error('Please enter a provider name'); return; }
       var url = this.customProviderUrl.trim();
-      if (!url) { OpenFangToast.error('Please enter a base URL'); return; }
+      if (!url) { FreecoToast.error('Please enter a base URL'); return; }
       if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) {
-        OpenFangToast.error('URL must start with http:// or https://'); return;
+        FreecoToast.error('URL must start with http:// or https://'); return;
       }
       this.addingCustomProvider = true;
       this.customProviderStatus = '';
       try {
-        var result = await OpenFangAPI.put('/api/providers/' + encodeURIComponent(name) + '/url', { base_url: url });
+        var result = await FreecoAPI.put('/api/providers/' + encodeURIComponent(name) + '/url', { base_url: url });
         if (this.customProviderKey.trim()) {
-          await OpenFangAPI.post('/api/providers/' + encodeURIComponent(name) + '/key', { key: this.customProviderKey.trim() });
+          await FreecoAPI.post('/api/providers/' + encodeURIComponent(name) + '/key', { key: this.customProviderKey.trim() });
         }
         this.customProviderName = '';
         this.customProviderUrl = '';
         this.customProviderKey = '';
         this.customProviderStatus = '';
-        OpenFangToast.success('Provider "' + name + '" added' + (result.reachable ? ' (reachable)' : ' (not reachable yet)'));
+        FreecoToast.success('Provider "' + name + '" added' + (result.reachable ? ' (reachable)' : ' (not reachable yet)'));
         await this.loadProviders();
       } catch(e) {
         this.customProviderStatus = 'Error: ' + (e.message || 'Failed');
-        OpenFangToast.error('Failed to add provider: ' + e.message);
+        FreecoToast.error('Failed to add provider: ' + e.message);
       }
       this.addingCustomProvider = false;
     },
@@ -1257,7 +1257,7 @@ function settingsPage() {
     async loadUsers() {
       this.usersLoadError = '';
       try {
-        var data = await OpenFangAPI.get('/api/users');
+        var data = await FreecoAPI.get('/api/users');
         this.users = data.users || [];
         if (data.admin_username) this.adminUsername = data.admin_username;
       } catch(e) {
@@ -1270,30 +1270,30 @@ function settingsPage() {
     async addUser() {
       if (this.usersBusy) return;
       var u = this.newUser;
-      if (!u.name.trim()) { OpenFangToast.error('Enter a name'); return; }
-      if (!u.password || u.password.length < 8) { OpenFangToast.error('Password must be at least 8 characters'); return; }
+      if (!u.name.trim()) { FreecoToast.error('Enter a name'); return; }
+      if (!u.password || u.password.length < 8) { FreecoToast.error('Password must be at least 8 characters'); return; }
       this.usersBusy = true;
       this.usersMsg = '';
       try {
-        var res = await OpenFangAPI.post('/api/users', { name: u.name.trim(), role: u.role, password: u.password, enabled: true });
+        var res = await FreecoAPI.post('/api/users', { name: u.name.trim(), role: u.role, password: u.password, enabled: true });
         this.usersMsg = res.message || 'Account saved. Restart FreEco.ai for it to take effect.';
         this.newUser = { name: '', role: 'kid', password: '' };
         await this.loadUsers();
       } catch(e) {
-        OpenFangToast.error(e.message || 'Could not add account');
+        FreecoToast.error(e.message || 'Could not add account');
       }
       this.usersBusy = false;
     },
 
     deleteUser(name) {
       var self = this;
-      OpenFangToast.confirm('Remove account', 'Remove the account "' + name + '"? This takes effect after a restart.', async function() {
+      FreecoToast.confirm('Remove account', 'Remove the account "' + name + '"? This takes effect after a restart.', async function() {
         try {
-          await OpenFangAPI.del('/api/users/' + encodeURIComponent(name));
+          await FreecoAPI.del('/api/users/' + encodeURIComponent(name));
           self.usersMsg = 'Account removed. Restart FreEco.ai for it to take effect.';
           await self.loadUsers();
         } catch(e) {
-          OpenFangToast.error(e.message || 'Could not remove account');
+          FreecoToast.error(e.message || 'Could not remove account');
         }
       });
     },
@@ -1302,7 +1302,7 @@ function settingsPage() {
     async loadSecurity() {
       this.secLoading = true;
       try {
-        this.securityData = await OpenFangAPI.get('/api/security');
+        this.securityData = await FreecoAPI.get('/api/security');
       } catch(e) {
         this.securityData = null;
       }
@@ -1312,12 +1312,12 @@ function settingsPage() {
     async changePassword() {
       if (this.passwordSaving) return;
       if (this.passwordInput !== this.passwordConfirmation) {
-        OpenFangToast.error('New passwords do not match');
+        FreecoToast.error('New passwords do not match');
         return;
       }
       this.passwordSaving = true;
       try {
-        var result = await OpenFangAPI.post('/api/auth/set-password', {
+        var result = await FreecoAPI.post('/api/auth/set-password', {
           password: this.passwordInput,
           current_password: this.currentPassword
         });
@@ -1325,10 +1325,10 @@ function settingsPage() {
           this.passwordInput = '';
           this.passwordConfirmation = '';
           this.currentPassword = '';
-          OpenFangToast.success('Password changed. Restart FreEco.ai to apply it.');
+          FreecoToast.success('Password changed. Restart FreEco.ai to apply it.');
         }
       } catch(e) {
-        OpenFangToast.error(e.message || 'Could not change password');
+        FreecoToast.error(e.message || 'Could not change password');
       }
       this.passwordSaving = false;
     },
@@ -1389,7 +1389,7 @@ function settingsPage() {
       this.verifyingChain = true;
       this.chainResult = null;
       try {
-        var res = await OpenFangAPI.get('/api/audit/verify');
+        var res = await FreecoAPI.get('/api/audit/verify');
         this.chainResult = res;
       } catch(e) {
         this.chainResult = { valid: false, error: e.message };
@@ -1402,7 +1402,7 @@ function settingsPage() {
       this.peersLoading = true;
       this.peersLoadError = '';
       try {
-        var data = await OpenFangAPI.get('/api/peers');
+        var data = await FreecoAPI.get('/api/peers');
         this.peers = (data.peers || []).map(function(p) {
           return {
             node_id: p.node_id,
@@ -1426,7 +1426,7 @@ function settingsPage() {
       this._peerPollTimer = setInterval(async function() {
         if (self.tab !== 'network') { self.stopPeerPolling(); return; }
         try {
-          var data = await OpenFangAPI.get('/api/peers');
+          var data = await FreecoAPI.get('/api/peers');
           self.peers = (data.peers || []).map(function(p) {
             return {
               node_id: p.node_id,
@@ -1449,7 +1449,7 @@ function settingsPage() {
     async autoDetect() {
       this.detecting = true;
       try {
-        var data = await OpenFangAPI.get('/api/migrate/detect');
+        var data = await FreecoAPI.get('/api/migrate/detect');
         if (data.detected && data.scan) {
           this.sourcePath = data.path;
           this.scanResult = data.scan;
@@ -1467,16 +1467,16 @@ function settingsPage() {
       if (!this.sourcePath) return;
       this.scanning = true;
       try {
-        var data = await OpenFangAPI.post('/api/migrate/scan', { path: this.sourcePath });
+        var data = await FreecoAPI.post('/api/migrate/scan', { path: this.sourcePath });
         if (data.error) {
-          OpenFangToast.error('Scan error: ' + data.error);
+          FreecoToast.error('Scan error: ' + data.error);
           this.scanning = false;
           return;
         }
         this.scanResult = data;
         this.migStep = 'preview';
       } catch(e) {
-        OpenFangToast.error('Scan failed: ' + e.message);
+        FreecoToast.error('Scan failed: ' + e.message);
       }
       this.scanning = false;
     },
@@ -1486,7 +1486,7 @@ function settingsPage() {
       try {
         var target = this.targetPath;
         if (!target) target = '';
-        var data = await OpenFangAPI.post('/api/migrate', {
+        var data = await FreecoAPI.post('/api/migrate', {
           source: 'openclaw',
           source_dir: this.sourcePath || (this.scanResult ? this.scanResult.path : ''),
           target_dir: target,

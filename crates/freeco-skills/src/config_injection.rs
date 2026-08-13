@@ -5,7 +5,7 @@
 //! endpoint URLs, etc.). This module resolves those variables from three
 //! layers in priority order:
 //!
-//! 1. User-supplied config (e.g., `[skills.<skill-name>]` in `~/.openfang/config.toml`)
+//! 1. User-supplied config (e.g., `[skills.<skill-name>]` in `~/.freeco-ai/config.toml`)
 //! 2. Environment variable named by `var.env`
 //! 3. `var.default`
 //!
@@ -53,7 +53,7 @@ pub enum SkillConfigError {
 ///
 /// Resolution order per variable:
 /// 1. `user_config[name]` — usually from the `[skills.<skill-name>]` section
-///    of `~/.openfang/config.toml`, passed in by the caller.
+///    of `~/.freeco-ai/config.toml`, passed in by the caller.
 /// 2. `std::env::var(var.env)` if `var.env` is set.
 /// 3. `var.default` if set.
 ///
@@ -154,7 +154,7 @@ pub fn render_config_block(resolved: &HashMap<String, String>) -> String {
     let mut keys: Vec<&String> = resolved.keys().collect();
     keys.sort();
 
-    let mut out = String::from("[Skill config from ~/.openfang/config.toml:\n");
+    let mut out = String::from("[Skill config from ~/.freeco-ai/config.toml:\n");
     for key in keys {
         let raw = &resolved[key];
         let shown = redact_value(key, raw);
@@ -200,7 +200,7 @@ mod tests {
     fn resolve_env_when_no_user_config() {
         // Use a random-looking env var name to minimise collisions with the
         // host environment running the test.
-        let env_name = "OPENFANG_TEST_CFG_ENV_7f3a";
+        let env_name = "FREECO_AI_TEST_CFG_ENV_7f3a";
         // SAFETY: the env var name is unique to this test.
         unsafe { std::env::set_var(env_name, "from-env") };
 
@@ -222,7 +222,7 @@ mod tests {
         let mut vars = HashMap::new();
         vars.insert(
             "default_branch".to_string(),
-            var(Some("OPENFANG_UNSET_9z1"), Some("main"), false),
+            var(Some("FREECO_AI_UNSET_9z1"), Some("main"), false),
         );
 
         let user = HashMap::new();
@@ -235,7 +235,7 @@ mod tests {
         let mut vars = HashMap::new();
         vars.insert(
             "github_token".to_string(),
-            var(Some("OPENFANG_UNSET_a2b3"), None, true),
+            var(Some("FREECO_AI_UNSET_a2b3"), None, true),
         );
 
         let user = HashMap::new();
@@ -251,7 +251,7 @@ mod tests {
         let mut vars = HashMap::new();
         vars.insert(
             "optional".to_string(),
-            var(Some("OPENFANG_UNSET_c4d5"), None, false),
+            var(Some("FREECO_AI_UNSET_c4d5"), None, false),
         );
 
         let user = HashMap::new();

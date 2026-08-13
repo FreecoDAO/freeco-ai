@@ -232,7 +232,7 @@ pub fn build_system_prompt(ctx: &PromptContext) -> String {
 fn build_identity_section(ctx: &PromptContext) -> String {
     if ctx.base_system_prompt.is_empty() {
         format!(
-            "You are {}, an AI agent running inside the OpenFang Agent OS.\n{}",
+            "You are {}, an AI agent running inside the Freeco Agent OS.\n{}",
             ctx.agent_name, ctx.agent_description
         )
     } else {

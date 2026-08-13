@@ -35,16 +35,16 @@ function overviewPage() {
         for (var i = 0; i < edition.team.length; i++) {
           var name = edition.team[i];
           if (existing.indexOf(name) !== -1) continue; // already running
-          var data = await OpenFangAPI.get('/api/templates/' + encodeURIComponent(name));
+          var data = await FreecoAPI.get('/api/templates/' + encodeURIComponent(name));
           if (!data.manifest_toml) throw new Error('template ' + name + ' not found');
-          var res = await OpenFangAPI.post('/api/agents', { manifest_toml: data.manifest_toml });
+          var res = await FreecoAPI.post('/api/agents', { manifest_toml: data.manifest_toml });
           if (!res.agent_id) throw new Error(res.error || 'spawn failed for ' + name);
           spawned++;
         }
-        OpenFangToast.success(edition.label + ' is ready' + (spawned ? ' — ' + spawned + ' agent(s) started' : ' (already running)'));
+        FreecoToast.success(edition.label + ' is ready' + (spawned ? ' — ' + spawned + ' agent(s) started' : ' (already running)'));
         await Alpine.store('app').refreshAgents();
       } catch(e) {
-        OpenFangToast.error('Could not set up ' + edition.label + ': ' + e.message);
+        FreecoToast.error('Could not set up ' + edition.label + ': ' + e.message);
       }
       this.spawningEdition = '';
     },
@@ -103,19 +103,19 @@ function overviewPage() {
 
     async loadHealth() {
       try {
-        this.health = await OpenFangAPI.get('/api/health');
+        this.health = await FreecoAPI.get('/api/health');
       } catch(e) { this.health = { status: 'unreachable' }; }
     },
 
     async loadStatus() {
       try {
-        this.status = await OpenFangAPI.get('/api/status');
+        this.status = await FreecoAPI.get('/api/status');
       } catch(e) { this.status = {}; throw e; }
     },
 
     async loadUsage() {
       try {
-        var data = await OpenFangAPI.get('/api/usage');
+        var data = await FreecoAPI.get('/api/usage');
         var agents = data.agents || [];
         var totalTokens = 0;
         var totalTools = 0;
@@ -138,35 +138,35 @@ function overviewPage() {
 
     async loadAudit() {
       try {
-        var data = await OpenFangAPI.get('/api/audit/recent?n=8');
+        var data = await FreecoAPI.get('/api/audit/recent?n=8');
         this.recentAudit = data.entries || [];
       } catch(e) { this.recentAudit = []; }
     },
 
     async loadChannels() {
       try {
-        var data = await OpenFangAPI.get('/api/channels');
+        var data = await FreecoAPI.get('/api/channels');
         this.channels = (data.channels || []).filter(function(ch) { return ch.has_token; });
       } catch(e) { this.channels = []; }
     },
 
     async loadProviders() {
       try {
-        var data = await OpenFangAPI.get('/api/providers');
+        var data = await FreecoAPI.get('/api/providers');
         this.providers = data.providers || [];
       } catch(e) { this.providers = []; }
     },
 
     async loadMcpServers() {
       try {
-        var data = await OpenFangAPI.get('/api/mcp/servers');
+        var data = await FreecoAPI.get('/api/mcp/servers');
         this.mcpServers = data.servers || [];
       } catch(e) { this.mcpServers = []; }
     },
 
     async loadSkills() {
       try {
-        var data = await OpenFangAPI.get('/api/skills');
+        var data = await FreecoAPI.get('/api/skills');
         this.skillCount = (data.skills || []).length;
       } catch(e) { this.skillCount = 0; }
     },

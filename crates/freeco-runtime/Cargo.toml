@@ -3,7 +3,7 @@ name = "freeco-runtime"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-repository = "https://github.com/FreecoDAO/openfang"
+repository = "https://github.com/FreecoDAO/freeco"
 
 # Native-only: uses tokio async runtime and SQLite (rusqlite).
 # For WASM execution, see the individual agent crates compiled to wasm32.

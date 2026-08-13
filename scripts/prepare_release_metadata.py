@@ -33,7 +33,7 @@ def main() -> None:
     cargo_path = ROOT / "Cargo.toml"
     changelog_path = ROOT / "CHANGELOG.md"
     roadmap_path = ROOT / "ROADMAP.md"
-    tauri_conf_path = ROOT / "crates" / "openfang-desktop" / "tauri.conf.json"
+    tauri_conf_path = ROOT / "crates" / "freeco-desktop" / "tauri.conf.json"
     cargo = cargo_path.read_text(encoding="utf-8")
     changelog = changelog_path.read_text(encoding="utf-8")
     roadmap = roadmap_path.read_text(encoding="utf-8")

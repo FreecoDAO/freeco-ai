@@ -3,15 +3,15 @@ use crate::{
     ResponseContent,
 };
 
-/// Convert an OpenFang message into a Freeco agent-core message.
-pub fn from_openfang_message(
-    msg: &openfang_types::message::Message,
+/// Convert an Freeco message into a Freeco agent-core message.
+pub fn from_freeco_message(
+    msg: &freeco_types::message::Message,
     to: impl Into<String>,
 ) -> Message {
     let role = match msg.role {
-        openfang_types::message::Role::System => MessageRole::System,
-        openfang_types::message::Role::User => MessageRole::User,
-        openfang_types::message::Role::Assistant => MessageRole::Agent,
+        freeco_types::message::Role::System => MessageRole::System,
+        freeco_types::message::Role::User => MessageRole::User,
+        freeco_types::message::Role::Assistant => MessageRole::Agent,
     };
     Message {
         id: msg.msg_id.clone(),
@@ -23,8 +23,8 @@ pub fn from_openfang_message(
     }
 }
 
-/// Convert a Freeco agent-core response into an OpenFang assistant message.
-pub fn to_openfang_message(resp: &AgentResponse) -> openfang_types::message::Message {
+/// Convert a Freeco agent-core response into an Freeco assistant message.
+pub fn to_freeco_message(resp: &AgentResponse) -> freeco_types::message::Message {
     let text = match &resp.content {
         ResponseContent::Text(t) => t.clone(),
         ResponseContent::SoftError(e) => format!("error: {e}"),
@@ -37,22 +37,22 @@ pub fn to_openfang_message(resp: &AgentResponse) -> openfang_types::message::Mes
             serde_json::to_string(other).unwrap_or_else(|_| "unsupported response".to_string())
         }
     };
-    openfang_types::message::Message::assistant(text)
+    freeco_types::message::Message::assistant(text)
 }
 
-/// Adapter trait that lets Freeco agents run as first-class OpenFang message handlers.
+/// Adapter trait that lets Freeco agents run as first-class Freeco message handlers.
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
-pub trait OpenFangAgentBridge: Agent {
-    async fn handle_openfang(
+pub trait FreecoAgentBridge: Agent {
+    async fn handle_freeco(
         &self,
         ctx: &AgentContext,
-        msg: &openfang_types::message::Message,
-    ) -> Result<openfang_types::message::Message, AgentError> {
-        let converted = from_openfang_message(msg, ctx.agent_id.clone());
+        msg: &freeco_types::message::Message,
+    ) -> Result<freeco_types::message::Message, AgentError> {
+        let converted = from_freeco_message(msg, ctx.agent_id.clone());
         let out = self.handle(ctx, converted).await?;
-        Ok(to_openfang_message(&out))
+        Ok(to_freeco_message(&out))
     }
 }
 
-impl<T: Agent + ?Sized> OpenFangAgentBridge for T {}
+impl<T: Agent + ?Sized> FreecoAgentBridge for T {}

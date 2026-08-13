@@ -34,7 +34,7 @@ Then copy the bundle folder to the USB stick. Final layout:
 FreEco.ai/
   run-windows.bat          <- double-click this
   run-linux.sh  run-macos.command
-  bin/<os>/<arch>/openfang(.exe)
+  bin/<os>/<arch>/freeco(.exe)
   ollama/windows/ollama.exe    <- AI runtime, from the stick
   models/                      <- the model itself (~3 GB)
   data/                        <- your config, agents, vault
@@ -44,7 +44,7 @@ FreEco.ai/
 Double-click **`run-windows.bat`**. The launcher:
 1. points `OLLAMA_MODELS` at `\models` on the stick,
 2. starts the bundled Ollama (or reuses one already running),
-3. starts FreEco.ai with `OPENFANG_HOME` set to `\data`,
+3. starts FreEco.ai with `FREECO_AI_HOME` set to `\data`,
 4. opens the dashboard.
 
 Sizing: the stick needs roughly **model size + 500 MB**. `gemma4:e4b` ≈ 3 GB, so

@@ -6,7 +6,7 @@ use crate::{
     HandStatus, RequirementType,
 };
 use dashmap::DashMap;
-use openfang_types::agent::AgentId;
+use freeco_types::agent::AgentId;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -184,9 +184,9 @@ impl HandRegistry {
     ///
     /// Returns the number of hands successfully loaded. A non-existent
     /// `hands_dir` returns `Ok(0)` — this is the normal case on a fresh
-    /// install where the user has not run `openfang hand install` yet.
+    /// install where the user has not run `freeco hand install` yet.
     ///
-    /// Added for issue #984 — custom hands installed via `openfang hand
+    /// Added for issue #984 — custom hands installed via `freeco hand
     /// install <path>` were only held in memory and lost on daemon restart.
     pub fn load_workspace_hands(&self, hands_dir: &std::path::Path) -> HandResult<usize> {
         if !hands_dir.exists() {
@@ -266,10 +266,10 @@ impl HandRegistry {
         // session. On next restart, `load_workspace_hands` will pick it up
         // from disk.
         if let Some(home) = dirs::home_dir() {
-            let dest_dir = home.join(".openfang").join("hands").join(&def.id);
+            let dest_dir = home.join(".freeco-ai").join("hands").join(&def.id);
             // Canonicalize both paths before comparing so we don't re-copy a
             // hand that is already being installed from its persistent
-            // location (e.g. `openfang hand install ~/.openfang/hands/foo`).
+            // location (e.g. `freeco hand install ~/.freeco-ai/hands/foo`).
             let same_path = match (path.canonicalize(), dest_dir.canonicalize()) {
                 (Ok(a), Ok(b)) => a == b,
                 _ => path == dest_dir,
@@ -956,12 +956,12 @@ mod tests {
 
     #[test]
     fn env_var_requirement_check() {
-        std::env::set_var("OPENFANG_TEST_HAND_REQ", "test_value");
+        std::env::set_var("FREECO_AI_TEST_HAND_REQ", "test_value");
         let req = HandRequirement {
             key: "test".to_string(),
             label: "test".to_string(),
             requirement_type: RequirementType::EnvVar,
-            check_value: "OPENFANG_TEST_HAND_REQ".to_string(),
+            check_value: "FREECO_AI_TEST_HAND_REQ".to_string(),
             description: None,
             optional: false,
             install: None,
@@ -972,13 +972,13 @@ mod tests {
             key: "test".to_string(),
             label: "test".to_string(),
             requirement_type: RequirementType::EnvVar,
-            check_value: "OPENFANG_NONEXISTENT_VAR_12345".to_string(),
+            check_value: "FREECO_AI_NONEXISTENT_VAR_12345".to_string(),
             description: None,
             optional: false,
             install: None,
         };
         assert!(!check_requirement(&req_missing));
-        std::env::remove_var("OPENFANG_TEST_HAND_REQ");
+        std::env::remove_var("FREECO_AI_TEST_HAND_REQ");
     }
 
     #[test]
@@ -1327,7 +1327,7 @@ system_prompt = "v2 — schedule changed."
 
     /// Integration test for issue #809: `hand config` round-trip.
     ///
-    /// Simulates what `openfang hand config <id> --set KEY=VAL` does against
+    /// Simulates what `freeco hand config <id> --set KEY=VAL` does against
     /// the registry: read current config, merge updates, write back, read
     /// again. Persists to a tempdir so the restart path also sees the change.
     #[test]
@@ -1343,7 +1343,7 @@ system_prompt = "v2 — schedule changed."
         );
         cfg.insert(
             "user_agent".to_string(),
-            serde_json::Value::String("openfang/1".into()),
+            serde_json::Value::String("freeco/1".into()),
         );
         reg.update_config(inst.instance_id, cfg.clone()).unwrap();
 
@@ -1354,7 +1354,7 @@ system_prompt = "v2 — schedule changed."
         );
         assert_eq!(
             after.config.get("user_agent"),
-            Some(&serde_json::Value::String("openfang/1".into()))
+            Some(&serde_json::Value::String("freeco/1".into()))
         );
 
         // --unset path: drop a key and confirm it's gone.

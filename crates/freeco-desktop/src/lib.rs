@@ -1,4 +1,4 @@
-//! OpenFang Desktop — Native Tauri 2.0 wrapper for the OpenFang Agent OS.
+//! Freeco Desktop — Native Tauri 2.0 wrapper for the Freeco Agent OS.
 //!
 //! Boots the kernel + embedded API server, then opens a native window pointing
 //! at the WebUI. Includes system tray, single-instance enforcement, native OS
@@ -10,8 +10,8 @@ mod shortcuts;
 mod tray;
 mod updater;
 
-use openfang_kernel::OpenFangKernel;
-use openfang_types::event::{EventPayload, LifecycleEvent, SystemEvent};
+use freeco_kernel::FreecoKernel;
+use freeco_types::event::{EventPayload, LifecycleEvent, SystemEvent};
 use std::sync::Arc;
 use std::time::Instant;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -23,7 +23,7 @@ pub struct PortState(pub u16);
 
 /// Managed state: the kernel instance and startup time.
 pub struct KernelState {
-    pub kernel: Arc<OpenFangKernel>,
+    pub kernel: Arc<FreecoKernel>,
     pub started_at: Instant,
 }
 
@@ -34,18 +34,18 @@ pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "openfang=info,tauri=info".into()),
+                .unwrap_or_else(|_| "freeco=info,tauri=info".into()),
         )
         .init();
 
-    info!("Starting OpenFang Desktop...");
+    info!("Starting Freeco Desktop...");
 
     // Boot kernel + embedded server (blocks until port is known)
-    let server_handle = server::start_server().expect("Failed to start OpenFang server");
+    let server_handle = server::start_server().expect("Failed to start Freeco server");
     let port = server_handle.port;
     let kernel_for_notifications = server_handle.kernel.clone();
 
-    info!("OpenFang server running on port {port}");
+    info!("Freeco server running on port {port}");
 
     let url = format!("http://127.0.0.1:{port}");
 
@@ -196,7 +196,7 @@ pub fn run() {
             #[cfg(desktop)]
             updater::spawn_startup_check(app.handle().clone());
 
-            info!("OpenFang Desktop window created");
+            info!("Freeco Desktop window created");
             Ok(())
         })
         .on_window_event(|window, event| {

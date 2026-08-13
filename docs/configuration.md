@@ -309,10 +309,10 @@ If you prefer mounting `config.toml`, the file must live at `/data/config.toml` 
 
 The supported ways to expose the dashboard safely:
 
-Prefer `FREECO_AI_API_KEY`; the legacy `OPENFANG_API_KEY` remains
+Prefer `FREECO_AI_API_KEY`; the legacy `FREECO_AI_API_KEY` remains
 supported for existing installations.
 
-- Set `api_key = "..."` in `config.toml` (or `OPENFANG_API_KEY=...`) and send `Authorization: Bearer <key>` on every request.
+- Set `api_key = "..."` in `config.toml` (or `FREECO_AI_API_KEY=...`) and send `Authorization: Bearer <key>` on every request.
 - Or enable the [`[auth]`](#auth) section to require username/password login on the dashboard UI.
 - Or keep `api_listen` on `127.0.0.1` and reach the dashboard through an SSH tunnel or reverse proxy that handles authentication for you.
 
@@ -345,7 +345,7 @@ Configures the SQLite-backed memory substrate, including vector embeddings and m
 
 ```toml
 [memory]
-# sqlite_path = "/custom/path/openfang.db"
+# sqlite_path = "/custom/path/freeco.db"
 embedding_model = "all-MiniLM-L6-v2"
 consolidation_threshold = 10000
 decay_rate = 0.1
@@ -353,7 +353,7 @@ decay_rate = 0.1
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `sqlite_path` | path or null | `null` | Explicit path to the SQLite database file. When `null`, defaults to `{data_dir}/openfang.db`. |
+| `sqlite_path` | path or null | `null` | Explicit path to the SQLite database file. When `null`, defaults to `{data_dir}/freeco.db`. |
 | `embedding_model` | string | `"all-MiniLM-L6-v2"` | Model name used for generating vector embeddings for semantic memory search. |
 | `consolidation_threshold` | u64 | `10000` | Number of stored memories before automatic consolidation is triggered to merge and prune old entries. |
 | `decay_rate` | f32 | `0.1` | Memory confidence decay rate. `0.0` = no decay (memories never fade), `1.0` = aggressive decay. Values between 0.0 and 1.0. |
@@ -391,7 +391,7 @@ Configures dashboard login with username/password authentication. Disabled by de
 [auth]
 enabled = true
 username = "admin"
-password_hash = "$argon2id$v=19$m=19456,t=2,p=1$..."  # generate with: openfang auth hash-password
+password_hash = "$argon2id$v=19$m=19456,t=2,p=1$..."  # generate with: freeco auth hash-password
 session_ttl_hours = 168
 ```
 
@@ -399,18 +399,18 @@ session_ttl_hours = 168
 |-------|------|---------|-------------|
 | `enabled` | bool | `false` | Enable username/password authentication for the dashboard. |
 | `username` | string | `"admin"` | Admin username. |
-| `password_hash` | string | `""` (empty) | Argon2id password hash in PHC string format. Generate with `openfang auth hash-password`. |
+| `password_hash` | string | `""` (empty) | Argon2id password hash in PHC string format. Generate with `freeco auth hash-password`. |
 | `session_ttl_hours` | u64 | `168` (7 days) | Session token lifetime in hours. |
 
 **Generating a password hash:**
 
 ```bash
-openfang auth hash-password
+freeco auth hash-password
 ```
 
 This prompts for a password and outputs an Argon2id PHC string to paste into `config.toml`.
 
-> **Breaking change (v0.5.0):** Password hashes must be in Argon2id format. Older SHA256 hex hashes from versions prior to v0.5.0 are no longer accepted. Re-run `openfang auth hash-password` to generate a new hash.
+> **Breaking change (v0.5.0):** Password hashes must be in Argon2id format. Older SHA256 hex hashes from versions prior to v0.5.0 are no longer accepted. Re-run `freeco auth hash-password` to generate a new hash.
 
 ---
 
@@ -618,7 +618,7 @@ allowed_users = []
 ```toml
 [channels.matrix]
 homeserver_url = "https://matrix.org"
-user_id = "@openfang:matrix.org"
+user_id = "@freeco:matrix.org"
 access_token_env = "MATRIX_ACCESS_TOKEN"
 allowed_rooms = []
 ```
@@ -626,7 +626,7 @@ allowed_rooms = []
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `homeserver_url` | string | `"https://matrix.org"` | Matrix homeserver URL. |
-| `user_id` | string | `""` | Bot user ID (e.g., `"@openfang:matrix.org"`). |
+| `user_id` | string | `""` | Bot user ID (e.g., `"@freeco:matrix.org"`). |
 | `access_token_env` | string | `"MATRIX_ACCESS_TOKEN"` | Env var holding the Matrix access token. |
 | `allowed_rooms` | list of strings | `[]` | Room IDs to listen in. Empty = all joined rooms. |
 | `default_agent` | string or null | `null` | Agent name to route messages to. |
@@ -699,9 +699,9 @@ allowed_channels = []
 [channels.irc]
 server = "irc.libera.chat"
 port = 6667
-nick = "openfang"
+nick = "freeco"
 # password_env = "IRC_PASSWORD"
-channels = ["#openfang"]
+channels = ["#freeco"]
 use_tls = false
 ```
 
@@ -709,9 +709,9 @@ use_tls = false
 |-------|------|---------|-------------|
 | `server` | string | `"irc.libera.chat"` | IRC server hostname. |
 | `port` | u16 | `6667` | IRC server port. |
-| `nick` | string | `"openfang"` | Bot nickname. |
+| `nick` | string | `"freeco"` | Bot nickname. |
 | `password_env` | string or null | `null` | Env var holding the server password (optional). |
-| `channels` | list of strings | `[]` | IRC channels to join (e.g., `["#openfang", "#general"]`). |
+| `channels` | list of strings | `[]` | IRC channels to join (e.g., `["#freeco", "#general"]`). |
 | `use_tls` | bool | `false` | Use TLS for the connection. |
 | `default_agent` | string or null | `null` | Agent name to route messages to. |
 
@@ -737,14 +737,14 @@ webhook_port = 8444
 [channels.twitch]
 oauth_token_env = "TWITCH_OAUTH_TOKEN"
 channels = ["mychannel"]
-nick = "openfang"
+nick = "freeco"
 ```
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `oauth_token_env` | string | `"TWITCH_OAUTH_TOKEN"` | Env var holding the Twitch OAuth token. |
 | `channels` | list of strings | `[]` | Twitch channels to join (without `#` prefix). |
-| `nick` | string | `"openfang"` | Bot nickname in Twitch chat. |
+| `nick` | string | `"freeco"` | Bot nickname in Twitch chat. |
 | `default_agent` | string or null | `null` | Agent name to route messages to. |
 
 #### `[channels.rocketchat]`
@@ -1071,7 +1071,7 @@ allowed_channels = []
 [channels.mumble]
 host = "mumble.example.com"
 port = 64738
-username = "openfang"
+username = "freeco"
 password_env = "MUMBLE_PASSWORD"
 channel = ""
 ```
@@ -1080,7 +1080,7 @@ channel = ""
 |-------|------|---------|-------------|
 | `host` | string | `""` | Mumble server hostname. |
 | `port` | u16 | `64738` | Mumble server port. |
-| `username` | string | `"openfang"` | Bot username in Mumble. |
+| `username` | string | `"freeco"` | Bot username in Mumble. |
 | `password_env` | string | `"MUMBLE_PASSWORD"` | Env var holding the Mumble server password. |
 | `channel` | string | `""` | Mumble channel to join. |
 | `default_agent` | string or null | `null` | Agent name to route messages to. |

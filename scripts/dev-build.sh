@@ -13,8 +13,8 @@
 #
 # This script picks a working toolchain and adds MinGW to PATH for the GNU case.
 # All arguments pass straight through to cargo:
-#   ./scripts/dev-build.sh -p openfang-api --lib
-#   ./scripts/dev-build.sh --release -p openfang-cli
+#   ./scripts/dev-build.sh -p freeco-api --lib
+#   ./scripts/dev-build.sh --release -p freeco-cli
 #
 # NOTE: exit code is reported via ${PIPESTATUS[0]} conventions — this script does
 # NOT pipe cargo through tail, so `echo $?` after it is reliable.

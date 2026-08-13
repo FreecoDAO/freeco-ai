@@ -144,8 +144,8 @@ function toolIcon(toolName) {
 // Alpine.js global store
 document.addEventListener('alpine:init', function() {
   // Restore saved API key on load
-  var savedKey = localStorage.getItem('openfang-api-key');
-  if (savedKey) OpenFangAPI.setAuthToken(savedKey);
+  var savedKey = localStorage.getItem('freeco-api-key');
+  if (savedKey) FreecoAPI.setAuthToken(savedKey);
 
   Alpine.store('app', {
     agents: [],
@@ -159,7 +159,7 @@ document.addEventListener('alpine:init', function() {
     pendingApprovalCount: 0,
     lastPendingApprovalSignature: '',
     pendingAgent: null,
-    focusMode: localStorage.getItem('openfang-focus') === 'true',
+    focusMode: localStorage.getItem('freeco-focus') === 'true',
     showOnboarding: false,
     showAuthPrompt: false,
     showPasswordSetup: false,
@@ -174,7 +174,7 @@ document.addEventListener('alpine:init', function() {
 
     async refreshFreeze() {
       try {
-        var result = await OpenFangAPI.get('/api/system/freeze');
+        var result = await FreecoAPI.get('/api/system/freeze');
         this.frozen = !!result.frozen;
       } catch(e) { /* do not obscure the dashboard when the optional control is unavailable */ }
     },
@@ -184,16 +184,16 @@ document.addEventListener('alpine:init', function() {
       this.freezeBusy = true;
       try {
         if (this.frozen) {
-          var released = await OpenFangAPI.del('/api/system/freeze');
+          var released = await FreecoAPI.del('/api/system/freeze');
           this.frozen = !!released.frozen;
-          OpenFangToast.success('Emergency stop released. ' + (released.resumed || 0) + ' agent(s) resumed.');
+          FreecoToast.success('Emergency stop released. ' + (released.resumed || 0) + ' agent(s) resumed.');
         } else {
-          var engaged = await OpenFangAPI.post('/api/system/freeze', {});
+          var engaged = await FreecoAPI.post('/api/system/freeze', {});
           this.frozen = !!engaged.frozen;
-          OpenFangToast.warn('Emergency stop engaged. ' + (engaged.suspended || 0) + ' agent(s) paused.');
+          FreecoToast.warn('Emergency stop engaged. ' + (engaged.suspended || 0) + ' agent(s) paused.');
         }
       } catch(e) {
-        OpenFangToast.error('Could not change emergency stop: ' + e.message);
+        FreecoToast.error('Could not change emergency stop: ' + e.message);
       }
       this.freezeBusy = false;
     },
@@ -221,12 +221,12 @@ document.addEventListener('alpine:init', function() {
 
     toggleFocusMode() {
       this.focusMode = !this.focusMode;
-      localStorage.setItem('openfang-focus', this.focusMode);
+      localStorage.setItem('freeco-focus', this.focusMode);
     },
 
     async refreshAgents() {
       try {
-        var agents = await OpenFangAPI.get('/api/agents');
+        var agents = await FreecoAPI.get('/api/agents');
         this.agents = Array.isArray(agents) ? agents : [];
         this.agentCount = this.agents.length;
       } catch(e) { /* silent */ }
@@ -234,15 +234,15 @@ document.addEventListener('alpine:init', function() {
 
     async refreshApprovals() {
       try {
-        var data = await OpenFangAPI.get('/api/approvals');
+        var data = await FreecoAPI.get('/api/approvals');
         var approvals = Array.isArray(data) ? data : (data.approvals || []);
         var pending = approvals.filter(function(a) { return a.status === 'pending'; });
         var signature = pending
           .map(function(a) { return a.id; })
           .sort()
           .join(',');
-        if (pending.length > 0 && signature !== this.lastPendingApprovalSignature && typeof OpenFangToast !== 'undefined') {
-          OpenFangToast.warn('An agent is waiting for approval. Open Approvals to review.');
+        if (pending.length > 0 && signature !== this.lastPendingApprovalSignature && typeof FreecoToast !== 'undefined') {
+          FreecoToast.warn('An agent is waiting for approval. Open Approvals to review.');
         }
         this.pendingApprovalCount = pending.length;
         this.lastPendingApprovalSignature = signature;
@@ -251,7 +251,7 @@ document.addEventListener('alpine:init', function() {
 
     async checkStatus() {
       try {
-        var s = await OpenFangAPI.get('/api/status');
+        var s = await FreecoAPI.get('/api/status');
         this.connected = true;
         this.booting = false;
         this.lastError = '';
@@ -266,9 +266,9 @@ document.addEventListener('alpine:init', function() {
     },
 
     async checkOnboarding() {
-      if (localStorage.getItem('openfang-onboarded')) return;
+      if (localStorage.getItem('freeco-onboarded')) return;
       try {
-        var config = await OpenFangAPI.get('/api/config');
+        var config = await FreecoAPI.get('/api/config');
         var apiKey = config && config.api_key;
         var noKey = !apiKey || apiKey === 'not set' || apiKey === '';
         if (noKey && this.agentCount === 0) {
@@ -282,17 +282,17 @@ document.addEventListener('alpine:init', function() {
 
     dismissOnboarding() {
       this.showOnboarding = false;
-      localStorage.setItem('openfang-onboarded', 'true');
+      localStorage.setItem('freeco-onboarded', 'true');
     },
 
     async checkAuth() {
       try {
         // First check if session-based auth is configured
-        var authInfo = await OpenFangAPI.get('/api/auth/check');
+        var authInfo = await FreecoAPI.get('/api/auth/check');
         // Server-persisted dismissal wins (survives the desktop's random-port
         // relaunch, which wipes origin-scoped localStorage). localStorage is
         // kept only as a same-session fast path.
-        if (!this._setupSkipped && !authInfo.password_configured && !authInfo.setup_dismissed && !localStorage.getItem('openfang-password-setup-skipped')) {
+        if (!this._setupSkipped && !authInfo.password_configured && !authInfo.setup_dismissed && !localStorage.getItem('freeco-password-setup-skipped')) {
           this.showPasswordSetup = true;
         }
         if (authInfo.mode === 'none') {
@@ -315,14 +315,14 @@ document.addEventListener('alpine:init', function() {
 
       // API key mode detection
       try {
-        await OpenFangAPI.get('/api/tools');
+        await FreecoAPI.get('/api/tools');
         this.showAuthPrompt = false;
       } catch(e) {
         if (e.message && (e.message.indexOf('Not authorized') >= 0 || e.message.indexOf('401') >= 0 || e.message.indexOf('Missing Authorization') >= 0 || e.message.indexOf('Unauthorized') >= 0)) {
-          var saved = localStorage.getItem('openfang-api-key');
+          var saved = localStorage.getItem('freeco-api-key');
           if (saved) {
-            OpenFangAPI.setAuthToken('');
-            localStorage.removeItem('openfang-api-key');
+            FreecoAPI.setAuthToken('');
+            localStorage.removeItem('freeco-api-key');
           }
           this.showAuthPrompt = true;
         }
@@ -331,43 +331,43 @@ document.addEventListener('alpine:init', function() {
 
     submitApiKey(key) {
       if (!key || !key.trim()) return;
-      OpenFangAPI.setAuthToken(key.trim());
-      localStorage.setItem('openfang-api-key', key.trim());
+      FreecoAPI.setAuthToken(key.trim());
+      localStorage.setItem('freeco-api-key', key.trim());
       this.showAuthPrompt = false;
       this.refreshAgents();
     },
 
     async sessionLogin(username, password) {
       try {
-        var result = await OpenFangAPI.post('/api/auth/login', { username: username, password: password });
+        var result = await FreecoAPI.post('/api/auth/login', { username: username, password: password });
         if (result.status === 'ok') {
           this.sessionUser = result.username;
           this.sessionRole = result.role || 'owner';
           this.showAuthPrompt = false;
           this.refreshAgents();
         } else {
-          OpenFangToast.error(result.error || 'Login failed');
+          FreecoToast.error(result.error || 'Login failed');
         }
       } catch(e) {
-        OpenFangToast.error(e.message || 'Login failed');
+        FreecoToast.error(e.message || 'Login failed');
       }
     },
 
     async setInitialPassword(password, confirmation) {
       if (password !== confirmation) {
-        OpenFangToast.error('Passwords do not match');
+        FreecoToast.error('Passwords do not match');
         return;
       }
       try {
-        var result = await OpenFangAPI.post('/api/auth/set-password', { password: password });
+        var result = await FreecoAPI.post('/api/auth/set-password', { password: password });
         if (result.status === 'ok') {
           this.showPasswordSetup = false;
-          localStorage.setItem('openfang-password-setup-skipped', 'true');
-          OpenFangAPI.post('/api/auth/dismiss-setup', {}).catch(function() {});
-          OpenFangToast.success('Password saved. Restart FreEco.ai to enable sign-in.');
+          localStorage.setItem('freeco-password-setup-skipped', 'true');
+          FreecoAPI.post('/api/auth/dismiss-setup', {}).catch(function() {});
+          FreecoToast.success('Password saved. Restart FreEco.ai to enable sign-in.');
         }
       } catch(e) {
-        OpenFangToast.error(e.message || 'Could not save password');
+        FreecoToast.error(e.message || 'Could not save password');
       }
     },
 
@@ -376,9 +376,9 @@ document.addEventListener('alpine:init', function() {
       // the prompt cannot re-appear this session.
       this._setupSkipped = true;
       this.showPasswordSetup = false;
-      try { localStorage.setItem('openfang-password-setup-skipped', 'true'); } catch(e) { /* private mode */ }
+      try { localStorage.setItem('freeco-password-setup-skipped', 'true'); } catch(e) { /* private mode */ }
       // Persist server-side so the prompt stays dismissed across restarts.
-      OpenFangAPI.post('/api/auth/dismiss-setup', {}).catch(function() {});
+      FreecoAPI.post('/api/auth/dismiss-setup', {}).catch(function() {});
     },
 
     // Escape hatch on the login screen: turn dashboard auth off (loopback only)
@@ -386,26 +386,26 @@ document.addEventListener('alpine:init', function() {
     // or who forgot it. Requires a restart to fully apply.
     async disableAuth() {
       try {
-        await OpenFangAPI.post('/api/auth/disable', {});
+        await FreecoAPI.post('/api/auth/disable', {});
         this.showAuthPrompt = false;
         this._setupSkipped = true;
-        OpenFangToast.success('Password turned off. Restart FreEco.ai to finish.');
+        FreecoToast.success('Password turned off. Restart FreEco.ai to finish.');
       } catch(e) {
-        OpenFangToast.error(e.message || 'Could not turn off the password');
+        FreecoToast.error(e.message || 'Could not turn off the password');
       }
     },
 
     async sessionLogout() {
       try {
-        await OpenFangAPI.post('/api/auth/logout');
+        await FreecoAPI.post('/api/auth/logout');
       } catch(e) { /* ignore */ }
       this.sessionUser = null;
       this.showAuthPrompt = true;
     },
 
     clearApiKey() {
-      OpenFangAPI.setAuthToken('');
-      localStorage.removeItem('openfang-api-key');
+      FreecoAPI.setAuthToken('');
+      localStorage.removeItem('freeco-api-key');
     }
   });
 });
@@ -414,13 +414,13 @@ document.addEventListener('alpine:init', function() {
 function app() {
   return {
     page: 'agents',
-    themeMode: localStorage.getItem('openfang-theme-mode') || 'system',
+    themeMode: localStorage.getItem('freeco-theme-mode') || 'system',
     theme: (() => {
-      var mode = localStorage.getItem('openfang-theme-mode') || 'system';
+      var mode = localStorage.getItem('freeco-theme-mode') || 'system';
       if (mode === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       return mode;
     })(),
-    sidebarCollapsed: localStorage.getItem('openfang-sidebar') === 'collapsed',
+    sidebarCollapsed: localStorage.getItem('freeco-sidebar') === 'collapsed',
     mobileMenuOpen: false,
     connected: false,
     wsConnected: false,
@@ -490,7 +490,7 @@ function app() {
       });
 
       // Connection state listener
-      OpenFangAPI.onConnectionChange(function(state) {
+      FreecoAPI.onConnectionChange(function(state) {
         Alpine.store('app').connectionState = state;
       });
 
@@ -515,7 +515,7 @@ function app() {
 
     setTheme(mode) {
       this.themeMode = mode;
-      localStorage.setItem('openfang-theme-mode', mode);
+      localStorage.setItem('freeco-theme-mode', mode);
       if (mode === 'system') {
         this.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       } else {
@@ -531,7 +531,7 @@ function app() {
 
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed;
-      localStorage.setItem('openfang-sidebar', this.sidebarCollapsed ? 'collapsed' : 'expanded');
+      localStorage.setItem('freeco-sidebar', this.sidebarCollapsed ? 'collapsed' : 'expanded');
     },
 
     async pollStatus() {
@@ -541,7 +541,7 @@ function app() {
       this.connected = store.connected;
       this.version = store.version;
       this.agentCount = store.agentCount;
-      this.wsConnected = OpenFangAPI.isWsConnected();
+      this.wsConnected = FreecoAPI.isWsConnected();
     }
   };
 }

@@ -4,11 +4,11 @@
 //! and graceful shutdown sequence.
 
 use axum::Router;
-use openfang_api::middleware;
-use openfang_api::routes::{self, AppState};
-use openfang_api::server::{read_daemon_info, DaemonInfo};
-use openfang_kernel::OpenFangKernel;
-use openfang_types::config::{DefaultModelConfig, KernelConfig};
+use freeco_api::middleware;
+use freeco_api::routes::{self, AppState};
+use freeco_api::server::{read_daemon_info, DaemonInfo};
+use freeco_kernel::FreecoKernel;
+use freeco_types::config::{DefaultModelConfig, KernelConfig};
 use std::sync::Arc;
 use std::time::Instant;
 use tower_http::cors::CorsLayer;
@@ -103,7 +103,7 @@ async fn test_full_daemon_lifecycle() {
         ..KernelConfig::default()
     };
 
-    let kernel = OpenFangKernel::boot_with_config(config).expect("Kernel should boot");
+    let kernel = FreecoKernel::boot_with_config(config).expect("Kernel should boot");
     let kernel = Arc::new(kernel);
     kernel.set_self_handle();
 
@@ -121,7 +121,7 @@ async fn test_full_daemon_lifecycle() {
         services: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
-        security: std::sync::Arc::new(openfang_api::security::SecurityService::default()),
+        security: std::sync::Arc::new(freeco_api::security::SecurityService::default()),
     });
 
     let app = Router::new()
@@ -236,7 +236,7 @@ async fn test_server_immediate_responsiveness() {
         ..KernelConfig::default()
     };
 
-    let kernel = OpenFangKernel::boot_with_config(config).unwrap();
+    let kernel = FreecoKernel::boot_with_config(config).unwrap();
     let kernel = Arc::new(kernel);
 
     let state = Arc::new(AppState {
@@ -253,7 +253,7 @@ async fn test_server_immediate_responsiveness() {
         services: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
-        security: std::sync::Arc::new(openfang_api::security::SecurityService::default()),
+        security: std::sync::Arc::new(freeco_api::security::SecurityService::default()),
     });
 
     let app = Router::new()

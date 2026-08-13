@@ -6,8 +6,8 @@
 
 use crate::llm_driver::CompletionRequest;
 use crate::model_catalog::ModelCatalog;
-use openfang_types::agent::ModelRoutingConfig;
-use openfang_types::model_catalog::ModelTier;
+use freeco_types::agent::ModelRoutingConfig;
+use freeco_types::model_catalog::ModelTier;
 
 /// Task complexity tier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -242,9 +242,9 @@ impl ModelRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openfang_types::agent::ModelRoutingPolicy;
-    use openfang_types::message::{Message, MessageContent, Role};
-    use openfang_types::tool::ToolDefinition;
+    use freeco_types::agent::ModelRoutingPolicy;
+    use freeco_types::message::{Message, MessageContent, Role};
+    use freeco_types::tool::ToolDefinition;
 
     fn default_config() -> ModelRoutingConfig {
         ModelRoutingConfig {

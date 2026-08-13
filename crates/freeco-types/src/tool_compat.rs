@@ -1,12 +1,12 @@
-//! Shared tool name mappings between OpenClaw and OpenFang.
+//! Shared tool name mappings between OpenClaw and Freeco.
 //!
 //! These mappings are used by both the migration engine and the skill system
-//! to normalize OpenClaw tool names into OpenFang equivalents.
+//! to normalize OpenClaw tool names into Freeco equivalents.
 
-/// Map an OpenClaw tool name to its OpenFang equivalent.
+/// Map an OpenClaw tool name to its Freeco equivalent.
 ///
 /// Returns `None` if the name has no known mapping (may already be
-/// an OpenFang tool name — check with [`is_known_openfang_tool`]).
+/// an Freeco tool name — check with [`is_known_freeco_tool`]).
 pub fn map_tool_name(openclaw_name: &str) -> Option<&'static str> {
     match openclaw_name {
         // Claude-style tool names (capitalized)
@@ -40,20 +40,20 @@ pub fn map_tool_name(openclaw_name: &str) -> Option<&'static str> {
     }
 }
 
-/// Normalize a tool name to its canonical OpenFang form.
+/// Normalize a tool name to its canonical Freeco form.
 ///
-/// If the name is already a known OpenFang tool, returns it as-is.
+/// If the name is already a known Freeco tool, returns it as-is.
 /// Otherwise, tries to map it through [`map_tool_name`].
 /// Returns the original name if no mapping is found.
 pub fn normalize_tool_name(name: &str) -> &str {
-    if is_known_openfang_tool(name) {
+    if is_known_freeco_tool(name) {
         return name;
     }
     map_tool_name(name).unwrap_or(name)
 }
 
-/// Check if a tool name is a known OpenFang built-in tool.
-pub fn is_known_openfang_tool(name: &str) -> bool {
+/// Check if a tool name is a known Freeco built-in tool.
+pub fn is_known_freeco_tool(name: &str) -> bool {
     matches!(
         name,
         "file_read"
@@ -166,7 +166,7 @@ mod tests {
 
     #[test]
     fn test_normalize_tool_name() {
-        // Known OpenFang tools pass through unchanged
+        // Known Freeco tools pass through unchanged
         assert_eq!(normalize_tool_name("file_read"), "file_read");
         assert_eq!(normalize_tool_name("file_write"), "file_write");
         assert_eq!(normalize_tool_name("shell_exec"), "shell_exec");
@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_known_openfang_tool() {
+    fn test_is_known_freeco_tool() {
         // All 23 built-in tools + location_get
         let known = [
             "file_read",
@@ -216,12 +216,12 @@ mod tests {
             "location_get",
         ];
         for tool in &known {
-            assert!(is_known_openfang_tool(tool), "Expected {tool} to be known");
+            assert!(is_known_freeco_tool(tool), "Expected {tool} to be known");
         }
 
         // Unknown
-        assert!(!is_known_openfang_tool("unknown"));
-        assert!(!is_known_openfang_tool("Read"));
-        assert!(!is_known_openfang_tool("Bash"));
+        assert!(!is_known_freeco_tool("unknown"));
+        assert!(!is_known_freeco_tool("Read"));
+        assert!(!is_known_freeco_tool("Bash"));
     }
 }

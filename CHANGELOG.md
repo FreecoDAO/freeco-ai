@@ -49,8 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Setup guidance for every shipped provider: where the key comes from and whether
   it is free, free-tier, paid or local. A test fails if a provider is added
   without it.
-- Naming compatibility: `FREECO_*` variables are preferred, `OPENFANG_*` still
-  work, and an existing `~/.openfang` install is never relocated.
+- Naming compatibility: `FREECO_*` variables are preferred, `FREECO_AI_*` still
+  work, and an existing `~/.freeco-ai` install is never relocated.
 
 - NVIDIA NIM as a free frontier option. Nemotron 3 Ultra 550B, Super 120B and
   Nano 30B on NVIDIA's own endpoint, where the free tier has no daily token
@@ -330,7 +330,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Local-AI (Ollama) setup now works on any connection**: the installer download is resilient to flaky/slow links. It resumes with an HTTP Range request after a dropped connection (instead of restarting), retries up to 8 times with backoff, and verifies the downloaded file matches the server's Content-Length before use. This fixes the confusing `installer failed digital-signature verification ()` error, which was caused by a truncated download producing an unreadable signature Ã¢ÂÂ the check now also reports the real reason (empty/missing file, invalid status, or an actual signer mismatch) instead of a blank `()`.
-- **Desktop app branding**: the window title bar, system-tray tooltip/menu ("Quit FreEco.ai"), and update notifications now read **FreEco.ai** instead of the internal "OpenFang" name.
+- **Desktop app branding**: the window title bar, system-tray tooltip/menu ("Quit FreEco.ai"), and update notifications now read **FreEco.ai** instead of the internal "Freeco" name.
 - **"Get update" button did nothing**: it was a bare link that silently failed in the desktop webview and gave no feedback. It now runs the desktop auto-updater (download + install + relaunch) when available, or opens the download page in the browser edition Ã¢ÂÂ with a toast/status at every step (checking, downloading, installing, error), never silent.
 - **Update check now distinguishes "offline"** from a real failure, showing a calm "you're offline" message instead of a scary network error.
 - **Release verify-release** relaxed from exact tag==main-HEAD to `git merge-base --is-ancestor`, so a tag that is a few commits behind main (e.g. after an auto-tag) still releases. The version/CHANGELOG/tauri-version consistency checks are retained (they catch mislabeled installers).
@@ -396,39 +396,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dashboard software updates: Settings Ã¢ÂÂ System now shows the installed vs latest version with a "Check for updates" button, a once-a-day automatic check (on by default, toggleable, throttled via localStorage), and a green "update available" pill in the sidebar linking to the download. Desktop-app CSP updated to allow the GitHub releases API.
 - Dashboard sidebar now shows the fre.eco logo (replaced the old logo asset served at `/logo.png`).
-- Portable / USB edition: OS-detecting launcher scripts (`scripts/portable/`) that run FreEco.ai from any folder or USB drive with all data kept alongside the binary via `OPENFANG_HOME`, plus `scripts/build-portable.sh` to assemble the bundle from release binaries, and `docs/usb-portable.md`.
+- Portable / USB edition: OS-detecting launcher scripts (`scripts/portable/`) that run FreEco.ai from any folder or USB drive with all data kept alongside the binary via `FREECO_AI_HOME`, plus `scripts/build-portable.sh` to assemble the bundle from release binaries, and `docs/usb-portable.md`.
 - Landing page (`docs/index.html`) Ã¢ÂÂ self-contained green-brand site with edition overview, download links, terminal install commands, and PayPal donation QR; deployable via GitHub Pages or any static host.
 - README roadmap: "Planned: Self-Contained Isolation Layer" (bundled agent browser + prebuilt sandbox image, Manus-style all-included isolation).
-- First unit tests for `openfang-learning` (`PromotionPolicy::target_file` mapping).
+- First unit tests for `freeco-learning` (`PromotionPolicy::target_file` mapping).
 
 ### Changed
 
 - Updated user-facing dashboard branding to display `FreEco.ai` in the sidebar header.
-- Updated documentation to explicitly state that FreEco.ai is built on the OpenFang base with ethical and structural enhancements.
+- Updated documentation to explicitly state that FreEco.ai is built on the Freeco base with ethical and structural enhancements.
 
 ### Fixed
 
-- Branding: browser-tab favicon and the entire desktop/installer icon set (shortcut, taskbar, Add/Remove Programs) still showed the old OpenFang cobra Ã¢ÂÂ all regenerated from the fre.eco logo.
+- Branding: browser-tab favicon and the entire desktop/installer icon set (shortcut, taskbar, Add/Remove Programs) still showed the old Freeco cobra Ã¢ÂÂ all regenerated from the fre.eco logo.
 - Voice-message transcription: `media_transcribe` resolved paths against the daemon's working directory instead of the agent workspace, and dashboard audio uploads were stored only under a UUID in a temp folder Ã¢ÂÂ so agents were told a filename that existed nowhere they could reach ("Failed to read audio file"). The tool now resolves workspace-relative paths first and falls back to the uploads folder by filename, and audio uploads keep a sanitized filename-addressable copy.
 - README typos ("buisiness" Ã¢ÂÂ "business", "an SUSTAINABLE" Ã¢ÂÂ "a SUSTAINABLE").
 - Dashboard light theme was a duplicate of the dark palette Ã¢ÂÂ it is now a real white day theme (the Light/System/Dark switcher finally has visible effect). Previously-undefined modal variables (`--bg-card`, `--bg-input`, `--bg-secondary`) no longer fall back to dark values.
-- Desktop auto-updater pointed at the upstream repository (RightNow-AI/openfang) with the upstream signing key; it now points at FreecoDAO/freeco-ai signed with the project's own key.
+- Desktop auto-updater pointed at the upstream repository (RightNow-AI/freeco) with the upstream signing key; it now points at FreecoDAO/freeco-ai signed with the project's own key.
 - Release CI no longer fails the macOS desktop build when Apple signing certificates are absent Ã¢ÂÂ it produces an unsigned .dmg instead.
-- Installer branding: product renamed OpenFang Ã¢ÂÂ FreEco.ai (shortcuts, Add/Remove Programs, Start Menu folder), installer version no longer stuck at 0.6.9, Windows installs per-user without admin prompts.
+- Installer branding: product renamed Freeco Ã¢ÂÂ FreEco.ai (shortcuts, Add/Remove Programs, Start Menu folder), installer version no longer stuck at 0.6.9, Windows installs per-user without admin prompts.
 
 ## [0.5.10] - 2026-04-17
 
 ### Fixed
 
-- Non-loopback requests with no `api_key` configured now return 401 by default. Opt out with `OPENFANG_ALLOW_NO_AUTH=1`. Fixes the B1/B2 authentication bypass from #1034.
+- Non-loopback requests with no `api_key` configured now return 401 by default. Opt out with `FREECO_AI_ALLOW_NO_AUTH=1`. Fixes the B1/B2 authentication bypass from #1034.
 - Agent `context.md` is re-read on every turn so external updates take effect mid-session. Opt out per agent with `cache_context = true` on the manifest. Fixes #843.
-- `openfang config get default_model.base_url` now prints the configured URL instead of an empty string. Missing keys return a clear "not found" error. Fixes #905.
+- `freeco config get default_model.base_url` now prints the configured URL instead of an empty string. Missing keys return a clear "not found" error. Fixes #905.
 - `schedule_create`, `schedule_list`, and `schedule_delete` tools plus the `/api/schedules` routes now use the kernel cron scheduler, so scheduled jobs actually fire. One-shot idempotent migration imports legacy shared-memory entries at startup. Fixes #1069.
 - Multimodal user messages now combine text and image blocks into a single message so the LLM sees both. Fixes #1043.
 
 ### Added
 
-- `openfang hand config <id>` subcommand: get, set, unset, and list settings on an active hand instance. Fixes #809.
+- `freeco hand config <id>` subcommand: get, set, unset, and list settings on an active hand instance. Fixes #809.
 - Optional per-channel `prefix_agent_name` setting (`off` / `bracket` / `bold_bracket`). Wraps outbound agent responses so users in multi-agent channels can see which agent replied. Default is off, byte-identical to prior behavior. Fixes #980.
 
 ### Closed as invalid
@@ -439,7 +439,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Dashboard password hashing switched from SHA256 to Argon2id. Existing `password_hash` values in `config.toml` must be regenerated with `openfang auth hash-password`. Only affects users with `[auth] enabled = true`.
+- **BREAKING:** Dashboard password hashing switched from SHA256 to Argon2id. Existing `password_hash` values in `config.toml` must be regenerated with `freeco auth hash-password`. Only affects users with `[auth] enabled = true`.
 
 ### Fixed
 
@@ -526,9 +526,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Visual workflow builder with drag-and-drop canvas
 
 #### Client SDKs
-- JavaScript SDK (`@openfang/sdk`): full REST API client with streaming, TypeScript declarations
-- Python client SDK (`openfang_client`): zero-dependency stdlib client with SSE streaming
-- Python agent SDK (`openfang_sdk`): decorator-based framework for writing Python agents
+- JavaScript SDK (`@freeco/sdk`): full REST API client with streaming, TypeScript declarations
+- Python client SDK (`freeco_client`): zero-dependency stdlib client with SSE streaming
+- Python agent SDK (`freeco_sdk`): decorator-based framework for writing Python agents
 - Usage examples for both languages (basic + streaming)
 
 #### CLI
@@ -576,7 +576,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Interoperability
 - OpenClaw migration engine (YAML/JSON5 to TOML)
 - MCP client (JSON-RPC 2.0 over stdio/SSE, tool namespacing)
-- MCP server (exposes OpenFang tools via MCP protocol)
+- MCP server (exposes Freeco tools via MCP protocol)
 - A2A protocol client and server
 - Tool name compatibility mappings (21 OpenClaw tool names)
 

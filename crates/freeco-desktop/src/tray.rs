@@ -1,6 +1,6 @@
 //! System tray setup for the FreEco.ai desktop app.
 
-use openfang_kernel::config::freeco_ai_home;
+use freeco_kernel::config::freeco_ai_home;
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},

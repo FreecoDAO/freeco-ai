@@ -127,7 +127,7 @@ async fn node_available() -> bool {
 /// 5. Monitors the process and restarts on crash (up to 3 times)
 ///
 /// The PID is stored in the kernel's `whatsapp_gateway_pid` for shutdown cleanup.
-pub async fn start_whatsapp_gateway(kernel: &Arc<super::kernel::OpenFangKernel>) {
+pub async fn start_whatsapp_gateway(kernel: &Arc<super::kernel::FreecoKernel>) {
     // Only start if WhatsApp is configured
     let wa_config = match &kernel.config.channels.whatsapp {
         Some(cfg) => cfg.clone(),
@@ -277,7 +277,7 @@ mod tests {
         assert_ne!(GATEWAY_INDEX_JS, "");
         assert_ne!(GATEWAY_PACKAGE_JSON, "");
         assert!(GATEWAY_INDEX_JS.contains("WhatsApp"));
-        assert!(GATEWAY_PACKAGE_JSON.contains("@openfang/whatsapp-gateway"));
+        assert!(GATEWAY_PACKAGE_JSON.contains("@freeco/whatsapp-gateway"));
     }
 
     #[test]
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_write_if_changed_creates_new_file() {
-        let tmp = std::env::temp_dir().join("openfang_test_gateway");
+        let tmp = std::env::temp_dir().join("freeco_test_gateway");
         let _ = std::fs::create_dir_all(&tmp);
         let path = tmp.join("test_write.js");
         let hash_path = path.with_extension("hash");

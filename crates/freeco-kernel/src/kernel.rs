@@ -1,4 +1,4 @@
-//! OpenFangKernel — assembles all subsystems and provides the main API.
+//! FreecoKernel — assembles all subsystems and provides the main API.
 
 use crate::auth::AuthManager;
 use crate::background::{self, BackgroundExecutor};
@@ -26,21 +26,21 @@ use freeco_kernel_runtime::python_runtime::{self, PythonConfig};
 use freeco_kernel_runtime::routing::ModelRouter;
 use freeco_kernel_runtime::sandbox::{SandboxConfig, WasmSandbox};
 use freeco_kernel_runtime::tool_runner::builtin_tool_definitions;
-use openfang_memory::MemorySubstrate;
-use openfang_types::agent::*;
-use openfang_types::capability::Capability;
-use openfang_types::config::{KernelConfig, OutputFormat};
-use openfang_types::error::OpenFangError;
-use openfang_types::event::*;
-use openfang_types::memory::Memory;
-use openfang_types::tool::ToolDefinition;
+use freeco_memory::MemorySubstrate;
+use freeco_types::agent::*;
+use freeco_types::capability::Capability;
+use freeco_types::config::{KernelConfig, OutputFormat};
+use freeco_types::error::FreecoError;
+use freeco_types::event::*;
+use freeco_types::memory::Memory;
+use freeco_types::tool::ToolDefinition;
 
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, Weak};
 use tracing::{debug, info, warn};
 
-/// The main OpenFang kernel — coordinates all subsystems.
+/// The main Freeco kernel — coordinates all subsystems.
 /// Stub LLM driver used when no providers are configured.
 /// Returns a helpful error so the dashboard still boots and users can configure providers.
 struct StubDriver;
@@ -57,7 +57,7 @@ impl LlmDriver for StubDriver {
     }
 }
 
-pub struct OpenFangKernel {
+pub struct FreecoKernel {
     /// Kernel configuration.
     pub config: KernelConfig,
     /// Agent registry.
@@ -91,7 +91,7 @@ pub struct OpenFangKernel {
     /// Model catalog registry (RwLock for auth status refresh from API).
     pub model_catalog: std::sync::RwLock<freeco_kernel_runtime::model_catalog::ModelCatalog>,
     /// Skill registry for plugin skills (RwLock for hot-reload on install/uninstall).
-    pub skill_registry: std::sync::RwLock<openfang_skills::registry::SkillRegistry>,
+    pub skill_registry: std::sync::RwLock<freeco_skills::registry::SkillRegistry>,
     /// Per-skill config overrides applied on top of `self.config.skills`.
     ///
     /// Written by the API (`PUT /api/skills/{id}/config`) so the user's edits
@@ -125,15 +125,15 @@ pub struct OpenFangKernel {
     pub embedding_driver:
         Option<Arc<dyn freeco_kernel_runtime::embedding::EmbeddingDriver + Send + Sync>>,
     /// Hand registry — curated autonomous capability packages.
-    pub hand_registry: openfang_hands::registry::HandRegistry,
+    pub hand_registry: freeco_hands::registry::HandRegistry,
     /// Credential resolver — vault → dotenv → env var priority chain.
-    pub credential_resolver: std::sync::Mutex<openfang_extensions::credentials::CredentialResolver>,
+    pub credential_resolver: std::sync::Mutex<freeco_extensions::credentials::CredentialResolver>,
     /// Extension/integration registry (bundled MCP templates + install state).
-    pub extension_registry: std::sync::RwLock<openfang_extensions::registry::IntegrationRegistry>,
+    pub extension_registry: std::sync::RwLock<freeco_extensions::registry::IntegrationRegistry>,
     /// Integration health monitor.
-    pub extension_health: openfang_extensions::health::HealthMonitor,
+    pub extension_health: freeco_extensions::health::HealthMonitor,
     /// Effective MCP server list (manual config + extension-installed, merged at boot).
-    pub effective_mcp_servers: std::sync::RwLock<Vec<openfang_types::config::McpServerConfigEntry>>,
+    pub effective_mcp_servers: std::sync::RwLock<Vec<freeco_types::config::McpServerConfigEntry>>,
     /// Delivery receipt tracker (bounded LRU, max 10K entries).
     pub delivery_tracker: DeliveryTracker,
     /// Cron job scheduler.
@@ -141,9 +141,9 @@ pub struct OpenFangKernel {
     /// Execution approval manager.
     pub approval_manager: crate::approval::ApprovalManager,
     /// Agent bindings for multi-account routing (Mutex for runtime add/remove).
-    pub bindings: std::sync::Mutex<Vec<openfang_types::config::AgentBinding>>,
+    pub bindings: std::sync::Mutex<Vec<freeco_types::config::AgentBinding>>,
     /// Broadcast configuration.
-    pub broadcast: openfang_types::config::BroadcastConfig,
+    pub broadcast: freeco_types::config::BroadcastConfig,
     /// Auto-reply engine.
     pub auto_reply_engine: crate::auto_reply::AutoReplyEngine,
     /// Plugin lifecycle hook registry.
@@ -151,19 +151,19 @@ pub struct OpenFangKernel {
     /// Persistent process manager for interactive sessions (REPLs, servers).
     pub process_manager: Arc<freeco_kernel_runtime::process_manager::ProcessManager>,
     /// OFP peer registry — tracks connected peers (OnceLock for safe init after Arc creation).
-    pub peer_registry: OnceLock<openfang_wire::PeerRegistry>,
+    pub peer_registry: OnceLock<freeco_wire::PeerRegistry>,
     /// OFP peer node — the local networking node (OnceLock for safe init after Arc creation).
-    pub peer_node: OnceLock<Arc<openfang_wire::PeerNode>>,
+    pub peer_node: OnceLock<Arc<freeco_wire::PeerNode>>,
     /// Boot timestamp for uptime calculation.
     pub booted_at: std::time::Instant,
     /// WhatsApp Web gateway child process PID (for shutdown cleanup).
     pub whatsapp_gateway_pid: Arc<std::sync::Mutex<Option<u32>>>,
     /// Channel adapters registered at bridge startup (for proactive `channel_send` tool).
     pub channel_adapters:
-        dashmap::DashMap<String, Arc<dyn openfang_channels::types::ChannelAdapter>>,
+        dashmap::DashMap<String, Arc<dyn freeco_channels::types::ChannelAdapter>>,
     /// Hot-reloadable default model override (set via config hot-reload, read at agent spawn).
     pub default_model_override:
-        std::sync::RwLock<Option<openfang_types::config::DefaultModelConfig>>,
+        std::sync::RwLock<Option<freeco_types::config::DefaultModelConfig>>,
     /// Hot-reloadable fallback provider chain override.
     ///
     /// Set by `apply_hot_actions(ReloadFallbackProviders)` when
@@ -173,19 +173,19 @@ pub struct OpenFangKernel {
     /// driver build without a daemon bounce. `None` means "fall back to the
     /// boot-time `self.config.fallback_providers`". (#1129)
     pub fallback_providers_override:
-        std::sync::RwLock<Option<Vec<openfang_types::config::FallbackProviderConfig>>>,
+        std::sync::RwLock<Option<Vec<freeco_types::config::FallbackProviderConfig>>>,
     /// Per-agent message locks — serializes LLM calls for the same agent to prevent
     /// session corruption when multiple messages arrive concurrently (e.g. rapid voice
     /// messages via Telegram). Different agents can still run in parallel.
     agent_msg_locks: dashmap::DashMap<AgentId, Arc<tokio::sync::Mutex<()>>>,
     /// Weak self-reference for trigger dispatch (set after Arc wrapping).
-    self_handle: OnceLock<Weak<OpenFangKernel>>,
+    self_handle: OnceLock<Weak<FreecoKernel>>,
 }
 
 /// Bounded in-memory delivery receipt tracker.
 /// Stores up to `MAX_RECEIPTS` most recent delivery receipts per agent.
 pub struct DeliveryTracker {
-    receipts: dashmap::DashMap<AgentId, Vec<openfang_channels::types::DeliveryReceipt>>,
+    receipts: dashmap::DashMap<AgentId, Vec<freeco_channels::types::DeliveryReceipt>>,
 }
 
 impl Default for DeliveryTracker {
@@ -206,7 +206,7 @@ impl DeliveryTracker {
     }
 
     /// Record a delivery receipt for an agent.
-    pub fn record(&self, agent_id: AgentId, receipt: openfang_channels::types::DeliveryReceipt) {
+    pub fn record(&self, agent_id: AgentId, receipt: freeco_channels::types::DeliveryReceipt) {
         let mut entry = self.receipts.entry(agent_id).or_default();
         entry.push(receipt);
         // Per-agent cap
@@ -232,7 +232,7 @@ impl DeliveryTracker {
         &self,
         agent_id: AgentId,
         limit: usize,
-    ) -> Vec<openfang_channels::types::DeliveryReceipt> {
+    ) -> Vec<freeco_channels::types::DeliveryReceipt> {
         self.receipts
             .get(&agent_id)
             .map(|entries| entries.iter().rev().take(limit).cloned().collect())
@@ -243,12 +243,12 @@ impl DeliveryTracker {
     pub fn sent_receipt(
         channel: &str,
         recipient: &str,
-    ) -> openfang_channels::types::DeliveryReceipt {
-        openfang_channels::types::DeliveryReceipt {
+    ) -> freeco_channels::types::DeliveryReceipt {
+        freeco_channels::types::DeliveryReceipt {
             message_id: uuid::Uuid::new_v4().to_string(),
             channel: channel.to_string(),
             recipient: Self::sanitize_recipient(recipient),
-            status: openfang_channels::types::DeliveryStatus::Sent,
+            status: freeco_channels::types::DeliveryStatus::Sent,
             timestamp: chrono::Utc::now(),
             error: None,
         }
@@ -259,12 +259,12 @@ impl DeliveryTracker {
         channel: &str,
         recipient: &str,
         error: &str,
-    ) -> openfang_channels::types::DeliveryReceipt {
-        openfang_channels::types::DeliveryReceipt {
+    ) -> freeco_channels::types::DeliveryReceipt {
+        freeco_channels::types::DeliveryReceipt {
             message_id: uuid::Uuid::new_v4().to_string(),
             channel: channel.to_string(),
             recipient: Self::sanitize_recipient(recipient),
-            status: openfang_channels::types::DeliveryStatus::Failed,
+            status: freeco_channels::types::DeliveryStatus::Failed,
             timestamp: chrono::Utc::now(),
             // Sanitize error: no credentials, max 256 chars
             error: Some(
@@ -290,12 +290,12 @@ impl DeliveryTracker {
 
 /// Create the agent's private state directory layout. Holds identity files,
 /// AGENT.json, sessions/, memory/, and logs/. Lives under
-/// `~/.openfang/workspaces/{name}/` regardless of where the user pointed the
+/// `~/.freeco-ai/workspaces/{name}/` regardless of where the user pointed the
 /// user-facing workspace. See issue #1097.
 fn ensure_state_dir(state_dir: &Path, workspace: &Path) -> KernelResult<()> {
     for subdir in &["sessions", "logs", "memory"] {
         std::fs::create_dir_all(state_dir.join(subdir)).map_err(|e| {
-            KernelError::OpenFang(OpenFangError::Internal(format!(
+            KernelError::Freeco(FreecoError::Internal(format!(
                 "Failed to create state dir {}/{subdir}: {e}",
                 state_dir.display()
             )))
@@ -321,7 +321,7 @@ fn ensure_state_dir(state_dir: &Path, workspace: &Path) -> KernelResult<()> {
 fn ensure_workspace(workspace: &Path) -> KernelResult<()> {
     for subdir in &["data", "output", "skills"] {
         std::fs::create_dir_all(workspace.join(subdir)).map_err(|e| {
-            KernelError::OpenFang(OpenFangError::Internal(format!(
+            KernelError::Freeco(FreecoError::Internal(format!(
                 "Failed to create workspace dir {}/{subdir}: {e}",
                 workspace.display()
             )))
@@ -486,7 +486,7 @@ fn append_daily_memory_log(state_dir: &Path, response: &str) {
         }
     }
     // Truncate long responses for the log (UTF-8 safe)
-    let summary = openfang_types::truncate_str(trimmed, 500);
+    let summary = freeco_types::truncate_str(trimmed, 500);
     let timestamp = chrono::Utc::now().format("%H:%M:%S").to_string();
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
@@ -520,7 +520,7 @@ fn read_identity_file(state_dir: &Path, filename: &str) -> Option<String> {
         return None;
     }
     if content.len() > MAX_IDENTITY_FILE_BYTES {
-        Some(openfang_types::truncate_str(&content, MAX_IDENTITY_FILE_BYTES).to_string())
+        Some(freeco_types::truncate_str(&content, MAX_IDENTITY_FILE_BYTES).to_string())
     } else {
         Some(content)
     }
@@ -546,7 +546,7 @@ fn gethostname() -> Option<String> {
     }
 }
 
-impl OpenFangKernel {
+impl FreecoKernel {
     /// Boot the kernel with configuration from the given path.
     pub fn boot(config_path: Option<&Path>) -> KernelResult<Self> {
         let config = load_config(config_path);
@@ -555,10 +555,10 @@ impl OpenFangKernel {
 
     /// Fetch live Copilot models by exchanging the persisted token and querying the API.
     /// Works both inside and outside a tokio runtime.
-    fn fetch_copilot_models(openfang_dir: &Path) -> Result<Vec<String>, String> {
+    fn fetch_copilot_models(freeco_dir: &Path) -> Result<Vec<String>, String> {
         use freeco_kernel_runtime::drivers::copilot;
 
-        let tokens = copilot::PersistedTokens::load(openfang_dir)
+        let tokens = copilot::PersistedTokens::load(freeco_dir)
             .ok_or("No persisted Copilot tokens found")?;
 
         let fetch = async {
@@ -595,12 +595,12 @@ impl OpenFangKernel {
             debug!("rustls crypto provider already installed, skipping");
         }
 
-        use openfang_types::config::KernelMode;
+        use freeco_types::config::KernelMode;
 
         // Env var overrides — useful for Docker where config.toml is baked in.
         if let Ok(listen) = std::env::var("FREECO_AI_LISTEN")
             .or_else(|_| std::env::var("FRECO_AI_LISTEN"))
-            .or_else(|_| std::env::var("OPENFANG_LISTEN"))
+            .or_else(|_| std::env::var("FREECO_AI_LISTEN"))
         {
             config.api_listen = listen;
         }
@@ -610,7 +610,7 @@ impl OpenFangKernel {
         // remain valid for existing installations.
         if config.api_key.trim().is_empty() {
             if let Ok(key) =
-                std::env::var("FREECO_AI_API_KEY").or_else(|_| std::env::var("OPENFANG_API_KEY"))
+                std::env::var("FREECO_AI_API_KEY").or_else(|_| std::env::var("FREECO_AI_API_KEY"))
             {
                 let key = key.trim().to_string();
                 if !key.is_empty() {
@@ -625,13 +625,13 @@ impl OpenFangKernel {
 
         match config.mode {
             KernelMode::Stable => {
-                info!("Booting OpenFang kernel in STABLE mode — conservative defaults enforced");
+                info!("Booting Freeco kernel in STABLE mode — conservative defaults enforced");
             }
             KernelMode::Dev => {
-                warn!("Booting OpenFang kernel in DEV mode — experimental features enabled");
+                warn!("Booting Freeco kernel in DEV mode — experimental features enabled");
             }
             KernelMode::Default => {
-                info!("Booting OpenFang kernel...");
+                info!("Booting Freeco kernel...");
             }
         }
 
@@ -650,7 +650,7 @@ impl OpenFangKernel {
             .memory
             .sqlite_path
             .clone()
-            .unwrap_or_else(|| config.data_dir.join("openfang.db"));
+            .unwrap_or_else(|| config.data_dir.join("freeco.db"));
         let memory = Arc::new(
             MemorySubstrate::open(&db_path, config.memory.decay_rate, &config.memory)
                 .map_err(|e| KernelError::BootFailed(format!("Memory init failed: {e}")))?,
@@ -660,7 +660,7 @@ impl OpenFangKernel {
         let credential_resolver = {
             let vault_path = config.home_dir.join("vault.enc");
             let vault = if vault_path.exists() {
-                let mut v = openfang_extensions::vault::CredentialVault::new(vault_path);
+                let mut v = freeco_extensions::vault::CredentialVault::new(vault_path);
                 match v.unlock() {
                     Ok(()) => {
                         info!("Credential vault unlocked ({} entries)", v.len());
@@ -675,7 +675,7 @@ impl OpenFangKernel {
                 None
             };
             let dotenv_path = config.home_dir.join(".env");
-            openfang_extensions::credentials::CredentialResolver::new(vault, Some(&dotenv_path))
+            freeco_extensions::credentials::CredentialResolver::new(vault, Some(&dotenv_path))
         };
 
         // Create LLM driver.
@@ -814,7 +814,7 @@ impl OpenFangKernel {
 
         // Initialize metering engine (shares the same SQLite connection as the memory substrate)
         let metering = Arc::new(MeteringEngine::new(Arc::new(
-            openfang_memory::usage::UsageStore::new(memory.usage_conn()),
+            freeco_memory::usage::UsageStore::new(memory.usage_conn()),
         )));
 
         let supervisor = Supervisor::new();
@@ -843,7 +843,7 @@ impl OpenFangKernel {
                 config.provider_urls.len()
             );
         }
-        // Load user's custom models from ~/.openfang/custom_models.json
+        // Load user's custom models from ~/.freeco-ai/custom_models.json
         let custom_models_path = config.home_dir.join("custom_models.json");
         model_catalog.load_custom_models(&custom_models_path);
 
@@ -874,7 +874,7 @@ impl OpenFangKernel {
 
         // Initialize skill registry
         let skills_dir = config.home_dir.join("skills");
-        let mut skill_registry = openfang_skills::registry::SkillRegistry::new(skills_dir);
+        let mut skill_registry = freeco_skills::registry::SkillRegistry::new(skills_dir);
         // Install user-supplied per-skill config from `[skills.<name>]` sections
         // before loading so the loader can resolve declared config frontmatter.
         skill_registry.set_skill_configs(config.skills.clone());
@@ -902,14 +902,14 @@ impl OpenFangKernel {
         }
 
         // Initialize hand registry (curated autonomous packages)
-        let hand_registry = openfang_hands::registry::HandRegistry::new();
+        let hand_registry = freeco_hands::registry::HandRegistry::new();
         let hand_count = hand_registry.load_bundled();
         if hand_count > 0 {
             info!("Loaded {hand_count} bundled hand(s)");
         }
 
         // Load custom hands from the user's workspace (issue #984).
-        // Hands installed via `openfang hand install <path>` are persisted to
+        // Hands installed via `freeco hand install <path>` are persisted to
         // `<home>/hands/<hand_id>/` so they survive daemon restarts.
         let workspace_hands_dir = config.home_dir.join("hands");
         match hand_registry.load_workspace_hands(&workspace_hands_dir) {
@@ -927,7 +927,7 @@ impl OpenFangKernel {
 
         // Initialize extension/integration registry
         let mut extension_registry =
-            openfang_extensions::registry::IntegrationRegistry::new(&config.home_dir);
+            freeco_extensions::registry::IntegrationRegistry::new(&config.home_dir);
         let ext_bundled = extension_registry.load_bundled();
         match extension_registry.load_installed() {
             Ok(count) => {
@@ -955,13 +955,13 @@ impl OpenFangKernel {
         }
 
         // Initialize integration health monitor
-        let health_config = openfang_extensions::health::HealthMonitorConfig {
+        let health_config = freeco_extensions::health::HealthMonitorConfig {
             auto_reconnect: config.extensions.auto_reconnect,
             max_reconnect_attempts: config.extensions.reconnect_max_attempts,
             max_backoff_secs: config.extensions.reconnect_max_backoff_secs,
             check_interval_secs: config.extensions.health_check_interval_secs,
         };
-        let extension_health = openfang_extensions::health::HealthMonitor::new(health_config);
+        let extension_health = freeco_extensions::health::HealthMonitor::new(health_config);
         // Register all installed integrations for health monitoring
         for inst in extension_registry.to_mcp_configs() {
             extension_health.register(&inst.name);
@@ -1243,7 +1243,7 @@ impl OpenFangKernel {
         // for every subsequent install/upsert/reload.
         {
             let audit_log_initial = Arc::clone(&kernel.audit_log);
-            for (hand_id, toml_content, _skill) in openfang_hands::bundled::bundled_hands() {
+            for (hand_id, toml_content, _skill) in freeco_hands::bundled::bundled_hands() {
                 use sha2::{Digest, Sha256};
                 let mut hasher = Sha256::new();
                 hasher.update(toml_content.as_bytes());
@@ -1297,7 +1297,7 @@ impl OpenFangKernel {
                     if toml_path.exists() {
                         match std::fs::read_to_string(&toml_path) {
                             Ok(toml_str) => {
-                                match toml::from_str::<openfang_types::agent::AgentManifest>(
+                                match toml::from_str::<freeco_types::agent::AgentManifest>(
                                     &toml_str,
                                 ) {
                                     Ok(disk_manifest) => {
@@ -1474,7 +1474,7 @@ impl OpenFangKernel {
             }
         }
 
-        // Issue #1140: auto-spawn agents from `~/.openfang/agents/<name>/agent.toml`
+        // Issue #1140: auto-spawn agents from `~/.freeco-ai/agents/<name>/agent.toml`
         // that are present on disk but not yet in the registry. Without this,
         // user-placed agent dirs never appear in `GET /api/agents` (and thus
         // the chat tab's dropdown) until they are explicitly spawned via API
@@ -1514,7 +1514,7 @@ impl OpenFangKernel {
                                 continue;
                             }
                         };
-                        let mut manifest: openfang_types::agent::AgentManifest =
+                        let mut manifest: freeco_types::agent::AgentManifest =
                             match toml::from_str(&toml_str) {
                                 Ok(m) => m,
                                 Err(e) => {
@@ -1550,7 +1550,7 @@ impl OpenFangKernel {
                         // Existing agents are unaffected: they are restored from
                         // the database above with their stored ids, and this
                         // branch only runs for agents not already registered.
-                        let stable_id = openfang_types::agent::AgentId::from_string(&format!(
+                        let stable_id = freeco_types::agent::AgentId::from_string(&format!(
                             "agent-dir:{dir_name}"
                         ));
                         match kernel.spawn_agent_with_parent(manifest, None, Some(stable_id)) {
@@ -1559,7 +1559,7 @@ impl OpenFangKernel {
                                 info!(
                                     agent = %dir_name,
                                     id = %id,
-                                    "Auto-spawned agent from ~/.openfang/agents"
+                                    "Auto-spawned agent from ~/.freeco-ai/agents"
                                 );
                             }
                             Err(e) => {
@@ -1572,7 +1572,7 @@ impl OpenFangKernel {
                     }
                 }
                 if auto_spawned > 0 {
-                    info!("Auto-spawned {auto_spawned} agent(s) from ~/.openfang/agents");
+                    info!("Auto-spawned {auto_spawned} agent(s) from ~/.freeco-ai/agents");
                 }
             }
         }
@@ -1584,7 +1584,7 @@ impl OpenFangKernel {
             let manifest = AgentManifest {
                 name: "assistant".to_string(),
                 description: "General-purpose assistant".to_string(),
-                model: openfang_types::agent::ModelConfig {
+                model: freeco_types::agent::ModelConfig {
                     provider: dm.provider.clone(),
                     model: dm.model.clone(),
                     system_prompt: "You are a helpful AI assistant.".to_string(),
@@ -1601,7 +1601,7 @@ impl OpenFangKernel {
             // Same reasoning as the on-disk agents above: the built-in
             // assistant must come back with the same id after a reinstall, or
             // it loses every conversation the user ever had with it.
-            let stable_id = openfang_types::agent::AgentId::from_string("builtin:assistant");
+            let stable_id = freeco_types::agent::AgentId::from_string("builtin:assistant");
             match kernel.spawn_agent_with_parent(manifest, None, Some(stable_id)) {
                 Ok(id) => info!(id = %id, "Default assistant spawned"),
                 Err(e) => warn!("Failed to spawn default assistant: {e}"),
@@ -1623,7 +1623,7 @@ impl OpenFangKernel {
             }
         }
 
-        info!("OpenFang kernel booted successfully");
+        info!("Freeco kernel booted successfully");
         Ok(kernel)
     }
 
@@ -1650,7 +1650,7 @@ impl OpenFangKernel {
         let session = self
             .memory
             .create_session(agent_id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
         let session_id = session.id;
 
         // Inherit kernel exec_policy as fallback if agent manifest doesn't have one
@@ -1727,7 +1727,7 @@ impl OpenFangKernel {
         // Apply global budget defaults to agent resource quotas
         apply_budget_defaults(&self.config.budget, &mut manifest.resources);
 
-        // Agent private state always lives under ~/.openfang/workspaces/{name}/.
+        // Agent private state always lives under ~/.freeco-ai/workspaces/{name}/.
         // This is name-based so SOUL.md and per-agent memory survive recreation
         // and never get dumped into a user-supplied workspace path. See #1097.
         let state_dir = manifest
@@ -1778,7 +1778,7 @@ impl OpenFangKernel {
         };
         self.registry
             .register(entry.clone())
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         // Update parent's children list
         if let Some(parent_id) = parent {
@@ -1788,7 +1788,7 @@ impl OpenFangKernel {
         // Persist agent to SQLite so it survives restarts
         self.memory
             .save_agent(&entry)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         info!(agent = %name, id = %agent_id, "Agent spawned");
 
@@ -1833,14 +1833,14 @@ impl OpenFangKernel {
     /// Call this before `spawn_agent` when a `SignedManifest` JSON is provided
     /// alongside the TOML. Returns the verified manifest TOML string on success.
     pub fn verify_signed_manifest(&self, signed_json: &str) -> KernelResult<String> {
-        let signed: openfang_types::manifest_signing::SignedManifest =
+        let signed: freeco_types::manifest_signing::SignedManifest =
             serde_json::from_str(signed_json).map_err(|e| {
-                KernelError::OpenFang(openfang_types::error::OpenFangError::Config(format!(
+                KernelError::Freeco(freeco_types::error::FreecoError::Config(format!(
                     "Invalid signed manifest JSON: {e}"
                 )))
             })?;
         signed.verify().map_err(|e| {
-            KernelError::OpenFang(openfang_types::error::OpenFangError::Config(format!(
+            KernelError::Freeco(freeco_types::error::FreecoError::Config(format!(
                 "Manifest signature verification failed: {e}"
             )))
         })?;
@@ -1875,7 +1875,7 @@ impl OpenFangKernel {
         &self,
         agent_id: AgentId,
         message: &str,
-        blocks: Vec<openfang_types::message::ContentBlock>,
+        blocks: Vec<freeco_types::message::ContentBlock>,
     ) -> KernelResult<AgentLoopResult> {
         let handle: Option<Arc<dyn KernelHandle>> = self
             .self_handle
@@ -1927,7 +1927,7 @@ impl OpenFangKernel {
         agent_id: AgentId,
         message: &str,
         kernel_handle: Option<Arc<dyn KernelHandle>>,
-        content_blocks: Option<Vec<openfang_types::message::ContentBlock>>,
+        content_blocks: Option<Vec<freeco_types::message::ContentBlock>>,
         sender_id: Option<String>,
         sender_name: Option<String>,
     ) -> KernelResult<AgentLoopResult> {
@@ -1945,10 +1945,10 @@ impl OpenFangKernel {
         // Enforce quota before running the agent loop
         self.scheduler
             .check_quota(agent_id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         // Dispatch based on module type
@@ -1974,7 +1974,7 @@ impl OpenFangKernel {
                 silent: false,
                 directives: Default::default(),
             })
-            .map_err(|e| KernelError::OpenFang(OpenFangError::Internal(e)))
+            .map_err(|e| KernelError::Freeco(FreecoError::Internal(e)))
         } else {
             // Default: LLM agent loop (builtin:chat or any unrecognized module)
             self.execute_llm_agent(
@@ -2042,7 +2042,7 @@ impl OpenFangKernel {
         kernel_handle: Option<Arc<dyn KernelHandle>>,
         sender_id: Option<String>,
         sender_name: Option<String>,
-        content_blocks: Option<Vec<openfang_types::message::ContentBlock>>,
+        content_blocks: Option<Vec<freeco_types::message::ContentBlock>>,
     ) -> KernelResult<(
         tokio::sync::mpsc::Receiver<StreamEvent>,
         tokio::task::JoinHandle<KernelResult<AgentLoopResult>>,
@@ -2050,10 +2050,10 @@ impl OpenFangKernel {
         // Enforce quota before spawning the streaming task
         self.scheduler
             .check_quota(agent_id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         let is_wasm = entry.manifest.module.starts_with("wasm:");
@@ -2087,7 +2087,7 @@ impl OpenFangKernel {
                             .await;
                         let _ = tx
                             .send(StreamEvent::ContentComplete {
-                                stop_reason: openfang_types::message::StopReason::EndTurn,
+                                stop_reason: freeco_types::message::StopReason::EndTurn,
                                 usage: result.total_usage,
                             })
                             .await;
@@ -2114,8 +2114,8 @@ impl OpenFangKernel {
         let mut session = self
             .memory
             .get_session(entry.session_id)
-            .map_err(KernelError::OpenFang)?
-            .unwrap_or_else(|| openfang_memory::session::Session {
+            .map_err(KernelError::Freeco)?
+            .unwrap_or_else(|| freeco_memory::session::Session {
                 id: entry.session_id,
                 agent_id,
                 messages: Vec::new(),
@@ -2177,7 +2177,7 @@ impl OpenFangKernel {
 
         // Lazy backfill: create state_dir and workspace for existing agents
         // spawned before this field existed. Private state always lives under
-        // ~/.openfang/workspaces/{name}/; the user-facing workspace defaults
+        // ~/.freeco-ai/workspaces/{name}/; the user-facing workspace defaults
         // to the same path unless the manifest already pinned one. See #1097.
         if manifest.state_dir.is_none() {
             let state_dir = self.config.effective_workspaces_dir().join(&manifest.name);
@@ -2203,7 +2203,7 @@ impl OpenFangKernel {
         }
 
         // Build workspace-aware skill snapshot BEFORE tool list and prompt building.
-        // Loading order: bundled → global (~/.openfang/skills) → workspace skills.
+        // Loading order: bundled → global (~/.freeco-ai/skills) → workspace skills.
         // Each layer overrides duplicates from the previous layer. (#851, #808)
         let skill_snapshot = {
             let mut snapshot = self
@@ -2487,7 +2487,7 @@ impl OpenFangKernel {
                     );
                     let _ = kernel_clone
                         .metering
-                        .record(&openfang_memory::usage::UsageRecord {
+                        .record(&freeco_memory::usage::UsageRecord {
                             agent_id,
                             model: model.clone(),
                             input_tokens: result.total_usage.input_tokens,
@@ -2524,7 +2524,7 @@ impl OpenFangKernel {
                 Err(e) => {
                     kernel_clone.supervisor.record_panic();
                     warn!(agent_id = %agent_id, error = %e, "Streaming agent loop failed");
-                    Err(KernelError::OpenFang(e))
+                    Err(KernelError::Freeco(e))
                 }
             }
         });
@@ -2555,7 +2555,7 @@ impl OpenFangKernel {
         info!(agent = %entry.name, path = %wasm_path.display(), "Executing WASM agent");
 
         let wasm_bytes = std::fs::read(&wasm_path).map_err(|e| {
-            KernelError::OpenFang(OpenFangError::Internal(format!(
+            KernelError::Freeco(FreecoError::Internal(format!(
                 "Failed to read WASM module '{}': {e}",
                 wasm_path.display()
             )))
@@ -2588,7 +2588,7 @@ impl OpenFangKernel {
             )
             .await
             .map_err(|e| {
-                KernelError::OpenFang(OpenFangError::Internal(format!(
+                KernelError::Freeco(FreecoError::Internal(format!(
                     "WASM execution failed: {e}"
                 )))
             })?;
@@ -2611,7 +2611,7 @@ impl OpenFangKernel {
 
         Ok(AgentLoopResult {
             response,
-            total_usage: openfang_types::message::TokenUsage {
+            total_usage: freeco_types::message::TokenUsage {
                 input_tokens: 0,
                 output_tokens: 0,
             },
@@ -2662,7 +2662,7 @@ impl OpenFangKernel {
         )
         .await
         .map_err(|e| {
-            KernelError::OpenFang(OpenFangError::Internal(format!(
+            KernelError::Freeco(FreecoError::Internal(format!(
                 "Python execution failed: {e}"
             )))
         })?;
@@ -2671,7 +2671,7 @@ impl OpenFangKernel {
 
         Ok(AgentLoopResult {
             response: result.response,
-            total_usage: openfang_types::message::TokenUsage {
+            total_usage: freeco_types::message::TokenUsage {
                 input_tokens: 0,
                 output_tokens: 0,
             },
@@ -2690,20 +2690,20 @@ impl OpenFangKernel {
         agent_id: AgentId,
         message: &str,
         kernel_handle: Option<Arc<dyn KernelHandle>>,
-        content_blocks: Option<Vec<openfang_types::message::ContentBlock>>,
+        content_blocks: Option<Vec<freeco_types::message::ContentBlock>>,
         sender_id: Option<String>,
         sender_name: Option<String>,
     ) -> KernelResult<AgentLoopResult> {
         // Check metering quota before starting
         self.metering
             .check_quota(agent_id, &entry.manifest.resources)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         let mut session = self
             .memory
             .get_session(entry.session_id)
-            .map_err(KernelError::OpenFang)?
-            .unwrap_or_else(|| openfang_memory::session::Session {
+            .map_err(KernelError::Freeco)?
+            .unwrap_or_else(|| freeco_memory::session::Session {
                 id: entry.session_id,
                 agent_id,
                 messages: Vec::new(),
@@ -2753,7 +2753,7 @@ impl OpenFangKernel {
         let mut manifest = entry.manifest.clone();
 
         // Lazy backfill: create state_dir and workspace for existing agents.
-        // Private state lives under ~/.openfang/workspaces/{name}/. User-facing
+        // Private state lives under ~/.freeco-ai/workspaces/{name}/. User-facing
         // workspace stays at whatever the manifest pinned (or defaults to the
         // state_dir). See issue #1097.
         if manifest.state_dir.is_none() {
@@ -2780,7 +2780,7 @@ impl OpenFangKernel {
         }
 
         // Build workspace-aware skill snapshot BEFORE tool list and prompt building.
-        // Loading order: bundled → global (~/.openfang/skills) → workspace skills.
+        // Loading order: bundled → global (~/.freeco-ai/skills) → workspace skills.
         // Each layer overrides duplicates from the previous layer. (#851, #808)
         let skill_snapshot = {
             let mut snapshot = self
@@ -2930,7 +2930,7 @@ impl OpenFangKernel {
             }
         }
 
-        let is_stable = self.config.mode == openfang_types::config::KernelMode::Stable;
+        let is_stable = self.config.mode == freeco_types::config::KernelMode::Stable;
 
         if is_stable {
             // In Stable mode: use pinned_model if set, otherwise default model
@@ -2949,7 +2949,7 @@ impl OpenFangKernel {
             // Build a probe request to score complexity
             let probe = CompletionRequest {
                 model: strip_provider_prefix(&manifest.model.model, &manifest.model.provider),
-                messages: vec![openfang_types::message::Message::user(message)],
+                messages: vec![freeco_types::message::Message::user(message)],
                 tools: tools.clone(),
                 max_tokens: manifest.model.max_tokens,
                 temperature: manifest.model.temperature,
@@ -2961,12 +2961,12 @@ impl OpenFangKernel {
             let catalog = self.model_catalog.read().unwrap_or_else(|e| e.into_inner());
             let decision = router
                 .select_policy_model(&probe, &catalog, contains_sensitive_data)
-                .map_err(|error| KernelError::OpenFang(OpenFangError::InvalidInput(error)))?;
+                .map_err(|error| KernelError::Freeco(FreecoError::InvalidInput(error)))?;
             drop(catalog);
             let complexity = decision.complexity;
             let routed_model = decision.model;
             if decision.requires_confirmation {
-                return Err(KernelError::OpenFang(OpenFangError::InvalidInput(
+                return Err(KernelError::Freeco(FreecoError::InvalidInput(
                     "frontier model routing requires explicit user confirmation".to_string(),
                 )));
             }
@@ -3042,7 +3042,7 @@ impl OpenFangKernel {
             content_blocks,
         )
         .await
-        .map_err(KernelError::OpenFang)?;
+        .map_err(KernelError::Freeco)?;
 
         // Append new messages to canonical session for cross-channel memory
         if session.messages.len() > messages_before {
@@ -3073,7 +3073,7 @@ impl OpenFangKernel {
             result.total_usage.input_tokens,
             result.total_usage.output_tokens,
         );
-        let _ = self.metering.record(&openfang_memory::usage::UsageRecord {
+        let _ = self.metering.record(&freeco_memory::usage::UsageRecord {
             agent_id,
             model: model.clone(),
             input_tokens: result.total_usage.input_tokens,
@@ -3085,14 +3085,14 @@ impl OpenFangKernel {
         // Populate cost on the result based on usage_footer mode
         let mut result = result;
         match self.config.usage_footer {
-            openfang_types::config::UsageFooterMode::Off => {
+            freeco_types::config::UsageFooterMode::Off => {
                 result.cost_usd = None;
             }
-            openfang_types::config::UsageFooterMode::Cost
-            | openfang_types::config::UsageFooterMode::Full => {
+            freeco_types::config::UsageFooterMode::Cost
+            | freeco_types::config::UsageFooterMode::Full => {
                 result.cost_usd = if cost > 0.0 { Some(cost) } else { None };
             }
-            openfang_types::config::UsageFooterMode::Tokens => {
+            freeco_types::config::UsageFooterMode::Tokens => {
                 // Tokens are already in result.total_usage, omit cost
                 result.cost_usd = None;
             }
@@ -3135,7 +3135,7 @@ impl OpenFangKernel {
     /// and creates a fresh session ID.
     pub fn reset_session(&self, agent_id: AgentId) -> KernelResult<()> {
         let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         // Auto-save session context to workspace memory before clearing
@@ -3152,12 +3152,12 @@ impl OpenFangKernel {
         let new_session = self
             .memory
             .create_session(agent_id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         // Update registry with new session ID
         self.registry
             .update_session_id(agent_id, new_session.id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         // Reset quota tracking so /new clears "token quota exceeded"
         self.scheduler.reset_usage(agent_id);
@@ -3171,7 +3171,7 @@ impl OpenFangKernel {
     /// Creates a fresh empty session afterward so the agent is still usable.
     pub fn clear_agent_history(&self, agent_id: AgentId) -> KernelResult<()> {
         let _entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         // Delete all regular sessions
@@ -3184,12 +3184,12 @@ impl OpenFangKernel {
         let new_session = self
             .memory
             .create_session(agent_id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         // Update registry with new session ID
         self.registry
             .update_session_id(agent_id, new_session.id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         info!(agent_id = %agent_id, "All agent history cleared");
         Ok(())
@@ -3199,13 +3199,13 @@ impl OpenFangKernel {
     pub fn list_agent_sessions(&self, agent_id: AgentId) -> KernelResult<Vec<serde_json::Value>> {
         // Verify agent exists
         let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         let mut sessions = self
             .memory
             .list_agent_sessions(agent_id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         // Mark the active session
         for s in &mut sessions {
@@ -3230,18 +3230,18 @@ impl OpenFangKernel {
     ) -> KernelResult<serde_json::Value> {
         // Verify agent exists
         let _entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         let session = self
             .memory
             .create_session_with_label(agent_id, label)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         // Switch to the new session
         self.registry
             .update_session_id(agent_id, session.id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         info!(agent_id = %agent_id, label = ?label, "Created new session");
 
@@ -3259,27 +3259,27 @@ impl OpenFangKernel {
     ) -> KernelResult<()> {
         // Verify agent exists
         let _entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         // Verify session exists and belongs to this agent
         let session = self
             .memory
             .get_session(session_id)
-            .map_err(KernelError::OpenFang)?
+            .map_err(KernelError::Freeco)?
             .ok_or_else(|| {
-                KernelError::OpenFang(OpenFangError::Internal("Session not found".to_string()))
+                KernelError::Freeco(FreecoError::Internal("Session not found".to_string()))
             })?;
 
         if session.agent_id != agent_id {
-            return Err(KernelError::OpenFang(OpenFangError::Internal(
+            return Err(KernelError::Freeco(FreecoError::Internal(
                 "Session belongs to a different agent".to_string(),
             )));
         }
 
         self.registry
             .update_session_id(agent_id, session_id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         info!(agent_id = %agent_id, session_id = %session_id.0, "Switched session");
         Ok(())
@@ -3290,9 +3290,9 @@ impl OpenFangKernel {
         &self,
         agent_id: AgentId,
         entry: &AgentEntry,
-        session: &openfang_memory::session::Session,
+        session: &freeco_memory::session::Session,
     ) {
-        use openfang_types::message::{MessageContent, Role};
+        use freeco_types::message::{MessageContent, Role};
 
         // Take last 10 messages (or all if fewer)
         let recent = &session.messages[session.messages.len().saturating_sub(10)..];
@@ -3331,7 +3331,7 @@ impl OpenFangKernel {
                 .take(5)
                 .enumerate()
                 .map(|(i, t)| {
-                    let truncated = openfang_types::truncate_str(t, 200);
+                    let truncated = freeco_types::truncate_str(t, 200);
                     format!("{}. {}", i + 1, truncated)
                 })
                 .collect::<Vec<_>>()
@@ -3491,12 +3491,12 @@ impl OpenFangKernel {
                     api_key_env,
                     None,
                 )
-                .map_err(KernelError::OpenFang)?;
+                .map_err(KernelError::Freeco)?;
             info!(agent_id = %agent_id, model = %normalized_model, provider = %provider, "Agent model+provider updated");
         } else {
             self.registry
                 .update_model(agent_id, normalized_model.clone())
-                .map_err(KernelError::OpenFang)?;
+                .map_err(KernelError::Freeco)?;
             info!(agent_id = %agent_id, model = %normalized_model, "Agent model updated (provider unchanged)");
         }
 
@@ -3526,7 +3526,7 @@ impl OpenFangKernel {
             let known = registry.skill_names();
             for name in &skills {
                 if !known.contains(name) {
-                    return Err(KernelError::OpenFang(OpenFangError::Internal(format!(
+                    return Err(KernelError::Freeco(FreecoError::Internal(format!(
                         "Unknown skill: {name}"
                     ))));
                 }
@@ -3535,7 +3535,7 @@ impl OpenFangKernel {
 
         self.registry
             .update_skills(agent_id, skills.clone())
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         if let Some(entry) = self.registry.get(agent_id) {
             let _ = self.memory.save_agent(&entry);
@@ -3564,7 +3564,7 @@ impl OpenFangKernel {
                 for name in &servers {
                     let normalized = freeco_kernel_runtime::mcp::normalize_name(name);
                     if !known_servers.contains(&normalized) {
-                        return Err(KernelError::OpenFang(OpenFangError::Internal(format!(
+                        return Err(KernelError::Freeco(FreecoError::Internal(format!(
                             "Unknown MCP server: {name}"
                         ))));
                     }
@@ -3574,7 +3574,7 @@ impl OpenFangKernel {
 
         self.registry
             .update_mcp_servers(agent_id, servers.clone())
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         if let Some(entry) = self.registry.get(agent_id) {
             let _ = self.memory.save_agent(&entry);
@@ -3593,7 +3593,7 @@ impl OpenFangKernel {
     ) -> KernelResult<()> {
         self.registry
             .update_tool_filters(agent_id, allowlist.clone(), blocklist.clone())
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         if let Some(entry) = self.registry.get(agent_id) {
             let _ = self.memory.save_agent(&entry);
@@ -3611,13 +3611,13 @@ impl OpenFangKernel {
     /// Get session token usage and estimated cost for an agent.
     pub fn session_usage_cost(&self, agent_id: AgentId) -> KernelResult<(u64, u64, f64)> {
         let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         let session = self
             .memory
             .get_session(entry.session_id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         let (input_tokens, output_tokens) = session
             .map(|s| {
@@ -3628,9 +3628,9 @@ impl OpenFangKernel {
                     let len = msg.content.text_content().len() as u64;
                     let tokens = len / 4;
                     match msg.role {
-                        openfang_types::message::Role::User => input += tokens,
-                        openfang_types::message::Role::Assistant => output += tokens,
-                        openfang_types::message::Role::System => input += tokens,
+                        freeco_types::message::Role::User => input += tokens,
+                        freeco_types::message::Role::Assistant => output += tokens,
+                        freeco_types::message::Role::System => input += tokens,
                     }
                 }
                 (input, output)
@@ -3669,14 +3669,14 @@ impl OpenFangKernel {
         };
 
         let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         let session = self
             .memory
             .get_session(entry.session_id)
-            .map_err(KernelError::OpenFang)?
-            .unwrap_or_else(|| openfang_memory::session::Session {
+            .map_err(KernelError::Freeco)?
+            .unwrap_or_else(|| freeco_memory::session::Session {
                 id: entry.session_id,
                 agent_id,
                 messages: Vec::new(),
@@ -3699,12 +3699,12 @@ impl OpenFangKernel {
 
         let result = compact_session(driver, &model, &session, &config)
             .await
-            .map_err(|e| KernelError::OpenFang(OpenFangError::Internal(e)))?;
+            .map_err(|e| KernelError::Freeco(FreecoError::Internal(e)))?;
 
         // Store the LLM summary in the canonical session
         self.memory
             .store_llm_summary(agent_id, &result.summary, result.kept_messages.clone())
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         // Post-compaction audit: validate and repair the kept messages
         let (repaired_messages, repair_stats) =
@@ -3761,14 +3761,14 @@ impl OpenFangKernel {
         use freeco_kernel_runtime::compactor::generate_context_report;
 
         let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         let session = self
             .memory
             .get_session(entry.session_id)
-            .map_err(KernelError::OpenFang)?
-            .unwrap_or_else(|| openfang_memory::session::Session {
+            .map_err(KernelError::Freeco)?
+            .unwrap_or_else(|| freeco_memory::session::Session {
                 id: entry.session_id,
                 agent_id,
                 messages: Vec::new(),
@@ -3804,11 +3804,11 @@ impl OpenFangKernel {
     /// See issue #890 — allows an orchestrator agent to wake other agents.
     pub fn activate_agent(&self, agent_id: AgentId) -> KernelResult<String> {
         let entry = self.registry.get(agent_id).ok_or_else(|| {
-            KernelError::OpenFang(OpenFangError::AgentNotFound(agent_id.to_string()))
+            KernelError::Freeco(FreecoError::AgentNotFound(agent_id.to_string()))
         })?;
 
         if entry.state == AgentState::Terminated {
-            return Err(KernelError::OpenFang(OpenFangError::Internal(format!(
+            return Err(KernelError::Freeco(FreecoError::Internal(format!(
                 "Agent {} is Terminated and cannot be activated",
                 entry.name
             ))));
@@ -3820,7 +3820,7 @@ impl OpenFangKernel {
 
         self.registry
             .set_state(agent_id, AgentState::Running)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
 
         info!(
             agent = %name,
@@ -3837,7 +3837,7 @@ impl OpenFangKernel {
         let entry = self
             .registry
             .remove(agent_id)
-            .map_err(KernelError::OpenFang)?;
+            .map_err(KernelError::Freeco)?;
         self.background.stop_agent(agent_id);
         self.scheduler.unregister(agent_id);
         self.capabilities.revoke_all(agent_id);
@@ -3875,14 +3875,14 @@ impl OpenFangKernel {
         hand_id: &str,
         config: std::collections::HashMap<String, serde_json::Value>,
         instance_name: Option<String>,
-    ) -> KernelResult<openfang_hands::HandInstance> {
-        use openfang_hands::HandError;
+    ) -> KernelResult<freeco_hands::HandInstance> {
+        use freeco_hands::HandError;
 
         let def = self
             .hand_registry
             .get_definition(hand_id)
             .ok_or_else(|| {
-                KernelError::OpenFang(OpenFangError::AgentNotFound(format!(
+                KernelError::Freeco(FreecoError::AgentNotFound(format!(
                     "Hand not found: {hand_id}"
                 )))
             })?
@@ -3893,10 +3893,10 @@ impl OpenFangKernel {
             .hand_registry
             .activate(hand_id, config, instance_name.clone())
             .map_err(|e| match e {
-                HandError::AlreadyActive(id) => KernelError::OpenFang(OpenFangError::Internal(
+                HandError::AlreadyActive(id) => KernelError::Freeco(FreecoError::Internal(
                     format!("Hand already active: {id}"),
                 )),
-                other => KernelError::OpenFang(OpenFangError::Internal(other.to_string())),
+                other => KernelError::Freeco(FreecoError::Internal(other.to_string())),
             })?;
 
         // Build an agent manifest from the hand definition.
@@ -3962,8 +3962,8 @@ impl OpenFangKernel {
             mcp_servers: def.mcp_servers.clone(),
             // Hands are curated packages — if they declare shell_exec, grant full exec access
             exec_policy: if def.tools.iter().any(|t| t == "shell_exec") {
-                Some(openfang_types::config::ExecPolicy {
-                    mode: openfang_types::config::ExecSecurityMode::Full,
+                Some(freeco_types::config::ExecPolicy {
+                    mode: freeco_types::config::ExecSecurityMode::Full,
                     timeout_secs: 300, // hands may run long commands (ffmpeg, yt-dlp)
                     no_output_timeout_secs: 120,
                     ..Default::default()
@@ -3983,7 +3983,7 @@ impl OpenFangKernel {
         };
 
         // Resolve hand settings → prompt block + env vars
-        let resolved = openfang_hands::resolve_settings(&def.settings, &instance.config);
+        let resolved = freeco_hands::resolve_settings(&def.settings, &instance.config);
         if !resolved.prompt_block.is_empty() {
             manifest.model.system_prompt = format!(
                 "{}\n\n---\n\n{}",
@@ -3994,8 +3994,8 @@ impl OpenFangKernel {
         let mut allowed_env = resolved.env_vars;
         for req in &def.requires {
             match req.requirement_type {
-                openfang_hands::RequirementType::ApiKey
-                | openfang_hands::RequirementType::EnvVar
+                freeco_hands::RequirementType::ApiKey
+                | freeco_hands::RequirementType::EnvVar
                     if !req.check_value.is_empty() && !allowed_env.contains(&req.check_value) =>
                 {
                     allowed_env.push(req.check_value.clone());
@@ -4036,7 +4036,7 @@ impl OpenFangKernel {
         // would always be a no-op without this snapshot — same pattern as
         // saved_triggers above. Fixes the silent loss of cron jobs across
         // every daemon restart for hand-style agents.
-        let saved_crons: Vec<openfang_types::scheduler::CronJob> = old_agent_id
+        let saved_crons: Vec<freeco_types::scheduler::CronJob> = old_agent_id
             .map(|id| self.cron_scheduler.list_jobs(id))
             .unwrap_or_default();
         if let Some(old) = existing {
@@ -4113,7 +4113,7 @@ impl OpenFangKernel {
         // Link agent to instance
         self.hand_registry
             .set_agent(instance.instance_id, agent_id)
-            .map_err(|e| KernelError::OpenFang(OpenFangError::Internal(e.to_string())))?;
+            .map_err(|e| KernelError::Freeco(FreecoError::Internal(e.to_string())))?;
 
         info!(
             hand = %hand_id,
@@ -4137,7 +4137,7 @@ impl OpenFangKernel {
         let instance = self
             .hand_registry
             .deactivate(instance_id)
-            .map_err(|e| KernelError::OpenFang(OpenFangError::Internal(e.to_string())))?;
+            .map_err(|e| KernelError::Freeco(FreecoError::Internal(e.to_string())))?;
 
         if let Some(agent_id) = instance.agent_id {
             if let Err(e) = self.kill_agent(agent_id) {
@@ -4173,14 +4173,14 @@ impl OpenFangKernel {
     pub fn pause_hand(&self, instance_id: uuid::Uuid) -> KernelResult<()> {
         self.hand_registry
             .pause(instance_id)
-            .map_err(|e| KernelError::OpenFang(OpenFangError::Internal(e.to_string())))
+            .map_err(|e| KernelError::Freeco(FreecoError::Internal(e.to_string())))
     }
 
     /// Resume a paused hand.
     pub fn resume_hand(&self, instance_id: uuid::Uuid) -> KernelResult<()> {
         self.hand_registry
             .resume(instance_id)
-            .map_err(|e| KernelError::OpenFang(OpenFangError::Internal(e.to_string())))
+            .map_err(|e| KernelError::Freeco(FreecoError::Internal(e.to_string())))
     }
 
     /// Set the weak self-reference for trigger dispatch.
@@ -4193,7 +4193,7 @@ impl OpenFangKernel {
     // ─── Agent Binding management ──────────────────────────────────────
 
     /// List all agent bindings.
-    pub fn list_bindings(&self) -> Vec<openfang_types::config::AgentBinding> {
+    pub fn list_bindings(&self) -> Vec<freeco_types::config::AgentBinding> {
         self.bindings
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -4201,7 +4201,7 @@ impl OpenFangKernel {
     }
 
     /// Add a binding at runtime.
-    pub fn add_binding(&self, binding: openfang_types::config::AgentBinding) {
+    pub fn add_binding(&self, binding: freeco_types::config::AgentBinding) {
         let mut bindings = self.bindings.lock().unwrap_or_else(|e| e.into_inner());
         bindings.push(binding);
         // Sort by specificity descending
@@ -4209,7 +4209,7 @@ impl OpenFangKernel {
     }
 
     /// Remove a binding by index, returns the removed binding if valid.
-    pub fn remove_binding(&self, index: usize) -> Option<openfang_types::config::AgentBinding> {
+    pub fn remove_binding(&self, index: usize) -> Option<freeco_types::config::AgentBinding> {
         let mut bindings = self.bindings.lock().unwrap_or_else(|e| e.into_inner());
         if index < bindings.len() {
             Some(bindings.remove(index))
@@ -4254,7 +4254,7 @@ impl OpenFangKernel {
     fn apply_hot_actions(
         &self,
         plan: &crate::config_reload::ReloadPlan,
-        new_config: &openfang_types::config::KernelConfig,
+        new_config: &freeco_types::config::KernelConfig,
     ) {
         use crate::config_reload::HotAction;
 
@@ -4363,7 +4363,7 @@ impl OpenFangKernel {
     ) -> KernelResult<TriggerId> {
         // Verify agent exists
         if self.registry.get(agent_id).is_none() {
-            return Err(KernelError::OpenFang(OpenFangError::AgentNotFound(
+            return Err(KernelError::Freeco(FreecoError::AgentNotFound(
                 agent_id.to_string(),
             )));
         }
@@ -4406,7 +4406,7 @@ impl OpenFangKernel {
             .create_run(workflow_id, input)
             .await
             .ok_or_else(|| {
-                KernelError::OpenFang(OpenFangError::Internal("Workflow not found".to_string()))
+                KernelError::Freeco(FreecoError::Internal("Workflow not found".to_string()))
             })?;
 
         // Agent resolver: looks up by name or ID in the registry
@@ -4447,12 +4447,12 @@ impl OpenFangKernel {
         )
         .await
         .map_err(|_| {
-            KernelError::OpenFang(OpenFangError::Internal(format!(
+            KernelError::Freeco(FreecoError::Internal(format!(
                 "Workflow timed out after {MAX_WORKFLOW_SECS}s"
             )))
         })?
         .map_err(|e| {
-            KernelError::OpenFang(OpenFangError::Internal(format!("Workflow failed: {e}")))
+            KernelError::Freeco(FreecoError::Internal(format!("Workflow failed: {e}")))
         })?;
 
         Ok((run_id, output))
@@ -4509,7 +4509,7 @@ impl OpenFangKernel {
     pub fn start_background_agents(self: &Arc<Self>) {
         // Restore previously active hands from persisted state
         let state_path = self.config.home_dir.join("hand_state.json");
-        let saved_hands = openfang_hands::registry::HandRegistry::load_state(&state_path);
+        let saved_hands = freeco_hands::registry::HandRegistry::load_state(&state_path);
         if !saved_hands.is_empty() {
             info!("Restoring {} persisted hand(s)", saved_hands.len());
             for (hand_id, config, old_agent_id) in saved_hands {
@@ -4563,7 +4563,7 @@ impl OpenFangKernel {
         }
 
         let agents = self.registry.list();
-        let mut bg_agents: Vec<(openfang_types::agent::AgentId, String, ScheduleMode)> = Vec::new();
+        let mut bg_agents: Vec<(freeco_types::agent::AgentId, String, ScheduleMode)> = Vec::new();
 
         for entry in &agents {
             if matches!(entry.manifest.schedule, ScheduleMode::Reactive) {
@@ -4770,7 +4770,7 @@ impl OpenFangKernel {
             }
         }
 
-        // One-shot migration of legacy shared-memory `__openfang_schedules`
+        // One-shot migration of legacy shared-memory `__freeco_schedules`
         // entries (from the old broken `schedule_create` path) into the real
         // cron scheduler. Idempotent via a marker key.
         self.migrate_shared_memory_schedules();
@@ -4859,7 +4859,7 @@ impl OpenFangKernel {
     /// Binds a TCP listener, registers with the peer registry, and connects
     /// to bootstrap peers from config.
     async fn start_ofp_node(self: &Arc<Self>) {
-        use openfang_wire::{PeerConfig, PeerNode, PeerRegistry};
+        use freeco_wire::{PeerConfig, PeerNode, PeerRegistry};
 
         let listen_addr_str = self
             .config
@@ -4885,7 +4885,7 @@ impl OpenFangKernel {
         };
 
         let node_id = uuid::Uuid::new_v4().to_string();
-        let node_name = gethostname().unwrap_or_else(|| "openfang-node".to_string());
+        let node_name = gethostname().unwrap_or_else(|| "freeco-node".to_string());
 
         let peer_config = PeerConfig {
             listen_addr,
@@ -4896,7 +4896,7 @@ impl OpenFangKernel {
 
         let registry = PeerRegistry::new();
 
-        let handle: Arc<dyn openfang_wire::peer::PeerHandle> = self.self_arc();
+        let handle: Arc<dyn freeco_wire::peer::PeerHandle> = self.self_arc();
 
         match PeerNode::start(peer_config, registry.clone(), handle.clone()).await {
             Ok((node, _accept_task)) => {
@@ -5159,7 +5159,7 @@ impl OpenFangKernel {
             });
     }
 
-    /// Migrate legacy `__openfang_schedules` shared-memory entries into the
+    /// Migrate legacy `__freeco_schedules` shared-memory entries into the
     /// real cron scheduler.
     ///
     /// The old `schedule_create` tool and `/api/schedules` POST route wrote
@@ -5172,8 +5172,8 @@ impl OpenFangKernel {
     /// level). Successfully migrated entries are added to the cron scheduler
     /// and the scheduler is persisted.
     pub(crate) fn migrate_shared_memory_schedules(&self) {
-        const LEGACY_KEY: &str = "__openfang_schedules";
-        const MARKER_KEY: &str = "__openfang_schedules_migrated_v1";
+        const LEGACY_KEY: &str = "__freeco_schedules";
+        const MARKER_KEY: &str = "__freeco_schedules_migrated_v1";
 
         let shared = shared_memory_agent_id();
 
@@ -5227,7 +5227,7 @@ impl OpenFangKernel {
             migrated,
             skipped,
             total = entries.len(),
-            "Migrated legacy __openfang_schedules entries to cron scheduler"
+            "Migrated legacy __freeco_schedules entries to cron scheduler"
         );
 
         // Clear the legacy key (store an empty array) and mark migrated so
@@ -5256,7 +5256,7 @@ impl OpenFangKernel {
     /// the cron scheduler. Returns `Err` with a human-readable reason when
     /// the entry cannot be migrated (so the caller can log and skip).
     fn migrate_single_schedule_entry(&self, entry: &serde_json::Value) -> Result<(), String> {
-        use openfang_types::scheduler::{
+        use freeco_types::scheduler::{
             CronAction, CronDelivery, CronJob, CronJobId, CronSchedule,
         };
 
@@ -5351,7 +5351,7 @@ impl OpenFangKernel {
     /// This cleanly shuts down in-memory state but preserves persistent agent
     /// data so agents are restored on the next boot.
     pub fn shutdown(&self) {
-        info!("Shutting down OpenFang kernel...");
+        info!("Shutting down Freeco kernel...");
 
         // Kill WhatsApp gateway child process if running
         if let Ok(guard) = self.whatsapp_gateway_pid.lock() {
@@ -5387,7 +5387,7 @@ impl OpenFangKernel {
         }
 
         info!(
-            "OpenFang kernel shut down ({} agents preserved)",
+            "Freeco kernel shut down ({} agents preserved)",
             self.registry.list().len()
         );
     }
@@ -5534,7 +5534,7 @@ impl OpenFangKernel {
             .fallback_providers_override
             .read()
             .unwrap_or_else(|e: std::sync::PoisonError<_>| e.into_inner());
-        let fb_iter: &[openfang_types::config::FallbackProviderConfig] = fb_override
+        let fb_iter: &[freeco_types::config::FallbackProviderConfig] = fb_override
             .as_deref()
             .unwrap_or(&self.config.fallback_providers);
         for fb in fb_iter {
@@ -5569,7 +5569,7 @@ impl OpenFangKernel {
         // to a specific model, which resolves to a concrete provider through
         // the catalog. Skip when no override is set.
         let ch = &self.config.channels;
-        let channel_overrides: [Option<&openfang_types::config::ChannelOverrides>; 43] = [
+        let channel_overrides: [Option<&freeco_types::config::ChannelOverrides>; 43] = [
             ch.telegram.as_ref().map(|c| &c.overrides),
             ch.discord.as_ref().map(|c| &c.overrides),
             ch.slack.as_ref().map(|c| &c.overrides),
@@ -5705,7 +5705,7 @@ impl OpenFangKernel {
             .fallback_providers_override
             .read()
             .unwrap_or_else(|e: std::sync::PoisonError<_>| e.into_inner());
-        let effective_fallbacks: &[openfang_types::config::FallbackProviderConfig] =
+        let effective_fallbacks: &[freeco_types::config::FallbackProviderConfig] =
             fb_override_guard
                 .as_deref()
                 .unwrap_or(&self.config.fallback_providers);
@@ -5922,7 +5922,7 @@ impl OpenFangKernel {
     /// Connect to all configured MCP servers and cache their tool definitions.
     async fn connect_mcp_servers(self: &Arc<Self>) {
         use freeco_kernel_runtime::mcp::{McpConnection, McpServerConfig, McpTransport};
-        use openfang_types::config::McpTransportEntry;
+        use freeco_types::config::McpTransportEntry;
 
         let servers = self
             .effective_mcp_servers
@@ -6002,7 +6002,7 @@ impl OpenFangKernel {
     /// Called by the API reload endpoint after CLI installs/removes integrations.
     pub async fn reload_extension_mcps(self: &Arc<Self>) -> Result<usize, String> {
         use freeco_kernel_runtime::mcp::{McpConnection, McpServerConfig, McpTransport};
-        use openfang_types::config::McpTransportEntry;
+        use freeco_types::config::McpTransportEntry;
 
         // 1. Reload installed integrations from disk
         let installed_count = {
@@ -6140,7 +6140,7 @@ impl OpenFangKernel {
     /// Reconnect a single extension MCP server by ID.
     pub async fn reconnect_extension_mcp(self: &Arc<Self>, id: &str) -> Result<usize, String> {
         use freeco_kernel_runtime::mcp::{McpConnection, McpServerConfig, McpTransport};
-        use openfang_types::config::McpTransportEntry;
+        use freeco_types::config::McpTransportEntry;
 
         // Find the config for this server
         let server_config = {
@@ -6270,7 +6270,7 @@ impl OpenFangKernel {
     fn available_tools_with_registry(
         &self,
         agent_id: AgentId,
-        skill_snapshot: Option<&openfang_skills::registry::SkillRegistry>,
+        skill_snapshot: Option<&freeco_skills::registry::SkillRegistry>,
     ) -> Vec<ToolDefinition> {
         let all_builtins = if self.config.browser.enabled {
             builtin_tool_definitions()
@@ -6433,7 +6433,7 @@ impl OpenFangKernel {
             e.manifest
                 .exec_policy
                 .as_ref()
-                .is_some_and(|p| p.mode == openfang_types::config::ExecSecurityMode::Deny)
+                .is_some_and(|p| p.mode == freeco_types::config::ExecSecurityMode::Deny)
         });
         if exec_blocks_shell {
             all_tools.retain(|t| t.name != "shell_exec");
@@ -6460,7 +6460,7 @@ impl OpenFangKernel {
             return;
         }
         let skills_dir = self.config.home_dir.join("skills");
-        let mut fresh = openfang_skills::registry::SkillRegistry::new(skills_dir);
+        let mut fresh = freeco_skills::registry::SkillRegistry::new(skills_dir);
         // Prefer the live override (from `PUT /api/skills/{id}/config`) so
         // dashboard edits survive hot-reloads without restarting the kernel.
         // Fall back to the boot-time config.
@@ -6514,7 +6514,7 @@ impl OpenFangKernel {
     /// Build a compact skill summary using the provided registry (which may
     /// include workspace skill overrides).
     fn build_skill_summary_from(
-        registry: &openfang_skills::registry::SkillRegistry,
+        registry: &freeco_skills::registry::SkillRegistry,
         skill_allowlist: &[String],
     ) -> String {
         let skills: Vec<_> = registry
@@ -6546,7 +6546,7 @@ impl OpenFangKernel {
                 summary.push_str(&format!("- {name}: {desc} [tools: {}]\n", tools.join(", ")));
             }
         }
-        // Issue #1038: skill directories (e.g. ~/.openfang/skills/) live OUTSIDE
+        // Issue #1038: skill directories (e.g. ~/.freeco-ai/skills/) live OUTSIDE
         // the workspace sandbox. Tell the agent to use the dedicated skill_*
         // tools instead of falling back to file_read / shell_exec to inspect them.
         summary.push_str(
@@ -6645,7 +6645,7 @@ impl OpenFangKernel {
     /// Collect prompt context using the provided registry (which may include
     /// workspace skill overrides).
     fn collect_prompt_context_from(
-        registry: &openfang_skills::registry::SkillRegistry,
+        registry: &freeco_skills::registry::SkillRegistry,
         skill_allowlist: &[String],
     ) -> String {
         let mut context_parts = Vec::new();
@@ -6658,7 +6658,7 @@ impl OpenFangKernel {
                     if !ctx.is_empty() {
                         let is_bundled = matches!(
                             skill.manifest.source,
-                            Some(openfang_skills::SkillSource::Bundled)
+                            Some(freeco_skills::SkillSource::Bundled)
                         );
                         if is_bundled {
                             // Bundled skills are trusted (shipped with binary)
@@ -6694,9 +6694,9 @@ impl OpenFangKernel {
     /// Records success/failure on the job's metadata just like the scheduler does.
     pub async fn cron_run_job(
         self: &Arc<Self>,
-        job: &openfang_types::scheduler::CronJob,
+        job: &freeco_types::scheduler::CronJob,
     ) -> Result<String, String> {
-        use openfang_types::scheduler::CronAction;
+        use freeco_types::scheduler::CronAction;
 
         let job_id = job.id;
         let agent_id = job.agent_id;
@@ -6951,7 +6951,7 @@ fn manifest_to_capabilities(manifest: &AgentManifest) -> Vec<Capability> {
 /// When the global budget config specifies limits and the agent still has
 /// the built-in defaults, override them so agents respect the user's config.
 fn apply_budget_defaults(
-    budget: &openfang_types::config::BudgetConfig,
+    budget: &freeco_types::config::BudgetConfig,
     resources: &mut ResourceQuota,
 ) {
     // Only override hourly if agent has unlimited (0.0) and global is set
@@ -7129,12 +7129,12 @@ fn sanitize_cron_job_name(raw: &str) -> String {
 
 /// Deliver a cron job's agent response to the configured delivery target.
 async fn cron_deliver_response(
-    kernel: &OpenFangKernel,
+    kernel: &FreecoKernel,
     agent_id: AgentId,
     response: &str,
-    delivery: &openfang_types::scheduler::CronDelivery,
+    delivery: &freeco_types::scheduler::CronDelivery,
 ) -> Result<(), String> {
-    use openfang_types::scheduler::CronDelivery;
+    use freeco_types::scheduler::CronDelivery;
 
     if response.is_empty() {
         return Ok(());
@@ -7220,11 +7220,11 @@ async fn cron_deliver_response(
 /// (they intentionally return "not implemented" / empty values since the
 /// fan-out engine never calls them).
 struct KernelCronBridge {
-    kernel: Arc<OpenFangKernel>,
+    kernel: Arc<FreecoKernel>,
 }
 
 #[async_trait]
-impl openfang_channels::bridge::ChannelBridgeHandle for KernelCronBridge {
+impl freeco_channels::bridge::ChannelBridgeHandle for KernelCronBridge {
     async fn send_message(&self, _agent_id: AgentId, _message: &str) -> Result<String, String> {
         Err("KernelCronBridge only supports send_channel_message".to_string())
     }
@@ -7260,15 +7260,15 @@ impl openfang_channels::bridge::ChannelBridgeHandle for KernelCronBridge {
 /// has already succeeded. Per-target failures are logged and counted, and
 /// the aggregate pass/fail counts are returned for the scheduler log.
 async fn cron_fan_out_targets(
-    kernel: &Arc<OpenFangKernel>,
+    kernel: &Arc<FreecoKernel>,
     job_name: &str,
     output: &str,
-    targets: &[openfang_types::scheduler::CronDeliveryTarget],
+    targets: &[freeco_types::scheduler::CronDeliveryTarget],
 ) {
     if targets.is_empty() || output.is_empty() {
         return;
     }
-    let bridge: Arc<dyn openfang_channels::bridge::ChannelBridgeHandle> =
+    let bridge: Arc<dyn freeco_channels::bridge::ChannelBridgeHandle> =
         Arc::new(KernelCronBridge {
             kernel: kernel.clone(),
         });
@@ -7303,14 +7303,14 @@ async fn cron_fan_out_targets(
 }
 
 #[async_trait]
-impl KernelHandle for OpenFangKernel {
+impl KernelHandle for FreecoKernel {
     async fn spawn_agent(
         &self,
         manifest_toml: &str,
         parent_id: Option<&str>,
     ) -> Result<(String, String), String> {
         // Verify manifest integrity if a signed manifest hash is present
-        let content_hash = openfang_types::manifest_signing::hash_manifest(manifest_toml);
+        let content_hash = freeco_types::manifest_signing::hash_manifest(manifest_toml);
         tracing::debug!(hash = %content_hash, "Manifest SHA-256 computed for integrity tracking");
 
         let manifest: AgentManifest =
@@ -7367,7 +7367,7 @@ impl KernelHandle for OpenFangKernel {
         let id: AgentId = agent_id
             .parse()
             .map_err(|_| "Invalid agent ID".to_string())?;
-        OpenFangKernel::kill_agent(self, id).map_err(|e| format!("Kill failed: {e}"))
+        FreecoKernel::kill_agent(self, id).map_err(|e| format!("Kill failed: {e}"))
     }
 
     fn activate_agent(&self, agent_id: &str) -> Result<String, String> {
@@ -7380,7 +7380,7 @@ impl KernelHandle for OpenFangKernel {
                 .map(|e| e.id)
                 .ok_or_else(|| format!("Agent not found: {agent_id}"))?,
         };
-        OpenFangKernel::activate_agent(self, id).map_err(|e| format!("Activate failed: {e}"))
+        FreecoKernel::activate_agent(self, id).map_err(|e| format!("Activate failed: {e}"))
     }
 
     fn memory_store(&self, key: &str, value: serde_json::Value) -> Result<(), String> {
@@ -7475,13 +7475,13 @@ impl KernelHandle for OpenFangKernel {
             EventTarget::Broadcast,
             EventPayload::Custom(payload_bytes),
         );
-        OpenFangKernel::publish_event(self, event).await;
+        FreecoKernel::publish_event(self, event).await;
         Ok(())
     }
 
     async fn knowledge_add_entity(
         &self,
-        entity: openfang_types::memory::Entity,
+        entity: freeco_types::memory::Entity,
     ) -> Result<String, String> {
         self.memory
             .add_entity(entity)
@@ -7491,7 +7491,7 @@ impl KernelHandle for OpenFangKernel {
 
     async fn knowledge_add_relation(
         &self,
-        relation: openfang_types::memory::Relation,
+        relation: freeco_types::memory::Relation,
     ) -> Result<String, String> {
         self.memory
             .add_relation(relation)
@@ -7501,8 +7501,8 @@ impl KernelHandle for OpenFangKernel {
 
     async fn knowledge_query(
         &self,
-        pattern: openfang_types::memory::GraphPattern,
-    ) -> Result<Vec<openfang_types::memory::GraphMatch>, String> {
+        pattern: freeco_types::memory::GraphPattern,
+    ) -> Result<Vec<freeco_types::memory::GraphMatch>, String> {
         self.memory
             .query_graph(pattern)
             .await
@@ -7517,7 +7517,7 @@ impl KernelHandle for OpenFangKernel {
         agent_id: &str,
         job_json: serde_json::Value,
     ) -> Result<String, String> {
-        use openfang_types::scheduler::{
+        use freeco_types::scheduler::{
             CronAction, CronDelivery, CronDeliveryTarget, CronJob, CronJobId, CronSchedule,
         };
 
@@ -7543,7 +7543,7 @@ impl KernelHandle for OpenFangKernel {
         };
         let one_shot = job_json["one_shot"].as_bool().unwrap_or(false);
 
-        let aid = openfang_types::agent::AgentId(
+        let aid = freeco_types::agent::AgentId(
             uuid::Uuid::parse_str(agent_id).map_err(|e| format!("Invalid agent ID: {e}"))?,
         );
 
@@ -7579,7 +7579,7 @@ impl KernelHandle for OpenFangKernel {
     }
 
     async fn cron_list(&self, agent_id: &str) -> Result<Vec<serde_json::Value>, String> {
-        let aid = openfang_types::agent::AgentId(
+        let aid = freeco_types::agent::AgentId(
             uuid::Uuid::parse_str(agent_id).map_err(|e| format!("Invalid agent ID: {e}"))?,
         );
         let jobs = self.cron_scheduler.list_jobs(aid);
@@ -7591,7 +7591,7 @@ impl KernelHandle for OpenFangKernel {
     }
 
     async fn cron_cancel(&self, job_id: &str) -> Result<(), String> {
-        let id = openfang_types::scheduler::CronJobId(
+        let id = freeco_types::scheduler::CronJobId(
             uuid::Uuid::parse_str(job_id).map_err(|e| format!("Invalid job ID: {e}"))?,
         );
         self.cron_scheduler
@@ -7719,7 +7719,7 @@ impl KernelHandle for OpenFangKernel {
         tool_name: &str,
         action_summary: &str,
     ) -> Result<bool, String> {
-        use openfang_types::approval::{ApprovalDecision, ApprovalRequest as TypedRequest};
+        use freeco_types::approval::{ApprovalDecision, ApprovalRequest as TypedRequest};
 
         // Hand agents are curated trusted packages — auto-approve tool execution.
         // Check if this agent has a "hand:" tag indicating it was spawned by activate_hand().
@@ -7823,10 +7823,10 @@ impl KernelHandle for OpenFangKernel {
             })?
             .clone();
 
-        let user = openfang_channels::types::ChannelUser {
+        let user = freeco_channels::types::ChannelUser {
             platform_id: recipient.to_string(),
             display_name: recipient.to_string(),
-            openfang_user: None,
+            freeco_user: None,
         };
 
         let formatted = if channel == "wecom" {
@@ -7837,12 +7837,12 @@ impl KernelHandle for OpenFangKernel {
                 .as_ref()
                 .and_then(|c| c.overrides.output_format)
                 .unwrap_or(OutputFormat::PlainText);
-            openfang_channels::formatter::format_for_wecom(message, output_format)
+            freeco_channels::formatter::format_for_wecom(message, output_format)
         } else {
             message.to_string()
         };
 
-        let content = openfang_channels::types::ChannelContent::Text(formatted);
+        let content = freeco_channels::types::ChannelContent::Text(formatted);
 
         if let Some(tid) = thread_id {
             adapter
@@ -7885,18 +7885,18 @@ impl KernelHandle for OpenFangKernel {
             })?
             .clone();
 
-        let user = openfang_channels::types::ChannelUser {
+        let user = freeco_channels::types::ChannelUser {
             platform_id: recipient.to_string(),
             display_name: recipient.to_string(),
-            openfang_user: None,
+            freeco_user: None,
         };
 
         let content = match media_type {
-            "image" => openfang_channels::types::ChannelContent::Image {
+            "image" => freeco_channels::types::ChannelContent::Image {
                 url: media_url.to_string(),
                 caption: caption.map(|s| s.to_string()),
             },
-            "file" => openfang_channels::types::ChannelContent::File {
+            "file" => freeco_channels::types::ChannelContent::File {
                 url: media_url.to_string(),
                 filename: filename.unwrap_or("file").to_string(),
                 mime: None,
@@ -7952,13 +7952,13 @@ impl KernelHandle for OpenFangKernel {
             })?
             .clone();
 
-        let user = openfang_channels::types::ChannelUser {
+        let user = freeco_channels::types::ChannelUser {
             platform_id: recipient.to_string(),
             display_name: recipient.to_string(),
-            openfang_user: None,
+            freeco_user: None,
         };
 
-        let content = openfang_channels::types::ChannelContent::FileData {
+        let content = freeco_channels::types::ChannelContent::FileData {
             data,
             filename: filename.to_string(),
             mime_type: mime_type.to_string(),
@@ -7986,7 +7986,7 @@ impl KernelHandle for OpenFangKernel {
         &self,
         manifest_toml: &str,
         parent_id: Option<&str>,
-        parent_caps: &[openfang_types::capability::Capability],
+        parent_caps: &[freeco_types::capability::Capability],
     ) -> Result<(String, String), String> {
         // Parse the child manifest to extract its capabilities
         let child_manifest: AgentManifest =
@@ -7994,7 +7994,7 @@ impl KernelHandle for OpenFangKernel {
         let child_caps = manifest_to_capabilities(&child_manifest);
 
         // Enforce: child capabilities must be a subset of parent capabilities
-        openfang_types::capability::validate_capability_inheritance(parent_caps, &child_caps)?;
+        freeco_types::capability::validate_capability_inheritance(parent_caps, &child_caps)?;
 
         tracing::info!(
             parent = parent_id.unwrap_or("kernel"),
@@ -8011,12 +8011,12 @@ impl KernelHandle for OpenFangKernel {
 // --- OFP Wire Protocol integration ---
 
 #[async_trait]
-impl openfang_wire::peer::PeerHandle for OpenFangKernel {
-    fn local_agents(&self) -> Vec<openfang_wire::message::RemoteAgentInfo> {
+impl freeco_wire::peer::PeerHandle for FreecoKernel {
+    fn local_agents(&self) -> Vec<freeco_wire::message::RemoteAgentInfo> {
         self.registry
             .list()
             .iter()
-            .map(|entry| openfang_wire::message::RemoteAgentInfo {
+            .map(|entry| freeco_wire::message::RemoteAgentInfo {
                 id: entry.id.0.to_string(),
                 name: entry.name.clone(),
                 description: entry.manifest.description.clone(),
@@ -8052,7 +8052,7 @@ impl openfang_wire::peer::PeerHandle for OpenFangKernel {
         }
     }
 
-    fn discover_agents(&self, query: &str) -> Vec<openfang_wire::message::RemoteAgentInfo> {
+    fn discover_agents(&self, query: &str) -> Vec<freeco_wire::message::RemoteAgentInfo> {
         let q = query.to_lowercase();
         self.registry
             .list()
@@ -8066,7 +8066,7 @@ impl openfang_wire::peer::PeerHandle for OpenFangKernel {
                         .iter()
                         .any(|t| t.to_lowercase().contains(&q))
             })
-            .map(|entry| openfang_wire::message::RemoteAgentInfo {
+            .map(|entry| freeco_wire::message::RemoteAgentInfo {
                 id: entry.id.0.to_string(),
                 name: entry.name.clone(),
                 description: entry.manifest.description.clone(),
@@ -8187,7 +8187,7 @@ mod protected_agent_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openfang_types::config::ExecPolicy;
+    use freeco_types::config::ExecPolicy;
     use std::collections::HashMap;
 
     #[test]
@@ -8257,7 +8257,7 @@ mod tests {
             routing: None,
             autonomous: None,
             pinned_model: None,
-            workspace: Some(std::path::PathBuf::from("/var/lib/openfang/agents/demo")),
+            workspace: Some(std::path::PathBuf::from("/var/lib/freeco/agents/demo")),
             state_dir: None,
             generate_identity_files: true,
             exec_policy: Some(ExecPolicy::default()),
@@ -8337,7 +8337,7 @@ mod tests {
     /// the on-disk `agent.toml`.
     #[test]
     fn test_exec_policy_reinherits_from_kernel_config_on_restart() {
-        use openfang_types::config::ExecSecurityMode;
+        use freeco_types::config::ExecSecurityMode;
 
         // Cached manifest from an earlier boot — still Allowlist.
         let cached_policy = ExecPolicy {
@@ -8417,7 +8417,7 @@ mod tests {
     /// config.toml edits take effect.
     #[test]
     fn test_persist_strips_inherited_exec_policy() {
-        use openfang_types::config::ExecSecurityMode;
+        use freeco_types::config::ExecSecurityMode;
 
         let kernel_policy = ExecPolicy {
             mode: ExecSecurityMode::Full,
@@ -8594,7 +8594,7 @@ mod tests {
 
     #[test]
     fn test_manifest_to_capabilities_with_profile() {
-        use openfang_types::agent::ToolProfile;
+        use freeco_types::agent::ToolProfile;
         let manifest = AgentManifest {
             profile: Some(ToolProfile::Coding),
             ..Default::default()
@@ -8613,7 +8613,7 @@ mod tests {
 
     #[test]
     fn test_manifest_to_capabilities_profile_overridden_by_explicit_tools() {
-        use openfang_types::agent::ToolProfile;
+        use freeco_types::agent::ToolProfile;
         let mut manifest = AgentManifest {
             profile: Some(ToolProfile::Coding),
             ..Default::default()
@@ -8633,7 +8633,7 @@ mod tests {
     #[test]
     fn test_hand_activation_does_not_seed_runtime_tool_filters() {
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-kernel-hand-test");
+        let home_dir = tmp.path().join("freeco-kernel-hand-test");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         let config = KernelConfig {
@@ -8642,7 +8642,7 @@ mod tests {
             ..KernelConfig::default()
         };
 
-        let kernel = OpenFangKernel::boot_with_config(config).expect("Kernel should boot");
+        let kernel = FreecoKernel::boot_with_config(config).expect("Kernel should boot");
         let instance = kernel
             .activate_hand("browser", HashMap::new(), None)
             .expect("browser hand should activate");
@@ -8672,7 +8672,7 @@ mod tests {
     #[test]
     fn test_hand_owned_agent_stop_clears_hand_for_reactivation() {
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-kernel-hand-stop-test");
+        let home_dir = tmp.path().join("freeco-kernel-hand-stop-test");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         let config = KernelConfig {
@@ -8680,7 +8680,7 @@ mod tests {
             data_dir: home_dir.join("data"),
             ..KernelConfig::default()
         };
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
 
         // Activate a hand and grab its agent id (mirrors what the wizard does).
         let instance = kernel
@@ -8732,7 +8732,7 @@ mod tests {
     #[test]
     fn test_activate_agent_wakes_suspended_and_crashed() {
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-kernel-activate-test");
+        let home_dir = tmp.path().join("freeco-kernel-activate-test");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         let config = KernelConfig {
@@ -8740,7 +8740,7 @@ mod tests {
             data_dir: home_dir.join("data"),
             ..KernelConfig::default()
         };
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
 
         // Suspended agent: should flip to Running.
         let suspended = register_test_agent(&kernel, "sleepy");
@@ -8810,7 +8810,7 @@ mod tests {
         use freeco_kernel_runtime::kernel_handle::KernelHandle;
 
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-kernel-activate-handle-test");
+        let home_dir = tmp.path().join("freeco-kernel-activate-handle-test");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         let config = KernelConfig {
@@ -8818,7 +8818,7 @@ mod tests {
             data_dir: home_dir.join("data"),
             ..KernelConfig::default()
         };
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
 
         let agent = register_test_agent(&kernel, "worker");
         kernel
@@ -8888,7 +8888,7 @@ mod tests {
     /// Register a minimal test agent in a booted kernel and return its ID.
     /// Kept local to the tests module to avoid widening the kernel's public
     /// surface.
-    fn register_test_agent(kernel: &OpenFangKernel, name: &str) -> AgentId {
+    fn register_test_agent(kernel: &FreecoKernel, name: &str) -> AgentId {
         let agent_id = AgentId::new();
         let entry = AgentEntry {
             id: agent_id,
@@ -8913,7 +8913,7 @@ mod tests {
     #[test]
     fn test_migrate_shared_memory_schedules_imports_legacy_entries() {
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-migrate");
+        let home_dir = tmp.path().join("freeco-migrate");
         std::fs::create_dir_all(&home_dir).unwrap();
         let config = KernelConfig {
             home_dir: home_dir.clone(),
@@ -8921,7 +8921,7 @@ mod tests {
             ..KernelConfig::default()
         };
 
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
 
         // Register a target agent the legacy entries can point at.
         let agent = register_test_agent(&kernel, "report-agent");
@@ -8945,7 +8945,7 @@ mod tests {
         ]);
         kernel
             .memory
-            .structured_set(shared, "__openfang_schedules", legacy_entries)
+            .structured_set(shared, "__freeco_schedules", legacy_entries)
             .unwrap();
 
         // Sanity: before migration, the cron scheduler is empty.
@@ -8969,12 +8969,12 @@ mod tests {
         // it again.
         let remaining = kernel
             .memory
-            .structured_get(shared, "__openfang_schedules")
+            .structured_get(shared, "__freeco_schedules")
             .unwrap();
         assert_eq!(remaining, Some(serde_json::Value::Array(vec![])));
         let marker = kernel
             .memory
-            .structured_get(shared, "__openfang_schedules_migrated_v1")
+            .structured_get(shared, "__freeco_schedules_migrated_v1")
             .unwrap();
         assert_eq!(marker, Some(serde_json::Value::Bool(true)));
 
@@ -8984,14 +8984,14 @@ mod tests {
     #[test]
     fn test_migrate_shared_memory_schedules_is_idempotent() {
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-migrate-idem");
+        let home_dir = tmp.path().join("freeco-migrate-idem");
         std::fs::create_dir_all(&home_dir).unwrap();
         let config = KernelConfig {
             home_dir: home_dir.clone(),
             data_dir: home_dir.join("data"),
             ..KernelConfig::default()
         };
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
         let agent = register_test_agent(&kernel, "idem-agent");
         let shared = super::shared_memory_agent_id();
 
@@ -8999,7 +8999,7 @@ mod tests {
             .memory
             .structured_set(
                 shared,
-                "__openfang_schedules",
+                "__freeco_schedules",
                 serde_json::json!([{
                     "description": "Ping",
                     "cron": "*/5 * * * *",
@@ -9017,7 +9017,7 @@ mod tests {
             .memory
             .structured_set(
                 shared,
-                "__openfang_schedules",
+                "__freeco_schedules",
                 serde_json::json!([{
                     "description": "Ping again",
                     "cron": "*/5 * * * *",
@@ -9038,14 +9038,14 @@ mod tests {
     #[test]
     fn test_migrate_shared_memory_schedules_skips_unknown_agent() {
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-migrate-skip");
+        let home_dir = tmp.path().join("freeco-migrate-skip");
         std::fs::create_dir_all(&home_dir).unwrap();
         let config = KernelConfig {
             home_dir: home_dir.clone(),
             data_dir: home_dir.join("data"),
             ..KernelConfig::default()
         };
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
         let shared = super::shared_memory_agent_id();
 
         // Entry references an agent that does not exist in the registry.
@@ -9053,7 +9053,7 @@ mod tests {
             .memory
             .structured_set(
                 shared,
-                "__openfang_schedules",
+                "__freeco_schedules",
                 serde_json::json!([{
                     "description": "Ping",
                     "cron": "*/5 * * * *",
@@ -9068,7 +9068,7 @@ mod tests {
         assert_eq!(kernel.cron_scheduler.total_jobs(), 0);
         let marker = kernel
             .memory
-            .structured_get(shared, "__openfang_schedules_migrated_v1")
+            .structured_get(shared, "__freeco_schedules_migrated_v1")
             .unwrap();
         assert_eq!(marker, Some(serde_json::Value::Bool(true)));
 
@@ -9087,10 +9087,10 @@ mod tests {
     #[test]
     fn test_subprocess_timeout_hot_reload_fallback_providers() {
         use crate::config_reload::{build_reload_plan, HotAction};
-        use openfang_types::config::FallbackProviderConfig;
+        use freeco_types::config::FallbackProviderConfig;
 
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-1129-fallback-timeout");
+        let home_dir = tmp.path().join("freeco-1129-fallback-timeout");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         // Boot with one fallback provider configured at 120s.
@@ -9107,7 +9107,7 @@ mod tests {
             subprocess_timeout_secs: Some(120),
         });
 
-        let kernel = OpenFangKernel::boot_with_config(config.clone()).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config.clone()).expect("kernel boots");
 
         // Pre-condition: nothing has been hot-reloaded yet — override slot is empty.
         {
@@ -9164,7 +9164,7 @@ mod tests {
         use crate::config_reload::{build_reload_plan, HotAction};
 
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-1129-default-timeout");
+        let home_dir = tmp.path().join("freeco-1129-default-timeout");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         let mut config = KernelConfig {
@@ -9174,7 +9174,7 @@ mod tests {
         };
         config.default_model.subprocess_timeout_secs = Some(180);
 
-        let kernel = OpenFangKernel::boot_with_config(config.clone()).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config.clone()).expect("kernel boots");
 
         // Operator raises the timeout to 1200s.
         let mut new_config = config.clone();
@@ -9210,10 +9210,10 @@ mod tests {
     #[test]
     fn test_subprocess_timeout_hot_reload_adds_new_fallback() {
         use crate::config_reload::{build_reload_plan, HotAction};
-        use openfang_types::config::FallbackProviderConfig;
+        use freeco_types::config::FallbackProviderConfig;
 
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-1129-add-fallback");
+        let home_dir = tmp.path().join("freeco-1129-add-fallback");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         let config = KernelConfig {
@@ -9221,7 +9221,7 @@ mod tests {
             data_dir: home_dir.join("data"),
             ..KernelConfig::default()
         };
-        let kernel = OpenFangKernel::boot_with_config(config.clone()).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config.clone()).expect("kernel boots");
 
         // Operator adds a codex fallback with a 600s timeout.
         let mut new_config = config.clone();
@@ -9261,10 +9261,10 @@ mod tests {
 
     #[test]
     fn test_referenced_providers_only_includes_configured_ones() {
-        use openfang_types::config::{DefaultModelConfig, FallbackProviderConfig};
+        use freeco_types::config::{DefaultModelConfig, FallbackProviderConfig};
 
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-1031-referenced");
+        let home_dir = tmp.path().join("freeco-1031-referenced");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         // Operator uses Groq as the default and Ollama as a single fallback.
@@ -9298,7 +9298,7 @@ mod tests {
             ..KernelConfig::default()
         };
 
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
         let referenced = kernel.referenced_providers();
 
         // Configured providers ARE referenced.
@@ -9333,10 +9333,10 @@ mod tests {
 
     #[test]
     fn test_1188_referenced_providers_resolves_alias_to_provider() {
-        use openfang_types::config::DefaultModelConfig;
+        use freeco_types::config::DefaultModelConfig;
 
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-1188-alias");
+        let home_dir = tmp.path().join("freeco-1188-alias");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         // Operator sets provider = "default" and picks the model by its
@@ -9356,7 +9356,7 @@ mod tests {
             ..KernelConfig::default()
         };
 
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
         let referenced = kernel.referenced_providers();
         assert!(
             referenced.contains("anthropic"),
@@ -9367,12 +9367,12 @@ mod tests {
 
     #[test]
     fn test_1188_referenced_providers_walks_channel_overrides() {
-        use openfang_types::config::{
+        use freeco_types::config::{
             ChannelOverrides, ChannelsConfig, DefaultModelConfig, TelegramConfig,
         };
 
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-1188-channel");
+        let home_dir = tmp.path().join("freeco-1188-channel");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         let overrides = ChannelOverrides {
@@ -9400,7 +9400,7 @@ mod tests {
             ..KernelConfig::default()
         };
 
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
         let referenced = kernel.referenced_providers();
         assert!(
             referenced.contains("anthropic"),
@@ -9411,10 +9411,10 @@ mod tests {
 
     #[test]
     fn test_1188_referenced_providers_walks_mcp_env() {
-        use openfang_types::config::{DefaultModelConfig, McpServerConfigEntry, McpTransportEntry};
+        use freeco_types::config::{DefaultModelConfig, McpServerConfigEntry, McpTransportEntry};
 
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-1188-mcp");
+        let home_dir = tmp.path().join("freeco-1188-mcp");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         // MCP server passes through OPENAI_API_KEY, which is the api_key_env
@@ -9442,7 +9442,7 @@ mod tests {
             ..KernelConfig::default()
         };
 
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
         let referenced = kernel.referenced_providers();
         assert!(
             referenced.contains("openai"),
@@ -9453,10 +9453,10 @@ mod tests {
 
     #[test]
     fn test_1188_referenced_providers_walks_skill_tags() {
-        use openfang_types::config::DefaultModelConfig;
+        use freeco_types::config::DefaultModelConfig;
 
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-1188-skill");
+        let home_dir = tmp.path().join("freeco-1188-skill");
         std::fs::create_dir_all(&home_dir).unwrap();
 
         let config = KernelConfig {
@@ -9472,7 +9472,7 @@ mod tests {
             ..KernelConfig::default()
         };
 
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
 
         // Drop a minimal skill manifest with a tag matching a known
         // provider ID, then load it through the kernel's registry.
@@ -9503,20 +9503,20 @@ type = "promptonly"
     }
 
     // ----------------------------------------------------------------------
-    // Issue #1140: agents placed at ~/.openfang/agents/<name>/agent.toml
+    // Issue #1140: agents placed at ~/.freeco-ai/agents/<name>/agent.toml
     // must auto-spawn on boot so they appear in the chat tab.
     // ----------------------------------------------------------------------
     #[test]
     fn test_1140_auto_spawn_agents_from_disk() {
         let tmp = tempfile::tempdir().unwrap();
-        let home_dir = tmp.path().join("openfang-1140");
+        let home_dir = tmp.path().join("freeco-1140");
         let agents_dir = home_dir.join("agents");
         std::fs::create_dir_all(agents_dir.join("my-custom-agent")).unwrap();
 
         // Write a minimal valid agent.toml for a user-placed agent.
         let manifest_toml = r#"
 name = "my-custom-agent"
-description = "A user-installed agent placed in ~/.openfang/agents"
+description = "A user-installed agent placed in ~/.freeco-ai/agents"
 
 [model]
 provider = "default"
@@ -9545,13 +9545,13 @@ system_prompt = "You are a test agent."
             data_dir: home_dir.join("data"),
             ..KernelConfig::default()
         };
-        let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boots");
+        let kernel = FreecoKernel::boot_with_config(config).expect("kernel boots");
 
         // The disk-placed agent must be in the registry and visible via list().
         let entry = kernel
             .registry
             .find_by_name("my-custom-agent")
-            .expect("my-custom-agent must be auto-spawned from ~/.openfang/agents");
+            .expect("my-custom-agent must be auto-spawned from ~/.freeco-ai/agents");
         assert_eq!(entry.name, "my-custom-agent");
 
         // GET /api/agents pulls from kernel.registry.list(); confirm the agent
@@ -9579,7 +9579,7 @@ system_prompt = "You are a test agent."
             data_dir: home_dir.join("data"),
             ..KernelConfig::default()
         };
-        let kernel2 = OpenFangKernel::boot_with_config(config2).expect("kernel re-boots");
+        let kernel2 = FreecoKernel::boot_with_config(config2).expect("kernel re-boots");
         let count_after = kernel2.registry.list().len();
         assert_eq!(
             count_before, count_after,
@@ -9597,7 +9597,7 @@ system_prompt = "You are a test agent."
     /// private state directory; only the lightweight user-facing layout
     /// (`data/`, `output/`, `skills/`) may appear in the workspace.
     #[test]
-    fn test_workspace_outside_openfang_stays_clean() {
+    fn test_workspace_outside_freeco_stays_clean() {
         use tempfile::TempDir;
 
         let user_workspace = TempDir::new().expect("temp user workspace");

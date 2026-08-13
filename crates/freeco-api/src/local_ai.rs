@@ -748,7 +748,7 @@ pub async fn models_autoconfig(State(state): State<Arc<AppState>>) -> impl IntoR
     // unused. This is what makes model routing actually resilient.
     let mut routed = 0usize;
     if let Some((env, provider, model)) = complex {
-        let chain = vec![openfang_types::agent::FallbackModel {
+        let chain = vec![freeco_types::agent::FallbackModel {
             provider: provider.to_string(),
             model: model.to_string(),
             api_key_env: Some(env.to_string()),

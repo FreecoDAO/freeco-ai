@@ -1,4 +1,4 @@
-//! Color palette matching the OpenFang landing page design system.
+//! Color palette matching the Freeco landing page design system.
 //!
 //! Core palette from globals.css + code syntax from constants.ts.
 
@@ -8,7 +8,7 @@ use ratatui::style::{Color, Modifier, Style};
 
 // ── Core Palette (dark mode for terminal) ───────────────────────────────────
 
-pub const ACCENT: Color = Color::Rgb(255, 92, 0); // #FF5C00 — OpenFang orange
+pub const ACCENT: Color = Color::Rgb(255, 92, 0); // #FF5C00 — Freeco orange
 pub const ACCENT_DIM: Color = Color::Rgb(224, 82, 0); // #E05200
 
 pub const BG_PRIMARY: Color = Color::Rgb(15, 14, 14); // #0F0E0E — dark background

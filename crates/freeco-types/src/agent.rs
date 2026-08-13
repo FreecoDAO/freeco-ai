@@ -519,7 +519,7 @@ pub struct AgentManifest {
     pub workspace: Option<PathBuf>,
     /// Agent private state directory. Stores identity files (SOUL.md, etc.),
     /// AGENT.json, sessions/, and the daily memory log. Always lives under
-    /// `~/.openfang/workspaces/{name}/` regardless of where the user-facing
+    /// `~/.freeco-ai/workspaces/{name}/` regardless of where the user-facing
     /// workspace points. Auto-derived on spawn. See issue #1097.
     #[serde(default)]
     pub state_dir: Option<PathBuf>,
@@ -645,10 +645,10 @@ pub struct SessionLabel(String);
 
 impl SessionLabel {
     /// Create a new validated session label.
-    pub fn new(label: &str) -> Result<Self, crate::error::OpenFangError> {
+    pub fn new(label: &str) -> Result<Self, crate::error::FreecoError> {
         let trimmed = label.trim();
         if trimmed.is_empty() || trimmed.len() > 128 {
-            return Err(crate::error::OpenFangError::InvalidInput(
+            return Err(crate::error::FreecoError::InvalidInput(
                 "Session label must be 1-128 chars".into(),
             ));
         }
@@ -656,7 +656,7 @@ impl SessionLabel {
             .chars()
             .all(|c| c.is_alphanumeric() || c == ' ' || c == '-' || c == '_')
         {
-            return Err(crate::error::OpenFangError::InvalidInput(
+            return Err(crate::error::FreecoError::InvalidInput(
                 "Session label contains invalid chars".into(),
             ));
         }

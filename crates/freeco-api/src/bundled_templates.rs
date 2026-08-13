@@ -1,10 +1,10 @@
 //! Compile-time embedded agent templates, mirrored from the repo's `agents/`
 //! directory (same files the CLI embeds via `install_bundled_agents`).
 //!
-//! The templates API merges these with `$OPENFANG_HOME/agents/` so that
+//! The templates API merges these with `$FREECO_AI_HOME/agents/` so that
 //! templates added in a new release are visible immediately after updating —
 //! without them, users only ever saw the set copied to disk by their first
-//! `openfang init`.
+//! `freeco init`.
 
 /// All bundled templates as `(name, toml_content)` pairs.
 pub fn bundled_templates() -> Vec<(&'static str, &'static str)> {

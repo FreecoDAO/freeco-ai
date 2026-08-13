@@ -11,7 +11,7 @@
 //! - Consecutive same-role messages (Anthropic API requires alternation)
 //! - Oversized or potentially malicious tool result content
 
-use openfang_types::message::{ContentBlock, Message, MessageContent, Role};
+use freeco_types::message::{ContentBlock, Message, MessageContent, Role};
 use std::collections::{HashMap, HashSet};
 use tracing::{debug, warn};
 

@@ -10,7 +10,7 @@ use std::path::{Component, Path, PathBuf};
 use zeroize::Zeroizing;
 
 const MAGIC: &[u8; 4] = b"OFB1";
-const KEY_NAME: &str = "openfang.backup.archive-key.v1";
+const KEY_NAME: &str = "freeco.backup.archive-key.v1";
 const MAX_ARCHIVE_BYTES: u64 = 128 * 1024 * 1024;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -43,7 +43,7 @@ pub struct RestoreResult {
 
 fn archive_key(home_dir: &Path) -> Result<Zeroizing<[u8; 32]>, String> {
     let vault_path = home_dir.join("vault.enc");
-    let mut vault = openfang_extensions::vault::CredentialVault::new(vault_path.clone());
+    let mut vault = freeco_extensions::vault::CredentialVault::new(vault_path.clone());
     if vault_path.exists() {
         vault
             .unlock()
@@ -148,7 +148,7 @@ pub fn create_backup(
     let backups = home_dir.join("backups");
     fs::create_dir_all(&backups).map_err(|e| e.to_string())?;
     let path = backups.join(format!(
-        "openfang-{}-{}.ofbak",
+        "freeco-{}-{}.ofbak",
         chrono::Utc::now().format("%Y%m%dT%H%M%SZ"),
         uuid::Uuid::new_v4()
     ));

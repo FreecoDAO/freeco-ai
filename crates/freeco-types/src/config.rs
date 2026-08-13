@@ -1,4 +1,4 @@
-//! Configuration types for the OpenFang kernel.
+//! Configuration types for the Freeco kernel.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -479,7 +479,7 @@ impl Default for WebhookTriggerConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            token_env: "OPENFANG_WEBHOOK_TOKEN".to_string(),
+            token_env: "FREECO_AI_WEBHOOK_TOKEN".to_string(),
             max_payload_bytes: 65536,
             rate_limit_per_minute: 30,
         }
@@ -511,7 +511,7 @@ pub struct FallbackProviderConfig {
     /// Forwarded to `DriverConfig.subprocess_timeout_secs` when this fallback
     /// is constructed. Currently honored only by `provider = "claude-code"`;
     /// other providers accept the field for forward-compatibility but ignore
-    /// it today. The `OPENFANG_SUBPROCESS_TIMEOUT_SECS` env var, if set, wins
+    /// it today. The `FREECO_AI_SUBPROCESS_TIMEOUT_SECS` env var, if set, wins
     /// over this field at driver-construction time.
     #[serde(default)]
     pub subprocess_timeout_secs: Option<u64>,
@@ -768,7 +768,7 @@ impl Default for ExtensionsConfig {
 pub struct VaultConfig {
     /// Whether the vault is enabled (auto-detected if vault.enc exists).
     pub enabled: bool,
-    /// Custom vault file path (default: ~/.openfang/vault.enc).
+    /// Custom vault file path (default: ~/.freeco-ai/vault.enc).
     pub path: Option<PathBuf>,
 }
 
@@ -802,7 +802,7 @@ pub struct AgentBinding {
 /// Single source of truth shared between:
 /// - Config validation (warn the user when their `channel_id` binding targets
 ///   an adapter that doesn't populate `ctx.channel_id`).
-/// - `ChannelMessage::channel_id()` in `openfang-channels::types` (routing-time
+/// - `ChannelMessage::channel_id()` in `freeco-channels::types` (routing-time
 ///   accessor that reads from this list to decide where to source the ID).
 ///
 /// Adapters not listed fall back to `metadata["channel_id"]` if present, then
@@ -1018,7 +1018,7 @@ pub struct ExecPolicy {
     /// produce no stdout/stderr output for this duration. Default: 30.
     #[serde(default = "default_no_output_timeout")]
     pub no_output_timeout_secs: u64,
-    /// Environment variables to forward from the OpenFang process into
+    /// Environment variables to forward from the Freeco process into
     /// `shell_exec` subprocesses.
     ///
     /// By default, subprocesses run with `env_clear()` and only receive a
@@ -1207,9 +1207,9 @@ impl Default for ThinkingConfig {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct KernelConfig {
-    /// OpenFang home directory (default: ~/.openfang).
+    /// Freeco home directory (default: ~/.freeco-ai).
     pub home_dir: PathBuf,
-    /// Data directory for databases (default: ~/.openfang/data).
+    /// Data directory for databases (default: ~/.freeco-ai/data).
     pub data_dir: PathBuf,
     /// Log level (trace, debug, info, warn, error).
     pub log_level: String,
@@ -1264,7 +1264,7 @@ pub struct KernelConfig {
     /// Credential vault configuration.
     #[serde(default)]
     pub vault: VaultConfig,
-    /// Root directory for agent workspaces. Default: `~/.openfang/workspaces`
+    /// Root directory for agent workspaces. Default: `~/.freeco-ai/workspaces`
     #[serde(default)]
     pub workspaces_dir: Option<PathBuf>,
     /// Media understanding configuration.
@@ -1340,7 +1340,7 @@ pub struct KernelConfig {
     #[serde(default)]
     pub auth: AuthConfig,
     /// Directory for auto-loading workflow JSON files on startup.
-    /// Defaults to `~/.openfang/workflows`. Set to empty string to disable.
+    /// Defaults to `~/.freeco-ai/workflows`. Set to empty string to disable.
     #[serde(default)]
     pub workflows_dir: Option<PathBuf>,
     /// Heartbeat monitor settings.
@@ -1354,7 +1354,7 @@ pub struct KernelConfig {
     /// 2. env var named by the var's `env` field,
     /// 3. the var's `default`.
     ///
-    /// Example `~/.openfang/config.toml`:
+    /// Example `~/.freeco-ai/config.toml`:
     /// ```toml
     /// [skills.github-repo-helper]
     /// github_token = "ghp_..."
@@ -1395,7 +1395,7 @@ impl Default for HeartbeatSettings {
 /// All options default to safe values — no config entry is required for
 /// production deployments targeting children.
 ///
-/// Example `~/.openfang/config.toml`:
+/// Example `~/.freeco-ai/config.toml`:
 /// ```toml
 /// [freeco]
 /// safe_mode = true
@@ -1442,7 +1442,7 @@ pub struct AuthConfig {
     /// Admin username.
     pub username: String,
     /// Argon2id password hash (PHC string format).
-    /// Generate with: openfang auth hash-password
+    /// Generate with: freeco auth hash-password
     pub password_hash: String,
     /// Session token lifetime in hours (default: 168 = 7 days).
     pub session_ttl_hours: u64,
@@ -1603,7 +1603,7 @@ fn default_thread_ttl() -> u64 {
 
 impl Default for KernelConfig {
     fn default() -> Self {
-        let home_dir = openfang_home_dir();
+        let home_dir = freeco_home_dir();
         Self {
             data_dir: home_dir.join("data"),
             home_dir,
@@ -1786,17 +1786,17 @@ impl std::fmt::Debug for KernelConfig {
 /// Resolve the FreEco.ai home directory.
 ///
 /// Priority: `FREECO_AI_HOME` env var > legacy `FRECO_AI_HOME` >
-/// legacy `OPENFANG_HOME` > `~/.freeco-ai`.
-fn openfang_home_dir() -> PathBuf {
+/// legacy `FREECO_AI_HOME` > `~/.freeco-ai`.
+fn freeco_home_dir() -> PathBuf {
     if let Ok(home) = std::env::var("FREECO_AI_HOME")
         .or_else(|_| std::env::var("FRECO_AI_HOME"))
-        .or_else(|_| std::env::var("OPENFANG_HOME"))
+        .or_else(|_| std::env::var("FREECO_AI_HOME"))
     {
         return PathBuf::from(home);
     }
     let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
     let freeco_home = home.join(".freeco-ai");
-    let legacy_home = home.join(".openfang");
+    let legacy_home = home.join(".freeco-ai");
     if !freeco_home.exists() && legacy_home.exists() {
         legacy_home
     } else {
@@ -1822,7 +1822,7 @@ pub struct DefaultModelConfig {
     /// driver is constructed. Currently honored only by
     /// `provider = "claude-code"`; other providers accept the field for
     /// forward-compatibility but ignore it today. The
-    /// `OPENFANG_SUBPROCESS_TIMEOUT_SECS` env var, if set, wins over this
+    /// `FREECO_AI_SUBPROCESS_TIMEOUT_SECS` env var, if set, wins over this
     /// field at driver-construction time.
     pub subprocess_timeout_secs: Option<u64>,
 }
@@ -2261,7 +2261,7 @@ impl Default for SignalConfig {
 pub struct MatrixConfig {
     /// Matrix homeserver URL (e.g., `"https://matrix.org"`).
     pub homeserver_url: String,
-    /// Bot user ID (e.g., "@openfang:matrix.org").
+    /// Bot user ID (e.g., "@freeco:matrix.org").
     pub user_id: String,
     /// Env var name holding the access token.
     pub access_token_env: String,
@@ -2424,7 +2424,7 @@ pub struct IrcConfig {
     pub nick: String,
     /// Env var name holding the server password (optional).
     pub password_env: Option<String>,
-    /// Channels to join (e.g., `["#openfang", "#general"]`).
+    /// Channels to join (e.g., `["#freeco", "#general"]`).
     #[serde(default, deserialize_with = "deserialize_string_or_int_vec")]
     pub channels: Vec<String>,
     /// Use TLS (requires tokio-native-tls).
@@ -2441,7 +2441,7 @@ impl Default for IrcConfig {
         Self {
             server: "irc.libera.chat".to_string(),
             port: 6667,
-            nick: "openfang".to_string(),
+            nick: "freeco".to_string(),
             password_env: None,
             channels: vec![],
             use_tls: false,
@@ -2504,7 +2504,7 @@ impl Default for TwitchConfig {
         Self {
             oauth_token_env: "TWITCH_OAUTH_TOKEN".to_string(),
             channels: vec![],
-            nick: "openfang".to_string(),
+            nick: "freeco".to_string(),
             default_agent: None,
             overrides: ChannelOverrides::default(),
         }
@@ -2932,7 +2932,7 @@ impl Default for MqttConfig {
         Self {
             broker_url: "tcp://broker.hivemq.com:1883".to_string(),
             client_id: String::new(),
-            subscribe_topic: "openfang/inbox".to_string(),
+            subscribe_topic: "freeco/inbox".to_string(),
             publish_topic: String::new(),
             username_env: "MQTT_USERNAME".to_string(),
             password_env: "MQTT_PASSWORD".to_string(),
@@ -3261,7 +3261,7 @@ impl Default for MumbleConfig {
         Self {
             host: String::new(),
             port: 64738,
-            username: "openfang".to_string(),
+            username: "freeco".to_string(),
             password_env: "MUMBLE_PASSWORD".to_string(),
             channel: String::new(),
             default_agent: None,
@@ -4273,7 +4273,7 @@ mod tests {
     fn test_validate_missing_env_vars() {
         let mut config = KernelConfig::default();
         config.channels.discord = Some(DiscordConfig {
-            bot_token_env: "OPENFANG_TEST_NONEXISTENT_VAR_DC".to_string(),
+            bot_token_env: "FREECO_AI_TEST_NONEXISTENT_VAR_DC".to_string(),
             ..Default::default()
         });
         let warnings = config.validate();
@@ -4376,7 +4376,7 @@ mod tests {
         let irc = IrcConfig::default();
         assert_eq!(irc.server, "irc.libera.chat");
         assert_eq!(irc.port, 6667);
-        assert_eq!(irc.nick, "openfang");
+        assert_eq!(irc.nick, "freeco");
         assert!(!irc.use_tls);
     }
 
@@ -4391,7 +4391,7 @@ mod tests {
     fn test_twitch_config_defaults() {
         let tw = TwitchConfig::default();
         assert_eq!(tw.oauth_token_env, "TWITCH_OAUTH_TOKEN");
-        assert_eq!(tw.nick, "openfang");
+        assert_eq!(tw.nick, "freeco");
     }
 
     #[test]

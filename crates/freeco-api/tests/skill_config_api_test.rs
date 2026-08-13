@@ -6,13 +6,13 @@
 //! no runtime config, so the synthetic skill fixture is what lets us prove
 //! the wire contract.
 //!
-//! Run: cargo test -p openfang-api --test skill_config_api_test -- --nocapture
+//! Run: cargo test -p freeco-api --test skill_config_api_test -- --nocapture
 
 use axum::Router;
-use openfang_api::middleware;
-use openfang_api::routes::{self, AppState};
-use openfang_kernel::OpenFangKernel;
-use openfang_types::config::{DefaultModelConfig, KernelConfig};
+use freeco_api::middleware;
+use freeco_api::routes::{self, AppState};
+use freeco_kernel::FreecoKernel;
+use freeco_types::config::{DefaultModelConfig, KernelConfig};
 use std::sync::Arc;
 use std::time::Instant;
 use tower_http::cors::CorsLayer;
@@ -49,7 +49,7 @@ description: Synthetic skill for config endpoint tests
 config:
   github_token:
     description: GitHub personal access token
-    env: OPENFANG_TEST_SKILLCFG_GH_TOKEN
+    env: FREECO_AI_TEST_SKILLCFG_GH_TOKEN
     required: true
   default_branch:
     description: Default branch name
@@ -84,7 +84,7 @@ async fn start_test_server() -> TestServer {
     // Plant synthetic skill BEFORE booting so the initial skill load picks it up.
     plant_skill_with_config(&home, "test-config-skill");
 
-    let kernel = OpenFangKernel::boot_with_config(config).expect("kernel boot");
+    let kernel = FreecoKernel::boot_with_config(config).expect("kernel boot");
     let kernel = Arc::new(kernel);
     kernel.set_self_handle();
 
@@ -102,7 +102,7 @@ async fn start_test_server() -> TestServer {
         services: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
-        security: std::sync::Arc::new(openfang_api::security::SecurityService::default()),
+        security: std::sync::Arc::new(freeco_api::security::SecurityService::default()),
     });
 
     let app = Router::new()
@@ -144,7 +144,7 @@ async fn start_test_server() -> TestServer {
 async fn get_config_returns_declared_and_resolved() {
     // Make sure no host leak from prior tests interferes.
     // SAFETY: single-threaded test, env var is unique to this test suite.
-    unsafe { std::env::remove_var("OPENFANG_TEST_SKILLCFG_GH_TOKEN") };
+    unsafe { std::env::remove_var("FREECO_AI_TEST_SKILLCFG_GH_TOKEN") };
 
     let server = start_test_server().await;
     let client = reqwest::Client::new();
@@ -316,7 +316,7 @@ async fn delete_refuses_to_strand_required_var() {
     // github_token is required, has no default, and no env — so removing an
     // override would leave it unresolvable. The endpoint must refuse.
     // SAFETY: single-threaded test.
-    unsafe { std::env::remove_var("OPENFANG_TEST_SKILLCFG_GH_TOKEN") };
+    unsafe { std::env::remove_var("FREECO_AI_TEST_SKILLCFG_GH_TOKEN") };
 
     let server = start_test_server().await;
     let client = reqwest::Client::new();

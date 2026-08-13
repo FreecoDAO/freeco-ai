@@ -17,7 +17,7 @@ api_key_env = "ANTHROPIC_API_KEY"         # Environment variable holding API key
 
 [memory]
 decay_rate = 0.05                         # Memory confidence decay rate
-# sqlite_path = "~/.freeco-ai/data/openfang.db"  # Optional: custom DB path
+# sqlite_path = "~/.freeco-ai/data/freeco.db"  # Optional: custom DB path
 
 [network]
 listen_addr = "127.0.0.1:4200"           # OFP listen address

@@ -22,7 +22,7 @@ Instead of building a traditional cloud-first marketplace, FRE.ECO will first de
 
 At the core of the system is **FreEco.ai**, which ships as a **single binary** that you configure for your use case. The same runtime can be assembled into different product experiences depending on the target audience.
 
-FreEco.ai is built on and evolved from the mature, most reliable, advanced, and secure open-source AI Agentic OS **OpenFang**, which advanced the trending **OpenClaw** agentic community into a highly reliable Agentic OS with **16 security levels** and **Ethical Ecological guidelines**. This foundation gives FRE.ECO a strong, trusted, and extensible AI operating base for secure local execution, agent orchestration, and responsible ecosystem growth.
+FreEco.ai is built on and evolved from the mature, most reliable, advanced, and secure open-source AI Agentic OS **Freeco**, which advanced the trending **OpenClaw** agentic community into a highly reliable Agentic OS with **16 security levels** and **Ethical Ecological guidelines**. This foundation gives FRE.ECO a strong, trusted, and extensible AI operating base for secure local execution, agent orchestration, and responsible ecosystem growth.
 
 The four supported assembly types are:
 
@@ -218,7 +218,7 @@ Responsibilities:
 * Security
 * Local execution
 
-FreEco.ai inherits the mature Agentic OS foundation of OpenFang, including its 16 security levels and ethical ecological operating principles. This makes the runtime suitable for trusted autonomous execution, responsible agent behavior, and secure multi-edition deployment.
+FreEco.ai inherits the mature Agentic OS foundation of Freeco, including its 16 security levels and ethical ecological operating principles. This makes the runtime suitable for trusted autonomous execution, responsible agent behavior, and secure multi-edition deployment.
 
 FRE.ECO adds:
 
@@ -242,7 +242,7 @@ FreEco.ai is the single binary foundation. FRE.ECO defines the product layers, e
 * Cloud services receive only authenticated and authorized requests.
 * Docker containers are used only where appropriate in server infrastructure.
 * The local FreEco.ai binary is configured securely for the selected edition and use case.
-* The system follows the 16 security levels and Ethical Ecological guidelines inherited from the OpenFang Agentic OS foundation.
+* The system follows the 16 security levels and Ethical Ecological guidelines inherited from the Freeco Agentic OS foundation.
 
 ## Planned: Self-Contained Isolation Layer
 
@@ -451,7 +451,7 @@ freeco-ai hand list
 ## FreEco.ai vs The Landscape
 
 <p align="center">
-  <img src="public/assets/openfang-vs-claws.png" width="600" alt="FreEco.ai vs OpenClaw vs ZeroClaw" />
+  <img src="public/assets/freeco-vs-claws.png" width="600" alt="FreEco.ai vs OpenClaw vs ZeroClaw" />
 </p>
 
 ### Benchmarks: Measured, Not Marketed
@@ -573,19 +573,19 @@ FreEco.ai doesn't bolt security on after the fact. Every layer is independently 
 14 Rust crates. 137,728 lines of code. Modular kernel design.
 
 ```
-openfang-kernel      Orchestration, workflows, metering, RBAC, scheduler, budget tracking
+freeco-kernel      Orchestration, workflows, metering, RBAC, scheduler, budget tracking
 freeco-kernel-runtime     Agent loop, 3 LLM drivers, 53 tools, WASM sandbox, MCP, A2A
-openfang-api         140+ REST/WS/SSE endpoints, OpenAI-compatible API, dashboard
-openfang-channels    40 messaging adapters with rate limiting, DM/group policies
-openfang-memory      SQLite persistence, vector embeddings, canonical sessions, compaction
-openfang-types       Core types, taint tracking, Ed25519 manifest signing, model catalog
-openfang-skills      61 bundled skills, SKILL.md parser, FangHub marketplace
-openfang-hands       7 autonomous Hands, HAND.toml parser, lifecycle management
-openfang-extensions  25 MCP templates, AES-256-GCM credential vault, OAuth2 PKCE
-openfang-wire        OFP P2P protocol with HMAC-SHA256 mutual authentication
-openfang-cli         CLI with daemon management, TUI dashboard, MCP server mode
-openfang-desktop     Tauri 2.0 native app (system tray, notifications, global shortcuts)
-openfang-migrate     OpenClaw, LangChain, AutoGPT migration engine
+freeco-api         140+ REST/WS/SSE endpoints, OpenAI-compatible API, dashboard
+freeco-channels    40 messaging adapters with rate limiting, DM/group policies
+freeco-memory      SQLite persistence, vector embeddings, canonical sessions, compaction
+freeco-types       Core types, taint tracking, Ed25519 manifest signing, model catalog
+freeco-skills      61 bundled skills, SKILL.md parser, FangHub marketplace
+freeco-hands       7 autonomous Hands, HAND.toml parser, lifecycle management
+freeco-extensions  25 MCP templates, AES-256-GCM credential vault, OAuth2 PKCE
+freeco-wire        OFP P2P protocol with HMAC-SHA256 mutual authentication
+freeco-cli         CLI with daemon management, TUI dashboard, MCP server mode
+freeco-desktop     Tauri 2.0 native app (system tray, notifications, global shortcuts)
+freeco-migrate     OpenClaw, LangChain, AutoGPT migration engine
 xtask                Build automation
 ```
 

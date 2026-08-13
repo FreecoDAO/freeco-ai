@@ -83,12 +83,12 @@ function workflowBuilder() {
       if (this.spawningTeam) return;
       var roleNodes = this.nodes.filter(function(n) { return n.type === 'agent'; });
       if (!roleNodes.length) {
-        OpenFangToast.error('Load a company template (or add agent steps) first.');
+        FreecoToast.error('Load a company template (or add agent steps) first.');
         return;
       }
       var todo = roleNodes.filter(function(n) { return !n.config.agent_name; });
       if (!todo.length) {
-        OpenFangToast.info('Every role already has an agent assigned.');
+        FreecoToast.info('Every role already has an agent assigned.');
         return;
       }
 
@@ -113,7 +113,7 @@ function workflowBuilder() {
         ].join('\n');
 
         try {
-          var res = await OpenFangAPI.post('/api/agents', { manifest_toml: toml });
+          var res = await FreecoAPI.post('/api/agents', { manifest_toml: toml });
           node.config.agent_name = (res && res.name) || roleName;
           created++;
           this.scheduleRender();
@@ -124,7 +124,7 @@ function workflowBuilder() {
 
       // Refresh the agent dropdown + global list so the new hires appear.
       try {
-        var list = await OpenFangAPI.get('/api/agents');
+        var list = await FreecoAPI.get('/api/agents');
         this.agents = Array.isArray(list) ? list : [];
       } catch (e) { /* dropdown will refresh on next load */ }
       try { Alpine.store('app').refreshAgents(); } catch (e) { /* optional */ }
@@ -133,11 +133,11 @@ function workflowBuilder() {
       this.scheduleRender();
 
       if (created && !failures.length) {
-        OpenFangToast.success('Hired ' + created + ' agent(s) and wired them into the workflow. Save it to keep the org.');
+        FreecoToast.success('Hired ' + created + ' agent(s) and wired them into the workflow. Save it to keep the org.');
       } else if (created) {
-        OpenFangToast.warn('Hired ' + created + ', but ' + failures.length + ' failed: ' + failures[0]);
+        FreecoToast.warn('Hired ' + created + ', but ' + failures.length + ' failed: ' + failures[0]);
       } else {
-        OpenFangToast.error('Could not create the team: ' + (failures[0] || 'unknown error'));
+        FreecoToast.error('Could not create the team: ' + (failures[0] || 'unknown error'));
       }
     },
 
@@ -171,8 +171,8 @@ function workflowBuilder() {
       var end = self.addNode('end', x, 240);
       self.connections.push({ from: prevId, fromPort: 0, to: end.id, toPort: 0 });
       self.scheduleRender();
-      if (typeof OpenFangToast !== 'undefined') {
-        OpenFangToast.success('Loaded "' + tpl.name + '" — assign an agent to each role, then Save.');
+      if (typeof FreecoToast !== 'undefined') {
+        FreecoToast.success('Loaded "' + tpl.name + '" — assign an agent to each role, then Save.');
       }
     },
 
@@ -187,7 +187,7 @@ function workflowBuilder() {
       var self = this;
       // Load agents for the agent step dropdown
       try {
-        var list = await OpenFangAPI.get('/api/agents');
+        var list = await FreecoAPI.get('/api/agents');
         self.agents = Array.isArray(list) ? list : [];
       } catch(_) {
         self.agents = [];
@@ -697,15 +697,15 @@ function workflowBuilder() {
         steps.push(step);
       }
       try {
-        await OpenFangAPI.post('/api/workflows', {
+        await FreecoAPI.post('/api/workflows', {
           name: this.workflowName || 'untitled',
           description: this.workflowDescription || '',
           steps: steps
         });
-        OpenFangToast.success('Workflow saved!');
+        FreecoToast.success('Workflow saved!');
         this.showSaveModal = false;
       } catch(e) {
-        OpenFangToast.error('Failed to save: ' + e.message);
+        FreecoToast.error('Failed to save: ' + e.message);
       }
     },
 

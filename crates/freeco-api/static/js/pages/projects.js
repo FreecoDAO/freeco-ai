@@ -32,9 +32,9 @@ function projectsPage() {
       try {
         var q = this.showArchived ? '?archived=true' : '';
         var results = await Promise.all([
-          OpenFangAPI.get('/api/org/projects' + q),
-          OpenFangAPI.get('/api/org/companies' + q),
-          OpenFangAPI.get('/api/org/overview')
+          FreecoAPI.get('/api/org/projects' + q),
+          FreecoAPI.get('/api/org/companies' + q),
+          FreecoAPI.get('/api/org/overview')
         ]);
         this.projects = (results[0] && results[0].projects) || [];
         this.companies = (results[1] && results[1].companies) || [];
@@ -65,18 +65,18 @@ function projectsPage() {
       if (!name) return;
       this.creating = true;
       try {
-        var res = await OpenFangAPI.post('/api/org/projects', { name: name });
+        var res = await FreecoAPI.post('/api/org/projects', { name: name });
         // The API routes rather than blindly creating, so tell the user when
         // they landed in an existing project instead of a new one.
         if (res && res.reused) {
-          OpenFangToast.info('That project already existed — opened it instead of making a second one.');
+          FreecoToast.info('That project already existed — opened it instead of making a second one.');
         } else {
-          OpenFangToast.success('Project created.');
+          FreecoToast.success('Project created.');
         }
         this.newProject = '';
         await this.load();
       } catch (e) {
-        OpenFangToast.error('Could not create project: ' + e.message);
+        FreecoToast.error('Could not create project: ' + e.message);
       }
       this.creating = false;
     },
@@ -89,11 +89,11 @@ function projectsPage() {
       var name = (this.newTeam || '').trim();
       if (!name || !this.selected) return;
       try {
-        await OpenFangAPI.post('/api/org/teams', { name: name, project_id: this.selected.id });
+        await FreecoAPI.post('/api/org/teams', { name: name, project_id: this.selected.id });
         this.newTeam = '';
-        OpenFangToast.success('Team added to ' + this.selected.name + '.');
+        FreecoToast.success('Team added to ' + this.selected.name + '.');
       } catch (e) {
-        OpenFangToast.error('Could not create team: ' + e.message);
+        FreecoToast.error('Could not create team: ' + e.message);
       }
     },
 
@@ -101,12 +101,12 @@ function projectsPage() {
       var name = (this.newCompany || '').trim();
       if (!name) return;
       try {
-        await OpenFangAPI.post('/api/org/companies', { name: name });
+        await FreecoAPI.post('/api/org/companies', { name: name });
         this.newCompany = '';
         await this.load();
-        OpenFangToast.success('Company created.');
+        FreecoToast.success('Company created.');
       } catch (e) {
-        OpenFangToast.error('Could not create company: ' + e.message);
+        FreecoToast.error('Could not create company: ' + e.message);
       }
     },
 
@@ -115,10 +115,10 @@ function projectsPage() {
       this.sessionsLoading = true;
       this.sessions = [];
       try {
-        var res = await OpenFangAPI.get('/api/org/projects/' + encodeURIComponent(project.id) + '/sessions');
+        var res = await FreecoAPI.get('/api/org/projects/' + encodeURIComponent(project.id) + '/sessions');
         this.sessions = (res && res.sessions) || [];
       } catch (e) {
-        OpenFangToast.error('Could not load this project’s conversations: ' + e.message);
+        FreecoToast.error('Could not load this project’s conversations: ' + e.message);
       }
       this.sessionsLoading = false;
     },
@@ -128,21 +128,21 @@ function projectsPage() {
     // people stop clearing it.
     async setArchived(session, value) {
       try {
-        await OpenFangAPI.put('/api/sessions/' + encodeURIComponent(session.id) + '/archive', { value: value });
+        await FreecoAPI.put('/api/sessions/' + encodeURIComponent(session.id) + '/archive', { value: value });
         session.archived = value;
       } catch (e) {
-        OpenFangToast.error('Could not archive: ' + e.message);
+        FreecoToast.error('Could not archive: ' + e.message);
       }
     },
 
     // Trash hides, it does not delete. Nothing here removes a row.
     async trash(session) {
       try {
-        await OpenFangAPI.put('/api/sessions/' + encodeURIComponent(session.id) + '/trash', { value: true });
+        await FreecoAPI.put('/api/sessions/' + encodeURIComponent(session.id) + '/trash', { value: true });
         this.sessions = this.sessions.filter(function (s) { return s.id !== session.id; });
-        OpenFangToast.info('Moved to trash. Nothing was deleted — it can be restored.');
+        FreecoToast.info('Moved to trash. Nothing was deleted — it can be restored.');
       } catch (e) {
-        OpenFangToast.error('Could not move to trash: ' + e.message);
+        FreecoToast.error('Could not move to trash: ' + e.message);
       }
     },
 

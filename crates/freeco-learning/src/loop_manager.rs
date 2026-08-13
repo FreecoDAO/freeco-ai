@@ -9,12 +9,12 @@ use tokio::fs::{self, OpenOptions};
 use tokio::io::AsyncWriteExt;
 use tracing::{debug, info, warn};
 
-/// The central self-improving learning loop for an OpenFang agent.
+/// The central self-improving learning loop for an Freeco agent.
 ///
 /// Manages capture, storage, scoring, and promotion of learnings
 /// to persistent memory files.
 pub struct LearningLoop {
-    /// Root directory for this agent (e.g., `~/.openfang/agents/<agent_id>/`)
+    /// Root directory for this agent (e.g., `~/.freeco-ai/agents/<agent_id>/`)
     agent_dir: PathBuf,
     /// Directory where learning logs are stored.
     learnings_dir: PathBuf,
@@ -119,7 +119,7 @@ impl LearningLoop {
             .await?;
 
         let entry = format!(
-            "\n<!-- Promoted by openfang-learning at {} -->\n{}\n",
+            "\n<!-- Promoted by freeco-learning at {} -->\n{}\n",
             chrono::Utc::now().to_rfc3339(),
             content
         );

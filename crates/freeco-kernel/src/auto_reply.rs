@@ -1,7 +1,7 @@
 //! Auto-reply background engine — trigger-driven background replies with concurrency control.
 
-use openfang_types::agent::AgentId;
-use openfang_types::config::AutoReplyConfig;
+use freeco_types::agent::AgentId;
+use freeco_types::config::AutoReplyConfig;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tracing::{debug, info, warn};

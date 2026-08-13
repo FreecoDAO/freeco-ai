@@ -11,7 +11,7 @@
 ### Option 1: Use the Batch File
 
 ```batch
-# Run this from the openfang directory:
+# Run this from the freeco directory:
 start-vertex.bat
 ```
 
@@ -26,7 +26,7 @@ This automatically:
 
 ```powershell
 # 1. Kill any existing instances
-taskkill /F /IM openfang.exe 2>$null
+taskkill /F /IM freeco.exe 2>$null
 
 # 2. Set environment variables (CRITICAL: clear proxy!)
 $env:HTTPS_PROXY = ""
@@ -37,8 +37,8 @@ $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\Users\at384\Downloads\osc\dbg-grcit-de
 $env:VERTEX_AI_ACCESS_TOKEN = gcloud auth print-access-token
 
 # 4. Start FreEco.ai
-cd C:\Users\at384\Downloads\osc\dllm\openfang
-.\target\debug\openfang.exe start
+cd C:\Users\at384\Downloads\osc\dllm\freeco
+.\target\debug\freeco.exe start
 ```
 
 ## Testing the API
@@ -83,7 +83,7 @@ Invoke-RestMethod -Uri $url -Method POST -Headers @{Authorization = "Bearer $tok
 
 ## Configuration
 
-### ~/.openfang/config.toml
+### ~/.freeco-ai/config.toml
 
 ```toml
 [default_model]
@@ -139,11 +139,11 @@ $env:VERTEX_AI_ACCESS_TOKEN = gcloud auth print-access-token
 ## Build Commands
 
 ```powershell
-cd C:\Users\at384\Downloads\osc\dllm\openfang
+cd C:\Users\at384\Downloads\osc\dllm\freeco
 $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
 
 # Debug build (faster compilation)
-cargo build -p openfang-cli
+cargo build -p freeco-cli
 
 # Run tests
 cargo test -p freeco-kernel-runtime --lib vertex

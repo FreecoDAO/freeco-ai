@@ -5,7 +5,7 @@
 //! Groq, Together, Fireworks, Ollama, etc.).
 
 use async_trait::async_trait;
-use openfang_types::model_catalog::{
+use freeco_types::model_catalog::{
     FIREWORKS_BASE_URL, GROQ_BASE_URL, LMSTUDIO_BASE_URL, MISTRAL_BASE_URL, OLLAMA_BASE_URL,
     OPENAI_BASE_URL, TOGETHER_BASE_URL, VLLM_BASE_URL,
 };

@@ -41,7 +41,7 @@ Authorization: Bearer <your-api-key>
 
 ### Setting the API Key
 
-Add to `~/.openfang/config.toml`:
+Add to `~/.freeco-ai/config.toml`:
 
 ```toml
 api_key = "your-secret-api-key"
@@ -579,12 +579,12 @@ List available agent templates from the agents directory.
     {
       "name": "hello-world",
       "description": "A friendly greeting agent",
-      "path": "/home/user/.openfang/agents/hello-world/agent.toml"
+      "path": "/home/user/.freeco-ai/agents/hello-world/agent.toml"
     },
     {
       "name": "coder",
       "description": "Expert coding assistant",
-      "path": "/home/user/.openfang/agents/coder/agent.toml"
+      "path": "/home/user/.freeco-ai/agents/coder/agent.toml"
     }
   ],
   "total": 30
@@ -667,7 +667,7 @@ Detailed kernel status including all agents.
 {
   "status": "running",
   "agent_count": 2,
-  "data_dir": "/home/user/.openfang/data",
+  "data_dir": "/home/user/.freeco-ai/data",
   "default_provider": "groq",
   "default_model": "llama-3.3-70b-versatile",
   "uptime_seconds": 3600,
@@ -692,7 +692,7 @@ Build and version information.
 
 ```json
 {
-  "name": "openfang",
+  "name": "freeco",
   "version": "0.1.0",
   "build_date": "2025-01-15",
   "git_sha": "abc1234",
@@ -768,7 +768,7 @@ Retrieve current kernel configuration (secrets are redacted).
 
 ```json
 {
-  "data_dir": "/home/user/.openfang/data",
+  "data_dir": "/home/user/.freeco-ai/data",
   "default_provider": "groq",
   "default_model": "llama-3.3-70b-versatile",
   "listen_addr": "127.0.0.1:4200",
@@ -1127,7 +1127,7 @@ Create a new skill from a template.
 {
   "status": "created",
   "skill": "my-skill",
-  "path": "/home/user/.openfang/skills/my-skill"
+  "path": "/home/user/.freeco-ai/skills/my-skill"
 }
 ```
 
@@ -2118,7 +2118,7 @@ Send a chat completion request using the OpenAI message format.
 
 ```json
 {
-  "model": "openfang:coder",
+  "model": "freeco:coder",
   "messages": [
     {"role": "system", "content": "You are a helpful assistant."},
     {"role": "user", "content": "Hello!"}
@@ -2133,7 +2133,7 @@ Send a chat completion request using the OpenAI message format.
 
 | Format | Example | Behavior |
 |--------|---------|----------|
-| `openfang:<name>` | `openfang:coder` | Find agent by name |
+| `freeco:<name>` | `freeco:coder` | Find agent by name |
 | UUID | `a1b2c3d4-...` | Find agent by ID |
 | Plain string | `coder` | Try as agent name |
 | Any other | `gpt-4o` | Falls back to first registered agent |
@@ -2142,7 +2142,7 @@ Send a chat completion request using the OpenAI message format.
 
 ```json
 {
-  "model": "openfang:analyst",
+  "model": "freeco:analyst",
   "messages": [
     {
       "role": "user",
@@ -2204,16 +2204,16 @@ List available models (agents) in OpenAI format.
   "object": "list",
   "data": [
     {
-      "id": "openfang:coder",
+      "id": "freeco:coder",
       "object": "model",
       "created": 1708617600,
-      "owned_by": "openfang"
+      "owned_by": "freeco"
     },
     {
-      "id": "openfang:researcher",
+      "id": "freeco:researcher",
       "object": "model",
       "created": 1708617600,
-      "owned_by": "openfang"
+      "owned_by": "freeco"
     }
   ]
 }

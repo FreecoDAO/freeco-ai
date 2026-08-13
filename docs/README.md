@@ -61,7 +61,7 @@ Welcome to the FreEco.ai documentation. FreEco.ai is the open-source Agent Opera
 
 ```bash
 export GROQ_API_KEY="your-key"
-openfang init && openfang start
+freeco init && freeco start
 # Open http://127.0.0.1:4200
 ```
 
@@ -85,10 +85,10 @@ openfang init && openfang start
 
 | Path | Description |
 |------|-------------|
-| `~/.openfang/config.toml` | Main configuration file |
-| `~/.openfang/data/openfang.db` | SQLite database |
-| `~/.openfang/skills/` | Installed skills |
-| `~/.openfang/daemon.json` | Daemon PID and port info |
+| `~/.freeco-ai/config.toml` | Main configuration file |
+| `~/.freeco-ai/data/freeco.db` | SQLite database |
+| `~/.freeco-ai/skills/` | Installed skills |
+| `~/.freeco-ai/daemon.json` | Daemon PID and port info |
 | `agents/` | Agent template manifests |
 
 ### Key Environment Variables

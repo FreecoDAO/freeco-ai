@@ -1,4 +1,4 @@
-# Add this section to your ~/.openfang/config.toml
+# Add this section to your ~/.freeco-ai/config.toml
 # to register the LangChain code review agent.
 
 [a2a]

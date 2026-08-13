@@ -1,4 +1,4 @@
-//! OpenFang Wire Protocol (OFP) — agent-to-agent networking.
+//! Freeco Wire Protocol (OFP) — agent-to-agent networking.
 //!
 //! Provides cross-machine agent discovery, authentication, and communication
 //! over TCP connections using a JSON-RPC framed protocol.

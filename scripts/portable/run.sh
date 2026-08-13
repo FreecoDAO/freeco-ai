@@ -11,7 +11,7 @@ export FREECO_AI_HOME="$ROOT/data"
 export FREECO_AI_LISTEN="${FREECO_AI_LISTEN:-127.0.0.1:4200}"
 # The interactive CLI still recognizes the legacy home variable. Keep it
 # aligned so first-run setup writes into this portable bundle.
-export OPENFANG_HOME="$FREECO_AI_HOME"
+export FREECO_AI_HOME="$FREECO_AI_HOME"
 
 OS="$(uname -s)"
 ARCH="$(uname -m)"

@@ -1,4 +1,4 @@
-//! Execution approval types for the OpenFang agent OS.
+//! Execution approval types for the Freeco agent OS.
 //!
 //! When an agent attempts a dangerous operation (e.g. `shell_exec`), the kernel
 //! creates an [`ApprovalRequest`] and pauses the agent until a human operator

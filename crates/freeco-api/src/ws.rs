@@ -22,9 +22,9 @@ use freeco_kernel_runtime::llm_driver::StreamEvent;
 use freeco_kernel_runtime::llm_errors;
 use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
-use openfang_kernel::OpenFangKernel;
-use openfang_types::agent::AgentId;
-use openfang_types::commands::{self, Surfaces};
+use freeco_kernel::FreecoKernel;
+use freeco_types::agent::AgentId;
+use freeco_types::commands::{self, Surfaces};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::net::{IpAddr, SocketAddr};
@@ -213,7 +213,7 @@ pub(crate) struct WsAuthCtx<'a> {
 /// `Err(StatusCode::UNAUTHORIZED)` otherwise. Accepts:
 ///   1. `Authorization: Bearer <api_key>` header
 ///   2. `?token=<api_key>` query parameter
-///   3. `openfang_session=<token>` cookie when dashboard auth is enabled
+///   3. `freeco_session=<token>` cookie when dashboard auth is enabled
 ///   4. Loopback origin when no api_key is configured
 ///   5. Any origin when `FREECO_AI_ALLOW_NO_AUTH=1`
 ///
@@ -303,7 +303,7 @@ pub(crate) fn check_ws_auth(ctx: &WsAuthCtx<'_>) -> Result<(), axum::http::Statu
 ///
 /// SECURITY: Authenticates via Bearer token in Authorization header,
 /// `?token=` query parameter (for browser WebSocket clients that cannot
-/// set custom headers), or the `openfang_session` cookie set by the
+/// set custom headers), or the `freeco_session` cookie set by the
 /// dashboard's session login flow (issue #1085).
 pub async fn agent_ws(
     ws: WebSocketUpgrade,
@@ -345,7 +345,7 @@ pub async fn agent_ws(
     if let Err(status) = check_ws_auth(&auth_ctx) {
         warn!(
             ip = %addr.ip(),
-            "WebSocket upgrade rejected: no valid Bearer token, ?token=, or openfang_session cookie"
+            "WebSocket upgrade rejected: no valid Bearer token, ?token=, or freeco_session cookie"
         );
         return status.into_response();
     }
@@ -647,7 +647,7 @@ async fn handle_text_message(
 
             // Resolve file attachments into image content blocks
             let mut has_images = false;
-            let mut ws_content_blocks: Option<Vec<openfang_types::message::ContentBlock>> = None;
+            let mut ws_content_blocks: Option<Vec<freeco_types::message::ContentBlock>> = None;
             if let Some(attachments) = parsed["attachments"].as_array() {
                 let refs: Vec<crate::types::AttachmentRef> = attachments
                     .iter()
@@ -729,7 +729,7 @@ async fn handle_text_message(
                     let stream_task = tokio::spawn(async move {
                         let mut text_buffer = String::new();
                         let mut accumulated_text = String::new();
-                        let mut stream_usage: Option<openfang_types::message::TokenUsage> = None;
+                        let mut stream_usage: Option<freeco_types::message::TokenUsage> = None;
                         let mut is_silent = false;
                         let far_future = tokio::time::Instant::now() + Duration::from_secs(86400);
                         let mut flush_deadline = far_future;
@@ -1404,7 +1404,7 @@ fn sanitize_text(s: &str) -> String {
 ///
 /// Uses the proper LLM error classifier from `freeco_kernel_runtime::llm_errors`
 /// for comprehensive 20-provider coverage with actionable advice.
-fn classify_streaming_error(err: &openfang_kernel::error::KernelError) -> String {
+fn classify_streaming_error(err: &freeco_kernel::error::KernelError) -> String {
     let inner = format!("{err}");
 
     // Check for agent-specific errors first (not LLM errors)
@@ -1532,15 +1532,15 @@ pub fn strip_think_tags(text: &str) -> String {
 ///
 /// This runs independently of the channel bridge — it uses the kernel's
 /// event bus to receive `CronJobExecuted` events and pushes them to WS.
-pub fn start_ws_cron_broadcaster(kernel: Arc<OpenFangKernel>) {
+pub fn start_ws_cron_broadcaster(kernel: Arc<FreecoKernel>) {
     tokio::spawn(async move {
         let mut rx = kernel.event_bus.subscribe_all();
         loop {
             let event = rx.recv().await;
             match event {
                 Ok(event) => {
-                    if let openfang_types::event::EventPayload::System(
-                        openfang_types::event::SystemEvent::CronJobExecuted {
+                    if let freeco_types::event::EventPayload::System(
+                        freeco_types::event::SystemEvent::CronJobExecuted {
                             agent_id,
                             job_id,
                             job_name,
@@ -1776,7 +1776,7 @@ mod tests {
         // Issue #1085: the dashboard logs in via cookie, so WS must accept it.
         let secret = "shared-secret";
         let token = crate::session_auth::create_session_token("alice", secret, 1);
-        let cookie = format!("foo=bar; openfang_session={token}");
+        let cookie = format!("foo=bar; freeco_session={token}");
         let mut headers = axum::http::HeaderMap::new();
         headers.insert("cookie", cookie.parse().unwrap());
         let uri = empty_uri();
@@ -1803,7 +1803,7 @@ mod tests {
         let mut headers = axum::http::HeaderMap::new();
         headers.insert(
             "cookie",
-            format!("openfang_session={token}").parse().unwrap(),
+            format!("freeco_session={token}").parse().unwrap(),
         );
         let uri = empty_uri();
         let ctx = WsAuthCtx {
@@ -1826,7 +1826,7 @@ mod tests {
         // Cookie signed with the wrong secret must fail.
         let bad = crate::session_auth::create_session_token("alice", "other-secret", 1);
         let mut headers = axum::http::HeaderMap::new();
-        headers.insert("cookie", format!("openfang_session={bad}").parse().unwrap());
+        headers.insert("cookie", format!("freeco_session={bad}").parse().unwrap());
         let uri = empty_uri();
         let ctx = WsAuthCtx {
             api_key: "secret",
@@ -1943,7 +1943,7 @@ mod tests {
         let mut headers = axum::http::HeaderMap::new();
         headers.insert(
             "cookie",
-            format!("openfang_session={token}").parse().unwrap(),
+            format!("freeco_session={token}").parse().unwrap(),
         );
         let uri = empty_uri();
         let ctx = WsAuthCtx {
@@ -1997,7 +1997,7 @@ mod tests {
         let mut headers = axum::http::HeaderMap::new();
         headers.insert(
             "cookie",
-            format!("openfang_session={token}").parse().unwrap(),
+            format!("freeco_session={token}").parse().unwrap(),
         );
         let uri = empty_uri();
         let ctx = WsAuthCtx {

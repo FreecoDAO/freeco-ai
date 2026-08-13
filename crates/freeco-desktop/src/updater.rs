@@ -1,4 +1,4 @@
-//! Update checker for the OpenFang desktop app.
+//! Update checker for the Freeco desktop app.
 
 use serde::Serialize;
 use tauri_plugin_notification::NotificationExt;

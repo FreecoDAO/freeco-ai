@@ -1,6 +1,6 @@
 //! # budget-engine
 //!
-//! Rust-native token budget enforcement for OpenFang agents.
+//! Rust-native token budget enforcement for Freeco agents.
 //!
 //! Rust owns the money. No agent subprocess can bypass or miscount its own
 //! budget. Every LLM call is metered here before being forwarded, and every
@@ -11,7 +11,7 @@
 //! ```no_run
 //! use freeco_budget_engine::{BudgetEngine, SubscriptionTier};
 //!
-//! let engine = BudgetEngine::open("/var/lib/openfang/budget.db").unwrap();
+//! let engine = BudgetEngine::open("/var/lib/freeco/budget.db").unwrap();
 //!
 //! // Check before calling the LLM
 //! engine.check_budget("agent-shopping", "user-42").unwrap();

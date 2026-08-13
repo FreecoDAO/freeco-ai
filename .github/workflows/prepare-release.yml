@@ -29,8 +29,8 @@ jobs:
         run: |
           prev="$(git show HEAD~1:Cargo.toml | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
           curr="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          previous_tauri="$(git show HEAD~1:crates/openfang-desktop/tauri.conf.json | python3 -c 'import json, sys; print(json.load(sys.stdin)["version"])')"
-          current_tauri="$(python3 -c 'import json; print(json.load(open("crates/openfang-desktop/tauri.conf.json"))["version"])')"
+          previous_tauri="$(git show HEAD~1:crates/freeco-desktop/tauri.conf.json | python3 -c 'import json, sys; print(json.load(sys.stdin)["version"])')"
+          current_tauri="$(python3 -c 'import json; print(json.load(open("crates/freeco-desktop/tauri.conf.json"))["version"])')"
 
           if [ "$prev" != "$curr" ] || [ "$previous_tauri" != "$current_tauri" ]; then
             echo "::error::Version metadata changed in the merged PR. Only prepare-release.yml may update versions."
@@ -121,7 +121,7 @@ jobs:
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml CHANGELOG.md ROADMAP.md crates/openfang-desktop/tauri.conf.json
+          git add Cargo.toml CHANGELOG.md ROADMAP.md crates/freeco-desktop/tauri.conf.json
           git commit -m "chore(release): v$VERSION"
           git tag --annotate "v$VERSION" --message "v$VERSION"
           git push origin HEAD:main --follow-tags

@@ -3,7 +3,7 @@ name = "freeco-agent-ceo"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-repository = "https://github.com/FreecoDAO/openfang"
+repository = "https://github.com/FreecoDAO/freeco"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

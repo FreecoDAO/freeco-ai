@@ -24,7 +24,7 @@ A skill consists of:
 1. A **manifest** (`skill.toml` or `SKILL.md`) that declares metadata, runtime type, provided tools, and requirements.
 2. An **entry point** (Python script, WASM module, Node.js module, or prompt-only Markdown) that implements the tool logic.
 
-Skills are installed to `~/.openfang/skills/` and made available to agents through the skill registry. FreEco.ai ships with **61 bundled skills** that are compiled into the binary and available immediately.
+Skills are installed to `~/.freeco-ai/skills/` and made available to agents through the skill registry. FreEco.ai ships with **61 bundled skills** that are compiled into the binary and available immediately.
 
 ### Supported Runtimes
 
@@ -102,7 +102,7 @@ my-skill/
 name = "web-summarizer"
 version = "0.1.0"
 description = "Summarizes any web page into bullet points"
-author = "openfang-community"
+author = "freeco-community"
 license = "MIT"
 tags = ["web", "summarizer", "research"]
 
@@ -260,11 +260,11 @@ if __name__ == "__main__":
 
 ### Using the FreEco.ai Python SDK
 
-For more advanced skills, use the Python SDK (`sdk/python/openfang_sdk.py`):
+For more advanced skills, use the Python SDK (`sdk/python/freeco_sdk.py`):
 
 ```python
 #!/usr/bin/env python3
-from openfang_sdk import SkillHandler
+from freeco_sdk import SkillHandler
 
 handler = SkillHandler()
 
@@ -374,15 +374,15 @@ capabilities = ["NetConnect(*)", "ShellExec(python3)"]
 ### From a Local Directory
 
 ```bash
-openfang skill install /path/to/my-skill
+freeco skill install /path/to/my-skill
 ```
 
-This reads the `skill.toml`, validates the manifest, and copies the skill to `~/.openfang/skills/my-skill/`.
+This reads the `skill.toml`, validates the manifest, and copies the skill to `~/.freeco-ai/skills/my-skill/`.
 
 ### From FangHub
 
 ```bash
-openfang skill install web-summarizer
+freeco skill install web-summarizer
 ```
 
 This downloads the skill from the FangHub marketplace registry.
@@ -390,13 +390,13 @@ This downloads the skill from the FangHub marketplace registry.
 ### From a Git Repository
 
 ```bash
-openfang skill install https://github.com/user/openfang-skill-example.git
+freeco skill install https://github.com/user/freeco-skill-example.git
 ```
 
 ### Listing Installed Skills
 
 ```bash
-openfang skill list
+freeco skill list
 ```
 
 Output:
@@ -414,7 +414,7 @@ code-formatter       1.0.0      1        Format code in 20+ languages
 ### Removing Skills
 
 ```bash
-openfang skill remove web-summarizer
+freeco skill remove web-summarizer
 ```
 
 ---
@@ -431,14 +431,14 @@ FangHub is the community skill marketplace for FreEco.ai.
 3. Test your skill locally:
 
 ```bash
-openfang skill install /path/to/my-skill
+freeco skill install /path/to/my-skill
 # Spawn an agent with the skill's tools and test them
 ```
 
 ### Searching FangHub
 
 ```bash
-openfang skill search "web scraping"
+freeco skill search "web scraping"
 ```
 
 Output:
@@ -460,7 +460,7 @@ Skills matching "web scraping":
 Publishing to FangHub will be available via:
 
 ```bash
-openfang skill publish
+freeco skill publish
 ```
 
 This validates the manifest, packages the skill, and uploads it to the FangHub registry.
@@ -473,25 +473,25 @@ This validates the manifest, packages the skill, and uploads it to the FangHub r
 
 ```bash
 # Install a skill (local directory, FangHub name, or git URL)
-openfang skill install <source>
+freeco skill install <source>
 
 # List all installed skills
-openfang skill list
+freeco skill list
 
 # Remove an installed skill
-openfang skill remove <name>
+freeco skill remove <name>
 
 # Search FangHub for skills
-openfang skill search <query>
+freeco skill search <query>
 
 # Create a new skill scaffold (interactive)
-openfang skill create
+freeco skill create
 ```
 
 ### Creating a Skill Scaffold
 
 ```bash
-openfang skill create
+freeco skill create
 ```
 
 This interactive command prompts for:
@@ -502,7 +502,7 @@ This interactive command prompts for:
 It generates:
 
 ```
-~/.openfang/skills/my-skill/
+~/.freeco-ai/skills/my-skill/
   skill.toml        # Pre-filled manifest
   src/
     main.py         # Starter entry point (for Python)
@@ -518,7 +518,7 @@ Reference skills in the agent manifest's `skills` field:
 name = "my-assistant"
 version = "0.1.0"
 description = "An assistant with extra skills"
-author = "openfang"
+author = "freeco"
 module = "builtin:chat"
 skills = ["web-summarizer", "data-analyzer"]
 
@@ -543,7 +543,7 @@ FreEco.ai can install and run OpenClaw-format skills. The skill installer auto-d
 ### Automatic Conversion
 
 ```bash
-openfang skill install /path/to/openclaw-skill
+freeco skill install /path/to/openclaw-skill
 ```
 
 If the directory contains an OpenClaw-style skill (Node.js package), FreEco.ai:
@@ -576,10 +576,10 @@ input_schema = { type = "object", properties = { input = { type = "string" } }, 
 Place this alongside the existing `index.js`/`index.ts` and install:
 
 ```bash
-openfang skill install /path/to/skill-directory
+freeco skill install /path/to/skill-directory
 ```
 
-Skills imported via `openfang migrate --from openclaw` are also scanned and reported in the migration report, with instructions for manual reinstallation.
+Skills imported via `freeco migrate --from openclaw` are also scanned and reported in the migration report, with instructions for manual reinstallation.
 
 ---
 

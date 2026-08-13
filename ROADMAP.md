@@ -98,7 +98,7 @@ recorded as such.
   shown as a generic failure. Adding $10 of credit raises the cap to 1000/day
   and is not consumed by free models. Any "works for free out of the box"
   claim has to account for this.
-- **The desktop app and the CLI daemon share one database** at `~/.openfang`.
+- **The desktop app and the CLI daemon share one database** at `~/.freeco-ai`.
   Running both at once puts two kernels on the same SQLite file and the same
   agents, which produces `Agent is unresponsive` heartbeat warnings.
 

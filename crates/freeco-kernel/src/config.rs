@@ -3,7 +3,7 @@
 //! Supports config includes: the `include` field specifies additional TOML files
 //! to load and deep-merge before the root config (root overrides includes).
 
-use openfang_types::config::KernelConfig;
+use freeco_types::config::KernelConfig;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tracing::info;
@@ -278,7 +278,7 @@ pub fn deep_merge_toml(base: &mut toml::Value, overlay: &toml::Value) {
 ///
 /// No-op if `root_value` is not a table or has no `bindings` array.
 fn lenient_extract_bindings(root_value: &mut toml::Value) {
-    use openfang_types::config::AgentBinding;
+    use freeco_types::config::AgentBinding;
 
     let tbl = match root_value {
         toml::Value::Table(t) => t,
@@ -341,7 +341,7 @@ fn lenient_extract_bindings(root_value: &mut toml::Value) {
 
 /// Get the default config file path.
 ///
-/// Respects `FREECO_AI_HOME` (or legacy `FRECO_AI_HOME` / `OPENFANG_HOME`)
+/// Respects `FREECO_AI_HOME` (or legacy `FRECO_AI_HOME` / `FREECO_AI_HOME`)
 /// environment variables.
 pub fn default_config_path() -> PathBuf {
     freeco_ai_home().join("config.toml")
@@ -350,9 +350,9 @@ pub fn default_config_path() -> PathBuf {
 /// Get the FreEco.ai home directory.
 ///
 /// Priority: `FREECO_AI_HOME` > legacy `FRECO_AI_HOME` > legacy
-/// `OPENFANG_HOME` > `~/.freeco-ai`.
+/// `FREECO_AI_HOME` > `~/.freeco-ai`.
 ///
-/// On first use, an existing legacy `~/.openfang` directory is renamed to the
+/// On first use, an existing legacy `~/.freeco-ai` directory is renamed to the
 /// new location. Renaming is atomic on a single filesystem and preserves
 /// credentials, databases, permissions, and daemon state. If it cannot be
 /// renamed, the legacy directory remains in use rather than risking data loss.
@@ -365,12 +365,12 @@ pub fn freeco_ai_home() -> PathBuf {
     if let Ok(home) = std::env::var("FRECO_AI_HOME") {
         return PathBuf::from(home);
     }
-    if let Ok(home) = std::env::var("OPENFANG_HOME") {
+    if let Ok(home) = std::env::var("FREECO_AI_HOME") {
         return PathBuf::from(home);
     }
     let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
     let freeco_home = home.join(".freeco-ai");
-    let legacy_home = home.join(".openfang");
+    let legacy_home = home.join(".freeco-ai");
     if !freeco_home.exists()
         && legacy_home.exists()
         && std::fs::rename(&legacy_home, &freeco_home).is_err()
@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn test_migrate_legacy_home_contents_preserves_existing_new_entries() {
         let temp = tempfile::tempdir().unwrap();
-        let legacy = temp.path().join(".openfang");
+        let legacy = temp.path().join(".freeco-ai");
         let current = temp.path().join(".freeco-ai");
         std::fs::create_dir_all(&legacy).unwrap();
         std::fs::create_dir_all(&current).unwrap();
@@ -456,7 +456,7 @@ mod tests {
     #[test]
     fn test_migrate_legacy_home_contents_moves_stranded_config() {
         let temp = tempfile::tempdir().unwrap();
-        let legacy = temp.path().join(".openfang");
+        let legacy = temp.path().join(".freeco-ai");
         let current = temp.path().join(".freeco-ai");
         std::fs::create_dir_all(&legacy).unwrap();
         std::fs::create_dir_all(&current).unwrap();

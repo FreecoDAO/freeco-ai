@@ -1,18 +1,18 @@
-//! Real HTTP integration tests for the OpenFang API.
+//! Real HTTP integration tests for the Freeco API.
 //!
 //! These tests boot a real kernel, start a real axum HTTP server on a random
 //! port, and hit actual endpoints with reqwest.  No mocking.
 //!
 //! Tests that require an LLM API call are gated behind GROQ_API_KEY.
 //!
-//! Run: cargo test -p openfang-api --test api_integration_test -- --nocapture
+//! Run: cargo test -p freeco-api --test api_integration_test -- --nocapture
 
 use axum::Router;
-use openfang_api::middleware;
-use openfang_api::routes::{self, AppState};
-use openfang_api::ws;
-use openfang_kernel::OpenFangKernel;
-use openfang_types::config::{DefaultModelConfig, KernelConfig};
+use freeco_api::middleware;
+use freeco_api::routes::{self, AppState};
+use freeco_api::ws;
+use freeco_kernel::FreecoKernel;
+use freeco_types::config::{DefaultModelConfig, KernelConfig};
 use std::sync::Arc;
 use std::time::Instant;
 use tower_http::cors::CorsLayer;
@@ -66,7 +66,7 @@ async fn start_test_server_with_provider(
         ..KernelConfig::default()
     };
 
-    let kernel = OpenFangKernel::boot_with_config(config).expect("Kernel should boot");
+    let kernel = FreecoKernel::boot_with_config(config).expect("Kernel should boot");
     let kernel = Arc::new(kernel);
     kernel.set_self_handle();
 
@@ -84,7 +84,7 @@ async fn start_test_server_with_provider(
         services: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
-        security: std::sync::Arc::new(openfang_api::security::SecurityService::default()),
+        security: std::sync::Arc::new(freeco_api::security::SecurityService::default()),
     });
 
     let app = Router::new()
@@ -402,7 +402,7 @@ async fn test_list_agents_includes_inferencing_flag() {
     assert_eq!(resp.status(), 201);
     let body: serde_json::Value = resp.json().await.unwrap();
     let agent_id_str = body["agent_id"].as_str().unwrap().to_string();
-    let agent_id: openfang_types::agent::AgentId = agent_id_str.parse().unwrap();
+    let agent_id: freeco_types::agent::AgentId = agent_id_str.parse().unwrap();
 
     // Baseline: idle agent must report is_inferencing = false.
     let resp = client
@@ -507,7 +507,7 @@ async fn test_agent_session_empty() {
 ///      mode opt-in).
 #[tokio::test]
 async fn test_agent_session_filters_system_messages() {
-    use openfang_types::message::{Message, Role};
+    use freeco_types::message::{Message, Role};
 
     let server = start_test_server().await;
     let client = reqwest::Client::new();
@@ -525,7 +525,7 @@ async fn test_agent_session_filters_system_messages() {
     // Look up the agent's session id and inject a forged history that
     // contains a system-role message (simulating what an OpenAI-compat
     // client could push, or what a future regression might persist).
-    let agent_id: openfang_types::agent::AgentId = agent_id_str.parse().unwrap();
+    let agent_id: freeco_types::agent::AgentId = agent_id_str.parse().unwrap();
     let entry = server.state.kernel.registry.get(agent_id).unwrap();
     let session_id = entry.session_id;
     let mut session = server
@@ -539,7 +539,7 @@ async fn test_agent_session_filters_system_messages() {
     session.messages = vec![
         Message {
             role: Role::System,
-            content: openfang_types::message::MessageContent::Text(
+            content: freeco_types::message::MessageContent::Text(
                 "INTERNAL SYSTEM PROMPT — must not leak to UI".to_string(),
             ),
             ..Default::default()
@@ -989,7 +989,7 @@ async fn start_test_server_with_auth(api_key: &str) -> TestServer {
         ..KernelConfig::default()
     };
 
-    let kernel = OpenFangKernel::boot_with_config(config).expect("Kernel should boot");
+    let kernel = FreecoKernel::boot_with_config(config).expect("Kernel should boot");
     let kernel = Arc::new(kernel);
     kernel.set_self_handle();
 
@@ -1007,7 +1007,7 @@ async fn start_test_server_with_auth(api_key: &str) -> TestServer {
         services: std::sync::Arc::new(tokio::sync::RwLock::new(Default::default())),
         frozen: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         frozen_agents: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
-        security: std::sync::Arc::new(openfang_api::security::SecurityService::default()),
+        security: std::sync::Arc::new(freeco_api::security::SecurityService::default()),
     });
 
     let api_key = state.kernel.config.api_key.trim().to_string();
@@ -1399,7 +1399,7 @@ async fn test_schedules_delivery_targets_roundtrip() {
     let delivery_targets = serde_json::json!([
         { "type": "channel", "channel_type": "telegram", "recipient": "chat_12345" },
         { "type": "webhook", "url": "https://example.com/hook", "auth_header": "Bearer abc" },
-        { "type": "local_file", "path": "/tmp/openfang-test.log", "append": true },
+        { "type": "local_file", "path": "/tmp/freeco-test.log", "append": true },
         { "type": "email", "to": "alice@example.com", "subject_template": "Cron: {job}" },
     ]);
 

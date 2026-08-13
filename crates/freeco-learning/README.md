@@ -1,6 +1,6 @@
-# openfang-learning
+# freeco-learning
 
-**Self-improving learning loop for OpenFang agents**, inspired by the [Hermes Agent](https://github.com/IncomeStreamSurfer/paperclip-surfers) self-improvement architecture.
+**Self-improving learning loop for Freeco agents**, inspired by the [Hermes Agent](https://github.com/IncomeStreamSurfer/paperclip-surfers) self-improvement architecture.
 
 Developed for [Freeco AI](https://fre.eco) — a Swiss high-end sustainable shopping concierge.
 
@@ -8,7 +8,7 @@ Developed for [Freeco AI](https://fre.eco) — a Swiss high-end sustainable shop
 
 ## Overview
 
-`openfang-learning` adds a persistent, structured **self-improving learning loop** to any OpenFang agent. Agents can capture corrections, knowledge gaps, errors, and best practices during task execution, and automatically promote high-value learnings to their core memory files — enabling true cross-session improvement.
+`freeco-learning` adds a persistent, structured **self-improving learning loop** to any Freeco agent. Agents can capture corrections, knowledge gaps, errors, and best practices during task execution, and automatically promote high-value learnings to their core memory files — enabling true cross-session improvement.
 
 ## Architecture
 
@@ -38,12 +38,12 @@ Agent Task Execution
 - **Auto-promote** high-scoring learnings to core memory files (SOUL.md, AGENTS.md, TOOLS.md)
 - **Replay** accumulated learnings into new sessions via system prompt injection
 - **Security-first** — security observations are always promoted immediately
-- **Optional** integration with the OpenFang memory substrate (SQLite + semantic store)
+- **Optional** integration with the Freeco memory substrate (SQLite + semantic store)
 
 ## Usage
 
 ```rust
-use openfang_learning::{LearningLoop, LearningType};
+use freeco_learning::{LearningLoop, LearningType};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -89,12 +89,12 @@ async fn main() -> anyhow::Result<()> {
 
 ## Integration with Freeco AI
 
-This crate is integrated into the **FreecoDAO/openfang** fork as the `openfang-learning` workspace crate. It powers the self-improving capabilities of all Freeco AI agents, including:
+This crate is integrated into the **FreecoDAO/freeco** fork as the `freeco-learning` workspace crate. It powers the self-improving capabilities of all Freeco AI agents, including:
 
 - **Freeco CEO (Manus AI)** — strategic learning and cross-department knowledge
-- **CEO Secretary (Hermes/OpenFang)** — operational pattern learning
+- **CEO Secretary (Hermes/Freeco)** — operational pattern learning
 - **Freeco Shopping Concierge** — product recommendation improvement over time
 
 ## License
 
-Apache-2.0 OR MIT — same as OpenFang.
+Apache-2.0 OR MIT — same as Freeco.

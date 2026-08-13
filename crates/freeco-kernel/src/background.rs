@@ -7,7 +7,7 @@
 
 use crate::triggers::TriggerPattern;
 use dashmap::DashMap;
-use openfang_types::agent::{AgentId, ScheduleMode};
+use freeco_types::agent::{AgentId, ScheduleMode};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::watch;
@@ -44,7 +44,7 @@ impl BackgroundExecutor {
     /// For `Proactive` mode, registers triggers — no dedicated task needed.
     ///
     /// `send_message` is a closure that sends a message to the given agent
-    /// and returns a result. It captures an `Arc<OpenFangKernel>` from the caller.
+    /// and returns a result. It captures an `Arc<FreecoKernel>` from the caller.
     pub fn start_agent<F>(
         &self,
         agent_id: AgentId,

@@ -31,7 +31,7 @@ function sessionsPage() {
 
     async loadOrphaned() {
       try {
-        var d = await OpenFangAPI.get('/api/sessions/orphaned');
+        var d = await FreecoAPI.get('/api/sessions/orphaned');
         this.orphaned = { count: d.orphaned || 0, messages: d.messages || 0, sessions: d.sessions || [] };
       } catch (e) {
         this.orphaned = { count: 0, messages: 0, sessions: [] };
@@ -41,18 +41,18 @@ function sessionsPage() {
     async restoreOrphaned() {
       var agents = Alpine.store('app').agents || [];
       if (!agents.length) {
-        OpenFangToast.error('Create an agent first — recovered conversations need an owner.');
+        FreecoToast.error('Create an agent first — recovered conversations need an owner.');
         return;
       }
       var target = agents[0];
       this.restoring = true;
       try {
-        var r = await OpenFangAPI.post('/api/sessions/orphaned/adopt', { agent_id: target.id });
-        OpenFangToast.success((r.adopted || 0) + ' conversation(s) restored to ' + target.name + '.');
+        var r = await FreecoAPI.post('/api/sessions/orphaned/adopt', { agent_id: target.id });
+        FreecoToast.success((r.adopted || 0) + ' conversation(s) restored to ' + target.name + '.');
         await this.loadOrphaned();
         await this.loadSessions();
       } catch (e) {
-        OpenFangToast.error('Could not restore: ' + (e.message || e));
+        FreecoToast.error('Could not restore: ' + (e.message || e));
       }
       this.restoring = false;
     },
@@ -63,7 +63,7 @@ function sessionsPage() {
       this.loadError = '';
       this.loadOrphaned();
       try {
-        var data = await OpenFangAPI.get('/api/sessions');
+        var data = await FreecoAPI.get('/api/sessions');
         var sessions = data.sessions || [];
         var agents = Alpine.store('app').agents;
         var agentMap = {};
@@ -102,16 +102,16 @@ function sessionsPage() {
     deleteSession(sessionId) {
       var self = this;
       var t = window.i18n ? window.i18n.t.bind(window.i18n) : function(k) { return k; };
-      OpenFangToast.confirm(
+      FreecoToast.confirm(
         t('sessions.delete_session') || 'Delete Session',
         t('sessions.delete_confirm') || 'This will permanently remove the session and its messages.',
         async function() {
           try {
-            await OpenFangAPI.del('/api/sessions/' + sessionId);
+            await FreecoAPI.del('/api/sessions/' + sessionId);
             self.sessions = self.sessions.filter(function(s) { return s.session_id !== sessionId; });
-            OpenFangToast.success('Session deleted');
+            FreecoToast.success('Session deleted');
           } catch(e) {
-            OpenFangToast.error('Failed to delete session: ' + e.message);
+            FreecoToast.error('Failed to delete session: ' + e.message);
           }
         }
       );
@@ -123,7 +123,7 @@ function sessionsPage() {
       this.memLoading = true;
       this.memLoadError = '';
       try {
-        var data = await OpenFangAPI.get('/api/memory/agents/' + this.memAgentId + '/kv');
+        var data = await FreecoAPI.get('/api/memory/agents/' + this.memAgentId + '/kv');
         this.kvPairs = data.kv_pairs || [];
       } catch(e) {
         this.kvPairs = [];
@@ -137,30 +137,30 @@ function sessionsPage() {
       var value;
       try { value = JSON.parse(this.newValue); } catch(e) { value = this.newValue; }
       try {
-        await OpenFangAPI.put('/api/memory/agents/' + this.memAgentId + '/kv/' + encodeURIComponent(this.newKey), { value: value });
+        await FreecoAPI.put('/api/memory/agents/' + this.memAgentId + '/kv/' + encodeURIComponent(this.newKey), { value: value });
         this.showAdd = false;
-        OpenFangToast.success('Key "' + this.newKey + '" saved');
+        FreecoToast.success('Key "' + this.newKey + '" saved');
         this.newKey = '';
         this.newValue = '""';
         await this.loadKv();
       } catch(e) {
-        OpenFangToast.error('Failed to save key: ' + e.message);
+        FreecoToast.error('Failed to save key: ' + e.message);
       }
     },
 
     deleteKey(key) {
       var self = this;
       var t = window.i18n ? window.i18n.t.bind(window.i18n) : function(k) { return k; };
-      OpenFangToast.confirm(
+      FreecoToast.confirm(
         t('sessions.delete_key') || 'Delete Key',
         (t('sessions.delete_key_confirm') || 'Delete key') + ' "' + key + '"? This cannot be undone.',
         async function() {
           try {
-            await OpenFangAPI.del('/api/memory/agents/' + self.memAgentId + '/kv/' + encodeURIComponent(key));
-            OpenFangToast.success('Key "' + key + '" deleted');
+            await FreecoAPI.del('/api/memory/agents/' + self.memAgentId + '/kv/' + encodeURIComponent(key));
+            FreecoToast.success('Key "' + key + '" deleted');
             await self.loadKv();
           } catch(e) {
-            OpenFangToast.error('Failed to delete key: ' + e.message);
+            FreecoToast.error('Failed to delete key: ' + e.message);
           }
         }
       );
@@ -181,13 +181,13 @@ function sessionsPage() {
       var value;
       try { value = JSON.parse(this.editingValue); } catch(e) { value = this.editingValue; }
       try {
-        await OpenFangAPI.put('/api/memory/agents/' + this.memAgentId + '/kv/' + encodeURIComponent(this.editingKey), { value: value });
-        OpenFangToast.success('Key "' + this.editingKey + '" updated');
+        await FreecoAPI.put('/api/memory/agents/' + this.memAgentId + '/kv/' + encodeURIComponent(this.editingKey), { value: value });
+        FreecoToast.success('Key "' + this.editingKey + '" updated');
         this.editingKey = null;
         this.editingValue = '';
         await this.loadKv();
       } catch(e) {
-        OpenFangToast.error('Failed to save: ' + e.message);
+        FreecoToast.error('Failed to save: ' + e.message);
       }
     }
   };

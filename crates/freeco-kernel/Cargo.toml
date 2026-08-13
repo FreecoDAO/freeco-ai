@@ -1,19 +1,19 @@
 [package]
-name = "openfang-kernel"
+name = "freeco-kernel"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Core kernel for the OpenFang Agent OS"
+description = "Core kernel for the Freeco Agent OS"
 
 [dependencies]
-openfang-types = { path = "../openfang-types" }
-openfang-memory = { path = "../openfang-memory" }
+freeco-types = { path = "../freeco-types" }
+freeco-memory = { path = "../freeco-memory" }
 freeco-kernel-runtime = { path = "../freeco-kernel-runtime" }
-openfang-skills = { path = "../openfang-skills" }
-openfang-hands = { path = "../openfang-hands" }
-openfang-extensions = { path = "../openfang-extensions" }
-openfang-wire = { path = "../openfang-wire" }
-openfang-channels = { path = "../openfang-channels" }
+freeco-skills = { path = "../freeco-skills" }
+freeco-hands = { path = "../freeco-hands" }
+freeco-extensions = { path = "../freeco-extensions" }
+freeco-wire = { path = "../freeco-wire" }
+freeco-channels = { path = "../freeco-channels" }
 freeco-agent-core = { path = "../freeco-agent-core" }
 freeco-agent-ceo = { path = "../freeco-agent-ceo" }
 freeco-agent-secretary = { path = "../freeco-agent-secretary" }

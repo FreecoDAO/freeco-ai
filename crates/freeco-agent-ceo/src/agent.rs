@@ -9,7 +9,7 @@ use freeco_kernel_runtime::kernel_handle::KernelHandle;
 use crate::types::Directive;
 use agent_core::message::Priority;
 
-/// Freeco.AI CEO Agent — native executive routing via OpenFang kernel handle.
+/// Freeco.AI CEO Agent — native executive routing via Freeco kernel handle.
 pub struct CeoAgent {
     id: String,
     kernel: Option<Arc<dyn KernelHandle>>,

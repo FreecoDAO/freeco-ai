@@ -1,6 +1,6 @@
 //! # tool-gateway
 //!
-//! The only path to external APIs for OpenFang agents.
+//! The only path to external APIs for Freeco agents.
 //! All tool calls are validated against a [`ToolPermissionManifest`] before
 //! being executed, ensuring agents can only access the tools they are explicitly
 //! granted.

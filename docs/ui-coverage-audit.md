@@ -37,7 +37,7 @@ unless granted), Docker sandbox (optional, uses host Docker), subprocess
 env-stripping (secrets never reach child processes), and a workspace
 filesystem sandbox (path-traversal/symlink-escape prevention). The browser
 tool drives an installed Chromium over CDP with SSRF checks. Data lives in
-`$OPENFANG_HOME` (default `~/.openfang`), never system directories. This
+`$FREECO_AI_HOME` (default `~/.freeco-ai`), never system directories. This
 should be surfaced on a Settings → Security page.
 
 ## Aesthetic (v0.7.4 luxury redesign)

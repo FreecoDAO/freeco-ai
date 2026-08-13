@@ -17,7 +17,7 @@ class PrepareReleaseMetadataTests(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_dir.name)
         (self.root / "scripts").mkdir()
-        (self.root / "crates" / "openfang-desktop").mkdir(parents=True)
+        (self.root / "crates" / "freeco-desktop").mkdir(parents=True)
         (self.root / "Cargo.toml").write_text(
             '[workspace.package]\nversion = "0.9.5"\n', encoding="utf-8"
         )
@@ -34,7 +34,7 @@ class PrepareReleaseMetadataTests(unittest.TestCase):
             "## Planned\n\n- 📋 Existing plan.\n",
             encoding="utf-8",
         )
-        (self.root / "crates" / "openfang-desktop" / "tauri.conf.json").write_text(
+        (self.root / "crates" / "freeco-desktop" / "tauri.conf.json").write_text(
             '{"version": "0.9.5"}\n', encoding="utf-8"
         )
 

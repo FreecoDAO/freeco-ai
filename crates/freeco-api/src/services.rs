@@ -4,7 +4,7 @@
 //! `POST /api/services/{id}/install` starts a background task that:
 //! 1. checks Docker is available (and says how to get it if not);
 //! 2. materialises the service (git clone, or an embedded compose file) into
-//!    `~/.openfang/services/{id}/`;
+//!    `~/.freeco-ai/services/{id}/`;
 //! 3. runs `docker compose up -d`, streaming progress;
 //! 4. waits for the service's health endpoint;
 //! 5. registers it as an MCP server so agents can use it immediately.

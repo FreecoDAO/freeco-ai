@@ -1,14 +1,14 @@
 //! Kernel-specific error types.
 
-use openfang_types::error::OpenFangError;
+use freeco_types::error::FreecoError;
 use thiserror::Error;
 
-/// Kernel error type wrapping OpenFangError with kernel-specific context.
+/// Kernel error type wrapping FreecoError with kernel-specific context.
 #[derive(Error, Debug)]
 pub enum KernelError {
-    /// A wrapped OpenFangError.
+    /// A wrapped FreecoError.
     #[error(transparent)]
-    OpenFang(#[from] OpenFangError),
+    Freeco(#[from] FreecoError),
 
     /// The kernel failed to boot.
     #[error("Boot failed: {0}")]

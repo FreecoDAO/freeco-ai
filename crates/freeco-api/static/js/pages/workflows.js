@@ -21,7 +21,7 @@ function workflowsPage() {
       this.loading = true;
       this.loadError = '';
       try {
-        this.workflows = await OpenFangAPI.get('/api/workflows');
+        this.workflows = await FreecoAPI.get('/api/workflows');
       } catch(e) {
         this.workflows = [];
         this.loadError = e.message || 'Could not load workflows.';
@@ -37,13 +37,13 @@ function workflowsPage() {
       });
       try {
         var wfName = this.newWf.name;
-        await OpenFangAPI.post('/api/workflows', { name: wfName, description: this.newWf.description, steps: steps });
+        await FreecoAPI.post('/api/workflows', { name: wfName, description: this.newWf.description, steps: steps });
         this.showCreateModal = false;
         this.newWf = { name: '', description: '', steps: [{ name: '', agent_name: '', mode: 'sequential', prompt: '{{input}}' }] };
-        OpenFangToast.success('Workflow "' + wfName + '" created');
+        FreecoToast.success('Workflow "' + wfName + '" created');
         await this.loadWorkflows();
       } catch(e) {
-        OpenFangToast.error('Failed to create workflow: ' + e.message);
+        FreecoToast.error('Failed to create workflow: ' + e.message);
       }
     },
 
@@ -58,40 +58,40 @@ function workflowsPage() {
       this.running = true;
       this.runResult = '';
       try {
-        var res = await OpenFangAPI.post('/api/workflows/' + this.runModal.id + '/run', { input: this.runInput });
+        var res = await FreecoAPI.post('/api/workflows/' + this.runModal.id + '/run', { input: this.runInput });
         this.runResult = res.output || JSON.stringify(res, null, 2);
-        OpenFangToast.success('Workflow completed');
+        FreecoToast.success('Workflow completed');
       } catch(e) {
         this.runResult = 'Error: ' + e.message;
-        OpenFangToast.error('Workflow failed: ' + e.message);
+        FreecoToast.error('Workflow failed: ' + e.message);
       }
       this.running = false;
     },
 
     async viewRuns(wf) {
       try {
-        var runs = await OpenFangAPI.get('/api/workflows/' + wf.id + '/runs');
+        var runs = await FreecoAPI.get('/api/workflows/' + wf.id + '/runs');
         this.runResult = JSON.stringify(runs, null, 2);
         this.runModal = wf;
       } catch(e) {
-        OpenFangToast.error('Failed to load run history: ' + e.message);
+        FreecoToast.error('Failed to load run history: ' + e.message);
       }
     },
 
     async deleteWorkflow(wf) {
       if (!confirm('Delete workflow "' + wf.name + '"? This cannot be undone.')) return;
       try {
-        await OpenFangAPI.delete('/api/workflows/' + wf.id);
-        OpenFangToast.success('Workflow "' + wf.name + '" deleted');
+        await FreecoAPI.delete('/api/workflows/' + wf.id);
+        FreecoToast.success('Workflow "' + wf.name + '" deleted');
         await this.loadWorkflows();
       } catch(e) {
-        OpenFangToast.error('Failed to delete workflow: ' + e.message);
+        FreecoToast.error('Failed to delete workflow: ' + e.message);
       }
     },
 
     async showEditModal(wf) {
       try {
-        var full = await OpenFangAPI.get('/api/workflows/' + wf.id);
+        var full = await FreecoAPI.get('/api/workflows/' + wf.id);
         this.editWf = {
           name: full.name || '',
           description: full.description || '',
@@ -109,7 +109,7 @@ function workflowsPage() {
         }
         this.editModal = wf;
       } catch(e) {
-        OpenFangToast.error('Failed to load workflow: ' + e.message);
+        FreecoToast.error('Failed to load workflow: ' + e.message);
       }
     },
 
@@ -120,12 +120,12 @@ function workflowsPage() {
       });
       try {
         var wfName = this.editWf.name;
-        await OpenFangAPI.put('/api/workflows/' + this.editModal.id, { name: wfName, description: this.editWf.description, steps: steps });
+        await FreecoAPI.put('/api/workflows/' + this.editModal.id, { name: wfName, description: this.editWf.description, steps: steps });
         this.editModal = null;
-        OpenFangToast.success('Workflow "' + wfName + '" updated');
+        FreecoToast.success('Workflow "' + wfName + '" updated');
         await this.loadWorkflows();
       } catch(e) {
-        OpenFangToast.error('Failed to update workflow: ' + e.message);
+        FreecoToast.error('Failed to update workflow: ' + e.message);
       }
     }
   };

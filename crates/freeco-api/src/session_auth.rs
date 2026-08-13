@@ -17,7 +17,7 @@ pub fn create_session_token(username: &str, secret: &str, ttl_hours: u64) -> Str
     base64::engine::general_purpose::STANDARD.encode(format!("{payload}:{signature}"))
 }
 
-/// Extract the `openfang_session` cookie value from a `Cookie` header string.
+/// Extract the `freeco_session` cookie value from a `Cookie` header string.
 ///
 /// Returns `None` if the header is absent or the cookie is not present.
 /// Used by both the HTTP auth middleware and the WebSocket upgrade handler so
@@ -30,7 +30,7 @@ pub fn extract_session_cookie(headers: &axum::http::HeaderMap) -> Option<String>
         .and_then(|cookies| {
             cookies.split(';').find_map(|c| {
                 c.trim()
-                    .strip_prefix("openfang_session=")
+                    .strip_prefix("freeco_session=")
                     .map(|v| v.to_string())
             })
         })
@@ -169,7 +169,7 @@ mod tests {
         let mut h = axum::http::HeaderMap::new();
         h.insert(
             "cookie",
-            "foo=bar; openfang_session=abc.def.ghi; baz=qux"
+            "foo=bar; freeco_session=abc.def.ghi; baz=qux"
                 .parse()
                 .unwrap(),
         );
@@ -192,7 +192,7 @@ mod tests {
     #[test]
     fn test_extract_session_cookie_only_value() {
         let mut h = axum::http::HeaderMap::new();
-        h.insert("cookie", "openfang_session=lonely".parse().unwrap());
+        h.insert("cookie", "freeco_session=lonely".parse().unwrap());
         assert_eq!(extract_session_cookie(&h).as_deref(), Some("lonely"));
     }
 }

@@ -1,7 +1,7 @@
 //! Workspace context auto-detection.
 //!
 //! Scans the workspace root for project type indicators (Cargo.toml, package.json, etc.),
-//! context files (AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md), and OpenFang
+//! context files (AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md), and Freeco
 //! state files. Provides mtime-cached file reads to avoid redundant I/O.
 
 use serde::{Deserialize, Serialize};
@@ -65,8 +65,8 @@ pub struct WorkspaceContext {
     pub project_type: ProjectType,
     /// Whether this is a git repository.
     pub is_git_repo: bool,
-    /// Whether .openfang/ directory exists.
-    pub has_openfang_dir: bool,
+    /// Whether .freeco-ai/ directory exists.
+    pub has_freeco_dir: bool,
     /// Cached context files.
     cache: HashMap<String, CachedFile>,
 }
@@ -76,7 +76,7 @@ impl WorkspaceContext {
     pub fn detect(root: &Path) -> Self {
         let project_type = detect_project_type(root);
         let is_git_repo = root.join(".git").exists();
-        let has_openfang_dir = root.join(".openfang").exists();
+        let has_freeco_dir = root.join(".freeco-ai").exists();
 
         let mut cache = HashMap::new();
         for &name in CONTEXT_FILES {
@@ -91,7 +91,7 @@ impl WorkspaceContext {
             workspace_root: root.to_path_buf(),
             project_type,
             is_git_repo,
-            has_openfang_dir,
+            has_freeco_dir,
             cache,
         }
     }
@@ -239,7 +239,7 @@ impl WorkspaceState {
                 .join(".freeco-ai")
                 .join("workspace-state.json"),
             workspace_root
-                .join(".openfang")
+                .join(".freeco-ai")
                 .join("workspace-state.json"),
         ] {
             if let Ok(json) = std::fs::read_to_string(path) {
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_detect_rust_project() {
-        let dir = std::env::temp_dir().join("openfang_ws_rust_test");
+        let dir = std::env::temp_dir().join("freeco_ws_rust_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"test\"").unwrap();
@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_detect_node_project() {
-        let dir = std::env::temp_dir().join("openfang_ws_node_test");
+        let dir = std::env::temp_dir().join("freeco_ws_node_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("package.json"), "{}").unwrap();
@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn test_detect_python_project() {
-        let dir = std::env::temp_dir().join("openfang_ws_py_test");
+        let dir = std::env::temp_dir().join("freeco_ws_py_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("pyproject.toml"), "[tool.poetry]").unwrap();
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_detect_go_project() {
-        let dir = std::env::temp_dir().join("openfang_ws_go_test");
+        let dir = std::env::temp_dir().join("freeco_ws_go_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("go.mod"), "module example.com/test").unwrap();
@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn test_detect_unknown_project() {
-        let dir = std::env::temp_dir().join("openfang_ws_unk_test");
+        let dir = std::env::temp_dir().join("freeco_ws_unk_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         assert_eq!(detect_project_type(&dir), ProjectType::Unknown);
@@ -316,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_workspace_context_detect() {
-        let dir = std::env::temp_dir().join("openfang_ws_ctx_test");
+        let dir = std::env::temp_dir().join("freeco_ws_ctx_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("Cargo.toml"), "[package]").unwrap();
@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_get_file_cache_hit() {
-        let dir = std::env::temp_dir().join("openfang_ws_cache_test");
+        let dir = std::env::temp_dir().join("freeco_ws_cache_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("SOUL.md"), "I am a helpful agent.").unwrap();
@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_file_size_cap() {
-        let dir = std::env::temp_dir().join("openfang_ws_cap_test");
+        let dir = std::env::temp_dir().join("freeco_ws_cap_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 
@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn test_build_context_section() {
-        let dir = std::env::temp_dir().join("openfang_ws_section_test");
+        let dir = std::env::temp_dir().join("freeco_ws_section_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("Cargo.toml"), "[package]").unwrap();
@@ -384,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_workspace_state_round_trip() {
-        let dir = std::env::temp_dir().join("openfang_ws_state_test");
+        let dir = std::env::temp_dir().join("freeco_ws_state_test");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 
@@ -409,11 +409,11 @@ mod tests {
 
     #[test]
     fn test_workspace_state_loads_legacy_location() {
-        let dir = std::env::temp_dir().join("openfang_ws_state_legacy");
+        let dir = std::env::temp_dir().join("freeco_ws_state_legacy");
         let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join(".openfang")).unwrap();
+        std::fs::create_dir_all(dir.join(".freeco-ai")).unwrap();
         std::fs::write(
-            dir.join(".openfang/workspace-state.json"),
+            dir.join(".freeco-ai/workspace-state.json"),
             r#"{"version":1,"onboarding_completed_at":"2026-01-01T00:00:00Z"}"#,
         )
         .unwrap();
@@ -430,7 +430,7 @@ mod tests {
 
     #[test]
     fn test_workspace_state_missing_file() {
-        let dir = std::env::temp_dir().join("openfang_ws_state_missing");
+        let dir = std::env::temp_dir().join("freeco_ws_state_missing");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 

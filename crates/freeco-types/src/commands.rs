@@ -4,8 +4,8 @@
 //! dispatched across CLI, channel adapters (Telegram/Slack/etc.), and the web
 //! chat (WebSocket).
 //!
-//! Each dispatch site (there are three: `openfang-cli/src/tui/mod.rs`,
-//! `openfang-channels/src/bridge.rs`, `openfang-api/src/ws.rs`) retains its own
+//! Each dispatch site (there are three: `freeco-cli/src/tui/mod.rs`,
+//! `freeco-channels/src/bridge.rs`, `freeco-api/src/ws.rs`) retains its own
 //! handler logic. The registry is added as a front-door so command names and
 //! aliases can be canonicalised once and help / autocomplete is generated from
 //! a single list.
@@ -13,7 +13,7 @@
 //! # Example
 //!
 //! ```
-//! use openfang_types::commands::{self, Surfaces};
+//! use freeco_types::commands::{self, Surfaces};
 //!
 //! let def = commands::resolve("NEW").expect("new is registered");
 //! assert_eq!(def.name, "new");
@@ -98,12 +98,12 @@ pub struct CommandDef {
     pub requires_agent: bool,
 }
 
-/// Every slash command registered in OpenFang.
+/// Every slash command registered in Freeco.
 ///
 /// Keep this list in sync with the three dispatch sites:
-///   - `openfang-cli/src/tui/mod.rs::handle_slash_command`
-///   - `openfang-channels/src/bridge.rs::handle_command`
-///   - `openfang-api/src/ws.rs::handle_command`
+///   - `freeco-cli/src/tui/mod.rs::handle_slash_command`
+///   - `freeco-channels/src/bridge.rs::handle_command`
+///   - `freeco-api/src/ws.rs::handle_command`
 pub const COMMAND_REGISTRY: &[CommandDef] = &[
     // ── General ────────────────────────────────────────────────────────────
     CommandDef {

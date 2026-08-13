@@ -1,7 +1,7 @@
 //! OpenAI-compatible `/v1/chat/completions` API endpoint.
 //!
-//! Allows any OpenAI-compatible client library to talk to OpenFang agents.
-//! The `model` field resolves to an agent (by name, UUID, or `openfang:<name>`),
+//! Allows any OpenAI-compatible client library to talk to Freeco agents.
+//! The `model` field resolves to an agent (by name, UUID, or `freeco:<name>`),
 //! and the messages are forwarded to the agent's LLM loop.
 //!
 //! Supports both streaming (SSE) and non-streaming responses.
@@ -14,8 +14,8 @@ use axum::response::IntoResponse;
 use axum::Json;
 use freeco_kernel_runtime::kernel_handle::KernelHandle;
 use freeco_kernel_runtime::llm_driver::StreamEvent;
-use openfang_types::agent::AgentId;
-use openfang_types::message::{ContentBlock, Message, MessageContent, Role, StopReason};
+use freeco_types::agent::AgentId;
+use freeco_types::message::{ContentBlock, Message, MessageContent, Role, StopReason};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -160,8 +160,8 @@ struct ModelListResponse {
 // ── Agent resolution ────────────────────────────────────────────────────────
 
 fn resolve_agent(state: &AppState, model: &str) -> Option<(AgentId, String)> {
-    // 1. "openfang:<name>" → find agent by name
-    if let Some(name) = model.strip_prefix("openfang:") {
+    // 1. "freeco:<name>" → find agent by name
+    if let Some(name) = model.strip_prefix("freeco:") {
         if let Some(entry) = state.kernel.registry.find_by_name(name) {
             return Some((entry.id, entry.name.clone()));
         }
@@ -547,10 +547,10 @@ pub async fn list_models(State(state): State<Arc<AppState>>) -> impl IntoRespons
     let models: Vec<ModelObject> = agents
         .iter()
         .map(|e| ModelObject {
-            id: format!("openfang:{}", e.name),
+            id: format!("freeco:{}", e.name),
             object: "model",
             created,
-            owned_by: "openfang".to_string(),
+            owned_by: "freeco".to_string(),
         })
         .collect();
 

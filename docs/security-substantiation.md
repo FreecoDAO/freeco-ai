@@ -15,7 +15,7 @@ Status legend: ✅ implemented · 🟡 partial · ⬜ not started.
 | # | Control | Status | Where |
 |---|---------|--------|-------|
 | 1 | Admin identity + password auth (argon2id) | ✅ | `session_auth.rs` (`hash_password`/`verify_password`), `routes.rs::auth_login` |
-| 2 | RBAC roles (owner/admin/user/kid/viewer) | ✅ (channels) 🟡 (dashboard) | `openfang-kernel/src/auth.rs`; enforced in `channel_bridge.rs`; dashboard enforcement is task #31 |
+| 2 | RBAC roles (owner/admin/user/kid/viewer) | ✅ (channels) 🟡 (dashboard) | `freeco-kernel/src/auth.rs`; enforced in `channel_bridge.rs`; dashboard enforcement is task #31 |
 | 3 | Secrets encrypted at rest | ✅ | secrets encryption (aes-gcm) + argon2 KDF |
 | 4 | Windows ACL hardening on secret files | ✅ | `routes.rs` icacls helper (DOMAIN\\USER, absolute System32\\icacls.exe) |
 | 5 | Installer signature verification (M4) | ✅ | `local_ai.rs::verify_windows_signature` (Authenticode) |

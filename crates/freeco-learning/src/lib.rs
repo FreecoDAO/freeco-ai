@@ -1,15 +1,15 @@
-//! # openfang-learning
+//! # freeco-learning
 //!
-//! Self-improving learning loop for OpenFang agents, inspired by the Hermes Agent
+//! Self-improving learning loop for Freeco agents, inspired by the Hermes Agent
 //! self-improvement architecture.
 //!
 //! ## Overview
 //!
-//! This crate provides a persistent, structured learning loop that allows OpenFang
+//! This crate provides a persistent, structured learning loop that allows Freeco
 //! agents to:
 //!
 //! - **Capture** corrections, knowledge gaps, errors, and best practices during task execution
-//! - **Store** learnings in structured Markdown logs and optionally in the OpenFang memory substrate
+//! - **Store** learnings in structured Markdown logs and optionally in the Freeco memory substrate
 //! - **Promote** high-value learnings to core agent memory files (SOUL.md, AGENTS.md, TOOLS.md)
 //! - **Replay** past learnings to seed new agent sessions with accumulated knowledge
 //! - **Score** learnings by recurrence and impact to prioritise promotion
@@ -38,7 +38,7 @@
 //! ## Usage
 //!
 //! ```rust,no_run
-//! use openfang_learning::{LearningLoop, LearningType};
+//! use freeco_learning::{LearningLoop, LearningType};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {

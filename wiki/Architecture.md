@@ -1,7 +1,7 @@
 # Architecture
 
 FreEco.ai is a Cargo workspace containing 23 Rust crates plus `xtask`. The
-`openfang-*` crates provide the Agent OS foundation; `freeco-*` crates provide
+`freeco-*` crates provide the Agent OS foundation; `freeco-*` crates provide
 FreEco-specific agents, runtime services, budget handling, and tool gateways.
 
 ## Runtime layers
@@ -24,7 +24,7 @@ process managed by the kernel.
 
 ## Data locations
 
-By default, runtime configuration and state are under `~/.openfang/`:
+By default, runtime configuration and state are under `~/.freeco-ai/`:
 
 - `config.toml` — configuration
 - `data/` — SQLite databases and persistent state

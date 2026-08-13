@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// Errors that the [`crate::runtime::OpenFangRuntime`] may return.
+/// Errors that the [`crate::runtime::FreecoRuntime`] may return.
 #[derive(Debug, Error)]
 pub enum RuntimeError {
     #[error("agent '{0}' not found in registry")]

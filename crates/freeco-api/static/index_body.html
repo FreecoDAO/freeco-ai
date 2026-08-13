@@ -34,7 +34,7 @@
       <div>
         <h3 style="margin:0 0 0.5rem;font-size:1.1rem">API Key Required</h3>
         <p style="color:var(--text-dim,#888);font-size:0.85rem;margin:0 0 0.5rem">This instance requires an API key. Enter the key from your <code>config.toml</code>.</p>
-        <p style="color:var(--text-dim,#666);font-size:0.75rem;margin:0 0 1rem">Add <code style="color:var(--accent-light,var(--accent-light));background:var(--bg,#111);padding:1px 4px;border-radius:2px">api_key = "your-key"</code> at the <strong>top</strong> of <code>~/.openfang/config.toml</code> (FreEco.ai compatibility path; not under any [section]).</p>
+        <p style="color:var(--text-dim,#666);font-size:0.75rem;margin:0 0 1rem">Add <code style="color:var(--accent-light,var(--accent-light));background:var(--bg,#111);padding:1px 4px;border-radius:2px">api_key = "your-key"</code> at the <strong>top</strong> of <code>~/.freeco-ai/config.toml</code> (FreEco.ai compatibility path; not under any [section]).</p>
         <input type="password" x-model="apiKeyInput" placeholder="Enter API key..." @keydown.enter="$store.app.submitApiKey(apiKeyInput)" style="width:100%;padding:0.6rem;border-radius:6px;border:1px solid var(--border,#333);background:var(--bg-input,#151520);color:var(--text,#e0e0e0);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.75rem">
         <button @click="$store.app.submitApiKey(apiKeyInput)" style="width:100%;padding:0.6rem;border-radius:6px;border:none;background:var(--accent,var(--accent));color:#fff;font-weight:600;cursor:pointer;font-size:0.9rem">Unlock Dashboard</button>
       </div>
@@ -1879,7 +1879,7 @@
               <div class="modal" style="max-width:600px">
                 <div class="modal-header"><h3>Generated TOML</h3><button class="modal-close" @click="showTomlPreview = false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div>
                 <pre class="wf-toml-preview" x-text="tomlOutput"></pre>
-                <button class="btn btn-ghost btn-block mt-2" @click="navigator.clipboard.writeText(tomlOutput); OpenFangToast.success('Copied!')">Copy to Clipboard</button>
+                <button class="btn btn-ghost btn-block mt-2" @click="navigator.clipboard.writeText(tomlOutput); FreecoToast.success('Copied!')">Copy to Clipboard</button>
               </div>
             </div>
           </template>
@@ -2160,7 +2160,7 @@
                       <div>
                         <div class="form-group">
                           <label>Path</label>
-                          <input class="form-input" x-model="draftTarget.path" placeholder="/var/log/openfang-cron.log">
+                          <input class="form-input" x-model="draftTarget.path" placeholder="/var/log/freeco-cron.log">
                         </div>
                         <div class="form-group">
                           <label class="flex items-center gap-2">
@@ -2268,7 +2268,7 @@
                       <div>
                         <div class="form-group">
                           <label>Path</label>
-                          <input class="form-input" x-model="draftTarget.path" placeholder="/var/log/openfang-cron.log">
+                          <input class="form-input" x-model="draftTarget.path" placeholder="/var/log/freeco-cron.log">
                         </div>
                         <div class="form-group">
                           <label class="flex items-center gap-2">
@@ -3055,7 +3055,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                   </template>
 
                   <div class="text-xs text-dim" style="margin-top:12px">
-                    Values are stored in <code>~/.openfang/config.toml</code> under <code>[skills.<span x-text="configSkill.name"></span>]</code>. Secrets are redacted in this view.
+                    Values are stored in <code>~/.freeco-ai/config.toml</code> under <code>[skills.<span x-text="configSkill.name"></span>]</code>. Secrets are redacted in this view.
                   </div>
                   <div class="flex justify-end gap-2" style="margin-top:16px">
                     <button class="btn btn-ghost" @click="closeSkillConfig()" :disabled="configSaving">Cancel</button>
@@ -4712,11 +4712,11 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
           <!-- Network tab -->
           <div x-show="tab === 'network'" x-data="{
             netStatus: null, a2aAgents: [], a2aDiscoverUrl: '', a2aDiscovering: false,
-            async loadNetStatus() { try { this.netStatus = await OpenFangAPI.get('/api/network/status'); } catch(e) {} },
-            async loadA2aAgents() { try { let r = await OpenFangAPI.get('/api/a2a/agents'); this.a2aAgents = r.agents || []; } catch(e) {} },
+            async loadNetStatus() { try { this.netStatus = await FreecoAPI.get('/api/network/status'); } catch(e) {} },
+            async loadA2aAgents() { try { let r = await FreecoAPI.get('/api/a2a/agents'); this.a2aAgents = r.agents || []; } catch(e) {} },
             async discoverA2a() {
               if (!this.a2aDiscoverUrl) return; this.a2aDiscovering = true;
-              try { await OpenFangAPI.post('/api/a2a/discover', {url:this.a2aDiscoverUrl}); this.a2aDiscoverUrl=''; await this.loadA2aAgents(); } catch(e) {}
+              try { await FreecoAPI.post('/api/a2a/discover', {url:this.a2aDiscoverUrl}); this.a2aDiscoverUrl=''; await this.loadA2aAgents(); } catch(e) {}
               this.a2aDiscovering = false;
             }
           }" x-init="loadNetStatus(); loadA2aAgents()">
@@ -4804,8 +4804,8 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               this.budgetLoading = true;
               try {
                 let [b, a] = await Promise.all([
-                  OpenFangAPI.get('/api/budget'),
-                  OpenFangAPI.get('/api/budget/agents')
+                  FreecoAPI.get('/api/budget'),
+                  FreecoAPI.get('/api/budget/agents')
                 ]);
                 this.budgetData = b;
                 this.agentRanking = a.agents || [];
@@ -4830,10 +4830,10 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                 let alertVal = (+this.editAlert) / 100;
                 if (Math.abs(alertVal - this.budgetData.alert_threshold) > 0.001) body.alert_threshold = alertVal;
                 if (+this.editTokenLimit !== (this.budgetData.default_max_llm_tokens_per_hour || 0)) body.default_max_llm_tokens_per_hour = +this.editTokenLimit;
-                await OpenFangAPI.put('/api/budget', body);
+                await FreecoAPI.put('/api/budget', body);
                 this.editMode = false;
                 await this.loadBudget();
-              } catch(e) { OpenFangToast.error('Failed to save: ' + (e.message || e)); }
+              } catch(e) { FreecoToast.error('Failed to save: ' + (e.message || e)); }
               this.saving = false;
             },
             fmtTokens(v) { return v > 0 ? (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v) : 'per-agent'; },
@@ -4966,7 +4966,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               </div>
               <div class="form-group mt-2">
                 <label>FreEco.ai Target Directory</label>
-                <input class="form-input" type="text" x-model="targetPath" placeholder="~/.openfang (default)" style="font-family:monospace;font-size:12px">
+                <input class="form-input" type="text" x-model="targetPath" placeholder="~/.freeco-ai (default)" style="font-family:monospace;font-size:12px">
               </div>
               <div class="flex gap-2 mt-4">
                 <button class="btn btn-primary" @click="scanPath()" :disabled="!sourcePath || scanning">

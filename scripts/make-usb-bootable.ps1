@@ -24,7 +24,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$IsoPath   = "$env:USERPROFILE\.openfang\iso\kubuntu-24.04.3-desktop-amd64.iso",
+    [string]$IsoPath   = "$env:USERPROFILE\.freeco-ai\iso\kubuntu-24.04.3-desktop-amd64.iso",
     [int]$DiskNumber   = 1,
     [int]$EspPartition = 1,
     [int]$DataPartition = 2

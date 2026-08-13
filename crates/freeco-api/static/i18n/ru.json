@@ -28,7 +28,7 @@
   "auth.password": "Пароль",
   "auth.api_key_required": "Требуется API-ключ",
   "auth.api_key_desc": "Этот экземпляр требует API-ключ. Введите ключ из вашего config.toml.",
-  "auth.api_key_hint": "Добавьте api_key = \"your-key\" в начало ~/.openfang/config.toml (не внутри секции).",
+  "auth.api_key_hint": "Добавьте api_key = \"your-key\" в начало ~/.freeco-ai/config.toml (не внутри секции).",
   "auth.enter_api_key": "Введите API-ключ...",
   "auth.unlock_dashboard": "Разблокировать панель",
   "auth.login_failed": "Ошибка входа",
@@ -125,7 +125,7 @@
   "theme.dark": "Тёмная",
 
   "errors.connection_error": "Ошибка подключения",
-  "errors.daemon_unreachable": "Не удаётся связаться с демоном — запущен ли openfang?",
+  "errors.daemon_unreachable": "Не удаётся связаться с демоном — запущен ли freeco?",
   "errors.not_authorized": "Не авторизован — проверьте API-ключ",
   "errors.permission_denied": "Доступ запрещён",
   "errors.resource_not_found": "Ресурс не найден",

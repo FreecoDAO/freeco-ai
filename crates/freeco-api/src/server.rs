@@ -1,4 +1,4 @@
-//! OpenFang daemon server — boots the kernel and serves the HTTP API.
+//! Freeco daemon server — boots the kernel and serves the HTTP API.
 
 use crate::channel_bridge;
 use crate::middleware;
@@ -7,7 +7,7 @@ use crate::routes::{self, AppState};
 use crate::webchat;
 use crate::ws;
 use axum::Router;
-use openfang_kernel::OpenFangKernel;
+use freeco_kernel::FreecoKernel;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -17,7 +17,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
-/// Daemon info written to `~/.openfang/daemon.json` so the CLI can find us.
+/// Daemon info written to `~/.freeco-ai/daemon.json` so the CLI can find us.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct DaemonInfo {
     pub pid: u32,
@@ -29,13 +29,13 @@ pub struct DaemonInfo {
 
 /// Build the full API router with all routes, middleware, and state.
 ///
-/// This is extracted from `run_daemon()` so that embedders (e.g. openfang-desktop)
+/// This is extracted from `run_daemon()` so that embedders (e.g. freeco-desktop)
 /// can create the router without starting the full daemon lifecycle.
 ///
 /// Returns `(router, shared_state)`. The caller can use `state.bridge_manager`
 /// to shut down the bridge on exit.
 pub async fn build_router(
-    kernel: Arc<OpenFangKernel>,
+    kernel: Arc<FreecoKernel>,
     listen_addr: SocketAddr,
 ) -> (Router<()>, Arc<AppState>) {
     // Start channel bridges (Telegram, etc.)
@@ -66,7 +66,7 @@ pub async fn build_router(
             .memory
             .sqlite_path
             .clone()
-            .unwrap_or_else(|| kernel.config.data_dir.join("openfang.db")),
+            .unwrap_or_else(|| kernel.config.data_dir.join("freeco.db")),
     );
 
     // Start WS cron broadcaster — subscribes to kernel event bus and pushes
@@ -129,7 +129,7 @@ pub async fn build_router(
     if state.kernel.config.auth.enabled && !ph.is_empty() && !ph.starts_with("$argon2") {
         tracing::warn!(
             "Dashboard auth password_hash is not in Argon2id format. \
-             Login will fail. Regenerate with: openfang auth hash-password"
+             Login will fail. Regenerate with: freeco auth hash-password"
         );
     }
 
@@ -1003,11 +1003,11 @@ fn start_backup_scheduler(
     });
 }
 
-/// Start the OpenFang daemon: boot kernel + HTTP API server.
+/// Start the Freeco daemon: boot kernel + HTTP API server.
 ///
 /// This function blocks until Ctrl+C or a shutdown request.
 pub async fn run_daemon(
-    kernel: OpenFangKernel,
+    kernel: FreecoKernel,
     listen_addr: &str,
     daemon_info_path: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -1085,7 +1085,7 @@ pub async fn run_daemon(
         }
     }
 
-    info!("OpenFang API server listening on http://{addr}");
+    info!("Freeco API server listening on http://{addr}");
     info!("WebChat UI available at http://{addr}/",);
     info!("WebSocket endpoint: ws://{addr}/api/agents/{{id}}/ws",);
 
@@ -1129,7 +1129,7 @@ pub async fn run_daemon(
     // Shutdown kernel
     kernel.shutdown();
 
-    info!("OpenFang daemon stopped");
+    info!("Freeco daemon stopped");
     Ok(())
 }
 
@@ -1224,7 +1224,7 @@ fn is_process_alive(pid: u32) -> bool {
     }
 }
 
-/// Check if an OpenFang daemon is actually responding at the given address.
+/// Check if an Freeco daemon is actually responding at the given address.
 /// This avoids false positives where a different process reused the same PID
 /// after a system reboot.
 fn is_daemon_responding(addr: &str) -> bool {

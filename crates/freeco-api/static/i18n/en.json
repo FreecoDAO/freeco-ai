@@ -28,7 +28,7 @@
   "auth.password": "Password",
   "auth.api_key_required": "API Key Required",
   "auth.api_key_desc": "This instance requires an API key. Enter the key from your config.toml.",
-  "auth.api_key_hint": "Add api_key = \"your-key\" at the top of ~/.openfang/config.toml (FreEco.ai compatibility path; not under any [section]).",
+  "auth.api_key_hint": "Add api_key = \"your-key\" at the top of ~/.freeco-ai/config.toml (FreEco.ai compatibility path; not under any [section]).",
   "auth.enter_api_key": "Enter API key...",
   "auth.unlock_dashboard": "Unlock Dashboard",
   "auth.login_failed": "Login failed",
@@ -126,7 +126,7 @@
   "theme.dark": "Dark",
 
   "errors.connection_error": "Connection Error",
-  "errors.daemon_unreachable": "Cannot reach daemon — is openfang running?",
+  "errors.daemon_unreachable": "Cannot reach daemon — is freeco running?",
   "errors.not_authorized": "Not authorized — check your API key",
   "errors.permission_denied": "Permission denied",
   "errors.resource_not_found": "Resource not found",

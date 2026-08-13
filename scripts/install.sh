@@ -158,7 +158,7 @@ install() {
         USER_SHELL=$(grep "^$(id -un):" /etc/passwd 2>/dev/null | cut -d: -f7)
     fi
 
-    # Fish shell: write to ~/.config/fish/conf.d/openfang.fish (drop-in dir).
+    # Fish shell: write to ~/.config/fish/conf.d/freeco.fish (drop-in dir).
     # This keeps the user's config.fish completely untouched, so a broken
     # PATH entry can never wedge the user's main shell config — critical
     # on Arch/CachyOS where the desktop session sources fish on login.
@@ -192,15 +192,15 @@ EOF
             echo "  Added $INSTALL_DIR to PATH via $FISH_DROPIN"
         fi
         # Best-effort: clean up legacy bash-syntax export from config.fish
-        # written by older OpenFang installers (<v0.5.0). Harmless if absent.
+        # written by older Freeco installers (<v0.5.0). Harmless if absent.
         OLD_FISH_RC="$HOME/.config/fish/config.fish"
-        if [ -f "$OLD_FISH_RC" ] && grep -q "openfang/bin" "$OLD_FISH_RC" 2>/dev/null; then
-            # Remove any line containing .openfang/bin (covers both bash
+        if [ -f "$OLD_FISH_RC" ] && grep -q "freeco/bin" "$OLD_FISH_RC" 2>/dev/null; then
+            # Remove any line containing .freeco-ai/bin (covers both bash
             # `export PATH=` syntax and old fish `set -gx PATH` lines).
             TMPFILE=$(mktemp)
-            grep -v "openfang/bin" "$OLD_FISH_RC" > "$TMPFILE" || true
+            grep -v "freeco/bin" "$OLD_FISH_RC" > "$TMPFILE" || true
             mv "$TMPFILE" "$OLD_FISH_RC"
-            echo "  Cleaned legacy openfang PATH entry from $OLD_FISH_RC"
+            echo "  Cleaned legacy freeco PATH entry from $OLD_FISH_RC"
         fi
     else
         SHELL_RC=""

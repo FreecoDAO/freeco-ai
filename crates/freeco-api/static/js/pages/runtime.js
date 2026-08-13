@@ -24,11 +24,11 @@ document.addEventListener('alpine:init', function() {
         this.loading = true;
         try {
           var results = await Promise.all([
-            OpenFangAPI.get('/api/status'),
-            OpenFangAPI.get('/api/version'),
-            OpenFangAPI.get('/api/providers'),
-            OpenFangAPI.get('/api/agents'),
-            OpenFangAPI.get('/api/company-chart')
+            FreecoAPI.get('/api/status'),
+            FreecoAPI.get('/api/version'),
+            FreecoAPI.get('/api/providers'),
+            FreecoAPI.get('/api/agents'),
+            FreecoAPI.get('/api/company-chart')
           ]);
           var status = results[0];
           var ver = results[1];
@@ -65,19 +65,19 @@ document.addEventListener('alpine:init', function() {
       async createBackup() {
         this.backupStatus = 'Creating encrypted backup...';
         try {
-          var result = await OpenFangAPI.post('/api/backups', { retention: 7 });
+          var result = await FreecoAPI.post('/api/backups', { retention: 7 });
           this.backupStatus = 'Backup created: ' + (result.files || '') + ' files';
-          OpenFangToast.success(this.backupStatus);
+          FreecoToast.success(this.backupStatus);
           await this.loadBackups();
         } catch (e) {
           this.backupStatus = 'Backup failed';
-          OpenFangToast.error('Encrypted backup failed');
+          FreecoToast.error('Encrypted backup failed');
         }
       },
 
       async loadBackups() {
         try {
-          var data = await OpenFangAPI.get('/api/backups');
+          var data = await FreecoAPI.get('/api/backups');
           this.backups = (data.backups || []).map(function(b) {
             return {
               name: b.name,
@@ -93,7 +93,7 @@ document.addEventListener('alpine:init', function() {
         this.restoreBusy = true;
         this.restoreResult = null;
         try {
-          var r = await OpenFangAPI.post('/api/backups/restore', { archive_name: name, dry_run: true });
+          var r = await FreecoAPI.post('/api/backups/restore', { archive_name: name, dry_run: true });
           this.restoreResult = { name: name, ok: true, detail: 'Verified: ' + (r.files || 0) + ' files, archive is intact and decryptable.' };
         } catch (e) {
           this.restoreResult = { name: name, ok: false, detail: 'Verify failed: ' + (e.message || 'archive unreadable') };
@@ -103,17 +103,17 @@ document.addEventListener('alpine:init', function() {
 
       restoreBackup(name) {
         var self = this;
-        OpenFangToast.confirm(
+        FreecoToast.confirm(
           'Restore backup',
           'Restore "' + name + '"? This overwrites current data with the archive contents. A restart is needed afterwards. Verify first if unsure.',
           async function() {
             self.restoreBusy = true;
             try {
-              await OpenFangAPI.post('/api/backups/restore', { archive_name: name, dry_run: false });
-              OpenFangToast.success('Restore complete — restart FreEco.ai to load the restored data.');
+              await FreecoAPI.post('/api/backups/restore', { archive_name: name, dry_run: false });
+              FreecoToast.success('Restore complete — restart FreEco.ai to load the restored data.');
               self.restoreResult = { name: name, ok: true, detail: 'Restored. Restart to apply.' };
             } catch (e) {
-              OpenFangToast.error('Restore failed: ' + (e.message || 'error'));
+              FreecoToast.error('Restore failed: ' + (e.message || 'error'));
             }
             self.restoreBusy = false;
           }

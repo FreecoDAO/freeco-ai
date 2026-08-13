@@ -83,16 +83,16 @@ impl PersistedTokens {
         self.access_token_expires_at > now + ACCESS_TOKEN_REFRESH_BUFFER_SECS as i64
     }
 
-    /// Load from the OpenFang data directory.
-    pub fn load(openfang_dir: &Path) -> Option<Self> {
-        let path = openfang_dir.join(TOKEN_FILE_NAME);
+    /// Load from the Freeco data directory.
+    pub fn load(freeco_dir: &Path) -> Option<Self> {
+        let path = freeco_dir.join(TOKEN_FILE_NAME);
         let data = std::fs::read_to_string(&path).ok()?;
         serde_json::from_str(&data).ok()
     }
 
-    /// Persist to the OpenFang data directory with restricted permissions.
-    pub fn save(&self, openfang_dir: &Path) -> Result<(), String> {
-        let path = openfang_dir.join(TOKEN_FILE_NAME);
+    /// Persist to the Freeco data directory with restricted permissions.
+    pub fn save(&self, freeco_dir: &Path) -> Result<(), String> {
+        let path = freeco_dir.join(TOKEN_FILE_NAME);
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| format!("Failed to serialize tokens: {e}"))?;
         std::fs::write(&path, &json)
@@ -463,7 +463,7 @@ pub async fn fetch_models(
 /// LLM driver that authenticates via GitHub OAuth device flow and proxies
 /// completions through the Copilot API (OpenAI-compatible).
 pub struct CopilotDriver {
-    openfang_dir: PathBuf,
+    freeco_dir: PathBuf,
     http_client: reqwest::Client,
 
     /// Persisted OAuth tokens (ghu_ + grt_).
@@ -475,20 +475,20 @@ pub struct CopilotDriver {
 }
 
 impl CopilotDriver {
-    pub fn new(openfang_dir: PathBuf) -> Self {
+    pub fn new(freeco_dir: PathBuf) -> Self {
         let http_client = reqwest::Client::builder()
             .timeout(TOKEN_EXCHANGE_TIMEOUT)
             .build()
             .expect("Failed to build HTTP client");
 
         // Try to load persisted tokens on construction.
-        let persisted = PersistedTokens::load(&openfang_dir);
+        let persisted = PersistedTokens::load(&freeco_dir);
         if persisted.is_some() {
             debug!("Loaded persisted Copilot OAuth tokens");
         }
 
         Self {
-            openfang_dir,
+            freeco_dir,
             http_client,
             oauth_tokens: Mutex::new(persisted),
             copilot_token: Mutex::new(None),
@@ -520,7 +520,7 @@ impl CopilotDriver {
             match refresh_access_token(&self.http_client, rt).await {
                 Ok(new_tokens) => {
                     info!("Copilot access token refreshed successfully");
-                    if let Err(e) = new_tokens.save(&self.openfang_dir) {
+                    if let Err(e) = new_tokens.save(&self.freeco_dir) {
                         warn!("Failed to persist refreshed tokens: {e}");
                     }
                     let access_token = new_tokens.access_token.clone();
@@ -540,7 +540,7 @@ impl CopilotDriver {
         // No valid tokens and refresh failed — need device flow.
         // In daemon mode, we can't do interactive auth. Return a clear error.
         Err(crate::llm_driver::LlmError::AuthenticationFailed(
-            "Copilot OAuth tokens expired. Run `openfang config set-key github-copilot` to re-authenticate via device flow.".to_string(),
+            "Copilot OAuth tokens expired. Run `freeco config set-key github-copilot` to re-authenticate via device flow.".to_string(),
         ))
     }
 
@@ -732,17 +732,17 @@ impl crate::llm_driver::LlmDriver for CopilotDriver {
 
 /// Run the interactive Copilot setup: execute the device flow.
 ///
-/// Called from `openfang config set-key github-copilot`, `openfang init`,
-/// `openfang onboard`, and `openfang configure`.
-pub async fn run_interactive_setup(openfang_dir: &Path) -> Result<PersistedTokens, String> {
-    run_device_flow(openfang_dir).await
+/// Called from `freeco config set-key github-copilot`, `freeco init`,
+/// `freeco onboard`, and `freeco configure`.
+pub async fn run_interactive_setup(freeco_dir: &Path) -> Result<PersistedTokens, String> {
+    run_device_flow(freeco_dir).await
 }
 
 /// Run the OAuth device flow using the Copilot client ID.
 ///
 /// Prints the user code and verification URL, attempts to open the browser,
 /// then polls until the user authorizes.
-pub async fn run_device_flow(openfang_dir: &Path) -> Result<PersistedTokens, String> {
+pub async fn run_device_flow(freeco_dir: &Path) -> Result<PersistedTokens, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
         .build()
@@ -768,7 +768,7 @@ pub async fn run_device_flow(openfang_dir: &Path) -> Result<PersistedTokens, Str
     let tokens = poll_for_token(&client, &device.device_code, device.interval).await?;
 
     // Step 4: Persist.
-    tokens.save(openfang_dir)?;
+    tokens.save(freeco_dir)?;
     println!("  Copilot authentication successful.");
 
     Ok(tokens)
@@ -819,8 +819,8 @@ pub fn open_verification_url(url: &str) -> bool {
 }
 
 /// Check if Copilot OAuth tokens exist on disk.
-pub fn copilot_auth_available(openfang_dir: &Path) -> bool {
-    openfang_dir.join(TOKEN_FILE_NAME).exists()
+pub fn copilot_auth_available(freeco_dir: &Path) -> bool {
+    freeco_dir.join(TOKEN_FILE_NAME).exists()
 }
 
 // ---------------------------------------------------------------------------

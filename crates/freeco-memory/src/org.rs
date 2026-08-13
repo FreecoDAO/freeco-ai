@@ -7,7 +7,7 @@
 
 use crate::session::Session;
 use chrono::Utc;
-use openfang_types::error::{OpenFangError, OpenFangResult};
+use freeco_types::error::{FreecoError, FreecoResult};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -59,12 +59,12 @@ fn now() -> String {
     Utc::now().to_rfc3339()
 }
 
-fn lock_err(e: impl std::fmt::Display) -> OpenFangError {
-    OpenFangError::Internal(e.to_string())
+fn lock_err(e: impl std::fmt::Display) -> FreecoError {
+    FreecoError::Internal(e.to_string())
 }
 
-fn mem_err(e: impl std::fmt::Display) -> OpenFangError {
-    OpenFangError::Memory(e.to_string())
+fn mem_err(e: impl std::fmt::Display) -> FreecoError {
+    FreecoError::Memory(e.to_string())
 }
 
 impl OrgStore {
@@ -74,7 +74,7 @@ impl OrgStore {
 
     // ---- Companies -----------------------------------------------------
 
-    pub fn create_company(&self, name: &str, description: Option<&str>) -> OpenFangResult<Company> {
+    pub fn create_company(&self, name: &str, description: Option<&str>) -> FreecoResult<Company> {
         let company = Company {
             id: uuid::Uuid::new_v4().to_string(),
             name: name.to_string(),
@@ -98,7 +98,7 @@ impl OrgStore {
         Ok(company)
     }
 
-    pub fn list_companies(&self, include_archived: bool) -> OpenFangResult<Vec<Company>> {
+    pub fn list_companies(&self, include_archived: bool) -> FreecoResult<Vec<Company>> {
         let conn = self.conn.lock().map_err(lock_err)?;
         let mut stmt = conn
             .prepare(
@@ -128,7 +128,7 @@ impl OrgStore {
         name: &str,
         company_id: Option<&str>,
         description: Option<&str>,
-    ) -> OpenFangResult<Project> {
+    ) -> FreecoResult<Project> {
         let project = Project {
             id: uuid::Uuid::new_v4().to_string(),
             company_id: company_id.map(String::from),
@@ -152,7 +152,7 @@ impl OrgStore {
         Ok(project)
     }
 
-    pub fn list_projects(&self, include_archived: bool) -> OpenFangResult<Vec<Project>> {
+    pub fn list_projects(&self, include_archived: bool) -> FreecoResult<Vec<Project>> {
         let conn = self.conn.lock().map_err(lock_err)?;
         let mut stmt = conn
             .prepare(
@@ -182,7 +182,7 @@ impl OrgStore {
     /// Used when routing a new conversation: "the Kubuntu work" should land in
     /// the existing project rather than silently creating a second one with
     /// different capitalisation.
-    pub fn find_project_by_name(&self, name: &str) -> OpenFangResult<Option<Project>> {
+    pub fn find_project_by_name(&self, name: &str) -> FreecoResult<Option<Project>> {
         Ok(self
             .list_projects(true)?
             .into_iter()
@@ -191,7 +191,7 @@ impl OrgStore {
 
     /// Route a conversation to a project: reuse the one that matches, or open
     /// a new one. Never creates a duplicate of an existing name.
-    pub fn route_to_project(&self, name: &str) -> OpenFangResult<Project> {
+    pub fn route_to_project(&self, name: &str) -> FreecoResult<Project> {
         match self.find_project_by_name(name)? {
             Some(existing) => Ok(existing),
             None => self.create_project(name, None, None),
@@ -200,7 +200,7 @@ impl OrgStore {
 
     // ---- Teams ---------------------------------------------------------
 
-    pub fn create_team(&self, name: &str, project_id: Option<&str>) -> OpenFangResult<Team> {
+    pub fn create_team(&self, name: &str, project_id: Option<&str>) -> FreecoResult<Team> {
         let team = Team {
             id: uuid::Uuid::new_v4().to_string(),
             project_id: project_id.map(String::from),
@@ -225,7 +225,7 @@ impl OrgStore {
         team_id: &str,
         agent_id: &str,
         role: Option<&str>,
-    ) -> OpenFangResult<()> {
+    ) -> FreecoResult<()> {
         let conn = self.conn.lock().map_err(lock_err)?;
         conn.execute(
             "INSERT OR REPLACE INTO team_members (team_id, agent_id, role, created_at)
@@ -244,7 +244,7 @@ impl OrgStore {
         session_id: &str,
         project_id: Option<&str>,
         team_id: Option<&str>,
-    ) -> OpenFangResult<()> {
+    ) -> FreecoResult<()> {
         let conn = self.conn.lock().map_err(lock_err)?;
         conn.execute(
             "UPDATE sessions SET project_id = ?1, team_id = ?2, updated_at = ?3 WHERE id = ?4",
@@ -258,7 +258,7 @@ impl OrgStore {
     ///
     /// Deliberately distinct from trashing. If the only way to clear finished
     /// work off a list is to make it look deleted, people stop clearing it.
-    pub fn set_session_archived(&self, session_id: &str, archived: bool) -> OpenFangResult<()> {
+    pub fn set_session_archived(&self, session_id: &str, archived: bool) -> FreecoResult<()> {
         let conn = self.conn.lock().map_err(lock_err)?;
         conn.execute(
             "UPDATE sessions SET archived = ?1, updated_at = ?2 WHERE id = ?3",
@@ -271,7 +271,7 @@ impl OrgStore {
     /// Move to trash, or restore. Nothing is deleted: after losing history to
     /// a compaction bug, "trash" here means hidden and recoverable, and only
     /// an explicit purge removes anything.
-    pub fn set_session_trashed(&self, session_id: &str, trashed: bool) -> OpenFangResult<()> {
+    pub fn set_session_trashed(&self, session_id: &str, trashed: bool) -> FreecoResult<()> {
         let conn = self.conn.lock().map_err(lock_err)?;
         conn.execute(
             "UPDATE sessions SET trashed = ?1, updated_at = ?2 WHERE id = ?3",
@@ -282,7 +282,7 @@ impl OrgStore {
     }
 
     /// Sessions belonging to a project — the team's own history.
-    pub fn sessions_for_project(&self, project_id: &str) -> OpenFangResult<Vec<serde_json::Value>> {
+    pub fn sessions_for_project(&self, project_id: &str) -> FreecoResult<Vec<serde_json::Value>> {
         let conn = self.conn.lock().map_err(lock_err)?;
         let mut stmt = conn
             .prepare(
@@ -308,7 +308,7 @@ impl OrgStore {
     /// Everything the CEO-level assistant can see: one line per project with
     /// its conversation count, so it can answer "what is happening?" without
     /// loading every message in the organisation into a prompt.
-    pub fn org_overview(&self) -> OpenFangResult<Vec<serde_json::Value>> {
+    pub fn org_overview(&self) -> FreecoResult<Vec<serde_json::Value>> {
         let conn = self.conn.lock().map_err(lock_err)?;
         let mut stmt = conn
             .prepare(
@@ -338,7 +338,7 @@ impl OrgStore {
     /// Projects an agent can reach, via the teams it belongs to. This is what
     /// keeps a team's context its own: an agent on one team does not read
     /// another team's conversations by default.
-    pub fn projects_for_agent(&self, agent_id: &str) -> OpenFangResult<Vec<String>> {
+    pub fn projects_for_agent(&self, agent_id: &str) -> FreecoResult<Vec<String>> {
         let conn = self.conn.lock().map_err(lock_err)?;
         let mut stmt = conn
             .prepare(

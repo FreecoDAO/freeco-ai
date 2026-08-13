@@ -3,7 +3,7 @@
 //! Provides secure command execution inside Docker containers with strict
 //! resource limits, network isolation, and capability dropping.
 
-use openfang_types::config::DockerSandboxConfig;
+use freeco_types::config::DockerSandboxConfig;
 use std::path::Path;
 use std::time::Duration;
 use tracing::{debug, warn};
@@ -689,8 +689,8 @@ mod tests {
         assert!(config.cap_add.is_empty());
         assert_eq!(config.tmpfs, vec!["/tmp:size=64m"]);
         assert_eq!(config.pids_limit, 100);
-        assert_eq!(config.mode, openfang_types::config::DockerSandboxMode::All);
-        assert_eq!(config.scope, openfang_types::config::DockerScope::Session);
+        assert_eq!(config.mode, freeco_types::config::DockerSandboxMode::All);
+        assert_eq!(config.scope, freeco_types::config::DockerScope::Session);
         assert_eq!(config.reuse_cool_secs, 0);
         assert!(!config.persistent_workspace);
         assert!(config.persistent_workspace_agents.is_empty());

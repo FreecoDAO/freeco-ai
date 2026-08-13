@@ -16,10 +16,10 @@ const __dirname = path.dirname(__filename);
 // Config from environment
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.WHATSAPP_GATEWAY_PORT || '3009', 10);
-const FREECO_AI_URL = (process.env.FREECO_AI_URL || process.env.OPENFANG_URL || 'http://127.0.0.1:4200').replace(/\/+$/, '');
-const DEFAULT_AGENT = process.env.FREECO_AI_DEFAULT_AGENT || process.env.OPENFANG_DEFAULT_AGENT || 'assistant';
+const FREECO_AI_URL = (process.env.FREECO_AI_URL || process.env.FREECO_AI_URL || 'http://127.0.0.1:4200').replace(/\/+$/, '');
+const DEFAULT_AGENT = process.env.FREECO_AI_DEFAULT_AGENT || process.env.FREECO_AI_DEFAULT_AGENT || 'assistant';
 const GATEWAY_TOKEN = process.env.WHATSAPP_GATEWAY_TOKEN || '';
-const FREECO_AI_API_KEY = process.env.FREECO_AI_API_KEY || process.env.OPENFANG_API_KEY || '';
+const FREECO_AI_API_KEY = process.env.FREECO_AI_API_KEY || process.env.FREECO_AI_API_KEY || '';
 
 // ---------------------------------------------------------------------------
 // State

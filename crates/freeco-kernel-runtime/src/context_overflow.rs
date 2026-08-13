@@ -8,8 +8,8 @@
 //! 3. Truncate historical tool results to 2K chars each
 //! 4. Return error suggesting /reset or /compact
 
-use openfang_types::message::{ContentBlock, Message, MessageContent, Role};
-use openfang_types::tool::ToolDefinition;
+use freeco_types::message::{ContentBlock, Message, MessageContent, Role};
+use freeco_types::tool::ToolDefinition;
 use tracing::{debug, warn};
 
 /// Adjust a drain boundary so it does not split a ToolUse/ToolResult pair.
@@ -224,7 +224,7 @@ pub fn recover_from_overflow(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openfang_types::message::{Message, Role};
+    use freeco_types::message::{Message, Role};
 
     fn make_messages(count: usize, size_each: usize) -> Vec<Message> {
         (0..count)

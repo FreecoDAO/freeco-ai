@@ -12,9 +12,9 @@
 
 use crate::llm_driver::{CompletionRequest, LlmDriver};
 use crate::str_utils::safe_truncate_str;
-use openfang_memory::session::Session;
-use openfang_types::message::{ContentBlock, Message, MessageContent, Role};
-use openfang_types::tool::ToolDefinition;
+use freeco_memory::session::Session;
+use freeco_types::message::{ContentBlock, Message, MessageContent, Role};
+use freeco_types::tool::ToolDefinition;
 use serde::Serialize;
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -90,7 +90,7 @@ pub fn needs_compaction(session: &Session, config: &CompactionConfig) -> bool {
 pub fn estimate_token_count(
     messages: &[Message],
     system_prompt: Option<&str>,
-    tools: Option<&[openfang_types::tool::ToolDefinition]>,
+    tools: Option<&[freeco_types::tool::ToolDefinition]>,
 ) -> usize {
     let mut chars: usize = 0;
 
@@ -615,7 +615,7 @@ async fn summarize_in_chunks(
 /// and the message at `split` is a user message with matching ToolResult blocks,
 /// the split is pulled back by 1 so the pair stays in the "kept" portion.
 fn adjust_split_for_tool_pairs(messages: &[Message], split: usize) -> usize {
-    use openfang_types::message::{ContentBlock, Role};
+    use freeco_types::message::{ContentBlock, Role};
 
     if split == 0 || split >= messages.len() {
         return split;
@@ -770,13 +770,13 @@ pub async fn compact_session(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openfang_types::message::TokenUsage;
+    use freeco_types::message::TokenUsage;
 
     #[test]
     fn test_needs_compaction_below_threshold() {
         let session = Session {
-            id: openfang_types::agent::SessionId::new(),
-            agent_id: openfang_types::agent::AgentId::new(),
+            id: freeco_types::agent::SessionId::new(),
+            agent_id: freeco_types::agent::AgentId::new(),
             messages: vec![Message::user("hello")],
             context_window_tokens: 0,
             label: None,
@@ -791,8 +791,8 @@ mod tests {
             .map(|i| Message::user(format!("msg {i}")))
             .collect();
         let session = Session {
-            id: openfang_types::agent::SessionId::new(),
-            agent_id: openfang_types::agent::AgentId::new(),
+            id: freeco_types::agent::SessionId::new(),
+            agent_id: freeco_types::agent::AgentId::new(),
             messages,
             context_window_tokens: 0,
             label: None,
@@ -829,7 +829,7 @@ mod tests {
                         text: "Summary of conversation".to_string(),
                         provider_metadata: None,
                     }],
-                    stop_reason: openfang_types::message::StopReason::EndTurn,
+                    stop_reason: freeco_types::message::StopReason::EndTurn,
                     tool_calls: vec![],
                     usage: TokenUsage {
                         input_tokens: 100,
@@ -840,8 +840,8 @@ mod tests {
         }
 
         let session = Session {
-            id: openfang_types::agent::SessionId::new(),
-            agent_id: openfang_types::agent::AgentId::new(),
+            id: freeco_types::agent::SessionId::new(),
+            agent_id: freeco_types::agent::AgentId::new(),
             messages: vec![Message::user("hello"), Message::assistant("hi")],
             context_window_tokens: 0,
             label: None,
@@ -891,7 +891,7 @@ mod tests {
                         text: "Summary with tools".to_string(),
                         provider_metadata: None,
                     }],
-                    stop_reason: openfang_types::message::StopReason::EndTurn,
+                    stop_reason: freeco_types::message::StopReason::EndTurn,
                     tool_calls: vec![],
                     usage: TokenUsage {
                         input_tokens: 100,
@@ -929,8 +929,8 @@ mod tests {
         };
 
         let session = Session {
-            id: openfang_types::agent::SessionId::new(),
-            agent_id: openfang_types::agent::AgentId::new(),
+            id: freeco_types::agent::SessionId::new(),
+            agent_id: freeco_types::agent::AgentId::new(),
             messages,
             context_window_tokens: 0,
             label: None,
@@ -986,7 +986,7 @@ mod tests {
                         text: "Summary: discussed topics 0 through 79".to_string(),
                         provider_metadata: None,
                     }],
-                    stop_reason: openfang_types::message::StopReason::EndTurn,
+                    stop_reason: freeco_types::message::StopReason::EndTurn,
                     tool_calls: vec![],
                     usage: TokenUsage {
                         input_tokens: 500,
@@ -1000,8 +1000,8 @@ mod tests {
             .map(|i| Message::user(format!("Message about topic {i}")))
             .collect();
         let session = Session {
-            id: openfang_types::agent::SessionId::new(),
-            agent_id: openfang_types::agent::AgentId::new(),
+            id: freeco_types::agent::SessionId::new(),
+            agent_id: freeco_types::agent::AgentId::new(),
             messages,
             context_window_tokens: 0,
             label: None,
@@ -1127,8 +1127,8 @@ mod tests {
             .map(|i| Message::user(format!("Message {i}")))
             .collect();
         let session = Session {
-            id: openfang_types::agent::SessionId::new(),
-            agent_id: openfang_types::agent::AgentId::new(),
+            id: freeco_types::agent::SessionId::new(),
+            agent_id: freeco_types::agent::AgentId::new(),
             messages,
             context_window_tokens: 0,
             label: None,
@@ -1182,7 +1182,7 @@ mod tests {
                         text: format!("Chunk summary {n}"),
                         provider_metadata: None,
                     }],
-                    stop_reason: openfang_types::message::StopReason::EndTurn,
+                    stop_reason: freeco_types::message::StopReason::EndTurn,
                     tool_calls: vec![],
                     usage: TokenUsage {
                         input_tokens: 50,
@@ -1327,7 +1327,7 @@ mod tests {
 
     #[test]
     fn test_estimate_token_count_with_tools() {
-        use openfang_types::tool::ToolDefinition;
+        use freeco_types::tool::ToolDefinition;
         let messages = vec![Message::user("hi")];
         let tools = vec![ToolDefinition {
             name: "web_search".into(),

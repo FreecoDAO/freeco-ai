@@ -34,14 +34,14 @@ add MinGW to `PATH` for you. All arguments pass straight through to `cargo`:
 
 ```bash
 # Git Bash / MSYS2
-./scripts/dev-build.sh -p openfang-api --lib
-./scripts/dev-build.sh --release -p openfang-cli
+./scripts/dev-build.sh -p freeco-api --lib
+./scripts/dev-build.sh --release -p freeco-cli
 ```
 
 ```powershell
 # PowerShell
-./scripts/dev-build.ps1 -p openfang-api --lib
-./scripts/dev-build.ps1 --release -p openfang-cli
+./scripts/dev-build.ps1 -p freeco-api --lib
+./scripts/dev-build.ps1 --release -p freeco-cli
 ```
 
 ### Manual setup (one time)
@@ -55,7 +55,7 @@ add MinGW to `PATH` for you. All arguments pass straight through to `cargo`:
 3. Build with the GNU toolchain, with MinGW's `bin` on `PATH`:
    ```bash
    export PATH="$LOCALAPPDATA/Programs/mingw64/bin:$PATH"
-   cargo +stable-x86_64-pc-windows-gnu build -p openfang-api --lib
+   cargo +stable-x86_64-pc-windows-gnu build -p freeco-api --lib
    ```
 
 > Do **not** commit a `.cargo/config.toml` that forces the GNU linker globally — that would
@@ -67,7 +67,7 @@ add MinGW to `PATH` for you. All arguments pass straight through to `cargo`:
 - **Never pipe `cargo` through `tail`/`head` to check success** — the pipeline's exit code is
   the pager's, not cargo's, so a failed build looks like it passed. Redirect to a file and
   check `$?`, or use `${PIPESTATUS[0]}` in bash.
-- **`openfang.exe` is locked while the daemon runs.** A rebuild can't overwrite it. Stop the
+- **`freeco.exe` is locked while the daemon runs.** A rebuild can't overwrite it. Stop the
   daemon first, or use `--lib` for a quick compile check.
 - **Full local release builds are slow** (tens of minutes) and can starve the machine. Prefer
   PR CI (3-OS build/test/clippy) as the authoritative check; use local builds for fast

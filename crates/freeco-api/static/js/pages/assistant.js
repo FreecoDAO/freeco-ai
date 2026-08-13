@@ -133,7 +133,7 @@ function freecoAssistant() {
       if (this.agent || this._creatingAgent) return;
       this._creatingAgent = true;
       try {
-        var res = await OpenFangAPI.post('/api/agents', { template: 'freeco-concierge' });
+        var res = await FreecoAPI.post('/api/agents', { template: 'freeco-concierge' });
         if (res && (res.agent_id || res.name)) {
           try { await Alpine.store('app').refreshAgents(); } catch (e) { /* optional */ }
           this._resolveAgent();
@@ -218,9 +218,9 @@ function freecoAssistant() {
 
     async loadModels() {
       try {
-        var status = await OpenFangAPI.get('/api/status');
+        var status = await FreecoAPI.get('/api/status');
         this.currentModel = status.default_model || '';
-        var data = await OpenFangAPI.get('/api/models/catalog').catch(function () { return null; });
+        var data = await FreecoAPI.get('/api/models/catalog').catch(function () { return null; });
         var list = (data && (data.models || data.catalog)) || [];
         this.models = list.map(function (m) {
           return typeof m === 'string'
@@ -243,14 +243,14 @@ function freecoAssistant() {
     async chooseModel(m) {
       this.showModels = false;
       if (!this.agent) this._resolveAgent();
-      if (!this.agent) { OpenFangToast.error('No agent to switch.'); return; }
+      if (!this.agent) { FreecoToast.error('No agent to switch.'); return; }
       try {
-        await OpenFangAPI.put('/api/agents/' + this.agent + '/model',
+        await FreecoAPI.put('/api/agents/' + this.agent + '/model',
           { provider: m.provider || undefined, model: m.id });
         this.currentModel = m.id;
-        OpenFangToast.success('Now using ' + (m.label || m.id) + '.');
+        FreecoToast.success('Now using ' + (m.label || m.id) + '.');
       } catch (e) {
-        OpenFangToast.error('Could not switch model: ' + e.message);
+        FreecoToast.error('Could not switch model: ' + e.message);
       }
     },
 
@@ -275,7 +275,7 @@ function freecoAssistant() {
 
     async loadSessions() {
       try {
-        var data = await OpenFangAPI.get('/api/sessions');
+        var data = await FreecoAPI.get('/api/sessions');
         var list = Array.isArray(data) ? data : (data.sessions || []);
         // Newest first: the conversation you want is nearly always recent.
         this.sessions = list.sort(function (a, b) {
@@ -328,7 +328,7 @@ function freecoAssistant() {
       };
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(text).then(done, function () {
-          OpenFangToast.error('Could not copy');
+          FreecoToast.error('Could not copy');
         });
         return;
       }
@@ -344,7 +344,7 @@ function freecoAssistant() {
         document.execCommand('copy');
         document.body.removeChild(ta);
         done();
-      } catch (e) { OpenFangToast.error('Could not copy'); }
+      } catch (e) { FreecoToast.error('Could not copy'); }
     },
 
     _plainText: function (html) {
@@ -398,7 +398,7 @@ function freecoAssistant() {
 
     // Markdown, so the transcript stays readable anywhere it is opened.
     exportChat: function () {
-      if (!this.messages.length) { OpenFangToast.info('Nothing to export yet.'); return; }
+      if (!this.messages.length) { FreecoToast.info('Nothing to export yet.'); return; }
       var self = this;
       var lines = ['# FreEco.ai conversation', '', '_' + new Date().toLocaleString() + '_', ''];
       this.messages.forEach(function (m) {
@@ -422,7 +422,7 @@ function freecoAssistant() {
     async openSession(id) {
       this.showHistory = false;
       try {
-        var data = await OpenFangAPI.get('/api/sessions/' + encodeURIComponent(id));
+        var data = await FreecoAPI.get('/api/sessions/' + encodeURIComponent(id));
         var msgs = (data && (data.messages || data.session && data.session.messages)) || [];
         this.messages = msgs.map(function (m) {
           var text = typeof m.content === 'string' ? m.content
@@ -438,7 +438,7 @@ function freecoAssistant() {
         this.sessionId = id;
         this._scroll();
       } catch (e) {
-        OpenFangToast.error('Could not open that conversation: ' + e.message);
+        FreecoToast.error('Could not open that conversation: ' + e.message);
       }
     },
 
@@ -448,10 +448,10 @@ function freecoAssistant() {
       var name = window.prompt('Name this conversation', current || '');
       if (name === null) return;
       try {
-        await OpenFangAPI.put('/api/sessions/' + encodeURIComponent(id) + '/label',
+        await FreecoAPI.put('/api/sessions/' + encodeURIComponent(id) + '/label',
                               { label: name.trim() || null });
         await this.loadSessions();
-      } catch (e) { OpenFangToast.error('Rename failed: ' + e.message); }
+      } catch (e) { FreecoToast.error('Rename failed: ' + e.message); }
     },
 
     _plain: function (m) {
@@ -484,7 +484,7 @@ function freecoAssistant() {
           return (m.role === 'user' ? 'You: ' : 'Freeco: ') + this._plain(m);
         }.bind(this)).join('\n\n');
       this.copyMessage({ id: -1, raw: out });
-      OpenFangToast.success('Conversation copied.');
+      FreecoToast.success('Conversation copied.');
     },
 
     exportConversation: function () {
@@ -577,7 +577,7 @@ function freecoAssistant() {
       try {
         var payload = { message: text || '(see attached)' };
         if (atts.length) payload.attachments = atts.map(function(a) { return a.name; });
-        var res = await OpenFangAPI.post('/api/agents/' + this.agent.id + '/message', payload);
+        var res = await FreecoAPI.post('/api/agents/' + this.agent.id + '/message', payload);
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         var reply = res.response || '(no reply)';
         this.messages.push({ id: ++mId, role: 'freeco', ts: Date.now(), html: this._md(reply) });
@@ -606,22 +606,22 @@ function freecoAssistant() {
     // Opens (or reuses) the agent WebSocket and sends the message over it.
     // Returns true when streaming took over, false to use the blocking POST.
     _openStream: function(text, atts) {
-      if (!this.agent || !OpenFangAPI.wsConnect) return false;
+      if (!this.agent || !FreecoAPI.wsConnect) return false;
       var self = this;
       var payload = { type: 'message', content: text || '(see attached)' };
       if (atts && atts.length) payload.attachments = atts.map(function(a) { return a.name; });
 
       var send = function() {
-        try { return OpenFangAPI.wsSend(payload); } catch (e) { return false; }
+        try { return FreecoAPI.wsSend(payload); } catch (e) { return false; }
       };
 
       // Already connected to this agent — just send.
-      if (this._wsAgentId === this.agent.id && OpenFangAPI.isWsConnected && OpenFangAPI.isWsConnected()) {
+      if (this._wsAgentId === this.agent.id && FreecoAPI.isWsConnected && FreecoAPI.isWsConnected()) {
         return send();
       }
 
       try {
-        OpenFangAPI.wsConnect(this.agent.id, {
+        FreecoAPI.wsConnect(this.agent.id, {
           onMessage: function(ev) { self._onStreamEvent(ev); },
           onOpen: function() { send(); },
           onClose: function() { self._wsAgentId = null; }
@@ -711,7 +711,7 @@ function freecoAssistant() {
     // while the user waited in the chat with no idea anything was needed.
     async loadApprovals() {
       try {
-        var data = await OpenFangAPI.get('/api/approvals');
+        var data = await FreecoAPI.get('/api/approvals');
         var list = Array.isArray(data) ? data : (data.approvals || data.pending || []);
         this.approvals = list.filter(function(a) {
           var s = (a.status || a.state || 'pending').toLowerCase();
@@ -734,7 +734,7 @@ function freecoAssistant() {
       var path = decision === 'deny' ? '/reject' : '/approve';
       try {
         // 'always' additionally remembers the choice, when the server supports it.
-        await OpenFangAPI.post('/api/approvals/' + encodeURIComponent(id) + path,
+        await FreecoAPI.post('/api/approvals/' + encodeURIComponent(id) + path,
           decision === 'always' ? { remember: true, scope: 'always' } : {});
         this.approvals = this.approvals.filter(function(a) { return (a.id || a.request_id) !== id; });
         var label = decision === 'always' ? 'Allow always' : (decision === 'deny' ? 'Deny' : 'Allow once');
@@ -743,7 +743,7 @@ function freecoAssistant() {
         this._scroll();
         try { Alpine.store('app').refreshApprovals(); } catch (e) { /* optional */ }
       } catch (e) {
-        OpenFangToast.error('Could not record that: ' + (e.message || 'error'));
+        FreecoToast.error('Could not record that: ' + (e.message || 'error'));
       }
     },
 
@@ -751,11 +751,11 @@ function freecoAssistant() {
     stopRun: async function() {
       if (!this.agent) return;
       try {
-        await OpenFangAPI.post('/api/agents/' + this.agent.id + '/stop', {});
+        await FreecoAPI.post('/api/agents/' + this.agent.id + '/stop', {});
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: 'Stopped.' });
       } catch (e) {
-        OpenFangToast.error('Could not stop: ' + (e.message || 'error'));
+        FreecoToast.error('Could not stop: ' + (e.message || 'error'));
       }
       this.sending = false;
       this.steps = [];
@@ -837,7 +837,7 @@ function freecoAssistant() {
             self.recording = false;
             var why = (ev && ev.error) || 'unknown';
             if (why === 'not-allowed' || why === 'service-not-allowed') {
-              if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Microphone access denied');
+              if (typeof FreecoToast !== 'undefined') FreecoToast.error('Microphone access denied');
             } else if (why !== 'aborted' && why !== 'no-speech') {
               self.messages.push({ id: ++mId, role: 'system', ts: Date.now(),
                 html: 'Voice input failed (' + self._escape(why) + '). You can type instead.' });
@@ -886,7 +886,7 @@ function freecoAssistant() {
       }
 
       if (!navigator.mediaDevices || !window.MediaRecorder) {
-        if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Voice not supported in this browser');
+        if (typeof FreecoToast !== 'undefined') FreecoToast.error('Voice not supported in this browser');
         return;
       }
       var self = this;
@@ -903,7 +903,7 @@ function freecoAssistant() {
         this.recordingTime = 0;
         this._timer = setInterval(function() { self.recordingTime++; }, 1000);
       } catch (e) {
-        if (typeof OpenFangToast !== 'undefined') OpenFangToast.error('Microphone access denied');
+        if (typeof FreecoToast !== 'undefined') FreecoToast.error('Microphone access denied');
       }
     },
     stopVoice: function() {
@@ -932,7 +932,7 @@ function freecoAssistant() {
       try {
         var ext = blob.type.indexOf('webm') !== -1 ? 'webm' : blob.type.indexOf('ogg') !== -1 ? 'ogg' : 'mp3';
         var file = new File([blob], 'voice_' + Date.now() + '.' + ext, { type: blob.type });
-        var up = await OpenFangAPI.upload(this.agent.id, file);
+        var up = await FreecoAPI.upload(this.agent.id, file);
         this.messages = this.messages.filter(function(m) { return !m.thinking; });
         var said = (up.transcription && up.transcription.trim()) ? up.transcription.trim() : '';
         if (said) {
@@ -1312,7 +1312,7 @@ function freecoAssistant() {
       var files = Array.prototype.slice.call(fileList || []);
       if (!files.length) return;
       if (!this.agent) { this._resolveAgent(); if (!this.agent) await this._ensureConcierge(); }
-      if (!this.agent) { OpenFangToast.error('Set up an agent first, then attach files.'); return; }
+      if (!this.agent) { FreecoToast.error('Set up an agent first, then attach files.'); return; }
       this.attaching = true;
       for (var i = 0; i < files.length; i++) {
         var f = files[i];
@@ -1322,7 +1322,7 @@ function freecoAssistant() {
           continue;
         }
         try {
-          var up = await OpenFangAPI.upload(this.agent.id, f);
+          var up = await FreecoAPI.upload(this.agent.id, f);
           this.attachments.push({ name: up.filename || f.name, kind: (f.type || '').split('/')[0] || 'file' });
         } catch (e) {
           this.messages.push({ id: ++mId, role: 'system', ts: Date.now(), html: 'Could not attach ' + this._escape(f.name) + ': ' + this._escape(e.message || 'error') });

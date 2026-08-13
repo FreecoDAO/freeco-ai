@@ -36,7 +36,7 @@ Save both values. You need them for steps 2 and 3.
 
 **Status:** BLOCKING — the placeholder must be replaced before building.
 
-Open `crates/openfang-desktop/tauri.conf.json` and replace:
+Open `crates/freeco-desktop/tauri.conf.json` and replace:
 
 ```json
 "pubkey": "PLACEHOLDER_REPLACE_WITH_GENERATED_PUBKEY"
@@ -91,7 +91,7 @@ Set `certificateThumbprint` in `tauri.conf.json` under `bundle.windows` and add 
 
 **Status:** VERIFY — icons may be placeholders.
 
-The following icon files must exist in `crates/openfang-desktop/icons/`:
+The following icon files must exist in `crates/freeco-desktop/icons/`:
 
 | File | Size | Usage |
 |---|---|---|
@@ -139,9 +139,9 @@ curl -sSf https://raw.githubusercontent.com/FreecoDAO/FreEco-ai/main/scripts/ins
 **Status:** VERIFY — the Dockerfile must produce a working image.
 
 ```bash
-docker build -t openfang:local .
-docker run --rm openfang:local --version
-docker run --rm -p 4200:4200 -v openfang-data:/data openfang:local start
+docker build -t freeco:local .
+docker run --rm freeco:local --version
+docker run --rm -p 4200:4200 -v freeco-data:/data freeco:local start
 ```
 
 Confirm:
@@ -203,7 +203,7 @@ Once steps 1-8 are complete:
 
 ```bash
 # Ensure version matches everywhere
-grep '"version"' crates/openfang-desktop/tauri.conf.json
+grep '"version"' crates/freeco-desktop/tauri.conf.json
 grep '^version' Cargo.toml
 
 # Commit any final changes
@@ -268,11 +268,11 @@ docker run --rm ghcr.io/freecoda/freeco-ai:latest --version
 ```bash
 # Linux/macOS
 curl -sSf https://freeco.ai | sh
-openfang --version  # Should print v0.1.0
+freeco --version  # Should print v0.1.0
 
 # Windows PowerShell
 irm https://freeco.ai/install.ps1 | iex
-openfang --version
+freeco --version
 ```
 
 ---

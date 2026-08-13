@@ -1,13 +1,13 @@
 //! Multi-agent integration test: spawn 6 agents, send messages, verify all respond.
 //!
-//! Run with: GROQ_API_KEY=gsk_... cargo test -p openfang-kernel --test multi_agent_test -- --nocapture
+//! Run with: GROQ_API_KEY=gsk_... cargo test -p freeco-kernel --test multi_agent_test -- --nocapture
 
-use openfang_kernel::OpenFangKernel;
-use openfang_types::agent::AgentManifest;
-use openfang_types::config::{DefaultModelConfig, KernelConfig};
+use freeco_kernel::FreecoKernel;
+use freeco_types::agent::AgentManifest;
+use freeco_types::config::{DefaultModelConfig, KernelConfig};
 
 fn test_config() -> KernelConfig {
-    let tmp = std::env::temp_dir().join("openfang-multi-agent-test");
+    let tmp = std::env::temp_dir().join("freeco-multi-agent-test");
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).unwrap();
 
@@ -36,7 +36,7 @@ async fn test_six_agent_fleet() {
         return;
     }
 
-    let kernel = OpenFangKernel::boot_with_config(test_config()).expect("Kernel should boot");
+    let kernel = FreecoKernel::boot_with_config(test_config()).expect("Kernel should boot");
 
     // Define all 6 agents with different roles and models
     let agents = vec![
@@ -138,7 +138,7 @@ memory_write = ["self.*"]
     ];
 
     println!("\n{}", "=".repeat(60));
-    println!("  OPENFANG MULTI-AGENT FLEET TEST");
+    println!("  FREECO_AI MULTI-AGENT FLEET TEST");
     println!("  Spawning {} agents...", agents.len());
     println!("{}\n", "=".repeat(60));
 

@@ -2,7 +2,7 @@
 
 ## Start and stop
 
-Use `openfang start` to run the daemon. The health endpoint is:
+Use `freeco start` to run the daemon. The health endpoint is:
 
 ```text
 GET /api/health
@@ -20,7 +20,7 @@ falls back to authenticated polling.
 ## Backups
 
 Stop the daemon or use a consistent filesystem snapshot before backing up
-`~/.openfang/`, especially its SQLite data and agent state. Test restoration on
+`~/.freeco-ai/`, especially its SQLite data and agent state. Test restoration on
 a non-production profile before relying on a backup.
 
 ## Incident response

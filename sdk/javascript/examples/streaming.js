@@ -5,10 +5,10 @@
  *   node streaming.js
  */
 
-const { OpenFang } = require("../index");
+const { Freeco } = require("../index");
 
 async function main() {
-  const client = new OpenFang("http://localhost:3000");
+  const client = new Freeco("http://localhost:3000");
 
   // Create an agent
   const agent = await client.agents.create({ template: "assistant" });

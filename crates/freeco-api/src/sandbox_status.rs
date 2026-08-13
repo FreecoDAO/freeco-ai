@@ -38,7 +38,7 @@ pub async fn sandbox_status(State(state): State<Arc<AppState>>) -> impl IntoResp
     // only reports "not ready" leaves the user guessing which of three things
     // is wrong.
     let next_step = if !config.enabled {
-        Some("Sandbox is switched off. Set docker.enabled = true in ~/.openfang/config.toml.")
+        Some("Sandbox is switched off. Set docker.enabled = true in ~/.freeco-ai/config.toml.")
     } else if !docker_running {
         Some("Docker is not running. Start Docker Desktop, or install it from https://docker.com/products/docker-desktop.")
     } else if !image_present {

@@ -2048,7 +2048,7 @@ version = "0.9.5"
 dependencies = [
  "async-trait",
  "js-sys",
- "openfang-types",
+ "freeco-types",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
@@ -2098,12 +2098,12 @@ dependencies = [
  "colored",
  "dirs 6.0.0",
  "freeco-kernel-runtime",
- "openfang-api",
- "openfang-extensions",
- "openfang-kernel",
- "openfang-migrate",
- "openfang-skills",
- "openfang-types",
+ "freeco-api",
+ "freeco-extensions",
+ "freeco-kernel",
+ "freeco-migrate",
+ "freeco-skills",
+ "freeco-types",
  "ratatui",
  "reqwest 0.12.28",
  "serde",
@@ -2157,9 +2157,9 @@ dependencies = [
  "futures",
  "hex",
  "http",
- "openfang-memory",
- "openfang-skills",
- "openfang-types",
+ "freeco-memory",
+ "freeco-skills",
+ "freeco-types",
  "regex-lite",
  "reqwest 0.12.28",
  "rmcp",
@@ -4209,7 +4209,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-api"
+name = "freeco-api"
 version = "0.9.5"
 dependencies = [
  "aes-gcm",
@@ -4225,15 +4225,15 @@ dependencies = [
  "governor",
  "hex",
  "hmac",
- "openfang-channels",
- "openfang-extensions",
- "openfang-hands",
- "openfang-kernel",
- "openfang-memory",
- "openfang-migrate",
- "openfang-skills",
- "openfang-types",
- "openfang-wire",
+ "freeco-channels",
+ "freeco-extensions",
+ "freeco-hands",
+ "freeco-kernel",
+ "freeco-memory",
+ "freeco-migrate",
+ "freeco-skills",
+ "freeco-types",
+ "freeco-wire",
  "rand 0.9.5",
  "reqwest 0.12.28",
  "serde",
@@ -4254,7 +4254,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-channels"
+name = "freeco-channels"
 version = "0.9.5"
 dependencies = [
  "aes",
@@ -4272,7 +4272,7 @@ dependencies = [
  "lettre",
  "mailparse",
  "native-tls",
- "openfang-types",
+ "freeco-types",
  "prost",
  "regex-lite",
  "reqwest 0.12.28",
@@ -4293,7 +4293,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-datagateway"
+name = "freeco-datagateway"
 version = "0.9.5"
 dependencies = [
  "chrono",
@@ -4308,14 +4308,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-desktop"
+name = "freeco-desktop"
 version = "0.9.5"
 dependencies = [
  "axum",
  "open",
- "openfang-api",
- "openfang-kernel",
- "openfang-types",
+ "freeco-api",
+ "freeco-kernel",
+ "freeco-types",
  "serde",
  "serde_json",
  "tauri",
@@ -4334,7 +4334,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-extensions"
+name = "freeco-extensions"
 version = "0.9.5"
 dependencies = [
  "aes-gcm",
@@ -4344,7 +4344,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "dirs 6.0.0",
- "openfang-types",
+ "freeco-types",
  "rand 0.9.5",
  "reqwest 0.12.28",
  "serde",
@@ -4362,14 +4362,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-hands"
+name = "freeco-hands"
 version = "0.9.5"
 dependencies = [
  "chrono",
  "dashmap",
  "dirs 6.0.0",
  "hex",
- "openfang-types",
+ "freeco-types",
  "serde",
  "serde_json",
  "sha2",
@@ -4382,7 +4382,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-kernel"
+name = "freeco-kernel"
 version = "0.9.5"
 dependencies = [
  "async-trait",
@@ -4401,13 +4401,13 @@ dependencies = [
  "futures",
  "hex",
  "libc",
- "openfang-channels",
- "openfang-extensions",
- "openfang-hands",
- "openfang-memory",
- "openfang-skills",
- "openfang-types",
- "openfang-wire",
+ "freeco-channels",
+ "freeco-extensions",
+ "freeco-hands",
+ "freeco-memory",
+ "freeco-skills",
+ "freeco-types",
+ "freeco-wire",
  "rand 0.9.5",
  "reqwest 0.12.28",
  "rustls",
@@ -4427,13 +4427,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-learning"
+name = "freeco-learning"
 version = "0.9.5"
 dependencies = [
  "anyhow",
  "chrono",
- "openfang-memory",
- "openfang-types",
+ "freeco-memory",
+ "freeco-types",
  "serde",
  "serde_json",
  "tempfile",
@@ -4445,12 +4445,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-memory"
+name = "freeco-memory"
 version = "0.9.5"
 dependencies = [
  "async-trait",
  "chrono",
- "openfang-types",
+ "freeco-types",
  "reqwest 0.12.28",
  "rmp-serde",
  "rusqlite",
@@ -4465,13 +4465,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-migrate"
+name = "freeco-migrate"
 version = "0.9.5"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
  "json5",
- "openfang-types",
+ "freeco-types",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -4484,13 +4484,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-skills"
+name = "freeco-skills"
 version = "0.9.5"
 dependencies = [
  "chrono",
  "ed25519-dalek",
  "hex",
- "openfang-types",
+ "freeco-types",
  "rand_core 0.6.4",
  "reqwest 0.12.28",
  "serde",
@@ -4509,7 +4509,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-types"
+name = "freeco-types"
 version = "0.9.5"
 dependencies = [
  "async-trait",
@@ -4529,7 +4529,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "openfang-wire"
+name = "freeco-wire"
 version = "0.9.5"
 dependencies = [
  "async-trait",
@@ -4537,7 +4537,7 @@ dependencies = [
  "dashmap",
  "hex",
  "hmac",
- "openfang-types",
+ "freeco-types",
  "rand 0.9.5",
  "serde",
  "serde_json",

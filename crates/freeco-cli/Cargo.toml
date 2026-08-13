@@ -10,12 +10,12 @@ name = "freeco-ai"
 path = "src/main.rs"
 
 [dependencies]
-openfang-types = { path = "../openfang-types" }
-openfang-kernel = { path = "../openfang-kernel" }
-openfang-api = { path = "../openfang-api" }
-openfang-migrate = { path = "../openfang-migrate" }
-openfang-skills = { path = "../openfang-skills" }
-openfang-extensions = { path = "../openfang-extensions" }
+freeco-types = { path = "../freeco-types" }
+freeco-kernel = { path = "../freeco-kernel" }
+freeco-api = { path = "../freeco-api" }
+freeco-migrate = { path = "../freeco-migrate" }
+freeco-skills = { path = "../freeco-skills" }
+freeco-extensions = { path = "../freeco-extensions" }
 zeroize = { workspace = true }
 tokio = { workspace = true }
 clap = { workspace = true }

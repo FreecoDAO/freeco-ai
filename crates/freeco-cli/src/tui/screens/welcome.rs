@@ -135,7 +135,7 @@ impl WelcomeState {
         });
         self.menu_items.push(MenuItem {
             label: "Exit",
-            hint: "quit OpenFang",
+            hint: "quit Freeco",
             action: WelcomeAction::Exit,
         });
         self.menu.select(Some(0));
@@ -373,7 +373,7 @@ pub fn draw(f: &mut Frame, area: Rect, state: &mut WelcomeState) {
                 Span::styled("No API keys detected", Style::default().fg(theme::YELLOW)),
             ]));
             status_lines.push(Line::from(vec![Span::styled(
-                "  Run 'openfang init' to get started",
+                "  Run 'freeco init' to get started",
                 theme::hint_style(),
             )]));
         }
