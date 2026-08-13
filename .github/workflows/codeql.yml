@@ -44,9 +44,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Rust is built, for the reason described above.
+          # Rust uses build-mode none, which is the mode GitHub's default
+          # setup used for this repository and is therefore known to work here.
+          # `manual` is documented as supported but the init step rejected it in
+          # this repo three times, and a job that cannot initialise produces no
+          # analysis at all — worse than an analysis with imperfect resolution.
+          # The `cargo fetch` step below is what improves the resolution metric:
+          # the extractor can only resolve calls into dependencies whose sources
+          # are actually on disk, and a bare checkout has none of them.
           - language: rust
-            build-mode: manual
+            build-mode: none
           # These need no build step; scanning the source is the supported mode.
           - language: javascript-typescript
             build-mode: none
@@ -76,6 +83,13 @@ jobs:
             libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev \
             libwebkit2gtk-4.1-dev
 
+      # Vendor the dependency sources before extraction. "Percentage of calls
+      # with call target: 39%" is largely calls into crates whose source was
+      # never downloaded, so there was nothing to resolve them against.
+      - name: Fetch dependency sources
+        if: matrix.language == 'rust'
+        run: cargo fetch --locked
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         # Rust analysis is still a preview feature and the init step refuses to
@@ -87,18 +101,6 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-
-      # Build the library targets rather than the whole workspace: it is what
-      # gives CodeQL the type and call information, without spending runner
-      # time linking binaries and installers the analysis does not read.
-      # `--all-features` is deliberately not used. It gives marginally more
-      # coverage and a much larger surface for the build to fail on — mutually
-      # exclusive features, optional system libraries — and a CodeQL job that
-      # fails to build produces no analysis at all. Default features already
-      # resolve the types and calls the quality thresholds measure.
-      - name: Build workspace for analysis
-        if: matrix.language == 'rust'
-        run: cargo build --workspace --lib
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
