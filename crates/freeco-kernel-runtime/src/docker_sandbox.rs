@@ -50,10 +50,11 @@ fn validate_image_name(image: &str) -> Result<(), String> {
     if image.is_empty() {
         return Err("Docker image name cannot be empty".into());
     }
-    // Allow: alphanumeric, dots, colons, slashes, dashes, underscores
+    // Allow: alphanumeric, dots, colons, slashes, dashes, underscores, and
+    // `@` for content-addressed image digests.
     if !image
         .chars()
-        .all(|c| c.is_alphanumeric() || ".:/-_".contains(c))
+        .all(|c| c.is_alphanumeric() || ".:/-_@".contains(c))
     {
         return Err(format!("Invalid Docker image name: {image}"));
     }
@@ -84,6 +85,29 @@ fn validate_command(command: &str) -> Result<(), String> {
         return Err("Command cannot be empty".into());
     }
     Ok(())
+}
+
+/// Return the host identity that owns a mounted workspace.
+///
+/// A sandbox runs without `CAP_DAC_OVERRIDE`, so container root cannot access a
+/// restrictive (for example `0700`) workspace owned by the host user. Running
+/// as that workspace owner keeps mounts usable without restoring that capability
+/// or broadening host directory permissions.
+fn workspace_owner(workspace: &Path) -> Result<Option<String>, String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+
+        let metadata = std::fs::metadata(workspace)
+            .map_err(|error| format!("Failed to inspect Docker workspace: {error}"))?;
+        Ok(Some(format!("{}:{}", metadata.uid(), metadata.gid())))
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = workspace;
+        Ok(None)
+    }
 }
 
 /// Check if Docker is available on this system.
@@ -140,17 +164,21 @@ pub async fn create_sandbox(
     if !is_image_present(&config.image).await {
         return Err(format!(
             "Sandbox image '{}' is not downloaded yet, and nothing was run. \
-             Fetching it needs a one-time download (roughly 130 MB for the default \
-             python:3.12-slim), so it is not started behind your back. \
+             Fetching it needs a one-time download, so it is not started behind \
+             your back. \
              Run `docker pull {}` when you are ready, or set docker.image in \
              ~/.freeco-ai/config.toml to an image you already have.",
             config.image, config.image
         ));
     }
     let container_name = sandbox_container_name(config, agent_id, workspace)?;
+    let workspace_user = workspace_owner(workspace)?;
 
     let mut cmd = crate::quiet_command::quiet_async("docker");
     cmd.arg("run").arg("-d").arg("--name").arg(&container_name);
+    if let Some(workspace_user) = workspace_user {
+        cmd.arg("--user").arg(workspace_user);
+    }
 
     // Resource limits
     cmd.arg("--memory").arg(&config.memory_limit);
@@ -395,17 +423,19 @@ impl ContainerPool {
 
     /// Cleanup containers older than max_age or idle longer than idle_timeout.
     pub async fn cleanup(&self, idle_timeout_secs: u64, max_age_secs: u64) {
-        let to_remove: Vec<(String, SandboxContainer)> = self
+        let candidate_keys: Vec<String> = self
             .entries
             .iter()
             .filter(|entry| pool_entry_is_expired(entry.value(), idle_timeout_secs, max_age_secs))
-            .map(|e| (e.key().clone(), e.container.clone()))
+            .map(|entry| entry.key().clone())
             .collect();
 
-        for (key, container) in to_remove {
+        for key in candidate_keys {
+            let Some(container) = self.take_expired(&key, idle_timeout_secs, max_age_secs) else {
+                continue;
+            };
             debug!(container_id = %container.container_id, "Cleaning up stale pool container");
             let _ = destroy_sandbox(&container).await;
-            self.entries.remove(&key);
         }
     }
 
@@ -417,6 +447,19 @@ impl ContainerPool {
     /// Whether the pool is empty.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+
+    fn take_expired(
+        &self,
+        pool_key: &str,
+        idle_timeout_secs: u64,
+        max_age_secs: u64,
+    ) -> Option<SandboxContainer> {
+        self.entries
+            .remove_if(pool_key, |_, entry| {
+                pool_entry_is_expired(entry, idle_timeout_secs, max_age_secs)
+            })
+            .map(|(_, entry)| entry.container)
     }
 }
 
@@ -623,6 +666,10 @@ mod tests {
     #[test]
     fn test_validate_image_name_valid() {
         assert!(validate_image_name("python:3.12-slim").is_ok());
+        assert!(validate_image_name(
+            "python:3.12-slim@sha256:229a2c5bfa27522db7815ea81f9bed70af17ccb9de9fc7ad142b1877b5830d36"
+        )
+        .is_ok());
         assert!(validate_image_name("ubuntu:22.04").is_ok());
         assert!(validate_image_name("registry.example.com/my-image:latest").is_ok());
     }
@@ -665,6 +712,19 @@ mod tests {
         assert!(validate_command("").is_err());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn test_workspace_owner_uses_workspace_metadata() {
+        use std::os::unix::fs::MetadataExt;
+
+        let temp = tempfile::tempdir().unwrap();
+        let metadata = std::fs::metadata(temp.path()).unwrap();
+        assert_eq!(
+            workspace_owner(temp.path()).unwrap(),
+            Some(format!("{}:{}", metadata.uid(), metadata.gid()))
+        );
+    }
+
     #[tokio::test]
     async fn test_docker_available() {
         // Just verify it doesn't panic — result depends on Docker installation
@@ -678,7 +738,10 @@ mod tests {
         // a sandbox nobody switches on protects nobody. This is deliberate --
         // if it ever flips back to false, that is a regression, not a tidy-up.
         assert!(config.enabled);
-        assert_eq!(config.image, "python:3.12-slim");
+        assert_eq!(
+            config.image,
+            "python:3.12-slim@sha256:229a2c5bfa27522db7815ea81f9bed70af17ccb9de9fc7ad142b1877b5830d36"
+        );
         assert_eq!(config.container_prefix, "freeco-ai-sandbox");
         assert_eq!(config.workdir, "/workspace");
         assert_eq!(config.network, "none");
@@ -808,6 +871,23 @@ mod tests {
             last_used: std::time::Instant::now(),
         };
         assert!(pool_entry_is_expired(&entry, 60, 1));
+    }
+
+    #[test]
+    fn test_container_pool_keeps_entry_that_is_no_longer_expired() {
+        let pool = ContainerPool::new();
+        pool.release(
+            "agent:one".to_string(),
+            SandboxContainer {
+                container_id: "test123".to_string(),
+                agent_id: "agent1".to_string(),
+                created_at: chrono::Utc::now(),
+            },
+            12345,
+        );
+
+        assert!(pool.take_expired("agent:one", 60, 60).is_none());
+        assert_eq!(pool.len(), 1);
     }
 
     #[test]

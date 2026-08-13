@@ -36,8 +36,12 @@ chmod +x "$EXE" 2>/dev/null || true
 
 # Ad-hoc codesign on macOS (prevents SIGKILL on Apple Silicon Gatekeeper).
 if [ "$PLATFORM_DIR" = "macos" ]; then
-    command -v xattr >/dev/null 2>&1 && xattr -cr "$EXE" 2>/dev/null || true
-    command -v codesign >/dev/null 2>&1 && codesign --force --sign - "$EXE" 2>/dev/null || true
+    if command -v xattr >/dev/null 2>&1; then
+        xattr -cr "$EXE" 2>/dev/null || true
+    fi
+    if command -v codesign >/dev/null 2>&1; then
+        codesign --force --sign - "$EXE" 2>/dev/null || true
+    fi
 fi
 
 mkdir -p "$FREECO_AI_HOME"

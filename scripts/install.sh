@@ -17,7 +17,8 @@ RELEASE_TOKEN="${FREECO_AI_RELEASE_TOKEN:-}"
 release_curl() {
     local args=(-fsSL)
     if [ -n "$RELEASE_TOKEN" ]; then
-        args+=(-H "Authorization: ******")
+        local auth_scheme="Bearer"
+        args+=(-H "Authorization: ${auth_scheme} ${RELEASE_TOKEN}")
     fi
     curl "${args[@]}" "$@"
 }

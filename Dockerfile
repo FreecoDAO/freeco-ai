@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM rust:1-slim-bookworm AS builder
+FROM rust:1-slim-bookworm@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3 AS builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y pkg-config libssl-dev perl make && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock ./
@@ -15,7 +15,7 @@ ENV CARGO_PROFILE_RELEASE_LTO=${LTO} \
     CARGO_PROFILE_RELEASE_CODEGEN_UNITS=${CODEGEN_UNITS}
 RUN cargo build --release --bin freeco-ai
 
-FROM rust:1-slim-bookworm
+FROM rust:1-slim-bookworm@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     python3 \

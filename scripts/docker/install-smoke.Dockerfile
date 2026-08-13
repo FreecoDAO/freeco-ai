@@ -8,7 +8,7 @@
 #   docker build -f scripts/docker/install-smoke.Dockerfile \
 #     --build-arg FREECO_AI_SMOKE_FULL=1 .
 
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -47,9 +47,9 @@ RUN if [ "$FREECO_AI_SMOKE_FULL" = "1" ]; then \
     fi
 
 # If full install succeeded, verify the binary works
-RUN if [ "$FRECO_AI_SMOKE_FULL" = "1" ] && [ -f "$HOME/.freeco-ai/bin/freeco-ai" ]; then \
+RUN if [ "$FREECO_AI_SMOKE_FULL" = "1" ] && [ -f "$HOME/.freeco-ai/bin/freeco-ai" ]; then \
         $HOME/.freeco-ai/bin/freeco-ai --version && \
-        echo "PASS: freeco binary works"; \
+        echo "PASS: freeco-ai binary works"; \
     else \
         echo "SKIP: binary verification (no full install)"; \
     fi

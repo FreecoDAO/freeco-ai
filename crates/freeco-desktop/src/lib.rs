@@ -72,16 +72,19 @@ pub fn run() {
                 .build(),
         );
 
-        let mut updater = tauri_plugin_updater::Builder::new();
-        if let Ok(token) = std::env::var("FREECO_AI_RELEASE_TOKEN") {
-            let token = token.trim();
-            if !token.is_empty() {
-                match updater.header("Authorization", format!("******")) {
-                    Ok(configured) => updater = configured,
-                    Err(error) => warn!("Ignoring invalid release-token header: {error}"),
+        let updater = match std::env::var("FREECO_AI_RELEASE_TOKEN") {
+            Ok(token) if !token.trim().is_empty() => {
+                let authorization = ["Bearer", token.trim()].join(" ");
+                match tauri_plugin_updater::Builder::new().header("Authorization", authorization) {
+                    Ok(configured) => configured,
+                    Err(error) => {
+                        warn!("Ignoring invalid release-token header: {error}");
+                        tauri_plugin_updater::Builder::new()
+                    }
                 }
             }
-        }
+            _ => tauri_plugin_updater::Builder::new(),
+        };
         builder = builder.plugin(updater.build());
 
         // Global shortcuts — non-fatal on registration failure

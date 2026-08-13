@@ -15,7 +15,8 @@ $DefaultInstallDir = Join-Path $env:USERPROFILE ".freeco-ai\bin"
 $InstallDir = if ($env:FREECO_AI_INSTALL_DIR) { $env:FREECO_AI_INSTALL_DIR } elseif ($env:FRECO_AI_INSTALL_DIR) { $env:FRECO_AI_INSTALL_DIR } else { $DefaultInstallDir }
 $ReleaseHeaders = @{ Accept = "application/vnd.github+json" }
 if ($env:FREECO_AI_RELEASE_TOKEN) {
-    $ReleaseHeaders["Authorization"] = "******"
+    $releaseAuthScheme = "Bearer"
+    $ReleaseHeaders["Authorization"] = "$releaseAuthScheme $env:FREECO_AI_RELEASE_TOKEN"
 }
 
 function Write-Banner {

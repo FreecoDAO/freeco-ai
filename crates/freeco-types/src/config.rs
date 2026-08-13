@@ -681,7 +681,8 @@ impl Default for DockerSandboxConfig {
             // to unsandboxed execution, so enabling it by default cannot make
             // anything less safe than it was.
             enabled: true,
-            image: "python:3.12-slim".to_string(),
+            image: "python:3.12-slim@sha256:229a2c5bfa27522db7815ea81f9bed70af17ccb9de9fc7ad142b1877b5830d36"
+                .to_string(),
             container_prefix: "freeco-ai-sandbox".to_string(),
             workdir: "/workspace".to_string(),
             // No network unless deliberately widened: a sandbox that can reach

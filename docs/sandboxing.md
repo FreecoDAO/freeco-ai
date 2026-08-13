@@ -39,6 +39,9 @@ mount. All other agents remain read-only even when persistence is enabled.
 The underlying workspace is the durable storage; container lifetime is bounded
 by `idle_timeout_secs` and `max_age_secs`.
 
+On Unix, the sandbox process runs as the workspace owner. This keeps private
+(`0700`) workspaces usable while all Linux capabilities remain dropped.
+
 ## SaaS deployment boundary
 
 This local Docker integration is **not** a multi-tenant SaaS execution
