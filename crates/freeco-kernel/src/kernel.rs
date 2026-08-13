@@ -597,8 +597,8 @@ impl FreecoKernel {
         // misspelling of the new name being carried as though it were history,
         // and supporting it means a typo in someone's Docker config silently
         // works on one machine and not the next.
-        if let Ok(listen) = std::env::var("FREECO_AI_LISTEN")
-            .or_else(|_| std::env::var("OPENFANG_LISTEN"))
+        if let Ok(listen) =
+            std::env::var("FREECO_AI_LISTEN").or_else(|_| std::env::var("OPENFANG_LISTEN"))
         {
             config.api_listen = listen;
         }
