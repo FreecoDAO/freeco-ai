@@ -22,7 +22,7 @@ Instead of building a traditional cloud-first marketplace, FRE.ECO will first de
 
 At the core of the system is **FreEco.ai**, which ships as a **single binary** that you configure for your use case. The same runtime can be assembled into different product experiences depending on the target audience.
 
-FreEco.ai is built on and evolved from the mature, most reliable, advanced, and secure open-source AI Agentic OS **Freeco**, which advanced the trending **OpenClaw** agentic community into a highly reliable Agentic OS with **16 security levels** and **Ethical Ecological guidelines**. This foundation gives FRE.ECO a strong, trusted, and extensible AI operating base for secure local execution, agent orchestration, and responsible ecosystem growth.
+FreEco.ai is a mature, reliable and secure open-source Agentic OS with **16 security levels** and **Ethical Ecological guidelines**, serving the **OpenClaw** agentic community. It gives FRE.ECO a strong, trusted and extensible AI operating base for secure local execution, agent orchestration and responsible ecosystem growth.
 
 The four supported assembly types are:
 

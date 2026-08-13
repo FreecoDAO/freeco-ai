@@ -593,8 +593,11 @@ impl FreecoKernel {
         use freeco_types::config::KernelMode;
 
         // Env var overrides — useful for Docker where config.toml is baked in.
+        // `FRECO_AI_LISTEN` was read here too. No release ever set it — it is a
+        // misspelling of the new name being carried as though it were history,
+        // and supporting it means a typo in someone's Docker config silently
+        // works on one machine and not the next.
         if let Ok(listen) = std::env::var("FREECO_AI_LISTEN")
-            .or_else(|_| std::env::var("FRECO_AI_LISTEN"))
             .or_else(|_| std::env::var("OPENFANG_LISTEN"))
         {
             config.api_listen = listen;

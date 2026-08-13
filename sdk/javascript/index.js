@@ -33,7 +33,17 @@ class Freeco {
    * @param {Record<string, string>} [opts.headers] - Extra headers for every request
    */
   constructor(baseUrl, opts) {
-    this.baseUrl = baseUrl.replace(/\/+$/, "");
+    // Trailing slashes are stripped without a regex on purpose.
+    //
+    // `/\/+$/` backtracks on a string that is mostly slashes, so a long run of
+    // them costs time quadratic in its length. That is only a denial of service
+    // if the base URL comes from somewhere untrusted, which for an SDK
+    // constructor it usually does not — but the loop is as short as the regex,
+    // is obvious to read, and removes the question entirely rather than leaving
+    // a reader to work out whether this particular call site is safe.
+    let end = baseUrl.length;
+    while (end > 0 && baseUrl.charCodeAt(end - 1) === 47 /* "/" */) end--;
+    this.baseUrl = baseUrl.slice(0, end);
     this._headers = Object.assign({ "Content-Type": "application/json" }, (opts && opts.headers) || {});
     this.agents = new AgentResource(this);
     this.sessions = new SessionResource(this);

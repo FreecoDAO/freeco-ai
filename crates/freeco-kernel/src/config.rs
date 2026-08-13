@@ -341,16 +341,18 @@ fn lenient_extract_bindings(root_value: &mut toml::Value) {
 
 /// Get the default config file path.
 ///
-/// Respects `FREECO_AI_HOME` (or legacy `FRECO_AI_HOME` / `OPENFANG_HOME`)
-/// environment variables.
+/// Respects `FREECO_AI_HOME` (or legacy `OPENFANG_HOME`) environment variables.
 pub fn default_config_path() -> PathBuf {
     freeco_ai_home().join("config.toml")
 }
 
 /// Get the FreEco.ai home directory.
 ///
-/// Priority: `FREECO_AI_HOME` > legacy `FRECO_AI_HOME` > legacy
-/// `OPENFANG_HOME` > `~/.freeco-ai`.
+/// Priority: `FREECO_AI_HOME` > legacy `OPENFANG_HOME` > `~/.freeco-ai`.
+///
+/// `FRECO_AI_HOME` was also read here. No release ever set it, so nothing
+/// could have been using it; it was a misspelling of the new variable being
+/// carried as though it were history.
 ///
 /// On first use, an existing legacy `~/.openfang` directory is renamed to the
 /// new location. Renaming is atomic on a single filesystem and preserves
@@ -362,25 +364,43 @@ pub fn freeco_ai_home() -> PathBuf {
     if let Ok(home) = std::env::var("FREECO_AI_HOME") {
         return PathBuf::from(home);
     }
-    if let Ok(home) = std::env::var("FRECO_AI_HOME") {
-        return PathBuf::from(home);
-    }
     if let Ok(home) = std::env::var("OPENFANG_HOME") {
         return PathBuf::from(home);
     }
-    let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
-    let freeco_home = home.join(".freeco-ai");
-    let legacy_home = home.join(".openfang");
-    if !freeco_home.exists() && legacy_home.exists() {
-        if std::fs::rename(&legacy_home, &freeco_home).is_err() {
-            return legacy_home;
-        }
-    }
-    if freeco_home.is_dir() && legacy_home.is_dir() {
-        migrate_legacy_home_contents(&legacy_home, &freeco_home);
-    }
-    migrate_legacy_database(&freeco_home);
-    freeco_home
+
+    // The migration below renames a directory, merges its contents and
+    // upgrades a database. That must happen once per process, not once per
+    // call: this function has 21 call sites and several of them are HTTP route
+    // handlers, which run concurrently on the async runtime. Without this
+    // guard, two requests arriving together can both observe the legacy
+    // directory, both attempt the rename, and both walk the merge — racing on
+    // the user's only copy of their data.
+    //
+    // Caching the resolved path also stops a "where is my home directory"
+    // accessor from touching the filesystem on every lookup.
+    static RESOLVED: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    RESOLVED
+        .get_or_init(|| {
+            let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
+            let freeco_home = home.join(".freeco-ai");
+            let legacy_home = home.join(".openfang");
+
+            // Keep using the directory that holds the data rather than starting
+            // empty somewhere else. A failed rename is normal on Windows when
+            // the daemon already has the database open.
+            if !freeco_home.exists()
+                && legacy_home.exists()
+                && std::fs::rename(&legacy_home, &freeco_home).is_err()
+            {
+                return legacy_home;
+            }
+            if freeco_home.is_dir() && legacy_home.is_dir() {
+                migrate_legacy_home_contents(&legacy_home, &freeco_home);
+            }
+            migrate_legacy_database(&freeco_home);
+            freeco_home
+        })
+        .clone()
 }
 
 fn migrate_legacy_home_contents(legacy_home: &Path, freeco_home: &Path) {

@@ -4336,7 +4336,7 @@ mod tests {
         for provider in catalog.list_providers() {
             let actual = catalog.models_by_provider(&provider.id).len();
             assert_eq!(
-                provider.model_count as usize, actual,
+                provider.model_count, actual,
                 "{} advertises {} models but {} are registered",
                 provider.id, provider.model_count, actual
             );
