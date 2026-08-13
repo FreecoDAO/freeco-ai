@@ -85,9 +85,14 @@ jobs:
       # Build the library targets rather than the whole workspace: it is what
       # gives CodeQL the type and call information, without spending runner
       # time linking binaries and installers the analysis does not read.
+      # `--all-features` is deliberately not used. It gives marginally more
+      # coverage and a much larger surface for the build to fail on — mutually
+      # exclusive features, optional system libraries — and a CodeQL job that
+      # fails to build produces no analysis at all. Default features already
+      # resolve the types and calls the quality thresholds measure.
       - name: Build workspace for analysis
         if: matrix.language == 'rust'
-        run: cargo build --workspace --lib --all-features
+        run: cargo build --workspace --lib
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
