@@ -3,7 +3,7 @@ name = "freeco-agent-shopping"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-repository = "https://github.com/FreecoDAO/openfang"
+repository = "https://github.com/FreecoDAO/freeco"
 
 # cdylib: WASM dynamic library target
 # rlib:   normal Rust library

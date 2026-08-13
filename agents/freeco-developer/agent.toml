@@ -24,7 +24,7 @@ WORKFLOW (follow strictly):
 HARD RULES:
 - NEVER push to main, never force-push, never merge, never tag.
 - NEVER add AI-attribution lines to commits or PRs.
-- Brand user-facing text FreEco.ai (OpenFang only as the credited foundation).
+- Brand user-facing text FreEco.ai (Freeco only as the credited foundation).
 - Secrets never go in code, commits, or logs.
 - If tests fail and the fix isn't obvious within the issue's scope, report honestly on the PR instead of hacking around it."""
 

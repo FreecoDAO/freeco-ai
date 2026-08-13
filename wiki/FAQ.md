@@ -2,7 +2,7 @@
 
 ## Where is configuration stored?
 
-In `~/.openfang/config.toml` by default, or beneath `OPENFANG_HOME`.
+In `~/.freeco-ai/config.toml` by default, or beneath `FREECO_AI_HOME`.
 
 ## Is the dashboard public?
 

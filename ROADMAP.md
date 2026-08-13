@@ -75,6 +75,12 @@ recorded as such.
 
 ## Unreleased
 
+- 🟨 Label-driven release preparation that validates private-distribution
+  prerequisites, creates release metadata, tags the commit, and triggers the
+  artifact build without manual version or tag changes.
+- 🟨 FreEco.ai sandbox and distribution naming with safe legacy configuration
+  compatibility and per-workspace reusable-container isolation.
+
 ## Partial — do not describe these as done
 
 - ⚠️ **Unified inbox and contacts (CRM).** The tables exist
@@ -92,7 +98,7 @@ recorded as such.
   shown as a generic failure. Adding $10 of credit raises the cap to 1000/day
   and is not consumed by free models. Any "works for free out of the box"
   claim has to account for this.
-- **The desktop app and the CLI daemon share one database** at `~/.openfang`.
+- **The desktop app and the CLI daemon share one database** at `~/.freeco-ai`.
   Running both at once puts two kernels on the same SQLite file and the same
   agents, which produces `Agent is unresponsive` heartbeat warnings.
 

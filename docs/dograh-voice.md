@@ -27,7 +27,7 @@ README for BYOK model/voice configuration (STT/TTS/LLM or speech-to-speech).
 
 Open **Settings → Tools → Voice AI & tool servers (MCP)**, confirm the URL
 (default `http://localhost:8000/mcp`), and click **Connect dograh voice**.
-That writes an MCP server entry to `~/.openfang/config.toml`:
+That writes an MCP server entry to `~/.freeco-ai/config.toml`:
 
 ```toml
 [[mcp_servers]]

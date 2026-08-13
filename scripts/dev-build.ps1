@@ -15,8 +15,8 @@
 
   This script detects a usable toolchain and builds with it, adding MinGW to PATH
   when the GNU toolchain is used. It passes all extra args straight to cargo, so:
-      ./scripts/dev-build.ps1 -p openfang-api --lib
-      ./scripts/dev-build.ps1 --release -p openfang-cli
+      ./scripts/dev-build.ps1 -p freeco-api --lib
+      ./scripts/dev-build.ps1 --release -p freeco-cli
 
 .NOTES
   Prefer PR CI for authoritative multi-OS verification. Use this for fast local

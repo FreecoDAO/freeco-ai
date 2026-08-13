@@ -5,10 +5,10 @@
  *   node basic.js
  */
 
-const { OpenFang } = require("../index");
+const { Freeco } = require("../index");
 
 async function main() {
-  const client = new OpenFang("http://localhost:3000");
+  const client = new Freeco("http://localhost:3000");
 
   // Check server health
   const health = await client.health();

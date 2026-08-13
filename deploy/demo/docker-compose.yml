@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     ports: ["4200:4200"]
     environment:
-      OPENFANG_API_LISTEN: 0.0.0.0:4200
+      FREECO_AI_LISTEN: 0.0.0.0:4200
       # Passed through so agents can reach whichever provider you use. Unset
       # keys are simply absent rather than empty, so provider detection does
       # not think a key exists.
@@ -39,7 +39,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
-      - freeco-data:/root/.openfang
+      - freeco-data:/data
       # The agent sandbox runs containers of its own, so it needs the host
       # Docker socket. This is a real privilege: anything that can reach this
       # socket can control Docker on the host. Acceptable for a demo box that

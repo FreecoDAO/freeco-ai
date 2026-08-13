@@ -1,6 +1,6 @@
 # Configuration
 
-FreEco.ai reads `~/.openfang/config.toml` by default. `OPENFANG_HOME` changes
+FreEco.ai reads `~/.freeco-ai/config.toml` by default. `FREECO_AI_HOME` changes
 the base directory. Configuration structs use defaults, so omitted fields retain
 safe project defaults.
 

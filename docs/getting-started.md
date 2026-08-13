@@ -18,7 +18,8 @@ This guide walks you through installing FreEco.ai, configuring your first LLM pr
 
 ### Option 1: Desktop App (Windows / macOS / Linux)
 
-Download the installer for your platform from the [latest release](https://github.com/FreecoDAO/FreEco-ai/releases/latest):
+Authorized members can download the installer for their platform from the
+Association distribution channel or the authenticated [release page](https://github.com/FreecoDAO/freeco-ai/releases).
 
 | Platform | File |
 |---|---|
@@ -26,58 +27,56 @@ Download the installer for your platform from the [latest release](https://githu
 | macOS | `.dmg` disk image |
 | Linux | `.AppImage` or `.deb` |
 
-The desktop app includes the full FreEco.ai system with a native window, system tray, auto-updates, and OS notifications. Updates are installed automatically in the background.
+The desktop app includes the full FreEco.ai system with a native window, system
+tray, and OS notifications. Updates are delivered through the authorized
+distribution channel.
 
 ### Option 2: Shell Installer (Linux / macOS)
 
-```bash
-curl -sSf https://freeco.ai | sh
-```
-
-This downloads the latest CLI binary and installs it to `~/.openfang/bin/`.
+Use the authenticated installer command supplied by the Association distribution
+channel. It installs the CLI to `~/.freeco-ai/bin/`.
 
 ### Option 3: PowerShell Installer (Windows)
 
-```powershell
-irm https://freeco.ai/install.ps1 | iex
-```
-
-Downloads the latest CLI binary, verifies its SHA256 checksum, and adds it to your user PATH.
+Use the authenticated PowerShell installer command supplied by the Association
+distribution channel. It verifies the SHA256 checksum and adds the CLI to your
+user PATH.
 
 ### Option 4: Cargo Install (Any Platform)
 
 Requires Rust 1.75+:
 
 ```bash
-cargo install --git https://github.com/FreecoDAO/FreEco-ai openfang-cli
+cargo install --git https://github.com/FreecoDAO/freeco-ai freeco-ai-cli
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/FreecoDAO/FreEco-ai.git
-cd openfang
-cargo install --path crates/openfang-cli
+git clone https://github.com/FreecoDAO/freeco-ai.git
+cd freeco-ai
+cargo install --path crates/freeco-cli --bin freeco-ai
 ```
 
 ### Option 5: Docker
 
 ```bash
-docker pull ghcr.io/freecoda/freeco-ai:latest
+docker login ghcr.io
+docker pull ghcr.io/freecodao/freeco-ai:latest
 
 docker run -d \
-  --name openfang \
+  --name freeco-ai \
   -p 4200:4200 \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -v openfang-data:/data \
-  ghcr.io/freecoda/freeco-ai:latest
+  -v freeco-ai-data:/data \
+  ghcr.io/freecodao/freeco-ai:latest
 ```
 
 Or use Docker Compose:
 
 ```bash
-git clone https://github.com/FreecoDAO/FreEco-ai.git
-cd openfang
+git clone https://github.com/FreecoDAO/freeco-ai.git
+cd freeco-ai
 # Set your API keys in environment or .env file
 docker compose up -d
 ```
@@ -91,7 +90,7 @@ docker run -d \
   --add-host=host.docker.internal:host-gateway \
   -e OLLAMA_HOST=http://host.docker.internal:11434 \
   -p 4200:4200 \
-  ghcr.io/freedao/openfang:latest
+  ghcr.io/freecodao/freeco-ai:latest
 ```
 
 For Compose, add `extra_hosts: ["host.docker.internal:host-gateway"]` to the
@@ -102,7 +101,7 @@ if you need in-container `curl` for healthchecks.
 ### Verify Installation
 
 ```bash
-openfang --version
+freeco-ai --version
 ```
 
 ---
@@ -111,16 +110,16 @@ openfang --version
 
 ### Initialize
 
-Run the init command to create the `~/.openfang/` directory and a default config file:
+Run the init command to create the `~/.freeco-ai/` directory and a default config file:
 
 ```bash
-openfang init
+freeco-ai init
 ```
 
 This creates:
 
 ```
-~/.openfang/
+~/.freeco-ai/
   config.toml    # Main configuration
   data/          # Database and runtime data
   agents/        # Agent manifests (optional)
@@ -145,7 +144,7 @@ Add the export to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) to persist 
 
 ### Edit the Config
 
-The default config uses Anthropic. To change the provider, edit `~/.openfang/config.toml`:
+The default config uses Anthropic. To change the provider, edit `~/.freeco-ai/config.toml`:
 
 ```toml
 [default_model]
@@ -163,7 +162,7 @@ listen_addr = "127.0.0.1:4200"        # OFP listen address
 ### Verify Your Setup
 
 ```bash
-openfang doctor
+freeco-ai doctor
 ```
 
 This checks that your config exists, API keys are set, and the toolchain is available.
@@ -177,7 +176,7 @@ This checks that your config exists, API keys are set, and the toolchain is avai
 FreEco.ai ships with 30 agent templates. Spawn the hello-world agent:
 
 ```bash
-openfang agent spawn agents/hello-world/agent.toml
+freeco-ai agent spawn agents/hello-world/agent.toml
 ```
 
 Output:
@@ -212,13 +211,13 @@ memory_write = ["self.*"]
 Then spawn it:
 
 ```bash
-openfang agent spawn my-agent.toml
+freeco-ai agent spawn my-agent.toml
 ```
 
 ### List Running Agents
 
 ```bash
-openfang agent list
+freeco-ai agent list
 ```
 
 Output:
@@ -236,19 +235,19 @@ a1b2c3d4-e5f6-...                     hello-world      Running    groq         l
 Start an interactive chat session using the agent ID:
 
 ```bash
-openfang agent chat a1b2c3d4-e5f6-...
+freeco-ai agent chat a1b2c3d4-e5f6-...
 ```
 
 Or use the quick chat command (picks the first available agent):
 
 ```bash
-openfang chat
+freeco-ai chat
 ```
 
 Or specify an agent by name:
 
 ```bash
-openfang chat hello-world
+freeco-ai chat hello-world
 ```
 
 Example session:
@@ -289,7 +288,7 @@ Chat session ended.
 For persistent agents, multi-user access, and the WebChat UI, start the daemon:
 
 ```bash
-openfang start
+freeco-ai start
 ```
 
 Output:
@@ -309,7 +308,7 @@ The daemon provides:
 ### Check Status
 
 ```bash
-openfang status
+freeco-ai status
 ```
 
 ### Stop the Daemon
@@ -349,45 +348,45 @@ Now that you have FreEco.ai running:
 - **Build custom skills**: Extend agents with Python, WASM, or prompt-only skills. See [Skill Development](skill-development.md).
 - **Use the API**: 76 REST/WS/SSE endpoints, including an OpenAI-compatible `/v1/chat/completions`. See [API Reference](api-reference.md).
 - **Switch LLM providers**: 20 providers supported (Anthropic, OpenAI, Gemini, Groq, DeepSeek, xAI, Ollama, and more). Per-agent model overrides.
-- **Set up workflows**: Chain multiple agents together. Use `openfang workflow create` with a TOML workflow definition.
+- **Set up workflows**: Chain multiple agents together. Use `freeco-ai workflow create` with a TOML workflow definition.
 - **Use MCP**: Connect to external tools via Model Context Protocol. Configure in `config.toml` under `[[mcp_servers]]`.
-- **Migrate from OpenClaw**: Run `openfang migrate --from openclaw`. See [MIGRATION.md](../MIGRATION.md).
+- **Migrate from OpenClaw**: Run `freeco-ai migrate --from openclaw`. See [MIGRATION.md](../MIGRATION.md).
 - **Desktop app**: Run `cargo tauri dev` for a native desktop experience with system tray.
-- **Run diagnostics**: `openfang doctor` checks your entire setup.
+- **Run diagnostics**: `freeco-ai doctor` checks your entire setup.
 
 ### Useful Commands Reference
 
 ```bash
-openfang init                          # Initialize ~/.openfang/
-openfang start                         # Start the daemon
-openfang status                        # Check daemon status
-openfang doctor                        # Run diagnostic checks
+freeco-ai init                          # Initialize ~/.freeco-ai/
+freeco-ai start                         # Start the daemon
+freeco-ai status                        # Check daemon status
+freeco-ai doctor                        # Run diagnostic checks
 
-openfang agent spawn <manifest.toml>   # Spawn an agent
-openfang agent list                    # List all agents
-openfang agent chat <id>               # Chat with an agent
-openfang agent kill <id>               # Kill an agent
+freeco-ai agent spawn <manifest.toml>   # Spawn an agent
+freeco-ai agent list                    # List all agents
+freeco-ai agent chat <id>               # Chat with an agent
+freeco-ai agent kill <id>               # Kill an agent
 
-openfang workflow list                 # List workflows
-openfang workflow create <file.json>   # Create a workflow
-openfang workflow run <id> <input>     # Run a workflow
+freeco-ai workflow list                 # List workflows
+freeco-ai workflow create <file.json>   # Create a workflow
+freeco-ai workflow run <id> <input>     # Run a workflow
 
-openfang trigger list                  # List event triggers
-openfang trigger create <args>         # Create a trigger
-openfang trigger delete <id>           # Delete a trigger
+freeco-ai trigger list                  # List event triggers
+freeco-ai trigger create <args>         # Create a trigger
+freeco-ai trigger delete <id>           # Delete a trigger
 
-openfang skill install <source>        # Install a skill
-openfang skill list                    # List installed skills
-openfang skill search <query>          # Search FangHub
-openfang skill create                  # Scaffold a new skill
+freeco-ai skill install <source>        # Install a skill
+freeco-ai skill list                    # List installed skills
+freeco-ai skill search <query>          # Search FangHub
+freeco-ai skill create                  # Scaffold a new skill
 
-openfang channel list                  # List channel status
-openfang channel setup <channel>       # Interactive setup wizard
+freeco-ai channel list                  # List channel status
+freeco-ai channel setup <channel>       # Interactive setup wizard
 
-openfang config show                   # Show current config
-openfang config edit                   # Open config in editor
+freeco-ai config show                   # Show current config
+freeco-ai config edit                   # Open config in editor
 
-openfang chat [agent]                  # Quick chat (alias)
-openfang migrate --from openclaw       # Migrate from OpenClaw
-openfang mcp                           # Start MCP server (stdio)
+freeco-ai chat [agent]                  # Quick chat (alias)
+freeco-ai migrate --from openclaw       # Migrate from OpenClaw
+freeco-ai mcp                           # Start MCP server (stdio)
 ```

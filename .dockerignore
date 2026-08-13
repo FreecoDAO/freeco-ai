@@ -6,7 +6,8 @@
 target
 docs
 sdk
-scripts
+scripts/*
+!scripts/install.sh
 *.md
 !crates/**/*.md
 LICENSE-*

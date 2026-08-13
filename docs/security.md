@@ -41,28 +41,28 @@ overlapping layers so that a failure in any one layer is caught by others.
 
 | # | System | Crate | Protects Against |
 |---|--------|-------|------------------|
-| 1 | Capability-Based Security | `openfang-types` | Unauthorized actions by agents |
-| 2 | WASM Dual Metering | `openfang-runtime` | Infinite loops, CPU DoS |
-| 3 | Merkle Audit Trail | `openfang-runtime` | Tampered audit logs |
-| 4 | Taint Tracking | `openfang-types` | Prompt injection, data exfiltration |
-| 5 | Ed25519 Manifest Signing | `openfang-types` | Supply chain attacks |
-| 6 | SSRF Protection | `openfang-runtime` | Server-Side Request Forgery |
-| 7 | Secret Zeroization | `openfang-runtime`, `openfang-channels` | Memory forensics, key leakage |
-| 8 | OFP Mutual Auth | `openfang-wire` | Unauthorized peer connections |
-| 9 | Security Headers | `openfang-api` | XSS, clickjacking, MIME sniffing |
-| 10 | GCRA Rate Limiter | `openfang-api` | API abuse, denial of service |
-| 11 | Path Traversal Prevention | `openfang-runtime` | Directory traversal attacks |
-| 12 | Subprocess Sandbox | `openfang-runtime` | Secret leakage via child processes |
-| 13 | Prompt Injection Scanner | `openfang-skills` | Malicious skill prompts |
-| 14 | Loop Guard | `openfang-runtime` | Stuck agent tool loops |
-| 15 | Session Repair | `openfang-runtime` | Corrupted LLM conversation history |
-| 16 | Health Endpoint Redaction | `openfang-api` | Information leakage |
+| 1 | Capability-Based Security | `freeco-types` | Unauthorized actions by agents |
+| 2 | WASM Dual Metering | `freeco-kernel-runtime` | Infinite loops, CPU DoS |
+| 3 | Merkle Audit Trail | `freeco-kernel-runtime` | Tampered audit logs |
+| 4 | Taint Tracking | `freeco-types` | Prompt injection, data exfiltration |
+| 5 | Ed25519 Manifest Signing | `freeco-types` | Supply chain attacks |
+| 6 | SSRF Protection | `freeco-kernel-runtime` | Server-Side Request Forgery |
+| 7 | Secret Zeroization | `freeco-kernel-runtime`, `freeco-channels` | Memory forensics, key leakage |
+| 8 | OFP Mutual Auth | `freeco-wire` | Unauthorized peer connections |
+| 9 | Security Headers | `freeco-api` | XSS, clickjacking, MIME sniffing |
+| 10 | GCRA Rate Limiter | `freeco-api` | API abuse, denial of service |
+| 11 | Path Traversal Prevention | `freeco-kernel-runtime` | Directory traversal attacks |
+| 12 | Subprocess Sandbox | `freeco-kernel-runtime` | Secret leakage via child processes |
+| 13 | Prompt Injection Scanner | `freeco-skills` | Malicious skill prompts |
+| 14 | Loop Guard | `freeco-kernel-runtime` | Stuck agent tool loops |
+| 15 | Session Repair | `freeco-kernel-runtime` | Corrupted LLM conversation history |
+| 16 | Health Endpoint Redaction | `freeco-api` | Information leakage |
 
 ---
 
 ## 2. Capability-Based Security
 
-**Source:** `openfang-types/src/capability.rs`
+**Source:** `freeco-types/src/capability.rs`
 
 FreEco.ai uses capability-based security.  An agent can only perform actions
 it has been explicitly granted permission to do.  Capabilities are immutable
@@ -185,7 +185,7 @@ which invokes this validation before the child is created.
 
 ## 3. WASM Dual Metering
 
-**Source:** `openfang-runtime/src/sandbox.rs`
+**Source:** `freeco-kernel-runtime/src/sandbox.rs`
 
 Untrusted WASM modules run inside a Wasmtime sandbox with **two
 independent** metering mechanisms running simultaneously.
@@ -268,7 +268,7 @@ pub enum SandboxError {
 
 ## 4. Merkle Hash Chain Audit Trail
 
-**Source:** `openfang-runtime/src/audit.rs`
+**Source:** `freeco-kernel-runtime/src/audit.rs`
 
 Every security-critical action is appended to a tamper-evident Merkle hash
 chain, similar to a blockchain.  Each entry contains the SHA-256 hash of its
@@ -383,7 +383,7 @@ mutexes, ensuring the audit log remains available even after a panic.
 
 ## 5. Information Flow Taint Tracking
 
-**Source:** `openfang-types/src/taint.rs`
+**Source:** `freeco-types/src/taint.rs`
 
 FreEco.ai implements a lattice-based taint propagation model that prevents
 tainted values from flowing into sensitive sinks without explicit
@@ -474,7 +474,7 @@ combined.merge_taint(&other_value);
 
 ## 6. Ed25519 Manifest Signing
 
-**Source:** `openfang-types/src/manifest_signing.rs`
+**Source:** `freeco-types/src/manifest_signing.rs`
 
 Agent manifests define an agent's capabilities, tools, and configuration.
 A compromised manifest can grant elevated privileges.  This module provides
@@ -553,7 +553,7 @@ pub fn verify(&self) -> Result<(), String> {
 
 ## 7. SSRF Protection
 
-**Source:** `openfang-runtime/src/host_functions.rs`
+**Source:** `freeco-kernel-runtime/src/host_functions.rs`
 
 The `host_net_fetch` function (WASM host call for network requests) includes
 comprehensive Server-Side Request Forgery protection.
@@ -668,7 +668,7 @@ client.post(url).header("authorization", format!("Bearer {}", &*key));
 
 ### 8.2 Fields Using Zeroization
 
-**LLM Drivers** (`openfang-runtime/src/drivers/`):
+**LLM Drivers** (`freeco-kernel-runtime/src/drivers/`):
 
 | Driver | Field |
 |--------|-------|
@@ -676,7 +676,7 @@ client.post(url).header("authorization", format!("Bearer {}", &*key));
 | `GeminiDriver` | `api_key: Zeroizing<String>` |
 | `OpenAiCompatDriver` | `api_key: Zeroizing<String>` |
 
-**Channel Adapters** (`openfang-channels/src/`):
+**Channel Adapters** (`freeco-channels/src/`):
 
 | Adapter | Field(s) |
 |---------|----------|
@@ -689,7 +689,7 @@ client.post(url).header("authorization", format!("Bearer {}", &*key));
 | `GitterAdapter` | `token: Zeroizing<String>` |
 | `GotifyAdapter` | `app_token: Zeroizing<String>`, `client_token: Zeroizing<String>` |
 
-**Web Search** (`openfang-runtime/src/web_search.rs`):
+**Web Search** (`freeco-kernel-runtime/src/web_search.rs`):
 
 ```rust
 fn resolve_api_key(env_var: &str) -> Option<Zeroizing<String>> {
@@ -697,7 +697,7 @@ fn resolve_api_key(env_var: &str) -> Option<Zeroizing<String>> {
 }
 ```
 
-**Embedding** (`openfang-runtime/src/embedding.rs`):
+**Embedding** (`freeco-kernel-runtime/src/embedding.rs`):
 
 | Struct | Field |
 |--------|-------|
@@ -714,7 +714,7 @@ the secret is overwritten as soon as it is no longer needed.
 
 ## 9. OFP Mutual Authentication
 
-**Source:** `openfang-wire/src/peer.rs`
+**Source:** `freeco-wire/src/peer.rs`
 
 The FreEco.ai Wire Protocol (OFP) uses HMAC-SHA256 with nonce-based mutual
 authentication over TCP connections.
@@ -792,7 +792,7 @@ timing side-channel attacks.
 
 ## 10. Security Headers
 
-**Source:** `openfang-api/src/middleware.rs`
+**Source:** `freeco-api/src/middleware.rs`
 
 The `security_headers` middleware is applied to **all** API responses:
 
@@ -837,7 +837,7 @@ pub async fn security_headers(request: Request<Body>, next: Next) -> Response<Bo
 
 ## 11. GCRA Rate Limiter
 
-**Source:** `openfang-api/src/rate_limiter.rs`
+**Source:** `freeco-api/src/rate_limiter.rs`
 
 FreEco.ai uses the Generic Cell Rate Algorithm (GCRA) for cost-aware API
 rate limiting via the `governor` crate.
@@ -926,7 +926,7 @@ entry cleanup.
 
 ## 12. Path Traversal Prevention
 
-**Source:** `openfang-runtime/src/host_functions.rs`
+**Source:** `freeco-kernel-runtime/src/host_functions.rs`
 
 Two functions provide defense-in-depth against directory traversal.
 
@@ -995,7 +995,7 @@ pattern like `"*"`, path traversal is still blocked.
 
 ## 13. Subprocess Sandbox
 
-**Source:** `openfang-runtime/src/subprocess_sandbox.rs`
+**Source:** `freeco-kernel-runtime/src/subprocess_sandbox.rs`
 
 When the runtime spawns child processes (e.g., for the shell tool or skill
 execution), the inherited environment must be stripped to prevent accidental
@@ -1076,7 +1076,7 @@ process, preventing shell injection via metacharacters like `;`, `|`, `&&`.
 
 ## 14. Prompt Injection Scanner
 
-**Source:** `openfang-skills/src/verify.rs`
+**Source:** `freeco-skills/src/verify.rs`
 
 The `SkillVerifier` provides two scanning functions: `security_scan()` for
 skill manifests and `scan_prompt_content()` for skill prompt text (SKILL.md
@@ -1154,7 +1154,7 @@ pub struct SkillWarning {
 
 ## 15. Loop Guard
 
-**Source:** `openfang-runtime/src/loop_guard.rs`
+**Source:** `freeco-kernel-runtime/src/loop_guard.rs`
 
 The `LoopGuard` tracks tool calls within a single agent loop execution to
 detect when the agent is stuck calling the same tool repeatedly.
@@ -1234,7 +1234,7 @@ an agent that calls `web_search({"query": "test"})` 5 times will be blocked.
 
 ## 16. Session Repair
 
-**Source:** `openfang-runtime/src/session_repair.rs`
+**Source:** `freeco-kernel-runtime/src/session_repair.rs`
 
 Before sending message history to the LLM, this module validates and repairs
 common structural issues that would cause API errors.
@@ -1290,7 +1290,7 @@ fn merge_content(dst: &mut MessageContent, src: MessageContent) {
 
 ## 17. Health Endpoint Redaction
 
-**Source:** `openfang-api/src/routes.rs`
+**Source:** `freeco-api/src/routes.rs`
 
 FreEco.ai provides two health endpoints with different information levels.
 

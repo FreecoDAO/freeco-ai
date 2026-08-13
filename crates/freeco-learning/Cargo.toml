@@ -1,0 +1,35 @@
+[package]
+name = "freeco-learning"
+description = "Self-improving learning loop for Freeco agents — inspired by Hermes Agent. Captures corrections, knowledge gaps, errors, and best practices, and promotes them to persistent memory."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Core workspace deps
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+# Async file I/O
+tokio-stream = { workspace = true }
+
+# Optional: integrate with freeco-memory for substrate-backed storage
+freeco-memory = { path = "../freeco-memory", optional = true }
+freeco-types = { path = "../freeco-types" }
+
+[features]
+default = []
+# Enable integration with the Freeco memory substrate (SQLite + semantic store)
+memory-substrate = ["dep:freeco-memory"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+tempfile = "3"

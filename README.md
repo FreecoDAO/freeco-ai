@@ -6,7 +6,7 @@
 <h3 align="center">The Sustainable Ethical Agentic Operating System</h3>
 
 <p align="center">
-  Open-source Agent OS built in Rust. 207K Rust LOC. 22 crates plus xtask. 2,846+ tests. Zero clippy warnings.<br/>
+  FreEco.ai product materials are distributed through authorized Free Eco Association channels.<br/>
   <strong>One binary. Battle-tested. Agents that work for you, your business, and your family.</strong>
 </p>
 
@@ -22,7 +22,7 @@ Instead of building a traditional cloud-first marketplace, FRE.ECO will first de
 
 At the core of the system is **FreEco.ai**, which ships as a **single binary** that you configure for your use case. The same runtime can be assembled into different product experiences depending on the target audience.
 
-FreEco.ai is built on and evolved from the mature, most reliable, advanced, and secure open-source AI Agentic OS **OpenFang**, which advanced the trending **OpenClaw** agentic community into a highly reliable Agentic OS with **16 security levels** and **Ethical Ecological guidelines**. This foundation gives FRE.ECO a strong, trusted, and extensible AI operating base for secure local execution, agent orchestration, and responsible ecosystem growth.
+FreEco.ai is a mature, reliable and secure open-source Agentic OS with **16 security levels** and **Ethical Ecological guidelines**, serving the **OpenClaw** agentic community. It gives FRE.ECO a strong, trusted and extensible AI operating base for secure local execution, agent orchestration and responsible ecosystem growth.
 
 The four supported assembly types are:
 
@@ -218,7 +218,7 @@ Responsibilities:
 * Security
 * Local execution
 
-FreEco.ai inherits the mature Agentic OS foundation of OpenFang, including its 16 security levels and ethical ecological operating principles. This makes the runtime suitable for trusted autonomous execution, responsible agent behavior, and secure multi-edition deployment.
+FreEco.ai inherits the mature Agentic OS foundation of Freeco, including its 16 security levels and ethical ecological operating principles. This makes the runtime suitable for trusted autonomous execution, responsible agent behavior, and secure multi-edition deployment.
 
 FRE.ECO adds:
 
@@ -242,7 +242,7 @@ FreEco.ai is the single binary foundation. FRE.ECO defines the product layers, e
 * Cloud services receive only authenticated and authorized requests.
 * Docker containers are used only where appropriate in server infrastructure.
 * The local FreEco.ai binary is configured securely for the selected edition and use case.
-* The system follows the 16 security levels and Ethical Ecological guidelines inherited from the OpenFang Agentic OS foundation.
+* The system follows the 16 security levels and Ethical Ecological guidelines inherited from the Freeco Agentic OS foundation.
 
 ## Planned: Self-Contained Isolation Layer
 
@@ -267,19 +267,24 @@ Create a sovereign, AI-native, privacy-first economic operating environment wher
 
 <p align="center">
   <img src="https://img.shields.io/badge/language-Rust-orange?style=flat-square" alt="Rust" />
-  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT" />
-  <img src="https://img.shields.io/badge/version-0.7.4-green?style=flat-square" alt="v0.7.4" />
+  <img src="https://img.shields.io/badge/distribution-authorized%20access-blue?style=flat-square" alt="Authorized access" />
+  <img src="https://img.shields.io/badge/version-0.9.5-green?style=flat-square" alt="v0.9.5" />
   <img src="https://img.shields.io/badge/tests-2,696%2B%20passing-brightgreen?style=flat-square" alt="Tests" />
   <img src="https://img.shields.io/badge/clippy-0%20warnings-brightgreen?style=flat-square" alt="Clippy" />
-  <a href="https://www.buymeacoffee.com/openfang" target="_blank"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee" /></a>
 </p>
 
 ---
 
-## ⬇️ Download & Install
+## ⬇️ Authorized Download & Install
+
+FreEco.ai paid product distributions are available only after membership or
+customer entitlement verification and acceptance of the final commercial
+agreement. Contact Free Eco Association for authorized access. Public
+open-source materials and their existing licenses remain identified in
+[COPYRIGHT_AND_PRODUCT_SCOPE.md](COPYRIGHT_AND_PRODUCT_SCOPE.md).
 
 > Choose a **desktop installer** for your operating system. The
-> `openfang-<target>.zip` and `.tar.gz` files are advanced CLI archives, not
+> `freeco-ai-<target>.zip` and `.tar.gz` files are advanced CLI archives, not
 > desktop installers. The portable USB bundle is a separate download.
 
 ### 🪟 Windows — step by step
@@ -322,7 +327,7 @@ available, so no such image is offered as a download.
 
 ---
 
-> **Latest release: v0.7.4 (July 2026)**
+> **Latest release: v0.9.5 (August 2026)**
 >
 > FreEco.ai is feature complete but still pre-1.0. Expect rough edges and breaking changes between minor versions. We ship fast and fix fast. Pin to a specific commit for production use until v1.0. [Report issues here.](https://github.com/FreecoDAO/freeco-ai/issues)
 >
@@ -342,8 +347,8 @@ The entire system compiles to a **single ~32MB binary**. One install, one comman
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.sh | sh
-openfang init
-openfang start
+freeco-ai init
+freeco-ai start
 # Dashboard live at http://localhost:4200
 ```
 
@@ -352,8 +357,8 @@ openfang start
 
 ```powershell
 irm https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.ps1 | iex
-openfang init
-openfang start
+freeco-ai init
+freeco-ai start
 ```
 
 </details>
@@ -368,14 +373,14 @@ On Windows without the MSVC Build Tools, see [Building on Windows](docs/building
 ```bash
 git clone https://github.com/FreecoDAO/freeco-ai.git
 cd freeco-ai
-cargo build --release -p openfang-cli
-./target/release/openfang init          # creates ~/.openfang/config.toml
+cargo build --release -p freeco-ai-cli
+./target/release/freeco-ai init         # creates ~/.freeco-ai/config.toml
 export GROQ_API_KEY=gsk_...             # or ANTHROPIC_API_KEY / OPENAI_API_KEY
-./target/release/openfang start
+./target/release/freeco-ai start
 # Dashboard live at http://localhost:4200
 ```
 
-On Windows use `target\release\openfang.exe`. See [docs/getting-started.md](docs/getting-started.md) for the full guide.
+On Windows use `target\release\freeco-ai.exe`. See [docs/getting-started.md](docs/getting-started.md) for the full guide.
 
 </details>
 
@@ -424,19 +429,19 @@ All compiled into the binary. No downloading, no pip install, no Docker pull.
 
 ```bash
 # Activate the Researcher Hand. It starts working immediately.
-openfang hand activate researcher
+freeco-ai hand activate researcher
 
 # Check its progress anytime
-openfang hand status researcher
+freeco-ai hand status researcher
 
 # Activate lead generation on a daily schedule
-openfang hand activate lead
+freeco-ai hand activate lead
 
 # Pause without losing state
-openfang hand pause lead
+freeco-ai hand pause lead
 
 # See all available Hands
-openfang hand list
+freeco-ai hand list
 ```
 
 **Build your own.** Define a `HAND.toml` with tools, settings, and a system prompt. Publish to FangHub.
@@ -446,7 +451,7 @@ openfang hand list
 ## FreEco.ai vs The Landscape
 
 <p align="center">
-  <img src="public/assets/openfang-vs-claws.png" width="600" alt="FreEco.ai vs OpenClaw vs ZeroClaw" />
+  <img src="public/assets/freeco-vs-claws.png" width="600" alt="FreEco.ai vs OpenClaw vs ZeroClaw" />
 </p>
 
 ### Benchmarks: Measured, Not Marketed
@@ -568,19 +573,19 @@ FreEco.ai doesn't bolt security on after the fact. Every layer is independently 
 14 Rust crates. 137,728 lines of code. Modular kernel design.
 
 ```
-openfang-kernel      Orchestration, workflows, metering, RBAC, scheduler, budget tracking
-openfang-runtime     Agent loop, 3 LLM drivers, 53 tools, WASM sandbox, MCP, A2A
-openfang-api         140+ REST/WS/SSE endpoints, OpenAI-compatible API, dashboard
-openfang-channels    40 messaging adapters with rate limiting, DM/group policies
-openfang-memory      SQLite persistence, vector embeddings, canonical sessions, compaction
-openfang-types       Core types, taint tracking, Ed25519 manifest signing, model catalog
-openfang-skills      61 bundled skills, SKILL.md parser, FangHub marketplace
-openfang-hands       7 autonomous Hands, HAND.toml parser, lifecycle management
-openfang-extensions  25 MCP templates, AES-256-GCM credential vault, OAuth2 PKCE
-openfang-wire        OFP P2P protocol with HMAC-SHA256 mutual authentication
-openfang-cli         CLI with daemon management, TUI dashboard, MCP server mode
-openfang-desktop     Tauri 2.0 native app (system tray, notifications, global shortcuts)
-openfang-migrate     OpenClaw, LangChain, AutoGPT migration engine
+freeco-kernel      Orchestration, workflows, metering, RBAC, scheduler, budget tracking
+freeco-kernel-runtime     Agent loop, 3 LLM drivers, 53 tools, WASM sandbox, MCP, A2A
+freeco-api         140+ REST/WS/SSE endpoints, OpenAI-compatible API, dashboard
+freeco-channels    40 messaging adapters with rate limiting, DM/group policies
+freeco-memory      SQLite persistence, vector embeddings, canonical sessions, compaction
+freeco-types       Core types, taint tracking, Ed25519 manifest signing, model catalog
+freeco-skills      61 bundled skills, SKILL.md parser, FangHub marketplace
+freeco-hands       7 autonomous Hands, HAND.toml parser, lifecycle management
+freeco-extensions  25 MCP templates, AES-256-GCM credential vault, OAuth2 PKCE
+freeco-wire        OFP P2P protocol with HMAC-SHA256 mutual authentication
+freeco-cli         CLI with daemon management, TUI dashboard, MCP server mode
+freeco-desktop     Tauri 2.0 native app (system tray, notifications, global shortcuts)
+freeco-migrate     OpenClaw, LangChain, AutoGPT migration engine
 xtask                Build automation
 ```
 
@@ -654,7 +659,7 @@ The gateway listens on port `3009` by default. Override with `WHATSAPP_GATEWAY_P
 **5. Start FreEco.ai:**
 
 ```bash
-openfang start
+freeco-ai start
 # Dashboard at http://localhost:4200
 ```
 
@@ -672,8 +677,8 @@ Once scanned, the status changes to `connected` and incoming messages are routed
 |----------|-------------|---------|
 | `WHATSAPP_WEB_GATEWAY_URL` | Gateway URL for FreEco.ai to connect to | _(empty = disabled)_ |
 | `WHATSAPP_GATEWAY_PORT` | Port the gateway listens on | `3009` |
-| `OPENFANG_URL` | FreEco.ai API URL the gateway reports to | `http://127.0.0.1:4200` |
-| `OPENFANG_DEFAULT_AGENT` | Agent that handles incoming messages | `assistant` |
+| `FREECO_AI_URL` | FreEco.ai API URL the gateway reports to | `http://127.0.0.1:4200` |
+| `FREECO_AI_DEFAULT_AGENT` | Agent that handles incoming messages | `assistant` |
 
 ### Gateway API Endpoints
 
@@ -715,13 +720,13 @@ Already running OpenClaw? One command:
 
 ```bash
 # Migrate everything: agents, memory, skills, configs.
-openfang migrate --from openclaw
+freeco-ai migrate --from openclaw
 
 # Migrate from a specific path
-openfang migrate --from openclaw --path ~/.openclaw
+freeco-ai migrate --from openclaw --path ~/.openclaw
 
 # Dry run first to see what would change
-openfang migrate --from openclaw --dry-run
+freeco-ai migrate --from openclaw --dry-run
 ```
 
 The migration engine imports your agents, conversation history, skills, and configuration. FreEco.ai reads SKILL.md natively and is compatible with the ClawHub marketplace.
@@ -753,22 +758,22 @@ curl -X POST localhost:4200/v1/chat/completions \
 curl -fsSL https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.sh | sh
 
 # 2. Initialize. Walks you through provider setup.
-openfang init
+freeco-ai init
 
 # 3. Start the daemon
-openfang start
+freeco-ai start
 
 # 4. Dashboard is live at http://localhost:4200
 
 # 5. Activate a Hand. It starts working for you.
-openfang hand activate researcher
+freeco-ai hand activate researcher
 
 # 6. Chat with an agent
-openfang chat researcher
+freeco-ai chat researcher
 > "What are the emerging trends in AI agent frameworks?"
 
 # 7. Spawn a pre-built agent
-openfang agent spawn coder
+freeco-ai agent spawn coder
 ```
 
 <details>
@@ -776,8 +781,8 @@ openfang agent spawn coder
 
 ```powershell
 irm https://raw.githubusercontent.com/FreecoDAO/freeco-ai/main/scripts/install.ps1 | iex
-openfang init
-openfang start
+freeco-ai init
+freeco-ai start
 ```
 
 </details>
@@ -823,7 +828,13 @@ To report a security vulnerability, email **freeco.ch@proton.me**. We take all r
 
 ## License
 
-MIT. Use it Good of the People, Earth, Life
+This repository retains its Apache-2.0 and MIT notices for inherited and
+third-party material. Free Eco-owned product materials are subject to the
+scope and review requirements in
+[COPYRIGHT_AND_PRODUCT_SCOPE.md](COPYRIGHT_AND_PRODUCT_SCOPE.md); no final
+commercial license has been published yet. See
+[PRIVATE_DISTRIBUTION_READINESS.md](PRIVATE_DISTRIBUTION_READINESS.md) before
+any paid distribution.
 
 ---
 

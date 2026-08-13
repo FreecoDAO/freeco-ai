@@ -1,12 +1,13 @@
 # Production Release Checklist
 
-Everything that must be done before tagging `v0.1.0` and shipping to users. Items are ordered by dependency — complete them top to bottom.
+Everything that must be done before creating a private commercial release.
+Items are ordered by dependency — complete them top to bottom.
 
 ---
 
 ## 1. Generate Tauri Signing Keypair
 
-**Status:** BLOCKING — without this, auto-updater is dead. No user will ever receive an update.
+**Status:** BLOCKING — without this, signed desktop updates cannot be verified.
 
 The Tauri updater requires an Ed25519 keypair. The private key signs every release bundle, and the public key is embedded in the app binary so it can verify updates.
 
@@ -15,7 +16,7 @@ The Tauri updater requires an Ed25519 keypair. The private key signs every relea
 cargo install tauri-cli --locked
 
 # Generate the keypair
-cargo tauri signer generate -w ~/.tauri/openfang.key
+cargo tauri signer generate -w ~/.tauri/freeco-ai.key
 ```
 
 The command will output:
@@ -24,7 +25,7 @@ The command will output:
 Your public key was generated successfully:
 dW50cnVzdGVkIGNvb...  <-- COPY THIS
 
-Your private key was saved to: ~/.tauri/openfang.key
+Your private key was saved to: ~/.tauri/freeco-ai.key
 ```
 
 Save both values. You need them for steps 2 and 3.
@@ -35,7 +36,7 @@ Save both values. You need them for steps 2 and 3.
 
 **Status:** BLOCKING — the placeholder must be replaced before building.
 
-Open `crates/openfang-desktop/tauri.conf.json` and replace:
+Open `crates/freeco-desktop/tauri.conf.json` and replace:
 
 ```json
 "pubkey": "PLACEHOLDER_REPLACE_WITH_GENERATED_PUBKEY"
@@ -57,7 +58,7 @@ Go to **GitHub repo → Settings → Secrets and variables → Actions → New r
 
 | Secret Name | Value | Required |
 |---|---|---|
-| `TAURI_SIGNING_PRIVATE_KEY` | Contents of `~/.tauri/openfang.key` | Yes |
+| `TAURI_SIGNING_PRIVATE_KEY` | Contents of `~/.tauri/freeco-ai.key` | Yes |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Password you set during keygen (or empty string) | Yes |
 
 ### Optional — macOS Code Signing
@@ -90,7 +91,7 @@ Set `certificateThumbprint` in `tauri.conf.json` under `bundle.windows` and add 
 
 **Status:** VERIFY — icons may be placeholders.
 
-The following icon files must exist in `crates/openfang-desktop/icons/`:
+The following icon files must exist in `crates/freeco-desktop/icons/`:
 
 | File | Size | Usage |
 |---|---|---|
@@ -138,9 +139,9 @@ curl -sSf https://raw.githubusercontent.com/FreecoDAO/FreEco-ai/main/scripts/ins
 **Status:** VERIFY — the Dockerfile must produce a working image.
 
 ```bash
-docker build -t openfang:local .
-docker run --rm openfang:local --version
-docker run --rm -p 4200:4200 -v openfang-data:/data openfang:local start
+docker build -t freeco:local .
+docker run --rm freeco:local --version
+docker run --rm -p 4200:4200 -v freeco-data:/data freeco:local start
 ```
 
 Confirm:
@@ -202,7 +203,7 @@ Once steps 1-8 are complete:
 
 ```bash
 # Ensure version matches everywhere
-grep '"version"' crates/openfang-desktop/tauri.conf.json
+grep '"version"' crates/freeco-desktop/tauri.conf.json
 grep '^version' Cargo.toml
 
 # Commit any final changes
@@ -267,11 +268,11 @@ docker run --rm ghcr.io/freecoda/freeco-ai:latest --version
 ```bash
 # Linux/macOS
 curl -sSf https://freeco.ai | sh
-openfang --version  # Should print v0.1.0
+freeco --version  # Should print v0.1.0
 
 # Windows PowerShell
 irm https://freeco.ai/install.ps1 | iex
-openfang --version
+freeco --version
 ```
 
 ---

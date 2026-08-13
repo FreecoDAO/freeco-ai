@@ -7,8 +7,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export OPENFANG_HOME="$ROOT/data"
-export OPENFANG_LISTEN="${OPENFANG_LISTEN:-127.0.0.1:4200}"
+export FREECO_AI_HOME="$ROOT/data"
+export FREECO_AI_LISTEN="${FREECO_AI_LISTEN:-127.0.0.1:4200}"
+# Keep legacy home resolution aligned so upgraded installations continue to
+# write into this portable bundle.
+export OPENFANG_HOME="$FREECO_AI_HOME"
 
 OS="$(uname -s)"
 ARCH="$(uname -m)"
@@ -23,7 +26,7 @@ case "$OS" in
     *) echo "  Unsupported OS: $OS (this launcher is for Linux/macOS)"; exit 1 ;;
 esac
 
-EXE="$ROOT/bin/$PLATFORM_DIR/$ARCH/openfang"
+EXE="$ROOT/bin/$PLATFORM_DIR/$ARCH/freeco-ai"
 if [ ! -f "$EXE" ]; then
     echo "  Could not find a FreEco.ai binary for $PLATFORM_DIR/$ARCH at:"
     echo "    $EXE"
@@ -33,12 +36,16 @@ chmod +x "$EXE" 2>/dev/null || true
 
 # Ad-hoc codesign on macOS (prevents SIGKILL on Apple Silicon Gatekeeper).
 if [ "$PLATFORM_DIR" = "macos" ]; then
-    command -v xattr >/dev/null 2>&1 && xattr -cr "$EXE" 2>/dev/null || true
-    command -v codesign >/dev/null 2>&1 && codesign --force --sign - "$EXE" 2>/dev/null || true
+    if command -v xattr >/dev/null 2>&1; then
+        xattr -cr "$EXE" 2>/dev/null || true
+    fi
+    if command -v codesign >/dev/null 2>&1; then
+        codesign --force --sign - "$EXE" 2>/dev/null || true
+    fi
 fi
 
-mkdir -p "$OPENFANG_HOME"
-if [ ! -f "$OPENFANG_HOME/config.toml" ]; then
+mkdir -p "$FREECO_AI_HOME"
+if [ ! -f "$FREECO_AI_HOME/config.toml" ]; then
     echo "  First run — starting FreEco.ai setup wizard..."
     "$EXE" init
 fi
@@ -48,15 +55,15 @@ fi
 (
     sleep 3
     if command -v xdg-open >/dev/null 2>&1; then
-        xdg-open "http://$OPENFANG_LISTEN" >/dev/null 2>&1 || true
+        xdg-open "http://$FREECO_AI_LISTEN" >/dev/null 2>&1 || true
     elif command -v open >/dev/null 2>&1; then
-        open "http://$OPENFANG_LISTEN" >/dev/null 2>&1 || true
+        open "http://$FREECO_AI_LISTEN" >/dev/null 2>&1 || true
     fi
 ) &
 
 echo ""
-echo "  FreEco.ai starting — dashboard: http://$OPENFANG_LISTEN"
-echo "  Data directory: $OPENFANG_HOME"
+echo "  FreEco.ai starting — dashboard: http://$FREECO_AI_LISTEN"
+echo "  Data directory: $FREECO_AI_HOME"
 echo "  Press Ctrl+C to stop."
 echo ""
 exec "$EXE" start

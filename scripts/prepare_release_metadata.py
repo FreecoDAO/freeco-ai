@@ -33,7 +33,7 @@ def main() -> None:
     cargo_path = ROOT / "Cargo.toml"
     changelog_path = ROOT / "CHANGELOG.md"
     roadmap_path = ROOT / "ROADMAP.md"
-    tauri_conf_path = ROOT / "crates" / "openfang-desktop" / "tauri.conf.json"
+    tauri_conf_path = ROOT / "crates" / "freeco-desktop" / "tauri.conf.json"
     cargo = cargo_path.read_text(encoding="utf-8")
     changelog = changelog_path.read_text(encoding="utf-8")
     roadmap = roadmap_path.read_text(encoding="utf-8")
@@ -52,7 +52,7 @@ def main() -> None:
         raise SystemExit("CHANGELOG.md must contain an Unreleased section.")
     release_notes = changelog_match.group("body").strip()
     if not release_notes:
-        release_notes = "### Changed\n\n- Maintenance release."
+        raise SystemExit("CHANGELOG.md must contain Unreleased release notes.")
     changelog = (
         changelog[: changelog_match.start()]
         + f"## [Unreleased]\n\n## [{version}] - {args.date}\n\n{release_notes}\n\n"

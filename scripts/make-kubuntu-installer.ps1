@@ -16,7 +16,7 @@
 
 [CmdletBinding()]
 param(
-    [string] $IsoPath      = "$env:USERPROFILE\.openfang\iso\kubuntu-24.04.3-desktop-amd64.iso",
+    [string] $IsoPath      = "$env:USERPROFILE\.freeco-ai\iso\kubuntu-24.04.3-desktop-amd64.iso",
     [int]    $InstallerGb  = 6,
     # Guard: refuse to touch anything that is not this removable disk.
     [string] $ExpectedBus  = 'USB'

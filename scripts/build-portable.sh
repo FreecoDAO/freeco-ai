@@ -7,14 +7,25 @@
 # Usage: scripts/build-portable.sh [version] [output-dir]
 #   version     - release tag to package (default: latest)
 #   output-dir  - where to assemble the bundle (default: dist/freeco-portable)
+# Set FREECO_AI_RELEASE_TOKEN when downloading from a private release.
 
 set -euo pipefail
 
 REPO="FreecoDAO/freeco-ai"
-VERSION="${1:-${OPENFANG_VERSION:-}}"
+VERSION="${1:-${FREECO_AI_VERSION:-${FRECO_AI_VERSION:-}}}"
 OUT_DIR="${2:-dist/freeco-portable}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORTABLE_SRC="$SCRIPT_DIR/portable"
+RELEASE_TOKEN="${FREECO_AI_RELEASE_TOKEN:-}"
+
+release_curl() {
+    local args=(-fsSL)
+    if [ -n "$RELEASE_TOKEN" ]; then
+        local auth_scheme="Bearer"
+        args+=(-H "Authorization: ${auth_scheme} ${RELEASE_TOKEN}")
+    fi
+    curl "${args[@]}" "$@"
+}
 
 # os_dir:arch:target-triple:archive-ext
 TARGETS=(
@@ -28,11 +39,11 @@ TARGETS=(
 
 if [ -z "$VERSION" ]; then
     echo "  Fetching latest release..."
-    VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
+    VERSION=$(release_curl "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | sed 's/.*"tag_name": *"//' | sed 's/".*//')
 fi
 if [ -z "$VERSION" ]; then
-    echo "  Could not determine a release version. Pass one explicitly:"
-    echo "    scripts/build-portable.sh v0.6.9"
+    echo "  Could not determine a release version. Pass one explicitly and, for"
+    echo "  private releases, set FREECO_AI_RELEASE_TOKEN with repository read access."
     exit 1
 fi
 echo "  Building portable bundle for $VERSION..."
@@ -46,18 +57,18 @@ trap cleanup EXIT
 
 for entry in "${TARGETS[@]}"; do
     IFS=':' read -r OS_DIR ARCH TARGET EXT <<< "$entry"
-    ARCHIVE="openfang-$TARGET.$EXT"
+    ARCHIVE="freeco-ai-$TARGET.$EXT"
     URL="https://github.com/$REPO/releases/download/$VERSION/$ARCHIVE"
     CHECKSUM_URL="$URL.sha256"
     DEST_DIR="$OUT_DIR/bin/$OS_DIR/$ARCH"
 
     echo "  Fetching $OS_DIR/$ARCH ($TARGET)..."
-    if ! curl -fsSL "$URL" -o "$TMPDIR/$ARCHIVE" 2>/dev/null; then
+    if ! release_curl "$URL" -o "$TMPDIR/$ARCHIVE" 2>/dev/null; then
         echo "    Skipped: no release asset for $TARGET (may not be built for this version)."
         continue
     fi
 
-    if curl -fsSL "$CHECKSUM_URL" -o "$TMPDIR/$ARCHIVE.sha256" 2>/dev/null; then
+    if release_curl "$CHECKSUM_URL" -o "$TMPDIR/$ARCHIVE.sha256" 2>/dev/null; then
         EXPECTED=$(cut -d ' ' -f 1 < "$TMPDIR/$ARCHIVE.sha256")
         if command -v sha256sum &>/dev/null; then
             ACTUAL=$(sha256sum "$TMPDIR/$ARCHIVE" | cut -d ' ' -f 1)

@@ -1,0 +1,920 @@
+//! Configuration loading from `~/.freeco-ai/config.toml` with defaults.
+//!
+//! Supports config includes: the `include` field specifies additional TOML files
+//! to load and deep-merge before the root config (root overrides includes).
+
+use freeco_types::config::KernelConfig;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use tracing::info;
+
+/// Maximum include nesting depth.
+const MAX_INCLUDE_DEPTH: u32 = 10;
+
+/// Load kernel configuration from a TOML file, with defaults.
+///
+/// If the config contains an `include` field, included files are loaded
+/// and deep-merged first, then the root config overrides them.
+pub fn load_config(path: Option<&Path>) -> KernelConfig {
+    let config_path = path
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(default_config_path);
+
+    if config_path.exists() {
+        match std::fs::read_to_string(&config_path) {
+            Ok(contents) => match toml::from_str::<toml::Value>(&contents) {
+                Ok(mut root_value) => {
+                    // Process includes before deserializing
+                    let config_dir = config_path
+                        .parent()
+                        .unwrap_or_else(|| Path::new("."))
+                        .to_path_buf();
+                    let mut visited = HashSet::new();
+                    if let Ok(canonical) = std::fs::canonicalize(&config_path) {
+                        visited.insert(canonical);
+                    } else {
+                        visited.insert(config_path.clone());
+                    }
+
+                    if let Err(e) =
+                        resolve_config_includes(&mut root_value, &config_dir, &mut visited, 0)
+                    {
+                        tracing::warn!(
+                            error = %e,
+                            "Config include resolution failed, using root config only"
+                        );
+                    }
+
+                    // Remove the `include` field before deserializing to avoid confusion
+                    if let toml::Value::Table(ref mut tbl) = root_value {
+                        tbl.remove("include");
+                    }
+
+                    // Migrate misplaced api_key/api_listen from [api] section to root level.
+                    // The old config schema incorrectly grouped these under [api], so many
+                    // users have them in the wrong place. Move them up if not already at root.
+                    if let toml::Value::Table(ref mut tbl) = root_value {
+                        if let Some(toml::Value::Table(api_section)) = tbl.get("api").cloned() {
+                            for key in &["api_key", "api_listen", "log_level"] {
+                                if !tbl.contains_key(*key) {
+                                    if let Some(val) = api_section.get(*key) {
+                                        tracing::info!(
+                                            key,
+                                            "Migrating misplaced config field from [api] to root level"
+                                        );
+                                        tbl.insert(key.to_string(), val.clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // GAP-012 (Tier 1): pre-validate the [[bindings]] array so a
+                    // single malformed entry doesn't poison the whole config and
+                    // force a fall-back to defaults (which would silently unbind
+                    // every agent). Bad entries are logged at ERROR and dropped;
+                    // survivors are passed through to typed deserialization.
+                    lenient_extract_bindings(&mut root_value);
+
+                    match root_value.try_into::<KernelConfig>() {
+                        Ok(config) => {
+                            info!(path = %config_path.display(), "Loaded configuration");
+                            return config;
+                        }
+                        Err(e) => {
+                            // TODO(GAP-012-Tier-2): this fallback still silently
+                            // swaps the user's intent for `KernelConfig::default()`
+                            // on any non-binding deserialization failure. Tier 1
+                            // closes the binding-shape footgun; Tier 2 should
+                            // surface remaining failures via a health endpoint
+                            // and/or stderr banner so the silent-default path
+                            // can't hide a broken config.
+                            tracing::warn!(
+                                error = %e,
+                                path = %config_path.display(),
+                                "Failed to deserialize merged config, using defaults"
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        path = %config_path.display(),
+                        "Failed to parse config, using defaults"
+                    );
+                }
+            },
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    path = %config_path.display(),
+                    "Failed to read config file, using defaults"
+                );
+            }
+        }
+    } else {
+        info!(
+            path = %config_path.display(),
+            "Config file not found, using defaults"
+        );
+    }
+
+    KernelConfig::default()
+}
+
+/// Resolve config includes by deep-merging included files into the root value.
+///
+/// Included files are loaded first and the root config overrides them.
+/// Security: rejects absolute paths, `..` components, and circular references.
+fn resolve_config_includes(
+    root_value: &mut toml::Value,
+    config_dir: &Path,
+    visited: &mut HashSet<PathBuf>,
+    depth: u32,
+) -> Result<(), String> {
+    if depth > MAX_INCLUDE_DEPTH {
+        return Err(format!(
+            "Config include depth exceeded maximum of {MAX_INCLUDE_DEPTH}"
+        ));
+    }
+
+    // Extract include list from the current value
+    let includes = match root_value {
+        toml::Value::Table(tbl) => {
+            if let Some(toml::Value::Array(arr)) = tbl.get("include") {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect::<Vec<_>>()
+            } else {
+                return Ok(());
+            }
+        }
+        _ => return Ok(()),
+    };
+
+    if includes.is_empty() {
+        return Ok(());
+    }
+
+    // Merge each include (earlier includes are overridden by later ones,
+    // and the root config overrides everything).
+    let mut merged_base = toml::Value::Table(toml::map::Map::new());
+
+    for include_path_str in &includes {
+        // SECURITY: reject absolute paths
+        let include_path = Path::new(include_path_str);
+        if include_path.is_absolute() {
+            return Err(format!(
+                "Config include rejects absolute path: {include_path_str}"
+            ));
+        }
+        // SECURITY: reject `..` components
+        for component in include_path.components() {
+            if let std::path::Component::ParentDir = component {
+                return Err(format!(
+                    "Config include rejects path traversal: {include_path_str}"
+                ));
+            }
+        }
+
+        let resolved = config_dir.join(include_path);
+        // SECURITY: verify resolved path stays within config dir
+        let canonical = std::fs::canonicalize(&resolved).map_err(|e| {
+            format!(
+                "Config include '{}' cannot be resolved: {e}",
+                include_path_str
+            )
+        })?;
+        let canonical_dir = std::fs::canonicalize(config_dir)
+            .map_err(|e| format!("Config dir cannot be canonicalized: {e}"))?;
+        if !canonical.starts_with(&canonical_dir) {
+            return Err(format!(
+                "Config include '{}' escapes config directory",
+                include_path_str
+            ));
+        }
+
+        // SECURITY: circular detection
+        if !visited.insert(canonical.clone()) {
+            return Err(format!(
+                "Circular config include detected: {include_path_str}"
+            ));
+        }
+
+        info!(include = %include_path_str, "Loading config include");
+
+        let contents = std::fs::read_to_string(&canonical)
+            .map_err(|e| format!("Failed to read config include '{}': {e}", include_path_str))?;
+        let mut include_value: toml::Value = toml::from_str(&contents)
+            .map_err(|e| format!("Failed to parse config include '{}': {e}", include_path_str))?;
+
+        // Recursively resolve includes in the included file
+        let include_dir = canonical.parent().unwrap_or(config_dir).to_path_buf();
+        resolve_config_includes(&mut include_value, &include_dir, visited, depth + 1)?;
+
+        // Remove include field from the included file
+        if let toml::Value::Table(ref mut tbl) = include_value {
+            tbl.remove("include");
+        }
+
+        // Deep merge: include overrides the base built so far
+        deep_merge_toml(&mut merged_base, &include_value);
+    }
+
+    // Now deep merge: root overrides the merged includes
+    // Save root's current values (minus include), then merge root on top
+    let root_without_include = {
+        let mut v = root_value.clone();
+        if let toml::Value::Table(ref mut tbl) = v {
+            tbl.remove("include");
+        }
+        v
+    };
+    deep_merge_toml(&mut merged_base, &root_without_include);
+    *root_value = merged_base;
+
+    Ok(())
+}
+
+/// Deep-merge two TOML values. `overlay` values override `base` values.
+/// For tables, recursively merge. For everything else, overlay wins.
+pub fn deep_merge_toml(base: &mut toml::Value, overlay: &toml::Value) {
+    match (base, overlay) {
+        (toml::Value::Table(base_tbl), toml::Value::Table(overlay_tbl)) => {
+            for (key, overlay_val) in overlay_tbl {
+                if let Some(base_val) = base_tbl.get_mut(key) {
+                    deep_merge_toml(base_val, overlay_val);
+                } else {
+                    base_tbl.insert(key.clone(), overlay_val.clone());
+                }
+            }
+        }
+        (base, overlay) => {
+            *base = overlay.clone();
+        }
+    }
+}
+
+/// Lenient pre-pass over the `[[bindings]]` array (GAP-012 Tier 1).
+///
+/// Strict whole-config deserialization is fragile: any one malformed binding
+/// (e.g. a typo'd field that trips `deny_unknown_fields`) causes
+/// `try_into::<KernelConfig>()` to fail, which the caller then handles by
+/// falling back to `KernelConfig::default()` — silently unbinding *every*
+/// agent. That's the worst possible failure mode for a routing config: the
+/// user's intent is silently discarded, with only a single line in the logs.
+///
+/// This pass runs *before* typed deserialization. It walks the bindings
+/// array entry-by-entry, attempts to deserialize each into `AgentBinding`,
+/// logs malformed entries at ERROR with index + agent name + serde error,
+/// and replaces the array with the survivors. The downstream
+/// `try_into::<KernelConfig>()` then sees a clean array and succeeds.
+///
+/// `deny_unknown_fields` on `AgentBinding`/`BindingMatchRule` still applies
+/// per-entry — typos in surviving bindings would still produce errors here
+/// and be dropped. The strict-field guarantee is preserved at the entry
+/// level; only the all-or-nothing behavior is relaxed.
+///
+/// No-op if `root_value` is not a table or has no `bindings` array.
+fn lenient_extract_bindings(root_value: &mut toml::Value) {
+    use freeco_types::config::AgentBinding;
+
+    let tbl = match root_value {
+        toml::Value::Table(t) => t,
+        _ => return,
+    };
+
+    // Replace the array in place if (and only if) `bindings` is present
+    // and is an array. Anything else (missing, wrong type) we leave alone
+    // so the typed deserializer can produce its own targeted error.
+    let original = match tbl.get("bindings") {
+        Some(toml::Value::Array(arr)) => arr.clone(),
+        _ => return,
+    };
+
+    let mut survivors: Vec<toml::Value> = Vec::with_capacity(original.len());
+    let mut dropped = 0usize;
+
+    for (idx, entry) in original.into_iter().enumerate() {
+        match entry.clone().try_into::<AgentBinding>() {
+            Ok(_) => survivors.push(entry),
+            Err(e) => {
+                dropped += 1;
+                // Lazy: only allocate the agent-name fallback string when we
+                // actually need it for an error log. The happy path skips this.
+                let agent_name = entry
+                    .get("agent")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("<unknown>")
+                    .to_string();
+                tracing::error!(
+                    binding_index = idx,
+                    agent = %agent_name,
+                    error = %e,
+                    "Skipping malformed binding #{} (agent='{}'): {}. \
+                     Other bindings will continue to load. \
+                     Fix the entry and reload to restore routing.",
+                    idx,
+                    agent_name,
+                    e
+                );
+            }
+        }
+    }
+
+    if dropped > 0 {
+        // Per-entry ERRORs above carry the root cause; this summary is a
+        // grep-friendly one-liner, so WARN keeps ERROR == per-binding cause.
+        tracing::warn!(
+            dropped,
+            survivors = survivors.len(),
+            "Dropped {} malformed binding(s); {} binding(s) will load. \
+             See preceding ERROR lines for per-binding details.",
+            dropped,
+            survivors.len()
+        );
+    }
+
+    tbl.insert("bindings".to_string(), toml::Value::Array(survivors));
+}
+
+/// Get the default config file path.
+///
+/// Respects `FREECO_AI_HOME` (or legacy `OPENFANG_HOME`) environment variables.
+pub fn default_config_path() -> PathBuf {
+    freeco_ai_home().join("config.toml")
+}
+
+/// Get the FreEco.ai home directory.
+///
+/// Priority: `FREECO_AI_HOME` > legacy `OPENFANG_HOME` > `~/.freeco-ai`.
+///
+/// `FRECO_AI_HOME` was also read here. No release ever set it, so nothing
+/// could have been using it; it was a misspelling of the new variable being
+/// carried as though it were history.
+///
+/// On first use, an existing legacy `~/.openfang` directory is renamed to the
+/// new location. Renaming is atomic on a single filesystem and preserves
+/// credentials, databases, permissions, and daemon state. If it cannot be
+/// renamed, the legacy directory remains in use rather than risking data loss.
+/// If an earlier command already created `~/.freeco-ai`, non-conflicting legacy
+/// entries are moved individually so setup data is not stranded in the old home.
+pub fn freeco_ai_home() -> PathBuf {
+    if let Ok(home) = std::env::var("FREECO_AI_HOME") {
+        return PathBuf::from(home);
+    }
+    if let Ok(home) = std::env::var("OPENFANG_HOME") {
+        return PathBuf::from(home);
+    }
+
+    // The migration below renames a directory, merges its contents and
+    // upgrades a database. That must happen once per process, not once per
+    // call: this function has 21 call sites and several of them are HTTP route
+    // handlers, which run concurrently on the async runtime. Without this
+    // guard, two requests arriving together can both observe the legacy
+    // directory, both attempt the rename, and both walk the merge — racing on
+    // the user's only copy of their data.
+    //
+    // Caching the resolved path also stops a "where is my home directory"
+    // accessor from touching the filesystem on every lookup.
+    static RESOLVED: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    RESOLVED
+        .get_or_init(|| {
+            let home = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
+            let freeco_home = home.join(".freeco-ai");
+            let legacy_home = home.join(".openfang");
+
+            // Keep using the directory that holds the data rather than starting
+            // empty somewhere else. A failed rename is normal on Windows when
+            // the daemon already has the database open.
+            if !freeco_home.exists()
+                && legacy_home.exists()
+                && std::fs::rename(&legacy_home, &freeco_home).is_err()
+            {
+                return legacy_home;
+            }
+            if freeco_home.is_dir() && legacy_home.is_dir() {
+                migrate_legacy_home_contents(&legacy_home, &freeco_home);
+            }
+            migrate_legacy_database(&freeco_home);
+            freeco_home
+        })
+        .clone()
+}
+
+fn migrate_legacy_home_contents(legacy_home: &Path, freeco_home: &Path) {
+    let Ok(entries) = std::fs::read_dir(legacy_home) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let source = entry.path();
+        let destination = freeco_home.join(entry.file_name());
+        if destination.exists() {
+            continue;
+        }
+
+        if let Err(error) = std::fs::rename(&source, &destination) {
+            tracing::warn!(
+                source = %source.display(),
+                destination = %destination.display(),
+                %error,
+                "Could not migrate legacy FreEco.ai home entry"
+            );
+        }
+    }
+
+    if std::fs::read_dir(legacy_home)
+        .ok()
+        .is_some_and(|mut entries| entries.next().is_none())
+    {
+        let _ = std::fs::remove_dir(legacy_home);
+    }
+}
+
+fn migrate_legacy_database(freeco_home: &Path) {
+    let legacy_database = freeco_home.join("data").join("openfang.db");
+    let current_database = freeco_home.join("data").join("freeco.db");
+    if legacy_database.is_file() && !current_database.exists() {
+        if let Err(error) = std::fs::rename(&legacy_database, &current_database) {
+            tracing::warn!(
+                source = %legacy_database.display(),
+                destination = %current_database.display(),
+                %error,
+                "Could not rename legacy database during FreEco.ai migration"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_load_config_defaults() {
+        let config = load_config(None);
+        assert_eq!(config.log_level, "info");
+    }
+
+    #[test]
+    fn test_load_config_missing_file() {
+        let config = load_config(Some(Path::new("/nonexistent/config.toml")));
+        assert_eq!(config.log_level, "info");
+    }
+
+    #[test]
+    fn test_migrate_legacy_home_contents_preserves_existing_new_entries() {
+        let temp = tempfile::tempdir().unwrap();
+        let legacy = temp.path().join(".openfang");
+        let current = temp.path().join(".freeco-ai");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::create_dir_all(&current).unwrap();
+        std::fs::write(legacy.join("config.toml"), "log_level = \"debug\"\n").unwrap();
+        std::fs::write(legacy.join("legacy-only"), "migrate me").unwrap();
+        std::fs::write(current.join("config.toml"), "log_level = \"info\"\n").unwrap();
+
+        migrate_legacy_home_contents(&legacy, &current);
+
+        assert_eq!(
+            std::fs::read_to_string(current.join("config.toml")).unwrap(),
+            "log_level = \"info\"\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(current.join("legacy-only")).unwrap(),
+            "migrate me"
+        );
+        assert!(legacy.join("config.toml").exists());
+    }
+
+    #[test]
+    fn test_migrate_legacy_home_contents_moves_stranded_config() {
+        let temp = tempfile::tempdir().unwrap();
+        let legacy = temp.path().join(".openfang");
+        let current = temp.path().join(".freeco-ai");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::create_dir_all(&current).unwrap();
+        std::fs::write(legacy.join("config.toml"), "log_level = \"debug\"\n").unwrap();
+
+        migrate_legacy_home_contents(&legacy, &current);
+
+        assert_eq!(
+            std::fs::read_to_string(current.join("config.toml")).unwrap(),
+            "log_level = \"debug\"\n"
+        );
+        assert!(!legacy.exists());
+    }
+
+    #[test]
+    fn test_migrate_legacy_database_renames_only_when_needed() {
+        let temp = tempfile::tempdir().unwrap();
+        let data_dir = temp.path().join("data");
+        std::fs::create_dir_all(&data_dir).unwrap();
+        std::fs::write(data_dir.join("openfang.db"), "legacy").unwrap();
+
+        migrate_legacy_database(temp.path());
+
+        assert!(!data_dir.join("openfang.db").exists());
+        assert_eq!(
+            std::fs::read_to_string(data_dir.join("freeco.db")).unwrap(),
+            "legacy"
+        );
+    }
+
+    #[test]
+    fn test_deep_merge_simple() {
+        let mut base: toml::Value = toml::from_str(
+            r#"
+            log_level = "debug"
+            api_listen = "0.0.0.0:4200"
+        "#,
+        )
+        .unwrap();
+        let overlay: toml::Value = toml::from_str(
+            r#"
+            log_level = "info"
+            network_enabled = true
+        "#,
+        )
+        .unwrap();
+        deep_merge_toml(&mut base, &overlay);
+        assert_eq!(base["log_level"].as_str(), Some("info"));
+        assert_eq!(base["api_listen"].as_str(), Some("0.0.0.0:4200"));
+        assert_eq!(base["network_enabled"].as_bool(), Some(true));
+    }
+
+    #[test]
+    fn test_deep_merge_nested_tables() {
+        let mut base: toml::Value = toml::from_str(
+            r#"
+            [memory]
+            decay_rate = 0.1
+            consolidation_threshold = 10000
+        "#,
+        )
+        .unwrap();
+        let overlay: toml::Value = toml::from_str(
+            r#"
+            [memory]
+            decay_rate = 0.5
+        "#,
+        )
+        .unwrap();
+        deep_merge_toml(&mut base, &overlay);
+        let mem = base["memory"].as_table().unwrap();
+        assert_eq!(mem["decay_rate"].as_float(), Some(0.5));
+        assert_eq!(mem["consolidation_threshold"].as_integer(), Some(10000));
+    }
+
+    #[test]
+    fn test_basic_include() {
+        let dir = tempfile::tempdir().unwrap();
+        let base_path = dir.path().join("base.toml");
+        let root_path = dir.path().join("config.toml");
+
+        // Base config
+        let mut f = std::fs::File::create(&base_path).unwrap();
+        writeln!(f, "log_level = \"debug\"").unwrap();
+        writeln!(f, "api_listen = \"0.0.0.0:9999\"").unwrap();
+        drop(f);
+
+        // Root config (includes base, overrides log_level)
+        let mut f = std::fs::File::create(&root_path).unwrap();
+        writeln!(f, "include = [\"base.toml\"]").unwrap();
+        writeln!(f, "log_level = \"warn\"").unwrap();
+        drop(f);
+
+        let config = load_config(Some(&root_path));
+        assert_eq!(config.log_level, "warn"); // root overrides
+        assert_eq!(config.api_listen, "0.0.0.0:9999"); // from base
+    }
+
+    #[test]
+    fn test_nested_include() {
+        let dir = tempfile::tempdir().unwrap();
+        let grandchild = dir.path().join("grandchild.toml");
+        let child = dir.path().join("child.toml");
+        let root = dir.path().join("config.toml");
+
+        let mut f = std::fs::File::create(&grandchild).unwrap();
+        writeln!(f, "log_level = \"trace\"").unwrap();
+        drop(f);
+
+        let mut f = std::fs::File::create(&child).unwrap();
+        writeln!(f, "include = [\"grandchild.toml\"]").unwrap();
+        writeln!(f, "log_level = \"debug\"").unwrap();
+        drop(f);
+
+        let mut f = std::fs::File::create(&root).unwrap();
+        writeln!(f, "include = [\"child.toml\"]").unwrap();
+        writeln!(f, "log_level = \"info\"").unwrap();
+        drop(f);
+
+        let config = load_config(Some(&root));
+        assert_eq!(config.log_level, "info"); // root wins
+    }
+
+    #[test]
+    fn test_circular_include_detected() {
+        let dir = tempfile::tempdir().unwrap();
+        let a_path = dir.path().join("a.toml");
+        let b_path = dir.path().join("b.toml");
+
+        let mut f = std::fs::File::create(&a_path).unwrap();
+        writeln!(f, "include = [\"b.toml\"]").unwrap();
+        writeln!(f, "log_level = \"info\"").unwrap();
+        drop(f);
+
+        let mut f = std::fs::File::create(&b_path).unwrap();
+        writeln!(f, "include = [\"a.toml\"]").unwrap();
+        drop(f);
+
+        // Should not panic — circular detection triggers, falls back gracefully
+        let config = load_config(Some(&a_path));
+        // Falls back to defaults due to the circular error
+        assert!(!config.log_level.is_empty());
+    }
+
+    #[test]
+    fn test_path_traversal_blocked() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("config.toml");
+
+        let mut f = std::fs::File::create(&root).unwrap();
+        writeln!(f, "include = [\"../etc/passwd\"]").unwrap();
+        drop(f);
+
+        // Should not panic — path traversal triggers error, falls back
+        let config = load_config(Some(&root));
+        assert_eq!(config.log_level, "info"); // defaults
+    }
+
+    #[test]
+    fn test_max_depth_exceeded() {
+        let dir = tempfile::tempdir().unwrap();
+
+        // Create a chain of 12 files (exceeds MAX_INCLUDE_DEPTH=10)
+        for i in (0..12).rev() {
+            let name = format!("level{i}.toml");
+            let path = dir.path().join(&name);
+            let mut f = std::fs::File::create(&path).unwrap();
+            if i < 11 {
+                let next = format!("level{}.toml", i + 1);
+                writeln!(f, "include = [\"{next}\"]").unwrap();
+            }
+            writeln!(f, "log_level = \"level{i}\"").unwrap();
+            drop(f);
+        }
+
+        let root = dir.path().join("level0.toml");
+        let config = load_config(Some(&root));
+        // Falls back due to depth limit — but should not panic
+        assert!(!config.log_level.is_empty());
+    }
+
+    #[test]
+    fn test_absolute_path_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("config.toml");
+
+        let mut f = std::fs::File::create(&root).unwrap();
+        writeln!(f, "include = [\"/etc/shadow\"]").unwrap();
+        drop(f);
+
+        let config = load_config(Some(&root));
+        assert_eq!(config.log_level, "info"); // defaults
+    }
+
+    // ─── GAP-012 Tier 1: lenient bindings extraction ───────────────────
+
+    #[test]
+    fn test_lenient_bindings_drops_typo_keeps_rest() {
+        // Two bindings; the first has a typo'd field (`channnel_id`) that
+        // `BindingMatchRule`'s `deny_unknown_fields` would reject. The second
+        // is well-formed. Pre-fix behavior: whole config falls back to
+        // defaults (zero bindings). Post-fix: bad one dropped, good one loads.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(
+            f,
+            r#"
+log_level = "info"
+
+[[bindings]]
+agent = "researcher-broken"
+match_rule = {{ channel = "discord", channnel_id = "123" }}
+
+[[bindings]]
+agent = "researcher-good"
+match_rule = {{ channel = "discord", channel_id = "456" }}
+"#
+        )
+        .unwrap();
+        drop(f);
+
+        let config = load_config(Some(&path));
+        assert_eq!(
+            config.bindings.len(),
+            1,
+            "expected exactly the well-formed binding to survive"
+        );
+        assert_eq!(config.bindings[0].agent, "researcher-good");
+        assert_eq!(
+            config.bindings[0].match_rule.channel_id.as_deref(),
+            Some("456")
+        );
+    }
+
+    #[test]
+    fn test_lenient_bindings_all_valid_unchanged() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(
+            f,
+            r#"
+log_level = "info"
+
+[[bindings]]
+agent = "a"
+match_rule = {{ channel = "discord", channel_id = "1" }}
+
+[[bindings]]
+agent = "b"
+match_rule = {{ channel = "telegram", channel_id = "2" }}
+"#
+        )
+        .unwrap();
+        drop(f);
+
+        let config = load_config(Some(&path));
+        assert_eq!(config.bindings.len(), 2);
+        assert_eq!(config.bindings[0].agent, "a");
+        assert_eq!(config.bindings[1].agent, "b");
+    }
+
+    #[test]
+    fn test_lenient_bindings_all_malformed_yields_empty_but_keeps_rest_of_config() {
+        // Every binding is broken, but the rest of the config (log_level,
+        // api_listen) must still load. Pre-fix: total fallback to defaults.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(
+            f,
+            r#"
+log_level = "trace"
+api_listen = "127.0.0.1:9999"
+
+[[bindings]]
+agent = "broken-1"
+match_rule = {{ channnel_id = "1" }}
+
+[[bindings]]
+agent = "broken-2"
+match_rule = {{ peer_idd = "u" }}
+"#
+        )
+        .unwrap();
+        drop(f);
+
+        let config = load_config(Some(&path));
+        assert!(config.bindings.is_empty(), "all bindings should be dropped");
+        assert_eq!(
+            config.log_level, "trace",
+            "non-binding config must still load"
+        );
+        assert_eq!(config.api_listen, "127.0.0.1:9999");
+    }
+
+    #[test]
+    fn test_lenient_bindings_no_bindings_section_is_noop() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(f, "log_level = \"info\"").unwrap();
+        drop(f);
+
+        let config = load_config(Some(&path));
+        assert!(config.bindings.is_empty());
+        assert_eq!(config.log_level, "info");
+    }
+
+    #[test]
+    fn test_lenient_bindings_missing_agent_field_dropped() {
+        // A binding missing the required `agent` field can't deserialize at
+        // all; it should be dropped (logged as agent='<unknown>') and the
+        // good one should still load.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(
+            f,
+            r#"
+[[bindings]]
+match_rule = {{ channel = "discord" }}
+
+[[bindings]]
+agent = "good"
+match_rule = {{ channel = "discord", channel_id = "1" }}
+"#
+        )
+        .unwrap();
+        drop(f);
+
+        let config = load_config(Some(&path));
+        assert_eq!(config.bindings.len(), 1);
+        assert_eq!(config.bindings[0].agent, "good");
+    }
+
+    #[test]
+    fn test_lenient_bindings_preserves_survivor_order() {
+        // Three bindings with the *middle* one malformed. Survivors must
+        // retain their original relative order (1st, 3rd) — match-rule
+        // routing can be order-sensitive (first-match-wins), so silently
+        // reshuffling on a drop would be a subtle regression.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(
+            f,
+            r#"
+[[bindings]]
+agent = "first"
+match_rule = {{ channel = "discord", channel_id = "1" }}
+
+[[bindings]]
+agent = "middle-broken"
+match_rule = {{ channnel_id = "2" }}
+
+[[bindings]]
+agent = "third"
+match_rule = {{ channel = "telegram", channel_id = "3" }}
+"#
+        )
+        .unwrap();
+        drop(f);
+
+        let config = load_config(Some(&path));
+        assert_eq!(config.bindings.len(), 2, "middle binding should be dropped");
+        assert_eq!(
+            config.bindings[0].agent, "first",
+            "first survivor must remain first"
+        );
+        assert_eq!(
+            config.bindings[1].agent, "third",
+            "third must remain after first (order preserved)"
+        );
+    }
+
+    #[test]
+    fn test_lenient_bindings_top_level_field_typo_dropped() {
+        // Operator typos `agnt` instead of `agent` on the binding itself
+        // (not inside `match_rule`). `AgentBinding`'s `deny_unknown_fields`
+        // should reject the entry, the lenient pass should drop it, and
+        // the well-formed sibling should still load. This is the more
+        // common operator mistake than missing-field-entirely, so we lock
+        // the behavior in explicitly.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(
+            f,
+            r#"
+[[bindings]]
+agnt = "typo-at-top-level"
+match_rule = {{ channel = "discord", channel_id = "1" }}
+
+[[bindings]]
+agent = "good"
+match_rule = {{ channel = "discord", channel_id = "2" }}
+"#
+        )
+        .unwrap();
+        drop(f);
+
+        let config = load_config(Some(&path));
+        assert_eq!(
+            config.bindings.len(),
+            1,
+            "binding with top-level field typo should be dropped"
+        );
+        assert_eq!(config.bindings[0].agent, "good");
+    }
+
+    #[test]
+    fn test_no_includes_works() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("config.toml");
+
+        let mut f = std::fs::File::create(&root).unwrap();
+        writeln!(f, "log_level = \"trace\"").unwrap();
+        drop(f);
+
+        let config = load_config(Some(&root));
+        assert_eq!(config.log_level, "trace");
+    }
+}

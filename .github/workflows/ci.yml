@@ -61,7 +61,32 @@ jobs:
             librsvg2-dev \
             patchelf
       # Tests that need a display (Tauri) are skipped in headless CI via cfg
-      - run: cargo test --workspace
+      # Tee the output and republish failures into the job summary.
+      #
+      # Job logs need admin rights to download, so a contributor without them
+      # sees only "exit code 101" on a failing platform and has to guess which
+      # test broke. Step summaries are readable by anyone who can see the
+      # check, so the failing test names travel with the result.
+      - name: cargo test --workspace
+        run: |
+          set -o pipefail
+          cargo test --workspace 2>&1 | tee test-output.txt
+        shell: bash
+
+      - name: Report failing tests
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "### Failing tests on ${{ matrix.os }}"
+            echo
+            echo '```'
+            # The names under "failures:" plus any panic lines, which together
+            # identify the test and say why without needing the full log.
+            awk '/^failures:$/{f=1;next} /^test result:/{f=0} f' test-output.txt | sort -u
+            grep -E "panicked at|assertion .* failed|left:|right:" test-output.txt | head -40
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   clippy:
     name: Clippy

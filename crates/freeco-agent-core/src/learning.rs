@@ -14,8 +14,8 @@ pub enum Outcome {
 
 /// A single learning event emitted by an agent after handling a message.
 ///
-/// The native [`openfang_runtime`] collects these and persists them to SQLite
-/// for the **openfang-learning** self-improvement loop: analysing which
+/// The native [`freeco_kernel_runtime`] collects these and persists them to SQLite
+/// for the **freeco-learning** self-improvement loop: analysing which
 /// decisions lead to good outcomes lets the system gradually improve its
 /// routing, prompt selection, and tier classification.
 #[derive(Debug, Clone, Serialize, Deserialize)]

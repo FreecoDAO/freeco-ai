@@ -17,34 +17,34 @@ These are showstoppers. The app literally crashes or looks broken without them.
 
 **What to do:**
 
-1. **Add token estimation & context guard** (`crates/openfang-runtime/src/compactor.rs`)
+1. **Add token estimation & context guard** (`crates/freeco-kernel-runtime/src/compactor.rs`)
    - Add `estimate_token_count(messages, system_prompt, tools)` — chars/4 heuristic
    - Add `needs_compaction_by_tokens(estimated, context_window)` — triggers at 70% capacity
    - Add `token_threshold_ratio: f64` (default 0.7) and `context_window_tokens: usize` (default 200_000) to `CompactionConfig`
    - Lower message threshold from 80 to 30
 
-2. **Add in-loop token guard** (`crates/openfang-runtime/src/agent_loop.rs`)
+2. **Add in-loop token guard** (`crates/freeco-kernel-runtime/src/agent_loop.rs`)
    - Before each LLM call: estimate tokens vs context window
    - Over 70%: emergency-trim old messages (keep last 10), log warning
    - Over 90%: aggressive trim to last 4 messages + inject summary
    - Lower `MAX_HISTORY_MESSAGES` from 40 to 20
    - Lower `MAX_TOOL_RESULT_CHARS` from 50,000 to 15,000
 
-3. **Filter tools by profile in kernel** (`crates/openfang-kernel/src/kernel.rs`)
+3. **Filter tools by profile in kernel** (`crates/freeco-kernel/src/kernel.rs`)
    - In `available_tools()`: use manifest's `tool_profile` to filter
    - Call `tool_profile.tools()` for allowed tool names, filter `builtin_tool_definitions()`
    - Only send ALL tools if profile is `Full` AND agent has `ToolAll` capability
    - This alone cuts default chat from 41 tools to ~8 tools (saves ~15-20K tokens)
 
-4. **Raise default token quota** (`crates/openfang-types/src/agent.rs`)
+4. **Raise default token quota** (`crates/freeco-types/src/agent.rs`)
    - Change `max_llm_tokens_per_hour` from 100_000 to 1_000_000
    - 100K is too low — a single system prompt is 30-40K tokens
 
-5. **Token-based compaction trigger** (`crates/openfang-kernel/src/kernel.rs`)
+5. **Token-based compaction trigger** (`crates/freeco-kernel/src/kernel.rs`)
    - In `send_message_streaming()`: replace message-count-only check with token-aware check
    - After compaction, verify token count actually decreased
 
-6. **Compact system prompt injections** (`crates/openfang-kernel/src/kernel.rs`)
+6. **Compact system prompt injections** (`crates/freeco-kernel/src/kernel.rs`)
    - Cap canonical context to 500 chars
    - Cap memory context to 3 items / 200 chars each
    - Cap skill knowledge to 2000 chars total
@@ -59,25 +59,25 @@ These are showstoppers. The app literally crashes or looks broken without them.
 
 ### 1.2 Branding & Icon Assets
 
-**Problem:** Desktop app may show Tauri default icons. Branding assets exist at `~/Downloads/openfang/output/` but aren't installed.
+**Problem:** Desktop app may show Tauri default icons. Branding assets exist at `~/Downloads/freeco/output/` but aren't installed.
 
 **What to do:**
 
-1. Generate all required icon sizes from source PNG (`openfang-logo-transparent.png`, 2000x2000)
-2. Place into `crates/openfang-desktop/icons/`:
+1. Generate all required icon sizes from source PNG (`freeco-logo-transparent.png`, 2000x2000)
+2. Place into `crates/freeco-desktop/icons/`:
    - `icon.png` (1024x1024)
    - `icon.ico` (multi-size: 256, 128, 64, 48, 32, 16)
    - `32x32.png`
    - `128x128.png`
    - `128x128@2x.png` (256x256)
-3. Replace web UI logo at `crates/openfang-api/static/logo.png`
+3. Replace web UI logo at `crates/freeco-api/static/logo.png`
 4. Update favicon if one exists
 
 **Assets available:**
-- `openfang-logo-transparent.png` (328KB, 2000x2000) — primary source
-- `openfang-logo-black-bg.png` (312KB) — for dark contexts
-- `openfang-vector-transparent.svg` (293KB) — scalable vector
-- `openfang-animated.svg` (310KB) — for loading screens
+- `freeco-logo-transparent.png` (328KB, 2000x2000) — primary source
+- `freeco-logo-black-bg.png` (312KB) — for dark contexts
+- `freeco-vector-transparent.svg` (293KB) — scalable vector
+- `freeco-animated.svg` (310KB) — for loading screens
 
 **Done when:**
 - Desktop app shows FreEco.ai logo in taskbar, title bar, and installer
@@ -87,7 +87,7 @@ These are showstoppers. The app literally crashes or looks broken without them.
 
 ### 1.3 Tauri Signing Keypair -- DONE
 
-**Status: COMPLETE** — Generated Ed25519 signing keypair via `cargo tauri signer generate --ci`. Public key installed in `tauri.conf.json`. Private key at `~/.tauri/openfang.key`. Set `TAURI_SIGNING_PRIVATE_KEY_PATH` in CI secrets.
+**Status: COMPLETE** — Generated Ed25519 signing keypair via `cargo tauri signer generate --ci`. Public key installed in `tauri.conf.json`. Private key at `~/.tauri/freeco.key`. Set `TAURI_SIGNING_PRIVATE_KEY_PATH` in CI secrets.
 
 **Problem (was):** `tauri.conf.json` has `"pubkey": "PLACEHOLDER_REPLACE_WITH_GENERATED_PUBKEY"`. Auto-updater is completely dead without this.
 
@@ -117,7 +117,7 @@ These close the gaps that would make users pick OpenClaw over FreEco.ai.
 3. Store `_imageUrls` on the tool card
 4. UI already renders `tool._imageUrls` — just need to populate it
 
-**Files:** `crates/openfang-api/static/js/pages/chat.js`, `crates/openfang-runtime/src/tool_runner.rs`
+**Files:** `crates/freeco-api/static/js/pages/chat.js`, `crates/freeco-kernel-runtime/src/tool_runner.rs`
 
 **Done when:**
 - Browser screenshots appear as inline images in tool cards
@@ -158,7 +158,7 @@ These close the gaps that would make users pick OpenClaw over FreEco.ai.
 3. Polish UI: skill cards with descriptions, install buttons, installed badge
 4. Add FangHub registry URL if not configured
 
-**Files:** `crates/openfang-api/static/js/pages/skills.js`, `crates/openfang-api/src/routes.rs`
+**Files:** `crates/freeco-api/static/js/pages/skills.js`, `crates/freeco-api/src/routes.rs`
 
 **Done when:**
 - Users can browse, search, and install skills from the web UI
@@ -252,43 +252,43 @@ These are features where FreEco.ai can leapfrog OpenClaw.
 
 ### 3.3 JavaScript/Python SDK -- DONE
 
-**Status: COMPLETE** — Created `sdk/javascript/` (@openfang/sdk) with full REST client: agent CRUD, streaming via SSE, sessions, workflows, skills, channels, memory KV, triggers, schedules + TypeScript declarations. Created `sdk/python/openfang_client.py` (zero-dependency stdlib urllib) with same coverage. Both include basic + streaming examples. Python `setup.py` for pip install.
+**Status: COMPLETE** — Created `sdk/javascript/` (@freeco/sdk) with full REST client: agent CRUD, streaming via SSE, sessions, workflows, skills, channels, memory KV, triggers, schedules + TypeScript declarations. Created `sdk/python/freeco_client.py` (zero-dependency stdlib urllib) with same coverage. Both include basic + streaming examples. Python `setup.py` for pip install.
 
 **Problem (was):** No official client libraries. Developers must raw-fetch the API.
 
 **What to do:**
 1. Create `sdks/javascript/` — thin wrapper around REST API
    - Agent CRUD, message send, streaming via EventSource, file upload
-   - Publish to npm as `@openfang/sdk`
+   - Publish to npm as `@freeco/sdk`
 2. Create `sdks/python/` — thin wrapper with httpx
    - Same operations
-   - Publish to PyPI as `openfang`
+   - Publish to PyPI as `freeco`
 3. Include usage examples in README
 
 **Done when:**
-- `npm install @openfang/sdk` works
-- `pip install openfang` works
+- `npm install @freeco/sdk` works
+- `pip install freeco` works
 - Basic example: create agent, send message, get response
 
 ---
 
 ### 3.4 Observability & Metrics Export -- DONE
 
-**Status: COMPLETE** — Added `GET /api/metrics` endpoint returning Prometheus text format. Metrics: `openfang_uptime_seconds`, `openfang_agents_active`, `openfang_agents_total`, `openfang_tokens_total{agent,provider,model}`, `openfang_tool_calls_total{agent}`, `openfang_panics_total`, `openfang_restarts_total`, `openfang_info{version}`.
+**Status: COMPLETE** — Added `GET /api/metrics` endpoint returning Prometheus text format. Metrics: `freeco_uptime_seconds`, `freeco_agents_active`, `freeco_agents_total`, `freeco_tokens_total{agent,provider,model}`, `freeco_tool_calls_total{agent}`, `freeco_panics_total`, `freeco_restarts_total`, `freeco_info{version}`.
 
 **Problem (was):** No way to monitor FreEco.ai in production (no Prometheus, no OpenTelemetry).
 
 **What to do:**
 1. Add `/api/metrics` endpoint with Prometheus format
-   - `openfang_agents_active` gauge
-   - `openfang_messages_total` counter (by agent, by channel)
-   - `openfang_tokens_total` counter (by provider, by model)
-   - `openfang_request_duration_seconds` histogram
-   - `openfang_tool_calls_total` counter (by tool name)
-   - `openfang_errors_total` counter (by type)
+   - `freeco_agents_active` gauge
+   - `freeco_messages_total` counter (by agent, by channel)
+   - `freeco_tokens_total` counter (by provider, by model)
+   - `freeco_request_duration_seconds` histogram
+   - `freeco_tool_calls_total` counter (by tool name)
+   - `freeco_errors_total` counter (by type)
 2. Optional: OTLP export for tracing spans
 
-**Files:** `crates/openfang-api/src/routes.rs`, new `metrics.rs` module
+**Files:** `crates/freeco-api/src/routes.rs`, new `metrics.rs` module
 
 **Done when:**
 - `/api/metrics` returns valid Prometheus text format
@@ -331,7 +331,7 @@ These are features where FreEco.ai can leapfrog OpenClaw.
 2. UI: session switcher tabs in chat header
 3. API: `/api/agents/{id}/sessions` list, `/api/agents/{id}/sessions/{label}` CRUD
 
-**Files:** `crates/openfang-kernel/src/kernel.rs`, `routes.rs`, `ws.rs`, `index_body.html`
+**Files:** `crates/freeco-kernel/src/kernel.rs`, `routes.rs`, `ws.rs`, `index_body.html`
 
 ---
 
@@ -342,12 +342,12 @@ These are features where FreEco.ai can leapfrog OpenClaw.
 **Problem (was):** Changing `config.toml` requires daemon restart. OpenClaw reloads live.
 
 **What to do:**
-1. Watch `~/.openfang/config.toml` for changes (notify crate)
+1. Watch `~/.freeco-ai/config.toml` for changes (notify crate)
 2. On change: re-parse, diff, apply only changed sections
 3. Log what was reloaded
 4. UI notification: "Config reloaded"
 
-**Files:** `crates/openfang-api/src/server.rs`, `crates/openfang-types/src/config.rs`
+**Files:** `crates/freeco-api/src/server.rs`, `crates/freeco-types/src/config.rs`
 
 ---
 
@@ -451,7 +451,7 @@ Sprint 4: COMPLETE
   4.5 Final release ................ READY (tag + build)
 
 Production audit:
-  - OpenFangAPI.delete() bug ....... FIXED
+  - FreecoAPI.delete() bug ....... FIXED
   - /api/config/set missing ........ FIXED
   - Tauri CSP hardened ............. FIXED
   - Middleware CSP narrowed ........ FIXED

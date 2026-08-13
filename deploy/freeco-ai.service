@@ -1,0 +1,33 @@
+[Unit]
+Description=FreEco.ai Agent OS Daemon
+Documentation=https://github.com/FreecoDAO/freeco-ai
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=freeco-ai
+Group=freeco-ai
+ExecStart=/usr/local/bin/freeco-ai start
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+Environment=FREECO_AI_HOME=/var/lib/freeco-ai
+EnvironmentFile=-/etc/freeco-ai/env
+WorkingDirectory=/var/lib/freeco-ai
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/freeco-ai
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+MemoryDenyWriteExecute=false
+RestrictRealtime=true
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

@@ -9,10 +9,10 @@
 # Build once:
 #   docker build -t freeco-sandbox:latest deploy/sandbox
 #
-# Then set in ~/.openfang/config.toml:
+# Then set in ~/.freeco-ai/config.toml:
 #   [docker]
 #   image = "freeco-sandbox:latest"
-FROM rust:1.85-slim-bookworm
+FROM rust:1.85-slim-bookworm@sha256:9f841bbe9e7d8e37ceb96ed907265a3a0df7f44e3737d0b100e7907a679acb36
 
 # Toolchain for building and testing this workspace, plus the basics an agent
 # reaches for when investigating. Kept to one layer so the image stays small

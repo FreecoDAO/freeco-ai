@@ -37,7 +37,7 @@ business with no coding or AI experience.** Verified against the codebase on
 Real security primitives that **exist** in code (good — these are genuine):
 - **Capability system** (`Capability`, per-agent `shell`/`network`/`memory`
   allowlists in manifests).
-- **Approval queue** (`openfang-kernel/src/approval.rs`) — human-in-the-loop.
+- **Approval queue** (`freeco-kernel/src/approval.rs`) — human-in-the-loop.
 - **Sandboxes**: WASM (`sandbox.rs`), Docker (`docker_sandbox.rs`),
   subprocess env-stripping (`subprocess_sandbox.rs`), workspace path-jail
   (`workspace_sandbox.rs`).
@@ -179,7 +179,7 @@ framework pass missed._
 Part I said the "16 security levels" claim had "no code behind it." **That was
 an overstatement and is retracted.** The dashboard **Security tab** documents
 **15 security features**, each with an implementation reference
-(`crates/openfang-api/static/js/pages/settings.js`, `coreFeatures` +
+(`crates/freeco-api/static/js/pages/settings.js`, `coreFeatures` +
 `configurableFeatures`):
 
 Path-Traversal Prevention · SSRF Protection · Capability-Based Access Control ·
@@ -210,7 +210,7 @@ real-world hole. **Fix:** optional-but-encouraged local dashboard password
 a first-run prompt. → _new task._
 
 ### 🟠 M2 / M3 — Secrets stored in **plaintext**, and unprotected on **Windows**
-API keys, and any wallet keys, are written to `~/.openfang/secrets.env` in
+API keys, and any wallet keys, are written to `~/.freeco-ai/secrets.env` in
 plaintext (`dotenv.rs`). The code sets `0600` perms **only under `#[cfg(unix)]`
 (`dotenv.rs:183`)** — **on Windows (a primary target) the file is left at
 default ACL**, readable by any process running as the user, and copied by any
@@ -230,7 +230,7 @@ promise. **Fix:** pin and verify the installer's SHA-256 (or Authenticode
 signature) before executing; fail closed on mismatch. → _new task._
 
 ### 🟠 M5 — Auto-backup (#17) will **exfiltrate the plaintext secrets**
-The planned auto-backup zips `OPENFANG_HOME`, which contains `secrets.env`.
+The planned auto-backup zips `FREECO_AI_HOME`, which contains `secrets.env`.
 Backups may land on a **USB stick or a synced folder** → plaintext keys travel
 off-device inside a "backup." **This must be designed in before #17 is built:**
 exclude secrets from backups, or encrypt the backup, or both. → _folded into

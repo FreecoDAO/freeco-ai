@@ -56,7 +56,7 @@ pub enum MessageContent {
     },
 }
 
-/// A message flowing through the OpenFang runtime.
+/// A message flowing through the Freeco runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     /// Unique message ID (caller-supplied, e.g. a UUID string or counter).

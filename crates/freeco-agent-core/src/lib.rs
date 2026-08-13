@@ -1,10 +1,10 @@
 //! # agent-core
 //!
-//! The foundational abstraction layer for all OpenFang agents.
+//! The foundational abstraction layer for all Freeco agents.
 //!
 //! Compiles to both **native** (via `rlib`) and **`wasm32-unknown-unknown`**
 //! (via `cdylib`), enabling the same agent logic to run on:
-//! - the server-side [`openfang-runtime`] orchestrator (native + tokio)
+//! - the server-side [`freeco-kernel-runtime`] orchestrator (native + tokio)
 //! - the browser / edge via `wasm-pack` / Cloudflare Workers
 //!
 //! # Design
@@ -22,9 +22,9 @@ pub mod agent;
 pub mod capability;
 pub mod context;
 pub mod error;
+pub mod freeco_bridge;
 pub mod learning;
 pub mod message;
-pub mod openfang_bridge;
 pub mod response;
 mod time_util;
 
@@ -32,7 +32,7 @@ pub use agent::Agent;
 pub use capability::Capability;
 pub use context::AgentContext;
 pub use error::AgentError;
+pub use freeco_bridge::{from_freeco_message, to_freeco_message, FreecoAgentBridge};
 pub use learning::{LearningRecord, LearningStore, Outcome};
 pub use message::{Message, MessageContent, MessageRole, Priority};
-pub use openfang_bridge::{from_openfang_message, to_openfang_message, OpenFangAgentBridge};
 pub use response::{AgentResponse, RecommendedProduct, ResponseContent, ShoppingRecommendation};

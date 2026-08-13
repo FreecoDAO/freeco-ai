@@ -22,7 +22,7 @@ Common issues, diagnostics, and answers to frequently asked questions about FreE
 Run the built-in diagnostic tool:
 
 ```bash
-openfang doctor
+freeco-ai doctor
 ```
 
 This checks:
@@ -36,7 +36,7 @@ This checks:
 ### Check Daemon Status
 
 ```bash
-openfang status
+freeco-ai status
 ```
 
 ### Check Health via API
@@ -51,9 +51,9 @@ curl http://127.0.0.1:4200/api/health/detail  # Requires auth
 FreEco.ai uses `tracing` for structured logging. Set the log level via environment:
 
 ```bash
-RUST_LOG=info openfang start          # Default
-RUST_LOG=debug openfang start         # Verbose
-RUST_LOG=openfang=debug openfang start  # Only FreEco.ai debug, deps at info
+RUST_LOG=info freeco-ai start          # Default
+RUST_LOG=debug freeco-ai start         # Verbose
+RUST_LOG=freeco=debug freeco-ai start  # Only FreEco.ai debug, deps at info
 ```
 
 ---
@@ -80,7 +80,7 @@ sudo apt install pkg-config libssl-dev libsqlite3-dev
 sudo dnf install openssl-devel sqlite-devel
 ```
 
-### `openfang` command not found after install
+### `freeco` command not found after install
 
 **Fix**: Ensure `~/.cargo/bin` is in your PATH:
 ```bash
@@ -94,13 +94,13 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 **Fix**: Boot to a TTY (`Ctrl+Alt+F2`) and remove any FreEco.ai PATH lines from `config.fish`:
 ```bash
-sed -i '/openfang/d' ~/.config/fish/config.fish
+sed -i '/freeco\|freeco-ai/d' ~/.config/fish/config.fish
 ```
-Then re-run the installer — current versions write to `~/.config/fish/conf.d/openfang.fish` (a drop-in directory) instead, and guard the path with `test -d` so a missing install dir can never wedge fish startup.
+Then re-run the installer — current versions write to `~/.config/fish/conf.d/freeco-ai.fish` (a drop-in directory) instead, and guard the path with `test -d` so a missing install dir can never wedge fish startup.
 
 To remove FreEco.ai's PATH entry cleanly:
 ```bash
-rm ~/.config/fish/conf.d/openfang.fish
+rm ~/.config/fish/conf.d/freeco-ai.fish
 ```
 
 ### Docker container won't start
@@ -126,7 +126,7 @@ docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -e OLLAMA_HOST=http://host.docker.internal:11434 \
   -p 4200:4200 \
-  ghcr.io/freedao/openfang:latest
+  ghcr.io/freedao/freeco:latest
 ```
 
 Verify the bridge works:
@@ -140,8 +140,8 @@ For Docker Compose use `extra_hosts:`:
 
 ```yaml
 services:
-  openfang:
-    image: ghcr.io/freedao/openfang:latest
+  freeco:
+    image: ghcr.io/freedao/freeco:latest
     ports:
       - "4200:4200"
     extra_hosts:
@@ -155,14 +155,14 @@ connection refused or DNS lookup errors.
 
 ### Curl-equipped reference image
 
-The default `ghcr.io/freedao/openfang` image does not ship `curl`, so
-`docker exec openfang curl ...` returns `exec: curl: not found`. If you need
+The default `ghcr.io/freedao/freeco` image does not ship `curl`, so
+`docker exec freeco curl ...` returns `exec: curl: not found`. If you need
 in-container probes for healthchecks or egress verification, build a thin
 overlay image:
 
 ```dockerfile
 # Dockerfile.curl
-FROM ghcr.io/freedao/openfang:latest
+FROM ghcr.io/freedao/freeco:latest
 USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
@@ -172,8 +172,8 @@ RUN apt-get update \
 Build and run:
 
 ```bash
-docker build -f Dockerfile.curl -t openfang-curl:latest .
-docker run --rm openfang-curl:latest curl -s https://example.com
+docker build -f Dockerfile.curl -t freeco-curl:latest .
+docker run --rm freeco-curl:latest curl -s https://example.com
 ```
 
 Use this variant when you need `HEALTHCHECK` directives or in-container
@@ -185,12 +185,12 @@ diagnostics. The base image stays slim by default.
 
 ### "Config file not found"
 
-**Fix**: Run `openfang init` to create the default config:
+**Fix**: Run `freeco-ai init` to create the default config:
 ```bash
-openfang init
+freeco-ai init
 ```
 
-This creates `~/.openfang/config.toml` with sensible defaults.
+This creates `~/.freeco-ai/config.toml` with sensible defaults.
 
 ### "Missing API key" warnings on start
 
@@ -211,7 +211,7 @@ Add to your shell profile to persist across sessions.
 
 Run validation manually:
 ```bash
-openfang config show
+freeco-ai config show
 ```
 
 Common issues:
@@ -356,7 +356,7 @@ python -m vllm.entrypoints.openai.api_server --model ...
 
 Check logs for the specific error:
 ```bash
-RUST_LOG=openfang_channels=debug openfang start
+RUST_LOG=freeco_channels=debug freeco-ai start
 ```
 
 ---
@@ -417,7 +417,7 @@ tools = ["file_read", "web_fetch", "shell_exec"]  # Must list each tool
 ### Agent spawning fails
 
 **Check**:
-1. TOML manifest is valid: `openfang agent spawn --dry-run manifest.toml`
+1. TOML manifest is valid: `freeco-ai agent spawn --dry-run manifest.toml`
 2. LLM provider is configured and has a valid key
 3. Model specified in manifest exists in the catalog
 
@@ -467,7 +467,7 @@ cors_origins = ["http://localhost:5173", "https://your-app.com"]
 
 **Checklist**:
 1. Use `POST /v1/chat/completions` (not `/api/agents/{id}/message`)
-2. Set the model to `openfang:agent-name` (e.g., `openfang:coder`)
+2. Set the model to `freeco:agent-name` (e.g., `freeco:coder`)
 3. Streaming: set `"stream": true` for SSE responses
 4. Images: use `image_url` with `data:image/png;base64,...` format
 
@@ -480,7 +480,7 @@ cors_origins = ["http://localhost:5173", "https://your-app.com"]
 **Checklist**:
 1. Only one instance can run at a time (single-instance enforcement)
 2. Check if the daemon is already running on the same ports
-3. Try deleting `~/.openfang/daemon.json` and restarting
+3. Try deleting `~/.freeco-ai/daemon.json` and restarting
 
 ### White/blank screen in app
 
@@ -512,7 +512,7 @@ cors_origins = ["http://localhost:5173", "https://your-app.com"]
 **Normal startup**: <200ms for the kernel, ~1-2s with channel adapters.
 
 If slower:
-- Check database size (`~/.openfang/data/openfang.db`)
+- Check database size (`~/.freeco-ai/data/freeco.db`)
 - Reduce the number of enabled channels
 - Check network connectivity (MCP server connections happen at boot)
 
@@ -529,7 +529,7 @@ If slower:
 
 ### How do I switch the default LLM provider?
 
-Edit `~/.openfang/config.toml`:
+Edit `~/.freeco-ai/config.toml`:
 ```toml
 [default_model]
 provider = "groq"
@@ -543,7 +543,7 @@ Yes. Each agent can use a different provider via its manifest `[model]` section.
 
 ### How do I add a new channel?
 
-1. Add the channel config to `~/.openfang/config.toml` under `[channels]`
+1. Add the channel config to `~/.freeco-ai/config.toml` under `[channels]`
 2. Set the required environment variables (tokens, secrets)
 3. Restart the daemon
 
@@ -551,7 +551,7 @@ Yes. Each agent can use a different provider via its manifest `[model]` section.
 
 ```bash
 # From source
-cd openfang && git pull && cargo install --path crates/openfang-cli
+cd freeco && git pull && cargo install --path crates/freeco-cli
 
 # Docker
 docker pull ghcr.io/freecoda/freeco-ai:latest
@@ -563,20 +563,20 @@ Yes. Agents can use the `agent_send`, `agent_spawn`, `agent_find`, and `agent_li
 
 ### Is my data sent to the cloud?
 
-Only LLM API calls go to the provider's servers. All agent data, memory, sessions, and configuration are stored locally in SQLite (`~/.openfang/data/openfang.db`). The OFP wire protocol uses HMAC-SHA256 mutual authentication for P2P communication.
+Only LLM API calls go to the provider's servers. All agent data, memory, sessions, and configuration are stored locally in SQLite (`~/.freeco-ai/data/freeco.db`). The OFP wire protocol uses HMAC-SHA256 mutual authentication for P2P communication.
 
 ### How do I back up my data?
 
 Back up these files:
-- `~/.openfang/config.toml` (configuration)
-- `~/.openfang/data/openfang.db` (all agent data, memory, sessions)
-- `~/.openfang/skills/` (installed skills)
+- `~/.freeco-ai/config.toml` (configuration)
+- `~/.freeco-ai/data/freeco.db` (all agent data, memory, sessions)
+- `~/.freeco-ai/skills/` (installed skills)
 
 ### How do I reset everything?
 
 ```bash
-rm -rf ~/.openfang
-openfang init  # Start fresh
+rm -rf ~/.freeco-ai
+freeco-ai init  # Start fresh
 ```
 
 ### Can I run FreEco.ai without an internet connection?
@@ -605,7 +605,7 @@ model = "llama3.2"
 | Binary size | ~30 MB | ~200 MB |
 | Startup | <200 ms | ~3 s |
 
-FreEco.ai can import OpenClaw configs: `openfang migrate --from openclaw`
+FreEco.ai can import OpenClaw configs: `freeco-ai migrate --from openclaw`
 
 ### How do I report a bug or request a feature?
 
@@ -626,7 +626,7 @@ FreEco.ai can import OpenClaw configs: `openfang migrate --from openclaw`
 ### How do I enable debug logging for a specific crate?
 
 ```bash
-RUST_LOG=openfang_runtime=debug,openfang_channels=info openfang start
+RUST_LOG=freeco_kernel_runtime=debug,freeco_channels=info freeco-ai start
 ```
 
 ### Can I use FreEco.ai as a library?
@@ -634,11 +634,11 @@ RUST_LOG=openfang_runtime=debug,openfang_channels=info openfang start
 Yes. Each crate is independently usable:
 ```toml
 [dependencies]
-openfang-runtime = { path = "crates/openfang-runtime" }
-openfang-memory = { path = "crates/openfang-memory" }
+freeco-kernel-runtime = { path = "crates/freeco-kernel-runtime" }
+freeco-memory = { path = "crates/freeco-memory" }
 ```
 
-The `openfang-kernel` crate assembles everything, but you can use individual crates for custom integrations.
+The `freeco-kernel` crate assembles everything, but you can use individual crates for custom integrations.
 
 ---
 
@@ -653,16 +653,16 @@ curl -fsSL https://freeco.ai/install | sh
 Or build from source:
 ```bash
 git pull origin main
-cargo build --release -p openfang-cli
+cargo build --release -p freeco-cli
 ```
 
 ### How do I run FreEco.ai in Docker?
 
 ```bash
-docker run -d --name openfang \
+docker run -d --name freeco \
   -e GROQ_API_KEY=your_key_here \
   -p 4200:4200 \
-  ghcr.io/freedao/openfang:latest
+  ghcr.io/freedao/freeco:latest
 ```
 
 To reach a host LLM (Ollama, vLLM, whisper.cpp) from inside the container,
@@ -674,7 +674,7 @@ in-container healthchecks.
 
 ### How do I protect the dashboard with a password?
 
-FreEco.ai has built-in dashboard authentication. Enable it in `~/.openfang/config.toml`:
+FreEco.ai has built-in dashboard authentication. Enable it in `~/.freeco-ai/config.toml`:
 
 ```toml
 [auth]
@@ -686,7 +686,7 @@ password_hash = "$argon2id$..."  # see below
 Generate the password hash:
 
 ```bash
-openfang auth hash-password
+freeco auth hash-password
 ```
 
 Paste the output into the `password_hash` field and restart the daemon.
@@ -695,7 +695,7 @@ For public-facing deployments, you should also place a reverse proxy (Caddy, ngi
 
 ### How do I configure the embedding model for memory?
 
-In `~/.openfang/config.toml`:
+In `~/.freeco-ai/config.toml`:
 ```toml
 [memory]
 embedding_provider = "openai"     # or "ollama", "gemini"
@@ -744,7 +744,7 @@ Not yet — each channel type currently supports one bot. Multi-bot routing is t
 
 ### Claude Code integration shows errors
 
-Add to `~/.openfang/config.toml`:
+Add to `~/.freeco-ai/config.toml`:
 ```toml
 [claude_code]
 skip_permissions = true

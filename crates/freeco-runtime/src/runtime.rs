@@ -8,12 +8,12 @@ use budget_engine::BudgetEngine;
 
 use crate::{error::RuntimeError, registry::AgentRegistry};
 
-/// The top-level OpenFang multi-agent orchestrator.
+/// The top-level Freeco multi-agent orchestrator.
 ///
 /// - Enforces token budgets **before** every agent call.
 /// - Follows `RouteToAgent` responses automatically (Supervisor pattern).
 /// - Accumulates [`LearningRecord`]s for the self-improvement loop.
-pub struct OpenFangRuntime {
+pub struct FreecoRuntime {
     registry: Arc<Mutex<AgentRegistry>>,
     budget: Arc<BudgetEngine>,
     learning: Arc<Mutex<LearningStore>>,
@@ -21,7 +21,7 @@ pub struct OpenFangRuntime {
     max_route_depth: usize,
 }
 
-impl OpenFangRuntime {
+impl FreecoRuntime {
     /// Create a runtime backed by the given budget engine.
     pub fn new(budget: BudgetEngine) -> Self {
         Self {
@@ -243,8 +243,8 @@ mod tests {
         }
     }
 
-    fn make_runtime() -> OpenFangRuntime {
-        OpenFangRuntime::new(BudgetEngine::in_memory().unwrap())
+    fn make_runtime() -> FreecoRuntime {
+        FreecoRuntime::new(BudgetEngine::in_memory().unwrap())
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -288,7 +288,7 @@ mod tests {
 
     #[tokio::test]
     async fn routing_loop_detected() {
-        let rt = OpenFangRuntime {
+        let rt = FreecoRuntime {
             registry: Arc::new(Mutex::new(AgentRegistry::new())),
             budget: Arc::new(BudgetEngine::in_memory().unwrap()),
             learning: Arc::new(Mutex::new(LearningStore::new())),

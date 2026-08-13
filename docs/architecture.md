@@ -1,6 +1,6 @@
 # FreEco.ai Architecture
 
-This document describes the internal architecture of FreEco.ai, the open-source Agent Operating System built in Rust. FreEco.ai is built on the OpenFang base with ethical and structural enhancements. It covers the crate structure, kernel boot sequence, agent lifecycle, memory substrate, LLM driver abstraction, capability-based security model, the OFP wire protocol, the security hardening stack, the channel and skill systems, and the agent stability subsystems.
+This document describes the internal architecture of FreEco.ai, the open-source Agent Operating System built in Rust. FreEco.ai is built on the Freeco base with ethical and structural enhancements. It covers the crate structure, kernel boot sequence, agent lifecycle, memory substrate, LLM driver abstraction, capability-based security model, the OFP wire protocol, the security hardening stack, the channel and skill systems, and the agent stability subsystems.
 
 ## Table of Contents
 
@@ -27,23 +27,23 @@ This document describes the internal architecture of FreEco.ai, the open-source 
 FreEco.ai is organized as a Cargo workspace with 22 crates plus `xtask`. Dependencies flow downward (lower crates depend on nothing above them).
 
 ```
-openfang-cli            CLI interface, daemon auto-detect, MCP server
+freeco-cli            CLI interface, daemon auto-detect, MCP server
     |
-openfang-desktop        Tauri 2.0 desktop app (WebView + system tray)
+freeco-desktop        Tauri 2.0 desktop app (WebView + system tray)
     |
-openfang-api            REST/WS/SSE API server (Axum 0.8), 76 endpoints
+freeco-api            REST/WS/SSE API server (Axum 0.8), 76 endpoints
     |
-openfang-kernel         Kernel: assembles all subsystems, workflow engine, RBAC, metering
+freeco-kernel         Kernel: assembles all subsystems, workflow engine, RBAC, metering
     |
-    +-- openfang-runtime    Agent loop, 3 LLM drivers, 23 tools, WASM sandbox, MCP, A2A
-    +-- openfang-channels   40 channel adapters, bridge, formatter, rate limiter
-    +-- openfang-wire       OFP peer-to-peer networking with HMAC-SHA256 auth
-    +-- openfang-migrate    Migration engine (OpenClaw YAML->TOML)
-    +-- openfang-skills     61 bundled skills, FangHub marketplace, ClawHub client
+    +-- freeco-kernel-runtime    Agent loop, 3 LLM drivers, 23 tools, WASM sandbox, MCP, A2A
+    +-- freeco-channels   40 channel adapters, bridge, formatter, rate limiter
+    +-- freeco-wire       OFP peer-to-peer networking with HMAC-SHA256 auth
+    +-- freeco-migrate    Migration engine (OpenClaw YAML->TOML)
+    +-- freeco-skills     61 bundled skills, FangHub marketplace, ClawHub client
     |
-openfang-memory         SQLite memory substrate, sessions, semantic search, usage tracking
+freeco-memory         SQLite memory substrate, sessions, semantic search, usage tracking
     |
-openfang-types          Shared types: Agent, Capability, Event, Memory, Message, Tool, Config,
+freeco-types          Shared types: Agent, Capability, Event, Memory, Message, Tool, Config,
                         Taint, ManifestSigning, ModelCatalog, MCP/A2A config, Web config
 ```
 
@@ -51,36 +51,36 @@ openfang-types          Shared types: Agent, Capability, Event, Memory, Message,
 
 | Crate | Description |
 |-------|-------------|
-| **openfang-types** | Core type definitions used across all crates. Defines `AgentManifest`, `AgentId`, `Capability`, `Event`, `ToolDefinition`, `KernelConfig`, `OpenFangError`, taint tracking (`TaintLabel`, `TaintSet`), Ed25519 manifest signing, model catalog types (`ModelCatalogEntry`, `ProviderInfo`, `ModelTier`), tool compatibility mappings (21 OpenClaw-to-FreEco.ai), MCP/A2A config types, and web config types. All config structs use `#[serde(default)]` for forward-compatible TOML parsing. |
-| **openfang-memory** | SQLite-backed memory substrate (schema v5). Uses `Arc<Mutex<Connection>>` with `spawn_blocking` for async bridge. Provides structured KV storage, semantic search with vector embeddings, knowledge graph (entities and relations), session management, task board, usage event persistence (`usage_events` table, `UsageStore`), and canonical sessions for cross-channel memory. Five schema versions: V1 core, V2 collab, V3 embeddings, V4 usage, V5 canonical_sessions. |
-| **openfang-runtime** | Agent execution engine. Contains the agent loop (`run_agent_loop`, `run_agent_loop_streaming`), 3 native LLM drivers (Anthropic, Gemini, OpenAI-compatible covering 20 providers), 23 built-in tools, WASM sandbox (Wasmtime with dual fuel+epoch metering), MCP client/server (JSON-RPC 2.0 over stdio/SSE), A2A protocol (AgentCard, task management), web search engine (4 providers: Tavily/Brave/Perplexity/DuckDuckGo), web fetch with SSRF protection, loop guard (SHA256-based tool loop detection), session repair (history validation), LLM session compactor (block-aware), Merkle hash chain audit trail, and embedding driver. Defines the `KernelHandle` trait that enables inter-agent tools without circular crate dependencies. |
-| **openfang-kernel** | The central coordinator. `OpenFangKernel` assembles all subsystems: `AgentRegistry`, `AgentScheduler`, `CapabilityManager`, `EventBus`, `Supervisor`, `WorkflowEngine`, `TriggerEngine`, `BackgroundExecutor`, `WasmSandbox`, `ModelCatalog`, `MeteringEngine`, `ModelRouter`, `AuthManager` (RBAC), `HeartbeatMonitor`, `SetupWizard`, `SkillRegistry`, MCP connections, and `WebToolsContext`. Implements `KernelHandle` for inter-agent operations. Handles agent spawn/kill, message dispatch, workflow execution, trigger evaluation, capability inheritance validation, and graceful shutdown with state persistence. |
-| **openfang-api** | HTTP API server built on Axum 0.8 with 76 endpoints. Routes for agents, workflows, triggers, memory, channels, templates, models, providers, skills, ClawHub, MCP, health, status, version, and shutdown. WebSocket handler for real-time agent chat with streaming. SSE endpoint for streaming responses. OpenAI-compatible endpoints (`POST /v1/chat/completions`, `GET /v1/models`). A2A endpoints (`/.well-known/agent.json`, `/a2a/*`). Middleware: Bearer token auth, request ID injection, structured request logging, GCRA rate limiter (cost-aware), security headers (CSP, X-Frame-Options, etc.), health endpoint redaction. |
-| **openfang-channels** | Channel bridge layer with 40 adapters. Each adapter implements the `ChannelAdapter` trait. Includes: Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Email, SMS, Webhook, Teams, Mattermost, IRC, Google Chat, Twitch, Rocket.Chat, Zulip, XMPP, LINE, Viber, Messenger, Reddit, Mastodon, Bluesky, Feishu, Revolt, Nextcloud, Guilded, Keybase, Threema, Nostr, Webex, Pumble, Flock, Twist, Mumble, DingTalk, Discourse, Gitter, Ntfy, Gotify, LinkedIn. Features: `AgentRouter` for message routing, `BridgeManager` for lifecycle coordination, `ChannelRateLimiter` (per-user DashMap tracking), `formatter.rs` (Markdown to TelegramHTML/SlackMrkdwn/PlainText), `ChannelOverrides` (model/system_prompt/dm_policy/group_policy/rate_limit/threading/output_format), DM/group policy enforcement. |
-| **openfang-wire** | FreEco.ai Protocol (OFP) for peer-to-peer agent communication. JSON-framed messages over TCP with HMAC-SHA256 mutual authentication (nonce + constant-time verify via `subtle`). `PeerNode` listens for connections and manages peers. `PeerRegistry` tracks known remote peers and their agents. |
-| **openfang-cli** | Clap-based CLI. Supports all commands: `init`, `start`, `status`, `doctor`, `agent spawn/list/chat/kill`, `workflow list/create/run`, `trigger list/create/delete`, `migrate`, `skill install/list/remove/search/create`, `channel list/setup/test/enable/disable`, `config show/edit`, `chat`, `mcp`. Daemon auto-detect: checks `~/.openfang/daemon.json` and health pings; uses HTTP when a daemon is running, boots an in-process kernel as fallback. Built-in MCP server mode. |
-| **openfang-desktop** | Tauri 2.0 native desktop application. Boots the kernel in-process, runs the axum server on a background thread, and points a WebView at `http://127.0.0.1:{random_port}`. Features: system tray (Show/Browser/Status/Quit), single-instance enforcement, desktop notifications, hide-to-tray on close. IPC commands: `get_port`, `get_status`. Mobile-ready with `#[cfg(desktop)]` guards. |
-| **openfang-migrate** | Migration engine. Supports OpenClaw (`~/.openclaw/`). Converts YAML configs to TOML, maps tool names, maps provider names, imports agent manifests, copies memory files, converts channel configs. Produces a `MigrationReport` with imported items, skipped items, and warnings. |
-| **openfang-skills** | Skill system for pluggable tool bundles. 61 bundled skills compiled via `include_str!()`. Skills are `skill.toml` + Python/WASM/Node.js/PromptOnly code. `SkillManifest` defines metadata, runtime config, provided tools, and requirements. `SkillRegistry` manages installed and bundled skills. `FangHubClient` connects to FangHub marketplace. `ClawHubClient` connects to clawhub.ai for cross-ecosystem skill discovery. `SKILL.md` parser for OpenClaw compatibility (YAML frontmatter + Markdown body). `SkillVerifier` with SHA256 verification. Prompt injection scanner (`scan_prompt_content()`) detects override attempts, data exfiltration, and shell references. |
+| **freeco-types** | Core type definitions used across all crates. Defines `AgentManifest`, `AgentId`, `Capability`, `Event`, `ToolDefinition`, `KernelConfig`, `FreecoError`, taint tracking (`TaintLabel`, `TaintSet`), Ed25519 manifest signing, model catalog types (`ModelCatalogEntry`, `ProviderInfo`, `ModelTier`), tool compatibility mappings (21 OpenClaw-to-FreEco.ai), MCP/A2A config types, and web config types. All config structs use `#[serde(default)]` for forward-compatible TOML parsing. |
+| **freeco-memory** | SQLite-backed memory substrate (schema v5). Uses `Arc<Mutex<Connection>>` with `spawn_blocking` for async bridge. Provides structured KV storage, semantic search with vector embeddings, knowledge graph (entities and relations), session management, task board, usage event persistence (`usage_events` table, `UsageStore`), and canonical sessions for cross-channel memory. Five schema versions: V1 core, V2 collab, V3 embeddings, V4 usage, V5 canonical_sessions. |
+| **freeco-kernel-runtime** | Agent execution engine. Contains the agent loop (`run_agent_loop`, `run_agent_loop_streaming`), 3 native LLM drivers (Anthropic, Gemini, OpenAI-compatible covering 20 providers), 23 built-in tools, WASM sandbox (Wasmtime with dual fuel+epoch metering), MCP client/server (JSON-RPC 2.0 over stdio/SSE), A2A protocol (AgentCard, task management), web search engine (4 providers: Tavily/Brave/Perplexity/DuckDuckGo), web fetch with SSRF protection, loop guard (SHA256-based tool loop detection), session repair (history validation), LLM session compactor (block-aware), Merkle hash chain audit trail, and embedding driver. Defines the `KernelHandle` trait that enables inter-agent tools without circular crate dependencies. |
+| **freeco-kernel** | The central coordinator. `FreecoKernel` assembles all subsystems: `AgentRegistry`, `AgentScheduler`, `CapabilityManager`, `EventBus`, `Supervisor`, `WorkflowEngine`, `TriggerEngine`, `BackgroundExecutor`, `WasmSandbox`, `ModelCatalog`, `MeteringEngine`, `ModelRouter`, `AuthManager` (RBAC), `HeartbeatMonitor`, `SetupWizard`, `SkillRegistry`, MCP connections, and `WebToolsContext`. Implements `KernelHandle` for inter-agent operations. Handles agent spawn/kill, message dispatch, workflow execution, trigger evaluation, capability inheritance validation, and graceful shutdown with state persistence. |
+| **freeco-api** | HTTP API server built on Axum 0.8 with 76 endpoints. Routes for agents, workflows, triggers, memory, channels, templates, models, providers, skills, ClawHub, MCP, health, status, version, and shutdown. WebSocket handler for real-time agent chat with streaming. SSE endpoint for streaming responses. OpenAI-compatible endpoints (`POST /v1/chat/completions`, `GET /v1/models`). A2A endpoints (`/.well-known/agent.json`, `/a2a/*`). Middleware: Bearer token auth, request ID injection, structured request logging, GCRA rate limiter (cost-aware), security headers (CSP, X-Frame-Options, etc.), health endpoint redaction. |
+| **freeco-channels** | Channel bridge layer with 40 adapters. Each adapter implements the `ChannelAdapter` trait. Includes: Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Email, SMS, Webhook, Teams, Mattermost, IRC, Google Chat, Twitch, Rocket.Chat, Zulip, XMPP, LINE, Viber, Messenger, Reddit, Mastodon, Bluesky, Feishu, Revolt, Nextcloud, Guilded, Keybase, Threema, Nostr, Webex, Pumble, Flock, Twist, Mumble, DingTalk, Discourse, Gitter, Ntfy, Gotify, LinkedIn. Features: `AgentRouter` for message routing, `BridgeManager` for lifecycle coordination, `ChannelRateLimiter` (per-user DashMap tracking), `formatter.rs` (Markdown to TelegramHTML/SlackMrkdwn/PlainText), `ChannelOverrides` (model/system_prompt/dm_policy/group_policy/rate_limit/threading/output_format), DM/group policy enforcement. |
+| **freeco-wire** | FreEco.ai Protocol (OFP) for peer-to-peer agent communication. JSON-framed messages over TCP with HMAC-SHA256 mutual authentication (nonce + constant-time verify via `subtle`). `PeerNode` listens for connections and manages peers. `PeerRegistry` tracks known remote peers and their agents. |
+| **freeco-cli** | Clap-based CLI. Supports all commands: `init`, `start`, `status`, `doctor`, `agent spawn/list/chat/kill`, `workflow list/create/run`, `trigger list/create/delete`, `migrate`, `skill install/list/remove/search/create`, `channel list/setup/test/enable/disable`, `config show/edit`, `chat`, `mcp`. Daemon auto-detect: checks `~/.freeco-ai/daemon.json` and health pings; uses HTTP when a daemon is running, boots an in-process kernel as fallback. Built-in MCP server mode. |
+| **freeco-desktop** | Tauri 2.0 native desktop application. Boots the kernel in-process, runs the axum server on a background thread, and points a WebView at `http://127.0.0.1:{random_port}`. Features: system tray (Show/Browser/Status/Quit), single-instance enforcement, desktop notifications, hide-to-tray on close. IPC commands: `get_port`, `get_status`. Mobile-ready with `#[cfg(desktop)]` guards. |
+| **freeco-migrate** | Migration engine. Supports OpenClaw (`~/.openclaw/`). Converts YAML configs to TOML, maps tool names, maps provider names, imports agent manifests, copies memory files, converts channel configs. Produces a `MigrationReport` with imported items, skipped items, and warnings. |
+| **freeco-skills** | Skill system for pluggable tool bundles. 61 bundled skills compiled via `include_str!()`. Skills are `skill.toml` + Python/WASM/Node.js/PromptOnly code. `SkillManifest` defines metadata, runtime config, provided tools, and requirements. `SkillRegistry` manages installed and bundled skills. `FangHubClient` connects to FangHub marketplace. `ClawHubClient` connects to clawhub.ai for cross-ecosystem skill discovery. `SKILL.md` parser for OpenClaw compatibility (YAML frontmatter + Markdown body). `SkillVerifier` with SHA256 verification. Prompt injection scanner (`scan_prompt_content()`) detects override attempts, data exfiltration, and shell references. |
 | **xtask** | Build automation tasks (cargo-xtask pattern). |
 
 ---
 
 ## Kernel Boot Sequence
 
-When `OpenFangKernel::boot_with_config()` is called (either by the daemon or in-process by the CLI/desktop app), the following sequence executes:
+When `FreecoKernel::boot_with_config()` is called (either by the daemon or in-process by the CLI/desktop app), the following sequence executes:
 
 ```
 1. Load configuration
-   - Read ~/.openfang/config.toml (or specified path)
+   - Read ~/.freeco-ai/config.toml (or specified path)
    - Apply #[serde(default)] defaults for missing fields
    - Validate config and log warnings (missing API keys, etc.)
 
 2. Create data directory
-   - Ensure ~/.openfang/data/ exists
+   - Ensure ~/.freeco-ai/data/ exists
 
 3. Initialize memory substrate
-   - Open SQLite database (openfang.db)
+   - Open SQLite database (freeco.db)
    - Run schema migrations (up to v5)
    - Set memory decay rate
 
@@ -279,7 +279,7 @@ The session compactor handles all content block types (Text, ToolUse, ToolResult
 
 ## Memory Substrate
 
-The memory substrate (`openfang-memory`) provides six layers of storage:
+The memory substrate (`freeco-memory`) provides six layers of storage:
 
 ### 1. Structured KV Store
 
@@ -328,7 +328,7 @@ All memory operations go through `Arc<Mutex<Connection>>` with Tokio's `spawn_bl
 
 ## LLM Driver Abstraction
 
-The `LlmDriver` trait (`openfang-runtime`) provides a unified interface for all LLM providers:
+The `LlmDriver` trait (`freeco-kernel-runtime`) provides a unified interface for all LLM providers:
 
 ```rust
 #[async_trait]
@@ -339,7 +339,7 @@ pub trait LlmDriver: Send + Sync {
         system_prompt: &str,
         messages: &[Message],
         tools: &[ToolDefinition],
-    ) -> Result<LlmResponse, OpenFangError>;
+    ) -> Result<LlmResponse, FreecoError>;
 
     async fn send_message_streaming(
         &self,
@@ -348,7 +348,7 @@ pub trait LlmDriver: Send + Sync {
         messages: &[Message],
         tools: &[ToolDefinition],
         tx: mpsc::Sender<StreamEvent>,
-    ) -> Result<LlmResponse, OpenFangError>;
+    ) -> Result<LlmResponse, FreecoError>;
 
     fn key_required(&self) -> bool;
 }
@@ -413,7 +413,7 @@ LLM calls use exponential backoff for rate-limited (429) and overloaded (529) re
 
 ## Model Catalog
 
-The `ModelCatalog` (`openfang-runtime/src/model_catalog.rs`) provides a registry of all known models, providers, and aliases.
+The `ModelCatalog` (`freeco-kernel-runtime/src/model_catalog.rs`) provides a registry of all known models, providers, and aliases.
 
 ### Registry Contents
 
@@ -536,7 +536,7 @@ WASM sandbox uses both Wasmtime fuel metering (instruction count) and epoch inte
 
 ### Information Flow Taint Tracking
 
-`taint.rs` in `openfang-types` implements taint labels and taint sets. Data from external sources carries taint labels that propagate through operations, enabling information flow analysis.
+`taint.rs` in `freeco-types` implements taint labels and taint sets. Data from external sources carries taint labels that propagate through operations, enabling information flow analysis.
 
 ### Ed25519 Manifest Signing
 
@@ -582,7 +582,7 @@ See [Agent Loop Stability](#agent-loop-stability) above.
 
 ## Channel System
 
-The channel system (`openfang-channels`) provides 40 adapters for messaging platform integration.
+The channel system (`freeco-channels`) provides 40 adapters for messaging platform integration.
 
 ### Adapter List
 
@@ -606,7 +606,7 @@ The channel system (`openfang-channels`) provides 40 adapters for messaging plat
 
 ## Skill System
 
-The skill system (`openfang-skills`) provides 61 bundled skills and supports external skill installation.
+The skill system (`freeco-skills`) provides 61 bundled skills and supports external skill installation.
 
 ### Skill Types
 
@@ -748,7 +748,7 @@ OFP operations require capabilities:
 
 ## Desktop Application
 
-The desktop app (`openfang-desktop`) wraps the full FreEco.ai stack in a native Tauri 2.0 application.
+The desktop app (`freeco-desktop`) wraps the full FreEco.ai stack in a native Tauri 2.0 application.
 
 ### Architecture
 
@@ -766,7 +766,7 @@ The desktop app (`openfang-desktop`) wraps the full FreEco.ai stack in a native 
 | +---------------------------------------+ |
 | | Background Thread                     | |
 | | +- Own Tokio Runtime                  | |
-| |    +- OpenFangKernel (in-process)     | |
+| |    +- FreecoKernel (in-process)     | |
 | |    +- Axum Server (build_router())    | |
 | |    +- ServerHandle { port, shutdown } | |
 | +---------------------------------------+ |
@@ -789,7 +789,7 @@ The desktop app (`openfang-desktop`) wraps the full FreEco.ai stack in a native 
 
 ```
 +-------------------------------------------------------------------+
-|                         openfang-cli                                |
+|                         freeco-cli                                |
 |  [init] [start] [agent] [workflow] [trigger] [skill] [channel]     |
 |  [migrate] [config] [chat] [status] [doctor] [mcp]                 |
 +-------------------------------------------------------------------+
@@ -797,7 +797,7 @@ The desktop app (`openfang-desktop`) wraps the full FreEco.ai stack in a native 
          | (HTTP/daemon)      | (in-process)
          v                    v
 +-------------------------------------------------------------------+
-|                         openfang-api                                |
+|                         freeco-api                                |
 |  +-------------+  +----------+  +--------+  +------------------+   |
 |  | REST Routes |  | WS Chat  |  | SSE    |  | OpenAI /v1/      |   |
 |  | (76 endpts) |  +----------+  +--------+  +------------------+   |
@@ -811,7 +811,7 @@ The desktop app (`openfang-desktop`) wraps the full FreEco.ai stack in a native 
          |
          v
 +-------------------------------------------------------------------+
-|                       openfang-kernel                               |
+|                       freeco-kernel                               |
 |  +----------------+  +------------------+  +-------------------+   |
 |  | AgentRegistry  |  | AgentScheduler   |  | CapabilityManager |   |
 |  | (DashMap)      |  | (quota+metering) |  | (DashMap+inherit) |   |
@@ -842,7 +842,7 @@ The desktop app (`openfang-desktop`) wraps the full FreEco.ai stack in a native 
     |                        |                   |         |
     v                        v                   v         v
 +------------------+  +--------------+  +--------+  +-----------+
-| openfang-runtime |  | openfang-    |  | open-  |  | openfang- |
+| freeco-kernel-runtime |  | freeco-    |  | open-  |  | freeco- |
 |                  |  | channels     |  | fang-  |  | skills    |
 | +------------+   |  |              |  | wire   |  |           |
 | | Agent Loop |   |  | +----------+|  |        |  | +-------+ |
@@ -883,7 +883,7 @@ The desktop app (`openfang-desktop`) wraps the full FreEco.ai stack in a native 
          |
          v
 +------------------+
-| openfang-memory  |
+| freeco-memory  |
 | +------------+   |
 | | KV Store   |   |  Per-agent + shared namespace
 | +------------+   |
@@ -914,7 +914,7 @@ The desktop app (`openfang-desktop`) wraps the full FreEco.ai stack in a native 
          |
          v
 +------------------+
-| openfang-types   |
+| freeco-types   |
 | Agent, Capability|
 | Event, Memory    |
 | Message, Tool    |

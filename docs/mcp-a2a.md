@@ -36,16 +36,16 @@ The Model Context Protocol (MCP) is a JSON-RPC 2.0 based protocol that standardi
 FreEco.ai implements MCP protocol version `2024-11-05`.
 
 **Source files:**
-- Client: `crates/openfang-runtime/src/mcp.rs`
-- Server handler: `crates/openfang-runtime/src/mcp_server.rs`
-- CLI server: `crates/openfang-cli/src/mcp.rs`
-- Config types: `crates/openfang-types/src/config.rs` (`McpServerConfigEntry`, `McpTransportEntry`)
+- Client: `crates/freeco-kernel-runtime/src/mcp.rs`
+- Server handler: `crates/freeco-kernel-runtime/src/mcp_server.rs`
+- CLI server: `crates/freeco-cli/src/mcp.rs`
+- Config types: `crates/freeco-types/src/config.rs` (`McpServerConfigEntry`, `McpTransportEntry`)
 
 ---
 
 ### MCP Client
 
-The MCP client (`McpConnection` in `openfang-runtime`) allows FreEco.ai to connect to any MCP-compatible server and use its tools as if they were built-in.
+The MCP client (`McpConnection` in `freeco-kernel-runtime`) allows FreEco.ai to connect to any MCP-compatible server and use its tools as if they were built-in.
 
 #### Configuration
 
@@ -101,7 +101,7 @@ Examples:
 - Server `github`, tool `create_issue` becomes `mcp_github_create_issue`
 - Server `my-server`, tool `do_thing` becomes `mcp_my_server_do_thing`
 
-Helper functions (exported from `openfang_runtime::mcp`):
+Helper functions (exported from `freeco_kernel_runtime::mcp`):
 - `format_mcp_tool_name(server, tool)` -- builds the namespaced name
 - `is_mcp_tool(name)` -- checks if a tool name starts with `mcp_`
 - `extract_mcp_server(tool_name)` -- extracts the server name from a namespaced tool
@@ -166,16 +166,16 @@ FreEco.ai can also act as an MCP server, exposing its agents as callable tools t
 
 #### How It Works
 
-Each FreEco.ai agent becomes an MCP tool named `openfang_agent_{name}` (with hyphens replaced by underscores). The tool accepts a single `message` string parameter and returns the agent's response.
+Each FreEco.ai agent becomes an MCP tool named `freeco_agent_{name}` (with hyphens replaced by underscores). The tool accepts a single `message` string parameter and returns the agent's response.
 
-For example, an agent named `code-reviewer` becomes the MCP tool `openfang_agent_code_reviewer`.
+For example, an agent named `code-reviewer` becomes the MCP tool `freeco_agent_code_reviewer`.
 
-#### CLI: `openfang mcp`
+#### CLI: `freeco mcp`
 
-The primary way to run the MCP server is the `openfang mcp` command, which starts a stdio-based MCP server:
+The primary way to run the MCP server is the `freeco mcp` command, which starts a stdio-based MCP server:
 
 ```bash
-openfang mcp
+freeco mcp
 ```
 
 This command:
@@ -244,7 +244,7 @@ Response:
   "result": {
     "protocolVersion": "2024-11-05",
     "capabilities": { "tools": {} },
-    "serverInfo": { "name": "openfang", "version": "0.1.0" }
+    "serverInfo": { "name": "freeco", "version": "0.1.0" }
   }
 }
 ```
@@ -257,7 +257,7 @@ Response:
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "openfang_agent_code_reviewer",
+    "name": "freeco_agent_code_reviewer",
     "arguments": {
       "message": "Review this Python function for security issues..."
     }
@@ -289,8 +289,8 @@ Add to your MCP configuration file (e.g., `.cursor/mcp.json` or VS Code MCP sett
 ```json
 {
   "mcpServers": {
-    "openfang": {
-      "command": "openfang",
+    "freeco": {
+      "command": "freeco",
       "args": ["mcp"]
     }
   }
@@ -304,8 +304,8 @@ Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "openfang": {
-      "command": "openfang",
+    "freeco": {
+      "command": "freeco",
       "args": ["mcp"],
       "env": {}
     }
@@ -313,7 +313,7 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-After configuration, all FreEco.ai agents appear as tools in the IDE. For example, you can ask Claude Desktop to "use the openfang code-reviewer agent to review this file."
+After configuration, all FreEco.ai agents appear as tools in the IDE. For example, you can ask Claude Desktop to "use the freeco code-reviewer agent to review this file."
 
 ---
 
@@ -462,9 +462,9 @@ FreEco.ai implements A2A in both directions:
 - **As a client**: Discovers external A2A agents at boot time, sends tasks to them, and polls for results.
 
 **Source files:**
-- Protocol types and logic: `crates/openfang-runtime/src/a2a.rs`
-- API routes: `crates/openfang-api/src/routes.rs`
-- Config types: `crates/openfang-types/src/config.rs` (`A2aConfig`, `ExternalAgent`)
+- Protocol types and logic: `crates/freeco-kernel-runtime/src/a2a.rs`
+- API routes: `crates/freeco-api/src/routes.rs`
+- Config types: `crates/freeco-types/src/config.rs` (`A2aConfig`, `ExternalAgent`)
 
 ---
 

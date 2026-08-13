@@ -10,9 +10,9 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from openfang_client import OpenFang
+from freeco_client import Freeco
 
-client = OpenFang("http://localhost:3000")
+client = Freeco("http://localhost:3000")
 
 # Check server health
 health = client.health()

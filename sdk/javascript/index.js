@@ -1,9 +1,9 @@
 /**
- * @openfang/sdk — Official JavaScript client for the OpenFang Agent OS REST API.
+ * @freeco/sdk — Official JavaScript client for the Freeco Agent OS REST API.
  *
  * Usage:
- *   const { OpenFang } = require("@openfang/sdk");
- *   const client = new OpenFang("http://localhost:3000");
+ *   const { Freeco } = require("@freeco/sdk");
+ *   const client = new Freeco("http://localhost:3000");
  *
  *   const agent = await client.agents.create({ template: "assistant" });
  *   const reply = await client.agents.message(agent.id, "Hello!");
@@ -17,23 +17,33 @@
 
 "use strict";
 
-class OpenFangError extends Error {
+class FreecoError extends Error {
   constructor(message, status, body) {
     super(message);
-    this.name = "OpenFangError";
+    this.name = "FreecoError";
     this.status = status;
     this.body = body;
   }
 }
 
-class OpenFang {
+class Freeco {
   /**
-   * @param {string} baseUrl - OpenFang server URL (e.g. "http://localhost:3000")
+   * @param {string} baseUrl - Freeco server URL (e.g. "http://localhost:3000")
    * @param {object} [opts]
    * @param {Record<string, string>} [opts.headers] - Extra headers for every request
    */
   constructor(baseUrl, opts) {
-    this.baseUrl = baseUrl.replace(/\/+$/, "");
+    // Trailing slashes are stripped without a regex on purpose.
+    //
+    // `/\/+$/` backtracks on a string that is mostly slashes, so a long run of
+    // them costs time quadratic in its length. That is only a denial of service
+    // if the base URL comes from somewhere untrusted, which for an SDK
+    // constructor it usually does not — but the loop is as short as the regex,
+    // is obvious to read, and removes the question entirely rather than leaving
+    // a reader to work out whether this particular call site is safe.
+    let end = baseUrl.length;
+    while (end > 0 && baseUrl.charCodeAt(end - 1) === 47 /* "/" */) end--;
+    this.baseUrl = baseUrl.slice(0, end);
     this._headers = Object.assign({ "Content-Type": "application/json" }, (opts && opts.headers) || {});
     this.agents = new AgentResource(this);
     this.sessions = new SessionResource(this);
@@ -58,7 +68,7 @@ class OpenFang {
     var res = await fetch(url, init);
     if (!res.ok) {
       var text = await res.text().catch(function () { return ""; });
-      throw new OpenFangError("HTTP " + res.status + ": " + text, res.status, text);
+      throw new FreecoError("HTTP " + res.status + ": " + text, res.status, text);
     }
     var ct = res.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
@@ -78,7 +88,7 @@ class OpenFang {
     var res = await fetch(url, init);
     if (!res.ok) {
       var text = await res.text().catch(function () { return ""; });
-      throw new OpenFangError("HTTP " + res.status + ": " + text, res.status, text);
+      throw new FreecoError("HTTP " + res.status + ": " + text, res.status, text);
     }
     var reader = res.body.getReader();
     var decoder = new TextDecoder();
@@ -255,7 +265,7 @@ class AgentResource {
     var form = new FormData();
     form.append("file", file, filename);
     var res = await fetch(url, { method: "POST", body: form });
-    if (!res.ok) throw new OpenFangError("Upload failed: " + res.status, res.status);
+    if (!res.ok) throw new FreecoError("Upload failed: " + res.status, res.status);
     return res.json();
   }
 
@@ -476,4 +486,4 @@ class ScheduleResource {
 
 // ── Exports ─────────────────────────────────────────────────────
 
-module.exports = { OpenFang: OpenFang, OpenFangError: OpenFangError };
+module.exports = { Freeco: Freeco, FreecoError: FreecoError };

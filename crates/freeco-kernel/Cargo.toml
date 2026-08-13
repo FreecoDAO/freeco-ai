@@ -1,0 +1,51 @@
+[package]
+name = "freeco-kernel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core kernel for the Freeco Agent OS"
+
+[dependencies]
+freeco-types = { path = "../freeco-types" }
+freeco-memory = { path = "../freeco-memory" }
+freeco-kernel-runtime = { path = "../freeco-kernel-runtime" }
+freeco-skills = { path = "../freeco-skills" }
+freeco-hands = { path = "../freeco-hands" }
+freeco-extensions = { path = "../freeco-extensions" }
+freeco-wire = { path = "../freeco-wire" }
+freeco-channels = { path = "../freeco-channels" }
+freeco-agent-core = { path = "../freeco-agent-core" }
+freeco-agent-ceo = { path = "../freeco-agent-ceo" }
+freeco-agent-secretary = { path = "../freeco-agent-secretary" }
+freeco-agent-shopping = { path = "../freeco-agent-shopping" }
+freeco-tool-gateway = { path = "../freeco-tool-gateway" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+dashmap = { workspace = true }
+crossbeam = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+dirs = { workspace = true }
+futures = { workspace = true }
+subtle = { workspace = true }
+rand = { workspace = true }
+hex = { workspace = true }
+sha2 = { workspace = true }
+reqwest = { workspace = true }
+rustls = { workspace = true }
+cron = "0.16"
+zeroize = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+tempfile = { workspace = true }

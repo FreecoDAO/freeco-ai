@@ -12,10 +12,10 @@ rather than from zero.
 
 | Piece | Where | State |
 |---|---|---|
-| PII detection, reversible masking, policy | `crates/openfang-datagateway` | branch `feature/data-gateway`, **not merged** |
-| Persistent token store | `crates/openfang-datagateway/src/store.rs` | written, 5 tests pass |
+| PII detection, reversible masking, policy | `crates/freeco-ai-datagateway` | branch `feature/data-gateway`, **not merged** |
+| Persistent token store | `crates/freeco-ai-datagateway/src/store.rs` | written, 5 tests pass |
 | Merkle audit trail | `audit_entries`, migration v8 | live |
-| Secret-handling + anti-bypass policy | `openfang-types/src/security_policy.rs` | live, 5 tests |
+| Secret-handling + anti-bypass policy | `freeco-ai-types/src/security_policy.rs` | live, 5 tests |
 | Per-agent spend data | `usage_events` table | live, 114 rows |
 | Sandbox with real toolchain | `deploy/sandbox/Dockerfile` | live |
 
@@ -28,7 +28,7 @@ rather than from zero.
   `store.rs` fixes the first two; the panic path still needs converting to
   `Result`.
 - **Wire it into the LLM call path.** `grep datagateway` across
-  `openfang-runtime` and `openfang-kernel` currently returns nothing, so it
+  `freeco-kernel-runtime` and `freeco-ai-kernel` currently returns nothing, so it
   inspects zero traffic. A security control that is present but not connected
   is worse than absent: the dashboard implies protection that does not exist.
 - **Continuous inspection** of agent traffic, using the gateway as the
@@ -51,7 +51,7 @@ Its findings go to the owner; it does not adjudicate its own alerts.
 
 **Foundation that already exists**
 
-- **44 channel integrations** in `crates/openfang-channels/src/`: email,
+- **44 channel integrations** in `crates/freeco-ai-channels/src/`: email,
   signal, whatsapp, telegram, slack, teams, matrix, xmpp, discord, linkedin,
   irc, mastodon, webex, zulip, rocketchat, nostr, mqtt, viber, threema, line,
   messenger, reddit, twitch and more.
@@ -79,7 +79,7 @@ a UI on top of missing channels would be a rewrite.
   clear the advisory, which is what dependabot proposed. The API surface is
   four calls in one file (`sandbox.rs`), so the migration is likely small; the
   bump is started on branch `fix/wasmtime-rustsec-2026-0222`.
-- **OpenFang -> FreEco rename.** 14 crates, the binary name, `~/.openfang/`
+- **FreEco.ai -> FreEco rename.** 14 crates, the binary name, `~/.freeco-ai/`
   config path, install script and update URL. Needs a migration path or it
   orphans existing installs.
 - **Project management: tasks.** Companies, projects and teams exist with a

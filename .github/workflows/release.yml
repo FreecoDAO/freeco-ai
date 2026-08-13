@@ -11,6 +11,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  PRIVATE_DISTRIBUTION_READY: ${{ vars.PRIVATE_DISTRIBUTION_READY }}
+  COUNSEL_APPROVAL_REFERENCE: ${{ vars.COUNSEL_APPROVAL_REFERENCE }}
 
 jobs:
   verify-release:
@@ -20,12 +22,33 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - name: Verify private-distribution prerequisites
+        env:
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$PRIVATE_DISTRIBUTION_READY" = "true" || {
+            echo "::error::PRIVATE_DISTRIBUTION_READY must be true before a release can publish."
+            exit 1
+          }
+          test -n "$COUNSEL_APPROVAL_REFERENCE" || {
+            echo "::error::COUNSEL_APPROVAL_REFERENCE must be configured before a release can publish."
+            exit 1
+          }
+          repository_private="$(gh api "/repos/$REPOSITORY" --jq '.private')"
+          test "$repository_private" = "true" || {
+            echo "::error::The repository must be private before a commercial release."
+            exit 1
+          }
+          # The first Docker publish creates this package. The Docker job
+          # verifies its visibility before the release draft is published.
       - name: Verify tag, main, package version, and changelog agree
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           version="${RELEASE_TAG#v}"
           test "$RELEASE_TAG" = "v$version"
+          test "$(git log -1 --format=%s "$RELEASE_TAG")" = "chore(release): $RELEASE_TAG"
           git fetch origin main
           # The tag must be ON the main line, but need not be the exact HEAD:
           # commits can legitimately land after an auto-tag is pushed. Requiring
@@ -34,7 +57,7 @@ jobs:
           git merge-base --is-ancestor "$RELEASE_TAG" origin/main
           grep -q "^version = \"$version\"$" Cargo.toml
           grep -q "^## \[$version\]" CHANGELOG.md
-          tauri_version="$(python3 -c 'import json; print(json.load(open("crates/openfang-desktop/tauri.conf.json"))["version"])')"
+          tauri_version="$(python3 -c 'import json; print(json.load(open("crates/freeco-desktop/tauri.conf.json"))["version"])')"
           test "$tauri_version" = "$version"
 
   # ── Tauri Desktop App (Windows + macOS + Linux) ───────────────────────────
@@ -180,7 +203,7 @@ jobs:
 
             **Coming from OpenClaw?**
             ```bash
-            openfang migrate --from openclaw
+            freeco-ai migrate --from openclaw
             ```
           # Build into a DRAFT. This repo has GitHub "immutable releases"
           # enabled: once a release is published its assets are frozen, so the
@@ -190,7 +213,7 @@ jobs:
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
-          projectPath: crates/openfang-desktop
+          projectPath: crates/freeco-desktop
           args: ${{ matrix.platform.args }}
 
   # ── CLI Binary (7 platforms) ──────────────────────────────────────────────
@@ -240,33 +263,33 @@ jobs:
           key: cli-${{ matrix.target }}
       - name: Build CLI (cross)
         if: matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf'
-        run: cross build --release --target ${{ matrix.target }} --bin openfang
+        run: cross build --release --target ${{ matrix.target }} --bin freeco-ai
       - name: Build CLI
         if: matrix.target != 'aarch64-unknown-linux-gnu' && matrix.target != 'armv7-unknown-linux-gnueabihf'
-        run: cargo build --release --target ${{ matrix.target }} --bin openfang
+        run: cargo build --release --target ${{ matrix.target }} --bin freeco-ai
       - name: Ad-hoc codesign CLI binary (macOS)
         if: runner.os == 'macOS'
         run: |
-          xattr -cr target/${{ matrix.target }}/release/openfang || true
-          codesign --force --sign - target/${{ matrix.target }}/release/openfang
+          xattr -cr target/${{ matrix.target }}/release/freeco-ai || true
+          codesign --force --sign - target/${{ matrix.target }}/release/freeco-ai
       - name: Package (Unix)
         if: matrix.archive == 'tar.gz'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../openfang-${{ matrix.target }}.tar.gz openfang
+          tar czf ../../../freeco-ai-${{ matrix.target }}.tar.gz freeco-ai
           cd ../../..
-          sha256sum openfang-${{ matrix.target }}.tar.gz > openfang-${{ matrix.target }}.tar.gz.sha256
+          sha256sum freeco-ai-${{ matrix.target }}.tar.gz > freeco-ai-${{ matrix.target }}.tar.gz.sha256
       - name: Package (Windows)
         if: matrix.archive == 'zip'
         shell: pwsh
         run: |
-          Compress-Archive -Path "target/${{ matrix.target }}/release/openfang.exe" -DestinationPath "openfang-${{ matrix.target }}.zip"
-          $hash = (Get-FileHash "openfang-${{ matrix.target }}.zip" -Algorithm SHA256).Hash.ToLower()
-          "$hash  openfang-${{ matrix.target }}.zip" | Out-File -Encoding ASCII "openfang-${{ matrix.target }}.zip.sha256"
+          Compress-Archive -Path "target/${{ matrix.target }}/release/freeco-ai.exe" -DestinationPath "freeco-ai-${{ matrix.target }}.zip"
+          $hash = (Get-FileHash "freeco-ai-${{ matrix.target }}.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  freeco-ai-${{ matrix.target }}.zip" | Out-File -Encoding ASCII "freeco-ai-${{ matrix.target }}.zip.sha256"
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          files: openfang-${{ matrix.target }}.*
+          files: freeco-ai-${{ matrix.target }}.*
           # Keep the release a draft while assets land — see releaseDraft note
           # in the desktop job (immutable releases reject post-publish uploads).
           draft: true
@@ -293,6 +316,27 @@ jobs:
       - name: Extract version
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+      - name: Check Dockerfile security rules
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          call: check
+      - name: Reject a public existing GHCR package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          owner_type="$(gh api "/repos/$REPOSITORY" --jq '.owner.type')"
+          if [ "$owner_type" = "Organization" ]; then
+            package_path="/orgs/${REPOSITORY%%/*}/packages/container/freeco-ai"
+          else
+            package_path="/users/${REPOSITORY%%/*}/packages/container/freeco-ai"
+          fi
+          package_visibility="$(gh api "$package_path" --jq '.visibility' 2>/dev/null || true)"
+          if [ -n "$package_visibility" ] && [ "$package_visibility" != "private" ]; then
+            echo "::error::The existing GHCR freeco-ai package must be private before a commercial release."
+            exit 1
+          fi
       - name: Build and push (multi-arch)
         uses: docker/build-push-action@v7
         with:
@@ -304,11 +348,25 @@ jobs:
             ghcr.io/freecodao/freeco-ai:${{ steps.version.outputs.version }}
           labels: |
             org.opencontainers.image.source=https://github.com/FreecoDAO/FreEco-ai
-            org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.description=OpenFang Agent OS — single-binary Rust agent framework
+            org.opencontainers.image.licenses=Apache-2.0 OR MIT
+            org.opencontainers.image.description=FreEco.ai distribution; see included upstream notices
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Set GHCR package visibility to public
+          # Publish BuildKit provenance and an SPDX SBOM attestation with
+          # the OCI image, so consumers can inspect exactly what was released.
+          provenance: mode=max
+          sbom: true
+      - name: Scan published image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ghcr.io/freecodao/freeco-ai:${{ steps.version.outputs.version }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          vuln-type: os,library
+      - name: Deprecated public-visibility step (disabled)
+        if: false
         # FreecoDAO is a user account, not an org — the /orgs/... endpoint
         # 404s. Best-effort: the users endpoint, and never fail the release
         # over package visibility (it can be set once in the UI instead).
@@ -320,16 +378,31 @@ jobs:
             https://api.github.com/users/FreecoDAO/packages/container/freeco-ai \
             -d '{"visibility":"public"}' \
           || echo "Package visibility unchanged (set it once via GitHub UI: Packages -> freeco-ai -> settings)"
+      - name: Verify GHCR package is private
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          owner_type="$(gh api "/repos/$REPOSITORY" --jq '.owner.type')"
+          if [ "$owner_type" = "Organization" ]; then
+            package_path="/orgs/${REPOSITORY%%/*}/packages/container/freeco-ai"
+          else
+            package_path="/users/${REPOSITORY%%/*}/packages/container/freeco-ai"
+          fi
+          package_visibility="$(gh api "$package_path" --jq '.visibility')"
+          test "$package_visibility" = "private" || {
+            echo "::error::The GHCR freeco-ai package must be private before publishing the release."
+            exit 1
+          }
 
   # ── Publish the draft once every artifact is uploaded ─────────────────────
   # GitHub "immutable releases" freeze a release's assets the moment it is
   # published, so the desktop/cli jobs build into a DRAFT. This job flips it
-  # live after all of them succeed. Docker is intentionally not a dependency:
-  # it publishes to GHCR, not to the release, and must not gate the download
-  # links.
+  # live after all artifacts, including the private GHCR image, pass their
+  # validation.
   publish-release:
     name: Publish release
-    needs: [desktop, cli]
+    needs: [desktop, cli, docker]
     runs-on: ubuntu-latest
     permissions:
       contents: write

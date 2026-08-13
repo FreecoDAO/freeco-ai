@@ -19,7 +19,7 @@ impl<T> AgentBounds for T {}
 
 // ── Core trait ───────────────────────────────────────────────────────────────
 
-/// The central trait every OpenFang agent must implement.
+/// The central trait every Freeco agent must implement.
 ///
 /// On native targets it is `Send + Sync` so it can be stored in an
 /// `Arc<dyn Agent>` and dispatched from async tokio tasks.

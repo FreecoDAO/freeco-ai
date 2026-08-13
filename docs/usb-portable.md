@@ -55,14 +55,14 @@ ready to copy onto a drive.
 
 ## How it works
 
-The launchers set two environment variables before starting `openfang`:
+The launchers set two environment variables before starting `freeco`:
 
-- `OPENFANG_HOME` — pointed at `data/` next to the script, relocating
+- `FREECO_AI_HOME` — pointed at `data/` next to the script, relocating
   config, the local database, agent workspaces, and logs there instead of
-  `~/.openfang`.
-- `OPENFANG_LISTEN` — the dashboard's bind address (default
+  `~/.freeco-ai`.
+- `FREECO_AI_LISTEN` — the dashboard's bind address (default
   `127.0.0.1:4200`); override it if you need to run two instances at once.
 
-No source changes were needed for this — `openfang` already reads both
-variables. See `crates/openfang-kernel/src/config.rs` and
-`crates/openfang-cli/src/launcher.rs`.
+No source changes were needed for this — `freeco` already reads both
+variables. See `crates/freeco-kernel/src/config.rs` and
+`crates/freeco-cli/src/launcher.rs`.

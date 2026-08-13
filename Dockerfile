@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM rust:1-slim-bookworm AS builder
+FROM rust:1-slim-bookworm@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3 AS builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y pkg-config libssl-dev perl make && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock ./
@@ -13,9 +13,9 @@ ARG LTO=true
 ARG CODEGEN_UNITS=1
 ENV CARGO_PROFILE_RELEASE_LTO=${LTO} \
     CARGO_PROFILE_RELEASE_CODEGEN_UNITS=${CODEGEN_UNITS}
-RUN cargo build --release --bin openfang
+RUN cargo build --release --bin freeco-ai
 
-FROM rust:1-slim-bookworm
+FROM rust:1-slim-bookworm@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     python3 \
@@ -25,10 +25,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /build/target/release/openfang /usr/local/bin/
-COPY --from=builder /build/agents /opt/openfang/agents
+COPY --from=builder /build/target/release/freeco-ai /usr/local/bin/
+COPY --from=builder /build/agents /opt/freeco-ai/agents
 EXPOSE 4200
 VOLUME /data
-ENV OPENFANG_HOME=/data
-ENTRYPOINT ["openfang"]
+ENV FREECO_AI_HOME=/data
+ENTRYPOINT ["freeco-ai"]
 CMD ["start"]

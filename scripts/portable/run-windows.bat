@@ -6,8 +6,10 @@ REM across machines.
 
 setlocal
 set "ROOT=%~dp0"
-set "OPENFANG_HOME=%ROOT%data"
-if "%OPENFANG_LISTEN%"=="" set "OPENFANG_LISTEN=127.0.0.1:4200"
+set "FREECO_AI_HOME=%ROOT%data"
+if "%FREECO_AI_LISTEN%"=="" set "FREECO_AI_LISTEN=127.0.0.1:4200"
+REM Keep legacy interactive-setup home resolution inside the portable bundle.
+set "OPENFANG_HOME=%FREECO_AI_HOME%"
 
 REM ── Bundled local AI (fully offline) ────────────────────────────────────
 REM If this drive carries Ollama + a model, use them from the drive: nothing
@@ -32,7 +34,7 @@ if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
     set "ARCH=x86_64"
 )
 
-set "EXE=%ROOT%bin\windows\%ARCH%\openfang.exe"
+set "EXE=%ROOT%bin\windows\%ARCH%\freeco-ai.exe"
 if not exist "%EXE%" (
     echo   Could not find a FreEco.ai binary for windows\%ARCH% at:
     echo     %EXE%
@@ -40,21 +42,21 @@ if not exist "%EXE%" (
     exit /b 1
 )
 
-if not exist "%OPENFANG_HOME%" mkdir "%OPENFANG_HOME%"
-if not exist "%OPENFANG_HOME%\config.toml" (
+if not exist "%FREECO_AI_HOME%" mkdir "%FREECO_AI_HOME%"
+if not exist "%FREECO_AI_HOME%\config.toml" (
     echo   First run - starting FreEco.ai setup wizard...
     "%EXE%" init
 )
 
 echo.
-echo   FreEco.ai starting - dashboard: http://%OPENFANG_LISTEN%
-echo   Data directory: %OPENFANG_HOME%
+echo   FreEco.ai starting - dashboard: http://%FREECO_AI_LISTEN%
+echo   Data directory: %FREECO_AI_HOME%
 echo   Close this window to stop FreEco.ai.
 echo.
 
 REM Open the dashboard a few seconds after launch, once the server has
 REM had time to bind its port. Runs in a detached shell so it doesn't
 REM block the foreground server below.
-start "" cmd /c "timeout /t 3 >nul & start "" "http://%OPENFANG_LISTEN%""
+start "" cmd /c "timeout /t 3 >nul & start "" "http://%FREECO_AI_LISTEN%""
 
 "%EXE%" start

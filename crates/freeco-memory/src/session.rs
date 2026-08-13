@@ -1,0 +1,1174 @@
+//! Session management — load/save conversation history.
+
+use chrono::Utc;
+use freeco_types::agent::{AgentId, SessionId};
+use freeco_types::error::{FreecoError, FreecoResult};
+use freeco_types::message::{ContentBlock, Message, MessageContent, Role};
+use rusqlite::Connection;
+use std::io::Write;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+
+/// A conversation session with message history.
+#[derive(Debug, Clone)]
+pub struct Session {
+    /// Session ID.
+    pub id: SessionId,
+    /// Owning agent ID.
+    pub agent_id: AgentId,
+    /// Conversation messages.
+    pub messages: Vec<Message>,
+    /// Estimated token count for the context window.
+    pub context_window_tokens: u64,
+    /// Optional human-readable session label.
+    pub label: Option<String>,
+}
+
+/// Longest auto-generated label. Long enough to be recognisable in a list,
+/// short enough not to wrap in a sidebar.
+const MAX_LABEL_CHARS: usize = 48;
+
+/// Pull the plain text out of a message, whatever shape it is stored in.
+fn message_text(message: &Message) -> String {
+    match &message.content {
+        MessageContent::Text(text) => text.clone(),
+        MessageContent::Blocks(blocks) => blocks
+            .iter()
+            .filter_map(|block| match block {
+                ContentBlock::Text { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(" "),
+    }
+}
+
+/// Build a human-readable name for a conversation from its first user message.
+///
+/// Deliberately deterministic rather than model-generated: naming a session
+/// must not cost a token, wait on a network call, or fail when the model is
+/// unreachable. A conversation that cannot be named because the LLM is down is
+/// exactly the situation where the user most needs to find it again.
+///
+/// Returns None when there is nothing meaningful to name it after, so the
+/// caller leaves the label unset rather than storing something like "hi".
+pub fn derive_session_label(messages: &[Message]) -> Option<String> {
+    let first = messages.iter().find(|m| m.role == Role::User)?;
+    let text = message_text(first);
+
+    // Collapse all whitespace: pasted logs and multi-line prompts otherwise
+    // produce labels full of newlines and runs of spaces.
+    let cleaned = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let cleaned = cleaned
+        .trim_start_matches(['/', '#', '>', '-', '*', ' '])
+        .trim();
+    if cleaned.chars().count() < 3 {
+        return None;
+    }
+
+    // Prefer cutting at the end of the first sentence when that already reads
+    // as a title; otherwise fall back to a word-boundary truncation.
+    let sentence_end = cleaned
+        .char_indices()
+        .find(|(_, c)| matches!(c, '.' | '?' | '!' | '\n'))
+        .map(|(i, _)| i)
+        .filter(|i| (3..=MAX_LABEL_CHARS).contains(i));
+    let candidate: String = match sentence_end {
+        Some(end) => cleaned[..end].to_string(),
+        None if cleaned.chars().count() <= MAX_LABEL_CHARS => cleaned.to_string(),
+        None => {
+            // Cut on a word boundary so labels never end mid-word.
+            let mut out = String::new();
+            for word in cleaned.split(' ') {
+                if out.chars().count() + word.chars().count() + 1 > MAX_LABEL_CHARS {
+                    break;
+                }
+                if !out.is_empty() {
+                    out.push(' ');
+                }
+                out.push_str(word);
+            }
+            if out.is_empty() {
+                cleaned.chars().take(MAX_LABEL_CHARS).collect()
+            } else {
+                out
+            }
+        }
+    };
+
+    let trimmed = candidate.trim_end_matches([',', ';', ':', ' ']).trim();
+    if trimmed.chars().count() < 3 {
+        return None;
+    }
+    // Capitalise the first letter so a list of sessions reads like titles.
+    let mut chars = trimmed.chars();
+    let first = chars.next()?;
+    let label = first.to_uppercase().collect::<String>() + chars.as_str();
+    Some(label)
+}
+
+/// Session store backed by SQLite.
+#[derive(Clone)]
+pub struct SessionStore {
+    conn: Arc<Mutex<Connection>>,
+}
+
+impl SessionStore {
+    /// Create a new session store wrapping the given connection.
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
+        Self { conn }
+    }
+
+    /// Load a session from the database.
+    pub fn get_session(&self, session_id: SessionId) -> FreecoResult<Option<Session>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare("SELECT agent_id, messages, context_window_tokens, label FROM sessions WHERE id = ?1")
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+
+        let result = stmt.query_row(rusqlite::params![session_id.0.to_string()], |row| {
+            let agent_str: String = row.get(0)?;
+            let messages_blob: Vec<u8> = row.get(1)?;
+            let tokens: i64 = row.get(2)?;
+            let label: Option<String> = row.get(3).unwrap_or(None);
+            Ok((agent_str, messages_blob, tokens, label))
+        });
+
+        match result {
+            Ok((agent_str, messages_blob, tokens, label)) => {
+                let agent_id = uuid::Uuid::parse_str(&agent_str)
+                    .map(AgentId)
+                    .map_err(|e| FreecoError::Memory(e.to_string()))?;
+                let messages: Vec<Message> = rmp_serde::from_slice(&messages_blob)
+                    .map_err(|e| FreecoError::Serialization(e.to_string()))?;
+                Ok(Some(Session {
+                    id: session_id,
+                    agent_id,
+                    messages,
+                    context_window_tokens: tokens as u64,
+                    label,
+                }))
+            }
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(FreecoError::Memory(e.to_string())),
+        }
+    }
+
+    /// Save a session to the database.
+    pub fn save_session(&self, session: &Session) -> FreecoResult<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let messages_blob = rmp_serde::to_vec_named(&session.messages)
+            .map_err(|e| FreecoError::Serialization(e.to_string()))?;
+        let now = Utc::now().to_rfc3339();
+
+        // Name the conversation from its first user message the first time it
+        // is saved with content. Every write path goes through here, so this
+        // covers chat, agents and the API without any caller having to
+        // remember. A label the user has already set is never overwritten --
+        // auto-naming is a starting point, not a policy.
+        let label = match session.label.as_deref() {
+            Some(existing) if !existing.trim().is_empty() => Some(existing.to_string()),
+            _ => derive_session_label(&session.messages),
+        };
+        conn.execute(
+            "INSERT INTO sessions (id, agent_id, messages, context_window_tokens, label, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)
+             ON CONFLICT(id) DO UPDATE SET messages = ?3, context_window_tokens = ?4, label = ?5, updated_at = ?6",
+            rusqlite::params![
+                session.id.0.to_string(),
+                session.agent_id.0.to_string(),
+                messages_blob,
+                session.context_window_tokens as i64,
+                label.as_deref(),
+                now,
+            ],
+        )
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Delete a session from the database.
+    pub fn delete_session(&self, session_id: SessionId) -> FreecoResult<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        conn.execute(
+            "DELETE FROM sessions WHERE id = ?1",
+            rusqlite::params![session_id.0.to_string()],
+        )
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Delete all sessions belonging to an agent.
+    pub fn delete_agent_sessions(&self, agent_id: AgentId) -> FreecoResult<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        conn.execute(
+            "DELETE FROM sessions WHERE agent_id = ?1",
+            rusqlite::params![agent_id.0.to_string()],
+        )
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Delete the canonical (cross-channel) session for an agent.
+    pub fn delete_canonical_session(&self, agent_id: AgentId) -> FreecoResult<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        conn.execute(
+            "DELETE FROM canonical_sessions WHERE agent_id = ?1",
+            rusqlite::params![agent_id.0.to_string()],
+        )
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Conversations whose owning agent no longer exists.
+    ///
+    /// History is stored per agent id. If the agent registry is ever rebuilt —
+    /// which is what reinstalling does — agents can come back under new ids,
+    /// and every conversation belonging to the old ids stays in the database
+    /// with nothing pointing at it. The data is intact but invisible, so the
+    /// app looks freshly installed and the user reasonably concludes their
+    /// history was deleted.
+    ///
+    /// Nothing detected this, which is why it was only ever found by opening
+    /// the database by hand. Returning it makes the loss recoverable in the
+    /// product instead.
+    pub fn list_orphaned_sessions(&self) -> FreecoResult<Vec<serde_json::Value>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, agent_id, messages, created_at, updated_at, label FROM sessions \
+                 WHERE agent_id NOT IN (SELECT id FROM agents) \
+                 AND length(messages) > 1 \
+                 ORDER BY updated_at DESC",
+            )
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+        let rows = stmt
+            .query_map([], |row| {
+                let blob: Vec<u8> = row.get(2)?;
+                let count = rmp_serde::from_slice::<Vec<Message>>(&blob)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                Ok(serde_json::json!({
+                    "id": row.get::<_, String>(0)?,
+                    "former_agent_id": row.get::<_, String>(1)?,
+                    "message_count": count,
+                    "created_at": row.get::<_, String>(3)?,
+                    "updated_at": row.get::<_, String>(4)?,
+                    "label": row.get::<_, Option<String>>(5)?,
+                }))
+            })
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row.map_err(|e| FreecoError::Memory(e.to_string()))?);
+        }
+        Ok(out)
+    }
+
+    /// Hand every orphaned conversation to `agent_id`, so it is reachable again.
+    ///
+    /// This only re-points ownership. No message is rewritten and nothing is
+    /// deleted, so running it twice is harmless and running it by mistake
+    /// costs the user nothing but a tidy-up.
+    pub fn adopt_orphaned_sessions(&self, agent_id: &str) -> FreecoResult<usize> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let n = conn
+            .execute(
+                "UPDATE sessions SET agent_id = ?1 \
+                 WHERE agent_id NOT IN (SELECT id FROM agents)",
+                [agent_id],
+            )
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+        Ok(n)
+    }
+
+    /// List all sessions with metadata (session_id, agent_id, message_count, created_at).
+    pub fn list_sessions(&self) -> FreecoResult<Vec<serde_json::Value>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, agent_id, messages, created_at, label FROM sessions ORDER BY created_at DESC",
+            )
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let session_id: String = row.get(0)?;
+                let agent_id: String = row.get(1)?;
+                let messages_blob: Vec<u8> = row.get(2)?;
+                let created_at: String = row.get(3)?;
+                let label: Option<String> = row.get(4)?;
+                // Deserialize just to count messages
+                let msg_count = rmp_serde::from_slice::<Vec<Message>>(&messages_blob)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                Ok(serde_json::json!({
+                    "session_id": session_id,
+                    "agent_id": agent_id,
+                    "message_count": msg_count,
+                    "created_at": created_at,
+                    "label": label,
+                }))
+            })
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row.map_err(|e| FreecoError::Memory(e.to_string()))?);
+        }
+        Ok(sessions)
+    }
+
+    /// Create a new empty session for an agent.
+    pub fn create_session(&self, agent_id: AgentId) -> FreecoResult<Session> {
+        let session = Session {
+            id: SessionId::new(),
+            agent_id,
+            messages: Vec::new(),
+            context_window_tokens: 0,
+            label: None,
+        };
+        self.save_session(&session)?;
+        Ok(session)
+    }
+
+    /// Set the label on an existing session.
+    pub fn set_session_label(
+        &self,
+        session_id: SessionId,
+        label: Option<&str>,
+    ) -> FreecoResult<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        conn.execute(
+            "UPDATE sessions SET label = ?1, updated_at = ?2 WHERE id = ?3",
+            rusqlite::params![label, Utc::now().to_rfc3339(), session_id.0.to_string()],
+        )
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Load the canonical conversation for an agent as a `Session`.
+    ///
+    /// The canonical log is the one written on every turn, so it holds the
+    /// conversations a user is most likely to open. Without a reader the
+    /// Sessions panel could count these messages but never show them.
+    pub fn get_canonical_as_session(&self, agent_id: AgentId) -> FreecoResult<Option<Session>> {
+        let canonical = self.load_canonical(agent_id)?;
+        if canonical.messages.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(Session {
+            // Canonical logs have no session id of their own; the agent id is
+            // the stable handle, matching what `list_canonical_sessions` emits.
+            id: SessionId(agent_id.0),
+            agent_id,
+            label: derive_session_label(&canonical.messages),
+            messages: canonical.messages,
+            context_window_tokens: 0,
+        }))
+    }
+
+    /// Find a session by label for a given agent.
+    pub fn find_session_by_label(
+        &self,
+        agent_id: AgentId,
+        label: &str,
+    ) -> FreecoResult<Option<Session>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, messages, context_window_tokens, label FROM sessions \
+                 WHERE agent_id = ?1 AND label = ?2 LIMIT 1",
+            )
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+
+        let result = stmt.query_row(rusqlite::params![agent_id.0.to_string(), label], |row| {
+            let id_str: String = row.get(0)?;
+            let messages_blob: Vec<u8> = row.get(1)?;
+            let tokens: i64 = row.get(2)?;
+            let lbl: Option<String> = row.get(3).unwrap_or(None);
+            Ok((id_str, messages_blob, tokens, lbl))
+        });
+
+        match result {
+            Ok((id_str, messages_blob, tokens, lbl)) => {
+                let session_id = uuid::Uuid::parse_str(&id_str)
+                    .map(SessionId)
+                    .map_err(|e| FreecoError::Memory(e.to_string()))?;
+                let messages: Vec<Message> = rmp_serde::from_slice(&messages_blob)
+                    .map_err(|e| FreecoError::Serialization(e.to_string()))?;
+                Ok(Some(Session {
+                    id: session_id,
+                    agent_id,
+                    messages,
+                    context_window_tokens: tokens as u64,
+                    label: lbl,
+                }))
+            }
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(FreecoError::Memory(e.to_string())),
+        }
+    }
+}
+
+impl SessionStore {
+    /// List all sessions for a specific agent.
+    pub fn list_agent_sessions(&self, agent_id: AgentId) -> FreecoResult<Vec<serde_json::Value>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, messages, created_at, label FROM sessions WHERE agent_id = ?1 ORDER BY created_at DESC",
+            )
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![agent_id.0.to_string()], |row| {
+                let session_id: String = row.get(0)?;
+                let messages_blob: Vec<u8> = row.get(1)?;
+                let created_at: String = row.get(2)?;
+                let label: Option<String> = row.get(3)?;
+                let msg_count = rmp_serde::from_slice::<Vec<Message>>(&messages_blob)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                Ok(serde_json::json!({
+                    "session_id": session_id,
+                    "message_count": msg_count,
+                    "created_at": created_at,
+                    "label": label,
+                }))
+            })
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+
+        let mut sessions = Vec::new();
+        for row in rows {
+            sessions.push(row.map_err(|e| FreecoError::Memory(e.to_string()))?);
+        }
+        Ok(sessions)
+    }
+
+    /// Create a new session with an optional label.
+    pub fn create_session_with_label(
+        &self,
+        agent_id: AgentId,
+        label: Option<&str>,
+    ) -> FreecoResult<Session> {
+        let session = Session {
+            id: SessionId::new(),
+            agent_id,
+            messages: Vec::new(),
+            context_window_tokens: 0,
+            label: label.map(|s| s.to_string()),
+        };
+        self.save_session(&session)?;
+        Ok(session)
+    }
+
+    /// Store an LLM-generated summary, replacing older messages with the summary
+    /// and keeping only the specified recent messages.
+    ///
+    /// This is used by the LLM-based compactor to replace text-truncation compaction
+    /// with an intelligent, LLM-generated summary of older conversation history.
+    pub fn store_llm_summary(
+        &self,
+        agent_id: AgentId,
+        summary: &str,
+        kept_messages: Vec<Message>,
+    ) -> FreecoResult<()> {
+        let mut canonical = self.load_canonical(agent_id)?;
+        canonical.compacted_summary = Some(summary.to_string());
+
+        // The full history is KEPT. This used to be
+        // `canonical.messages = kept_messages`, which threw away everything the
+        // summariser had folded into prose -- the second of two places doing
+        // that, and the one that survived the first fix. An agent could go from
+        // forty-eight messages to ten in a single compaction.
+        //
+        // Nothing needed those messages gone: `canonical_context` already
+        // returns only a trailing window when building a prompt, so the model
+        // never saw them either way. Summarising for the model and deleting the
+        // user's conversation are different operations, and only the first was
+        // ever asked for.
+        //
+        // `kept_messages` is now only a signal of where the summary ends.
+        canonical.compaction_cursor = canonical.messages.len().saturating_sub(kept_messages.len());
+        canonical.updated_at = Utc::now().to_rfc3339();
+        self.save_canonical(&canonical)
+    }
+}
+
+/// Default number of recent messages to include from canonical session.
+const DEFAULT_CANONICAL_WINDOW: usize = 50;
+
+/// Default compaction threshold: when message count exceeds this, compact older messages.
+const DEFAULT_COMPACTION_THRESHOLD: usize = 100;
+
+/// A canonical session stores persistent cross-channel context for an agent.
+///
+/// Unlike regular sessions (one per channel interaction), there is one canonical
+/// session per agent. All channels contribute to it, so what a user tells an agent
+/// on Telegram is remembered on Discord.
+#[derive(Debug, Clone)]
+pub struct CanonicalSession {
+    /// The agent this session belongs to.
+    pub agent_id: AgentId,
+    /// Full message history (post-compaction window).
+    pub messages: Vec<Message>,
+    /// Index marking how far compaction has processed.
+    pub compaction_cursor: usize,
+    /// Summary of compacted (older) messages.
+    pub compacted_summary: Option<String>,
+    /// Last update time.
+    pub updated_at: String,
+    /// Human-readable name, derived from the first user message.
+    pub label: Option<String>,
+}
+
+impl SessionStore {
+    /// Load the canonical session for an agent, creating one if it doesn't exist.
+    pub fn load_canonical(&self, agent_id: AgentId) -> FreecoResult<CanonicalSession> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT messages, compaction_cursor, compacted_summary, updated_at, label \
+                 FROM canonical_sessions WHERE agent_id = ?1",
+            )
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+
+        let result = stmt.query_row(rusqlite::params![agent_id.0.to_string()], |row| {
+            let messages_blob: Vec<u8> = row.get(0)?;
+            let cursor: i64 = row.get(1)?;
+            let summary: Option<String> = row.get(2)?;
+            let updated_at: String = row.get(3)?;
+            let label: Option<String> = row.get(4).unwrap_or(None);
+            Ok((messages_blob, cursor, summary, updated_at, label))
+        });
+
+        match result {
+            Ok((messages_blob, cursor, summary, updated_at, label)) => {
+                let messages: Vec<Message> = rmp_serde::from_slice(&messages_blob)
+                    .map_err(|e| FreecoError::Serialization(e.to_string()))?;
+                Ok(CanonicalSession {
+                    agent_id,
+                    messages,
+                    compaction_cursor: cursor as usize,
+                    compacted_summary: summary,
+                    updated_at,
+                    label,
+                })
+            }
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                let now = Utc::now().to_rfc3339();
+                Ok(CanonicalSession {
+                    agent_id,
+                    messages: Vec::new(),
+                    compaction_cursor: 0,
+                    compacted_summary: None,
+                    updated_at: now,
+                    label: None,
+                })
+            }
+            Err(e) => Err(FreecoError::Memory(e.to_string())),
+        }
+    }
+
+    /// List every agent conversation with its name.
+    ///
+    /// `list_sessions` only reads the `sessions` table, which is written during
+    /// compaction and is therefore almost always empty. Agent conversations
+    /// live in `canonical_sessions`, so without this the UI shows an empty or
+    /// stale list no matter how much the user has actually talked to an agent.
+    pub fn list_canonical_sessions(&self) -> FreecoResult<Vec<serde_json::Value>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT agent_id, messages, updated_at, label                  FROM canonical_sessions ORDER BY updated_at DESC",
+            )
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let agent_id: String = row.get(0)?;
+                let blob: Vec<u8> = row.get(1)?;
+                let updated_at: String = row.get(2)?;
+                let label: Option<String> = row.get(3).unwrap_or(None);
+                let count = rmp_serde::from_slice::<Vec<Message>>(&blob)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                Ok(serde_json::json!({
+                    // Canonical logs are keyed by agent, not by session, so
+                    // they used to come back with no session_id at all -- the
+                    // UI rendered rows it had no way to open. The agent id is
+                    // the stable handle for these, so expose it as the id and
+                    // let `kind` tell the caller which store to read.
+                    "session_id": agent_id,
+                    "agent_id": agent_id,
+                    "message_count": count,
+                    "updated_at": updated_at,
+                    "label": label,
+                    "kind": "canonical",
+                }))
+            })
+            .map_err(|e| FreecoError::Memory(e.to_string()))?;
+
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| FreecoError::Memory(e.to_string()))
+    }
+
+    /// Append new messages to the canonical session and compact if over threshold.
+    ///
+    /// Compaction summarizes old messages into a text summary and trims the
+    /// message list. The `compaction_threshold` controls when this happens
+    /// (default: 100 messages).
+    pub fn append_canonical(
+        &self,
+        agent_id: AgentId,
+        new_messages: &[Message],
+        compaction_threshold: Option<usize>,
+    ) -> FreecoResult<CanonicalSession> {
+        let mut canonical = self.load_canonical(agent_id)?;
+        canonical.messages.extend(new_messages.iter().cloned());
+
+        let threshold = compaction_threshold.unwrap_or(DEFAULT_COMPACTION_THRESHOLD);
+
+        // Compact if over threshold
+        if canonical.messages.len() > threshold {
+            let keep_count = DEFAULT_CANONICAL_WINDOW;
+            let to_compact = canonical.messages.len().saturating_sub(keep_count);
+            if to_compact > canonical.compaction_cursor {
+                // Build a summary from the messages being compacted
+                let compacting = &canonical.messages[canonical.compaction_cursor..to_compact];
+                let mut summary_parts: Vec<String> = Vec::new();
+                if let Some(ref existing) = canonical.compacted_summary {
+                    summary_parts.push(existing.clone());
+                }
+                for msg in compacting {
+                    let role = match msg.role {
+                        freeco_types::message::Role::User => "User",
+                        freeco_types::message::Role::Assistant => "Assistant",
+                        freeco_types::message::Role::System => "System",
+                    };
+                    let text = msg.content.text_content();
+                    if !text.is_empty() {
+                        // Truncate individual messages in summary to keep it compact (UTF-8 safe)
+                        let truncated = if text.len() > 200 {
+                            format!("{}...", freeco_types::truncate_str(&text, 200))
+                        } else {
+                            text
+                        };
+                        summary_parts.push(format!("{role}: {truncated}"));
+                    }
+                }
+                // Keep summary under ~4000 chars (UTF-8 safe)
+                let mut full_summary = summary_parts.join("\n");
+                if full_summary.len() > 4000 {
+                    let start = full_summary.len() - 4000;
+                    // Find the next char boundary at or after `start`
+                    let safe_start = (start..full_summary.len())
+                        .find(|&i| full_summary.is_char_boundary(i))
+                        .unwrap_or(full_summary.len());
+                    full_summary = full_summary[safe_start..].to_string();
+                }
+                canonical.compacted_summary = Some(full_summary);
+
+                // The full history is KEPT. Older messages used to be deleted
+                // here with `split_off`, leaving only a lossy summary -- every
+                // message cut to 200 characters, the summary then clipped to
+                // its last 4000 -- so a user watching older chats disappear
+                // was seeing exactly that. The deletion was never necessary:
+                // `canonical_context` already takes only the trailing window
+                // when building the prompt, so the model never saw the older
+                // messages either way. Keeping the model's context small and
+                // throwing away the user's conversation are different things,
+                // and the second must never be a side effect of the first.
+                canonical.compaction_cursor = to_compact;
+            }
+        }
+
+        canonical.updated_at = Utc::now().to_rfc3339();
+        self.save_canonical(&canonical)?;
+        Ok(canonical)
+    }
+
+    /// Get recent messages from canonical session for context injection.
+    ///
+    /// Returns up to `window_size` recent messages (default 50), plus
+    /// the compacted summary if available.
+    pub fn canonical_context(
+        &self,
+        agent_id: AgentId,
+        window_size: Option<usize>,
+    ) -> FreecoResult<(Option<String>, Vec<Message>)> {
+        let canonical = self.load_canonical(agent_id)?;
+        let window = window_size.unwrap_or(DEFAULT_CANONICAL_WINDOW);
+        let start = canonical.messages.len().saturating_sub(window);
+        let recent = canonical.messages[start..].to_vec();
+        Ok((canonical.compacted_summary.clone(), recent))
+    }
+
+    /// Persist a canonical session to SQLite.
+    fn save_canonical(&self, canonical: &CanonicalSession) -> FreecoResult<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| FreecoError::Internal(e.to_string()))?;
+        let messages_blob = rmp_serde::to_vec_named(&canonical.messages)
+            .map_err(|e| FreecoError::Serialization(e.to_string()))?;
+        // Name the conversation from its first user message. This is where
+        // agent conversations actually live, so labelling anywhere else leaves
+        // the list of them unnamed. A name the user set is never overwritten.
+        let label = match canonical.label.as_deref() {
+            Some(existing) if !existing.trim().is_empty() => Some(existing.to_string()),
+            _ => derive_session_label(&canonical.messages),
+        };
+        conn.execute(
+            "INSERT INTO canonical_sessions (agent_id, messages, compaction_cursor, compacted_summary, updated_at, label)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(agent_id) DO UPDATE SET messages = ?2, compaction_cursor = ?3, compacted_summary = ?4, updated_at = ?5, label = ?6",
+            rusqlite::params![
+                canonical.agent_id.0.to_string(),
+                messages_blob,
+                canonical.compaction_cursor as i64,
+                canonical.compacted_summary,
+                canonical.updated_at,
+                label.as_deref(),
+            ],
+        )
+        .map_err(|e| FreecoError::Memory(e.to_string()))?;
+        Ok(())
+    }
+}
+
+/// A single JSONL line in the session mirror file.
+#[derive(serde::Serialize)]
+struct JsonlLine {
+    timestamp: String,
+    role: String,
+    content: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_use: Option<serde_json::Value>,
+}
+
+impl SessionStore {
+    /// Write a human-readable JSONL mirror of a session to disk.
+    ///
+    /// Best-effort: errors are returned but should be logged and never
+    /// affect the primary SQLite store.
+    pub fn write_jsonl_mirror(
+        &self,
+        session: &Session,
+        sessions_dir: &Path,
+    ) -> Result<(), std::io::Error> {
+        std::fs::create_dir_all(sessions_dir)?;
+        let path = sessions_dir.join(format!("{}.jsonl", session.id.0));
+        let mut file = std::fs::File::create(&path)?;
+        let now = Utc::now().to_rfc3339();
+
+        for msg in &session.messages {
+            let role_str = match msg.role {
+                Role::User => "user",
+                Role::Assistant => "assistant",
+                Role::System => "system",
+            };
+
+            let mut text_parts: Vec<String> = Vec::new();
+            let mut tool_parts: Vec<serde_json::Value> = Vec::new();
+
+            match &msg.content {
+                MessageContent::Text(t) => {
+                    text_parts.push(t.clone());
+                }
+                MessageContent::Blocks(blocks) => {
+                    for block in blocks {
+                        match block {
+                            ContentBlock::Text { text, .. } => {
+                                text_parts.push(text.clone());
+                            }
+                            ContentBlock::ToolUse {
+                                id, name, input, ..
+                            } => {
+                                tool_parts.push(serde_json::json!({
+                                    "type": "tool_use",
+                                    "id": id,
+                                    "name": name,
+                                    "input": input,
+                                }));
+                            }
+                            ContentBlock::ToolResult {
+                                tool_use_id,
+                                tool_name: _,
+                                content,
+                                is_error,
+                            } => {
+                                tool_parts.push(serde_json::json!({
+                                    "type": "tool_result",
+                                    "tool_use_id": tool_use_id,
+                                    "content": content,
+                                    "is_error": is_error,
+                                }));
+                            }
+                            ContentBlock::Image { media_type, .. } => {
+                                text_parts.push(format!("[image: {media_type}]"));
+                            }
+                            ContentBlock::Thinking { thinking, .. } => {
+                                text_parts.push(format!(
+                                    "[thinking: {}]",
+                                    freeco_types::truncate_str(thinking, 200)
+                                ));
+                            }
+                            ContentBlock::RedactedThinking { .. } => {
+                                text_parts.push("[redacted_thinking]".to_string());
+                            }
+                            ContentBlock::Unknown => {}
+                        }
+                    }
+                }
+            }
+
+            let line = JsonlLine {
+                timestamp: now.clone(),
+                role: role_str.to_string(),
+                content: serde_json::Value::String(text_parts.join("\n")),
+                tool_use: if tool_parts.is_empty() {
+                    None
+                } else {
+                    Some(serde_json::Value::Array(tool_parts))
+                },
+            };
+
+            serde_json::to_writer(&mut file, &line).map_err(std::io::Error::other)?;
+            file.write_all(b"\n")?;
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::migration::run_migrations;
+
+    fn setup() -> SessionStore {
+        let conn = Connection::open_in_memory().unwrap();
+        run_migrations(&conn).unwrap();
+        SessionStore::new(Arc::new(Mutex::new(conn)))
+    }
+
+    fn user_msg(text: &str) -> Message {
+        Message {
+            role: Role::User,
+            content: MessageContent::Text(text.to_string()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn labels_a_session_from_its_first_user_message() {
+        let label = derive_session_label(&[user_msg("fix the login redirect loop")]);
+        assert_eq!(label.as_deref(), Some("Fix the login redirect loop"));
+    }
+
+    /// Long prompts must be cut on a word boundary. A label ending mid-word
+    /// looks broken in a sidebar.
+    #[test]
+    fn long_messages_are_cut_on_a_word_boundary() {
+        let long = "please investigate why the deployment pipeline keeps \
+                    failing on the staging environment every single night";
+        let label = derive_session_label(&[user_msg(long)]).unwrap();
+        assert!(label.chars().count() <= MAX_LABEL_CHARS);
+        assert!(!label.ends_with('-'));
+        // Whatever the cut point, it must not land inside a word.
+        assert!(long.to_lowercase().contains(&label.to_lowercase()));
+    }
+
+    /// Pasted logs and multi-line prompts must not produce labels full of
+    /// newlines and runs of spaces.
+    #[test]
+    fn whitespace_is_collapsed() {
+        let label =
+            derive_session_label(&[user_msg("  build   the\n\nrelease  pipeline  ")]).unwrap();
+        assert_eq!(label, "Build the release pipeline");
+    }
+
+    /// Nothing meaningful to name it after means no label, rather than a
+    /// useless one like "hi".
+    #[test]
+    fn trivial_messages_get_no_label() {
+        assert!(derive_session_label(&[user_msg("hi")]).is_none());
+        assert!(derive_session_label(&[]).is_none());
+    }
+
+    /// Auto-naming is a starting point, not a policy: a name the user chose
+    /// must survive every subsequent save.
+    #[test]
+    fn user_set_label_is_never_overwritten() {
+        let store = setup();
+        let mut session = store.create_session(AgentId::new()).unwrap();
+        session.label = Some("My own name".to_string());
+        session
+            .messages
+            .push(user_msg("something else entirely here"));
+        store.save_session(&session).unwrap();
+
+        let loaded = store.get_session(session.id).unwrap().unwrap();
+        assert_eq!(loaded.label.as_deref(), Some("My own name"));
+    }
+
+    /// The whole point: saving a session with content names it, with no
+    /// caller having to ask.
+    #[test]
+    fn saving_a_session_names_it_automatically() {
+        let store = setup();
+        let mut session = store.create_session(AgentId::new()).unwrap();
+        assert!(session.label.is_none());
+        session
+            .messages
+            .push(user_msg("set up the nightly backup job"));
+        store.save_session(&session).unwrap();
+
+        let loaded = store.get_session(session.id).unwrap().unwrap();
+        assert_eq!(
+            loaded.label.as_deref(),
+            Some("Set up the nightly backup job")
+        );
+    }
+
+    #[test]
+    fn test_create_and_load_session() {
+        let store = setup();
+        let agent_id = AgentId::new();
+        let session = store.create_session(agent_id).unwrap();
+
+        let loaded = store.get_session(session.id).unwrap().unwrap();
+        assert_eq!(loaded.agent_id, agent_id);
+        assert!(loaded.messages.is_empty());
+    }
+
+    #[test]
+    fn test_save_and_load_with_messages() {
+        let store = setup();
+        let agent_id = AgentId::new();
+        let mut session = store.create_session(agent_id).unwrap();
+        session.messages.push(Message::user("Hello"));
+        session.messages.push(Message::assistant("Hi there!"));
+        store.save_session(&session).unwrap();
+
+        let loaded = store.get_session(session.id).unwrap().unwrap();
+        assert_eq!(loaded.messages.len(), 2);
+    }
+
+    #[test]
+    fn test_get_missing_session() {
+        let store = setup();
+        let result = store.get_session(SessionId::new()).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_delete_session() {
+        let store = setup();
+        let agent_id = AgentId::new();
+        let session = store.create_session(agent_id).unwrap();
+        let sid = session.id;
+        assert!(store.get_session(sid).unwrap().is_some());
+        store.delete_session(sid).unwrap();
+        assert!(store.get_session(sid).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_agent_sessions() {
+        let store = setup();
+        let agent_id = AgentId::new();
+        let s1 = store.create_session(agent_id).unwrap();
+        let s2 = store.create_session(agent_id).unwrap();
+        assert!(store.get_session(s1.id).unwrap().is_some());
+        assert!(store.get_session(s2.id).unwrap().is_some());
+        store.delete_agent_sessions(agent_id).unwrap();
+        assert!(store.get_session(s1.id).unwrap().is_none());
+        assert!(store.get_session(s2.id).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_canonical_load_creates_empty() {
+        let store = setup();
+        let agent_id = AgentId::new();
+        let canonical = store.load_canonical(agent_id).unwrap();
+        assert_eq!(canonical.agent_id, agent_id);
+        assert!(canonical.messages.is_empty());
+        assert!(canonical.compacted_summary.is_none());
+        assert_eq!(canonical.compaction_cursor, 0);
+    }
+
+    #[test]
+    fn test_canonical_append_and_load() {
+        let store = setup();
+        let agent_id = AgentId::new();
+
+        // Append from "Telegram"
+        let msgs1 = vec![
+            Message::user("Hello from Telegram"),
+            Message::assistant("Hi! I'm your agent."),
+        ];
+        store.append_canonical(agent_id, &msgs1, None).unwrap();
+
+        // Append from "Discord"
+        let msgs2 = vec![
+            Message::user("Now I'm on Discord"),
+            Message::assistant("I remember you from Telegram!"),
+        ];
+        let canonical = store.append_canonical(agent_id, &msgs2, None).unwrap();
+
+        // Should have all 4 messages
+        assert_eq!(canonical.messages.len(), 4);
+    }
+
+    #[test]
+    fn test_canonical_context_window() {
+        let store = setup();
+        let agent_id = AgentId::new();
+
+        // Add 10 messages
+        let msgs: Vec<Message> = (0..10)
+            .map(|i| Message::user(format!("Message {i}")))
+            .collect();
+        store.append_canonical(agent_id, &msgs, None).unwrap();
+
+        // Request window of 3
+        let (summary, recent) = store.canonical_context(agent_id, Some(3)).unwrap();
+        assert_eq!(recent.len(), 3);
+        assert!(summary.is_none()); // No compaction yet
+    }
+
+    #[test]
+    fn test_canonical_compaction() {
+        let store = setup();
+        let agent_id = AgentId::new();
+
+        // Add 120 messages (over the default 100 threshold)
+        let msgs: Vec<Message> = (0..120)
+            .map(|i| Message::user(format!("Message number {i} with some content")))
+            .collect();
+        let canonical = store.append_canonical(agent_id, &msgs, Some(100)).unwrap();
+
+        // Every message is kept. This test used to assert the opposite -- that
+        // compaction had thrown 60+ of them away -- which is precisely the
+        // data loss users reported as "my older chats disappear". Compaction
+        // builds a summary for the prompt; it does not delete the record.
+        assert_eq!(canonical.messages.len(), 120);
+        assert!(canonical.compacted_summary.is_some());
+
+        // The model still receives only a bounded window, so keeping the full
+        // history costs nothing in context.
+        let (summary, recent) = store.canonical_context(agent_id, Some(50)).unwrap();
+        assert_eq!(recent.len(), 50);
+        assert!(summary.is_some());
+
+        // And the oldest message is still retrievable in full, not as a
+        // 200-character fragment of a summary.
+        let text = canonical.messages[0].content.text_content();
+        assert!(
+            text.contains("Message number 0"),
+            "oldest message must survive"
+        );
+    }
+
+    #[test]
+    fn test_canonical_cross_channel_roundtrip() {
+        let store = setup();
+        let agent_id = AgentId::new();
+
+        // Channel 1: user tells agent their name
+        store
+            .append_canonical(
+                agent_id,
+                &[
+                    Message::user("My name is Jaber"),
+                    Message::assistant("Nice to meet you, Jaber!"),
+                ],
+                None,
+            )
+            .unwrap();
+
+        // Channel 2: different channel queries same agent
+        let (summary, recent) = store.canonical_context(agent_id, None).unwrap();
+        // The agent should have context about "Jaber" from the previous channel
+        let all_text: String = recent.iter().map(|m| m.content.text_content()).collect();
+        assert!(all_text.contains("Jaber"));
+        assert!(summary.is_none()); // Only 2 messages, no compaction
+    }
+
+    #[test]
+    fn test_jsonl_mirror_write() {
+        let store = setup();
+        let agent_id = AgentId::new();
+        let mut session = store.create_session(agent_id).unwrap();
+        session
+            .messages
+            .push(freeco_types::message::Message::user("Hello"));
+        session
+            .messages
+            .push(freeco_types::message::Message::assistant("Hi there!"));
+        store.save_session(&session).unwrap();
+
+        let dir = tempfile::TempDir::new().unwrap();
+        let sessions_dir = dir.path().join("sessions");
+        store.write_jsonl_mirror(&session, &sessions_dir).unwrap();
+
+        let jsonl_path = sessions_dir.join(format!("{}.jsonl", session.id.0));
+        assert!(jsonl_path.exists());
+
+        let content = std::fs::read_to_string(&jsonl_path).unwrap();
+        let lines: Vec<&str> = content.trim().split('\n').collect();
+        assert_eq!(lines.len(), 2);
+
+        // Verify first line is user message
+        let line1: serde_json::Value = serde_json::from_str(lines[0]).unwrap();
+        assert_eq!(line1["role"], "user");
+        assert_eq!(line1["content"], "Hello");
+
+        // Verify second line is assistant message
+        let line2: serde_json::Value = serde_json::from_str(lines[1]).unwrap();
+        assert_eq!(line2["role"], "assistant");
+        assert_eq!(line2["content"], "Hi there!");
+        assert!(line2.get("tool_use").is_none());
+    }
+}
