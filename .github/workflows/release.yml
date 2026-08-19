@@ -357,7 +357,7 @@ jobs:
           provenance: mode=max
           sbom: true
       - name: Scan published image for critical vulnerabilities
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ghcr.io/freecodao/freeco-ai:${{ steps.version.outputs.version }}
           format: table
